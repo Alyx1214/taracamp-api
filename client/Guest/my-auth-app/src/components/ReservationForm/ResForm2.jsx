@@ -39,7 +39,10 @@ function ReservationFormStep2() {
   const handleNext = () => {
     const combinedFormData = { ...formDataFromStep1, ...formData };
     console.log("Combined Form Data:", combinedFormData);
-    // TODO: Implement logic to proceed to the next step or submit the form
+    // Navigate to step 3 with combined form data
+    navigate('/reservation-step3', { 
+      state: { formData: combinedFormData } 
+    });
   };
 
 const getFacilityOptions = () => {
