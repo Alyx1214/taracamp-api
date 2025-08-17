@@ -104,15 +104,14 @@ function Services() {
         <div className={styles.contentWrapper}>
           <MainServicesNavSearch onSearch={handleSearch} onClearSearch={handleClearSearch} onApplyFilters={handleApplyFilters} />
 
-          <Routes>
-            <Route path="/" element={<Navigate to="dormitories" replace />} />
-            <Route path="dormitories" element={<MainServicesDormitories facilities={facilities} loading={loading} searchAttempted={searchAttempted}/>} />
-            <Route path="cottages" element={<MainServicesCottages facilities={facilities} loading={loading} searchAttempted={searchAttempted}/>} />
-            <Route path="conference" element={<MainServicesConference facilities={facilities} loading={loading} searchAttempted={searchAttempted}/>} />
-            <Route path="otherservice" element={<MainServicesOtherService facilities={facilities} loading={loading} searchAttempted={searchAttempted}/>} />
-
-            <Route path=":type/:id" element={<MainServicesServiceDetail />} />
-          </Routes>
+         <Routes>
+          <Route index element={<Navigate to="dormitories" replace />} />
+          <Route path="dormitories" element={<MainServicesDormitories facilities={facilities} loading={loading} searchAttempted={searchAttempted} />} />
+          <Route path="cottages" element={<MainServicesCottages facilities={facilities} loading={loading} searchAttempted={searchAttempted} />} />
+          <Route path="conference" element={<MainServicesConference facilities={facilities} loading={loading} searchAttempted={searchAttempted} />} />
+          <Route path="otherservice" element={<MainServicesOtherService facilities={facilities} loading={loading} searchAttempted={searchAttempted} />} />
+          <Route path=":type/:id" element={<MainServicesServiceDetail />} />
+        </Routes>
 
           {!isDetailViewOrOtherService && <MainServicesRates />}
         </div>

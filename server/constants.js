@@ -50,5 +50,10 @@ export const FacilityStatus = {
 }
 
 export const ServiceType = {
-    EVENT: "EVENT"
+    MEETING: "MEETING",
+    WEDDING: "WEDDING",
+    BIRTHDAY: "BIRTHDAY",
+    TRAINING: "TRAINING",
+    ACCOMMODATION: "ACCOMMODATION",
+    OTHERS: "OTHERS"
 }

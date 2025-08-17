@@ -28,7 +28,7 @@ function MainServicesDormitories({ facilities, loading, searchAttempted }) {
 
   useEffect(() => {
       let ignore = false;
-      if (!facilities || facilities.length === 0) {
+      if (!searchAttempted && (!facilities || facilities.length === 0)) {
         setFetchingDefault(true);
         fetch('/api/facility/get-facilities-by-type/DORMITORY')
           .then(res => res.json())
@@ -50,15 +50,12 @@ function MainServicesDormitories({ facilities, loading, searchAttempted }) {
         setFetchingDefault(false);
       }
       return () => { ignore = true; };
-    }, [facilities]);
+    }, [facilities, searchAttempted]);
 
   const isLoading = loading || fetchingDefault;
   const displayDorms = (facilities && facilities.length > 0) ? facilities : defaultDorms;
 
-  const showNoResult =
-  !isLoading &&
-  searchAttempted &&           
-  facilities && facilities.length === 0;
+  const showNoResult = !isLoading && (displayDorms?.length ?? 0) === 0;
 
   return (
     <section className={styles.dormitoriesSection}>
@@ -81,7 +78,7 @@ function MainServicesDormitories({ facilities, loading, searchAttempted }) {
             <h3 className={styles.dormitoryName}>{dorm.name}</h3>
             <p className={styles.dormitoryInfo}>Capacity: {dorm.capacity} pax</p>
             <p className={styles.dormitoryRate}>Rates per Person : ₱ {Number(dorm.ratePerPerson || 0).toLocaleString()}</p>
-            <Link to={`/services/dormitories/${dorm.id}`} className={styles.checkButton}>Check</Link>
+            <Link to={`${dorm.id}`} className={styles.checkButton}>Check</Link>
           </div>
         ))}
       </div>

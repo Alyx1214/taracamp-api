@@ -1,5 +1,5 @@
 import React, { useState, useEffect} from 'react';
-import { useNavigate, Routes, Route, Navigate, useLocation } from 'react-router-dom'; 
+import { useNavigate, Routes, Route, Navigate, useLocation, Outlet } from 'react-router-dom'; 
 import Navbar from '../Header/Header';
 import Footer from '../Footer/Footer';
 import styles from './MainServices.module.css';
@@ -128,12 +128,11 @@ function MainServices() {
           <MainServicesNavSearch onSearch={handleSearch} onClearSearch={handleClearSearch} onApplyFilters={handleApplyFilters} />
 
           <Routes>
-            <Route path="/" element={<Navigate to="dormitories" replace />} />
-            <Route path="dormitories" element={<MainServicesDormitories facilities={facilities} loading={loading} searchAttempted={searchAttempted}/>} />
-            <Route path="cottages" element={<MainServicesCottages facilities={facilities} loading={loading} searchAttempted={searchAttempted}/>} />
-            <Route path="conference" element={<MainServicesConference facilities={facilities} loading={loading} searchAttempted={searchAttempted}/>} />
-            <Route path="otherservice" element={<MainServicesOtherService facilities={facilities} loading={loading} searchAttempted={searchAttempted}/>} />
-
+            <Route index element={<Navigate to="dormitories" replace />} />
+            <Route path="dormitories" element={<MainServicesDormitories facilities={facilities} loading={loading} searchAttempted={searchAttempted} />} />
+            <Route path="cottages" element={<MainServicesCottages facilities={facilities} loading={loading} searchAttempted={searchAttempted} />} />
+            <Route path="conference" element={<MainServicesConference facilities={facilities} loading={loading} searchAttempted={searchAttempted} />} />
+            <Route path="otherservice" element={<MainServicesOtherService facilities={facilities} loading={loading} searchAttempted={searchAttempted} />} />
             <Route path=":type/:id" element={<MainServicesServiceDetail />} />
           </Routes>
 

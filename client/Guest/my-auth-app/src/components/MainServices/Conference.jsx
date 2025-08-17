@@ -26,7 +26,7 @@ function MainServicesConference({ facilities, loading, searchAttempted }) {
 
   useEffect(() => {
     let ignore = false;
-    if (!facilities || facilities.length === 0) {
+     if (!searchAttempted && (!facilities || facilities.length === 0)) {
       setFetchingDefault(true);
       fetch('/api/facility/get-facilities-by-type/CONFERENCE')
         .then(res => res.json())
@@ -47,16 +47,12 @@ function MainServicesConference({ facilities, loading, searchAttempted }) {
       setFetchingDefault(false);
     }
     return () => { ignore = true; };
-  }, [facilities]);
+  }, [facilities, searchAttempted]);
 
   const isLoading = loading || fetchingDefault;
   const displayConferences = (facilities && facilities.length > 0) ? facilities : defaultConferences;
 
-  const showNoResult =
-    !isLoading &&
-    searchAttempted &&
-    facilities &&
-    facilities.length === 0;
+    const showNoResult = !isLoading && (displayConferences?.length ?? 0) === 0;
 
   return (
     <section className={styles.conferenceSection}>
@@ -80,7 +76,7 @@ function MainServicesConference({ facilities, loading, searchAttempted }) {
               <h3 className={styles.conferenceName}>{hall.name}</h3>
               <p className={styles.conferenceCapacity}>Capacity: {hall.capacity}</p>
               <p className={styles.conferencePrice}>Price : ₱ {Number(hall.price).toLocaleString()}</p>
-              <Link to={`/services/conference/${hall.id}`} className={styles.checkButton}>Check</Link>
+              <Link to={`${hall.id}`} relative="path" className={styles.checkButton}>Check</Link>
             </div>
           </div>
         ))}

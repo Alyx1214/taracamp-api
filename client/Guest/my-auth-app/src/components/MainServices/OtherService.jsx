@@ -22,13 +22,13 @@ import styles from './OtherService.module.css';
 //   { item: 'Certification Fee', price: 'P 200.00/certificate' },
 // ];
 
-function MainServicesOtherService({ facilities, loading, searchAttempted }) {
+function MainServicesOtherService({ specialServices, loading, searchAttempted }) {
   const [defaultServices, setDefaultServices] = useState([]);
   const [fetchingDefault, setFetchingDefault] = useState(false);
 
   useEffect(() => {
     let ignore = false;
-    if (!facilities || facilities.length === 0) {
+    if (!searchAttempted && (!specialServices || specialServices.length === 0)) {
       setFetchingDefault(true);
       fetch('/api/special-service/get-all-special-services')
         .then(res => res.json())
@@ -49,15 +49,11 @@ function MainServicesOtherService({ facilities, loading, searchAttempted }) {
       setFetchingDefault(false);
     }
     return () => { ignore = true; };
-  }, [facilities]);
+  }, [specialServices, searchAttempted]);
 
   const isLoading = loading || fetchingDefault;
-  const displayServices = (facilities && facilities.length > 0) ? facilities : defaultServices;
-  const showNoResult =
-    !isLoading &&
-    searchAttempted &&
-    facilities &&
-    facilities.length === 0;
+  const displayServices = (specialServices && specialServices.length > 0) ? specialServices : defaultServices;
+  const showNoResult = !isLoading && (displayServices?.length ?? 0) === 0;
 
   return (
     <section className={styles.otherServiceSection}>

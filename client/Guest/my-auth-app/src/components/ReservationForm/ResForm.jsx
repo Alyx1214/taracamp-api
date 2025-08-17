@@ -1,11 +1,17 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import HeaderHome from '../HeaderHome/HeaderHome'; // Assuming HeaderHome component is available
+import { useNavigate, useParams } from 'react-router-dom';
+import HeaderHome from '../HeaderHome/HeaderHome'; 
 import styles from './ResForm.module.css';
 import { ArrowLeft } from 'lucide-react';
 
 function ReservationForm() {
   const navigate = useNavigate();
+  const { type, id } = useParams(); 
+
+  if (!type || !id) {
+    navigate('/services', { replace: true });
+    return null;
+  }
 
   const [formData, setFormData] = useState({
     groupAssociation: '',
@@ -64,8 +70,8 @@ function ReservationForm() {
   };
 
   const handleNext = () => {
-    // Navigate to the next page and pass the current form data
-    navigate('/reservation-step2', { state: { formData } });
+    const combinedFormData = { ...formData };
+    navigate(`/reservation-step2/${type}/${id}`, { state: { formData: combinedFormData } });
   };
 
   return (

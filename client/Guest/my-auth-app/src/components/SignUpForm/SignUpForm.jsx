@@ -48,7 +48,11 @@ function SignUpForm({ onRegistrationSuccess }) {
 
         if (response.ok) {
           console.log('Google login successful:', data);
-          handleRegistrationSuccess(); 
+          localStorage.setItem('accessToken', data.accessToken);
+          localStorage.setItem('refreshToken', data.refreshToken);
+          localStorage.setItem('userId', data.userId);
+          localStorage.setItem('userRole', data.role);
+          navigate('/homepage');
         } else {
           console.error('Google login failed:', data.error);
           setError(data.error || 'Google login failed. Please try again.');
@@ -80,7 +84,11 @@ function SignUpForm({ onRegistrationSuccess }) {
         });
         const data = await apiRes.json();
         if (apiRes.ok) {
-          handleRegistrationSuccess(); 
+          localStorage.setItem('accessToken', data.accessToken);
+          localStorage.setItem('refreshToken', data.refreshToken);
+          localStorage.setItem('userId', data.userId);
+          localStorage.setItem('userRole', data.role);
+          navigate('/homepage');
         } else {
           setFacebookError(data.error || 'Facebook login failed. Please try again.');
         }

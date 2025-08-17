@@ -154,7 +154,7 @@ function HeaderHome() {
             <Link to="/history" className={styles.navLink} onClick={() => handleNavLinkClick('/history', 'history-top')}>HISTORY</Link>
           </li>
           <li className={styles.navItem}>
-            <Link to="/user/services" className={styles.navLink} onClick={() => handleNavLinkClick('/services', 'services-top')}>SERVICES</Link>
+            <Link to="/user/services" className={styles.navLink} onClick={() => handleNavLinkClick('/user/services', 'services-top')}>SERVICES</Link>
           </li>
           <li className={styles.navItem}>
             <Link to="/faqs" className={styles.navLink} onClick={() => handleNavLinkClick('/faqs', 'faqs-top')}>FAQS</Link>
