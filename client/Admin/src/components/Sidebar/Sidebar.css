@@ -1,12 +1,12 @@
 .sidebar {
   position: fixed;
   top: 0;
-  left: -260px; /* Hidden by default */
+  left: -260px; 
   width: 260px;
   height: 100%;
   background-color: hwb(130.9 9.4% 77.7%);
   color: white;
-  padding: 1rem 0; /* Removed left/right padding to allow full-width hover */
+  padding: 1rem 0; 
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -15,7 +15,7 @@
 }
 
 .sidebar.open {
-  left: 0; /* Slide in */
+  left: 0; 
 }
 
 .close-btn {
@@ -38,16 +38,16 @@
   color: white;
   font-size: 2rem;
   position: relative;
-  top: -50px; /* moves nav-item 4px up */
-  padding: 1rem; /* vertical 0.8rem, horizontal 1rem */
+  top: -50px; 
+  padding: 1rem; 
   width: 100%;
-  box-sizing: border-box; /* include padding in width */
+  box-sizing: border-box; 
   transition: background 0.2s, color 0.2s;
 }
 
 .nav-item span {
-  font-size: 25px; /* slightly bigger */
-  font-weight: 500;  /* semi-bold */
+  font-size: 25px; 
+  font-weight: 500;  
 }
 
 .logout-btn span {
@@ -58,7 +58,7 @@
 .nav-item:hover {
   background-color: white;
   color: hwb(130.9 9.4% 77.7%);
-  border-radius: 0; /* square corners on hover */
+  border-radius: 0; 
 }
 
 .nav-item:hover span {
@@ -79,7 +79,7 @@
   color: white;
   font-size: 1rem;
   cursor: pointer;
-  padding: 0.6rem 1rem; /* add horizontal padding to match nav-items */
+  padding: 0.6rem 1rem; 
   width: 100%;
   text-align: left;
   box-sizing: border-box;
@@ -89,16 +89,13 @@
 .logout-btn:hover {
   background-color: white;
   color: hwb(130.9 9.4% 77.7%);
-  border-radius: 0; /* square corners on hover */
+  border-radius: 0; 
 }
 
 .logout-btn:hover span {
   color: hwb(130.9 9.4% 77.7%);
 }
 
-/* Removed overlay styles entirely */
-
-/* Mobile adjustments */
 @media (max-width: 768px) {
   .sidebar {
     width: 220px;

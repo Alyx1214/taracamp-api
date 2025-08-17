@@ -1,35 +1,44 @@
-// Layout.jsx
 import React, { useState } from "react";
 import { Outlet } from "react-router-dom";
 import Header from "../Header/Header";
 import Sidebar from "../Sidebar/Sidebar";
-import "./Layout.css";
+import styles from "./Layout.module.css"; 
 
 const Layout = () => {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
-  // Toggle sidebar open/close
   const toggleSidebar = () => setIsSidebarOpen((prev) => !prev);
-  // Force close
   const closeSidebar = () => setIsSidebarOpen(false);
 
   return (
-    <div className="layout">
-      {/* Header with clickable hamburger */}
+    <div className={styles.layout}>
       <Header onHamburgerClick={toggleSidebar} />
 
-      {/* Sidebar */}
-      <Sidebar isOpen={isSidebarOpen} onClose={closeSidebar} />
+      <div
+        className={`${styles.appShell} ${
+          isSidebarOpen ? styles.appShellOpen : styles.appShellClosed
+        }`}
+      >
+        <aside
+          className={`${styles.shellSidebar} ${
+            isSidebarOpen ? styles.shellSidebarOpen : ""
+          }`}
+        >
+          <Sidebar isOpen={isSidebarOpen} onClose={closeSidebar} />
+        </aside>
 
-      {/* Overlay that closes sidebar on click */}
-      {isSidebarOpen && (
-        <div className="overlay" onClick={closeSidebar}></div>
-      )}
+        <main className={styles.shellMain}>
+          <Outlet />
+        </main>
+      </div>
 
-      {/* Main Content */}
-      <main className={`main-content ${isSidebarOpen ? "shifted" : ""}`}>
-        <Outlet />
-      </main>
+      <div
+        className={`${styles.shellOverlay} ${
+          isSidebarOpen ? styles.shellOverlayShow : ""
+        }`}
+        onClick={closeSidebar}
+        aria-hidden={!isSidebarOpen}
+      />
     </div>
   );
 };

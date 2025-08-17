@@ -1,0 +1,83 @@
+.header {
+  position: sticky;
+  top: 0;
+  left: 0;
+  width: 100%;
+  background-color: hwb(130.9 9.4% 77.7%);
+  color: white;
+  padding: 0.8rem 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 2500;
+  box-shadow: 0 20px 30px #000000a6;
+}
+
+.header-logo {
+  height: 50px;
+  width: auto;
+  object-fit: contain;
+  margin-left: 40px;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.hamburger {
+  font-size: 40px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  transition: transform 0.2s ease-in-out;
+  margin-left: 20px;
+}
+
+.hamburger:hover {
+  transform: scale(1.1);
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.logo img {
+  height: 35px;
+  width: auto;
+}
+
+.logo-text {
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.header-action {
+  cursor: pointer;
+  font-size: 40px;
+  padding: 0.4rem;
+  border-radius: 5px;
+  transition: background 0.2s;
+}
+
+.header-action:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.header-icon {
+  font-size: 40px; 
+}
+
+.header-title {
+  font-size: 1.2rem;
+  font-weight: 600;
+}

@@ -1,0 +1,59 @@
+.shared-tabs-container {
+  background-color: #183c2d; 
+  height: 60px; 
+  padding: 0 1rem; 
+  border-radius: 20px;
+  width: fit-content;
+  max-width: 700px;
+  font-family: "Poppins", sans-serif;
+  font-size: 14px;
+  display: flex; 
+  align-items: center;
+}
+
+.shared-tabs {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+}
+
+.shared-tab {
+  flex: 1; 
+  text-align: center;
+  padding: 0.5rem 18px; 
+  height: 2.5rem;
+  border: none;
+  border-radius: 1rem;
+  background-color: transparent;
+  color: #ffffff;
+  font-weight: 500;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.active {
+  background-color: #ffffff;
+  color: #183c2d;
+  padding: 0 2rem; 
+}
+
+.shared-tab:hover:not(.active) {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.shared-filter-btn {
+  margin-left: auto;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: transparent;
+  color: #ffffff;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+  font-size: 16px;
+}

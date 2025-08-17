@@ -1,0 +1,155 @@
+.univtable-container {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.univtable {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: Arial, sans-serif;
+  background-color: white;
+  border-radius: 12px; 
+  overflow: hidden; 
+  border: 1px solid #ccc; 
+}
+
+.univtable thead tr {
+  background-color: #3f7f4c;
+  color: white;
+  font-weight: bold;
+}
+
+.univtable th,
+.univtable td {
+  padding: 12px 15px;
+  text-align: left;
+  border-bottom: 1px solid #ddd;
+}
+
+.univtable tbody tr:nth-child(odd) {
+  background-color: #ffffff; 
+}
+.univtable tbody tr:nth-child(even) {
+  background-color: #f5f5f5; 
+}
+.univtable tbody tr:hover {
+  background-color: #e9f5ec; 
+}
+
+.univ-no-data {
+  text-align: center;
+  padding: 20px;
+  font-style: italic;
+  color: #888;
+}
+
+.univ-actions-cell {
+  position: relative;
+  white-space: nowrap;
+}
+
+.univ-actions-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.univ-approve-btn {
+  background-color: #1E3C24;
+  color: #fff;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.univ-approve-btn:hover {
+  background-color: #218838;
+}
+
+.univ-decline-btn {
+  background-color: #4F3718;
+  color: #fff;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.univ-decline-btn:hover {
+  background-color: #c42838dc;
+}
+
+.univ-three-dots-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #6e6b6a;
+  font-size: 18px;
+  padding: 6px;
+  border-radius: 50%;
+  transition: background-color 0.2s ease;
+}
+.univ-three-dots-btn:hover {
+  background-color: #f1f1f1;
+}
+
+.univ-dropdown-menu {
+  position: absolute;
+  top: 0%;
+  right: 60px;
+  margin-top: 2px;
+  background-color: white;
+  border: 1px solid #ddd;
+  border-radius: 20px;
+  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.15);
+  min-width: 100px;
+  z-index: 100;
+  overflow: hidden;
+  animation: fadeIn 0.15s ease-in-out;
+}
+
+.univ-dropdown-item {
+  padding: 10px 14px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #333;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+}
+
+.univ-dropdown-item:hover {
+  background-color: #f4f4f4;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.univ-delete-btn {
+  background-color: #4F3718; 
+  color: #fff;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.univ-delete-btn:hover {
+  background-color: #c42838dc;
+}

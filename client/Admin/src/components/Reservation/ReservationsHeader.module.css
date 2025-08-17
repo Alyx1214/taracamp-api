@@ -1,0 +1,29 @@
+.reservations-header__container {
+  display: flex;
+  align-items: center;
+  gap: 30px;
+  margin-bottom: 0;
+}
+
+.reservations-header__title {
+  margin: 0;
+  font-weight: 700;
+  font-size: 50px;
+  color: #4d2e17;
+}
+
+.reservations-header__add-btn {
+  background-color: #1e3c2f;
+  color: #fff;
+  padding: 15px 14px;
+  border: none;
+  border-radius: 20px;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+.reservations-header__add-btn:hover {
+  background-color: #538e5e;
+  color: #f5f5f5;
+}

@@ -1,39 +1,31 @@
-/* client/Admin/src/index.css */
-
-/* CSS Reset (Minimal) */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
-/* Body Defaults */
 body {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background-color: #f4f4f4;
+  background-color: #ffffff;
   color: #333;
   line-height: 1.5;
 }
 
-/* Default Link Styles */
 a {
   text-decoration: none;
   color: inherit;
 }
 
-/* Make images responsive */
 img {
   max-width: 100%;
   display: block;
 }
 
-/* Buttons */
 button {
   font-family: inherit;
 }
 
-/* Inputs */
-input, select, textarea {
+ input, select, textarea {
   font-family: inherit;
   font-size: 1rem;
 }
