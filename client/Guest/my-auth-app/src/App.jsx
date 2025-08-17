@@ -20,6 +20,7 @@ import Transactions from './components/Transactions/Transactions';
 import ResHistory from './components/ResHistory/ResHistory';
 import ReservationForm from './components/ReservationForm/ResForm';
 import ReservationFormStep2 from './components/ReservationForm/ResForm2';
+import ReservationFormStep3 from './components/ReservationForm/ResForm3';
 import RequireAuth from './components/Utilities/RequireAuth';
 
 function AuthLayout() {
@@ -92,6 +93,7 @@ function App() {
       <Route path="/reservations" element={<ResHistory />} />
       <Route path="/reservation-form" element={<ReservationForm />} />
       <Route path="/reservation-step2" element={<ReservationFormStep2 />} />
+      <Route path="/reservation-step3" element={<ReservationFormStep3 />} />
      {/* </Route> */}
     </Routes>
   );
