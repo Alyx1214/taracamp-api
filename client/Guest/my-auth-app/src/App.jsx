@@ -91,7 +91,9 @@ function App() {
       <Route path="/transactions" element={<Transactions />} />
       <Route path="/reservations" element={<ResHistory />} />
       <Route path="/reservation-form" element={<ReservationForm />} />
+      <Route path="/reservation-form/:type/:id" element={<ReservationForm />} />
       <Route path="/reservation-step2" element={<ReservationFormStep2 />} />
+      <Route path="/reservation-step2/:type/:id" element={<ReservationFormStep2 />} />
      {/* </Route> */}
     </Routes>
   );

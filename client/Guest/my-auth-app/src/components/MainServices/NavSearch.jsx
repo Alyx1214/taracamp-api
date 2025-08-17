@@ -1,11 +1,11 @@
 import React, { useState, useEffect} from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import styles from './NavSearch.module.css';
 
 function MainServicesNavSearch({ onSearch, onClearSearch, onApplyFilters }) {
   const [searchValue, setSearchValue] = useState('');
   const location = useLocation();
-  const basePath = '/services';
+  const base = location.pathname.startsWith('/user/services') ? '/user/services' : '/services';
 
   const handleSearch = () => {
     onSearch(searchValue);
@@ -67,30 +67,18 @@ function MainServicesNavSearch({ onSearch, onClearSearch, onApplyFilters }) {
   return (
     <div className={styles.navAndSearchContainer}>
       <div className={styles.navTabs}>
-        <Link
-          to={`${basePath}/dormitories`}
-          className={`${styles.navTab} ${location.pathname === `${basePath}/dormitories` ? styles.activeTab : ''}`}
-        >
+        <NavLink to={`${base}/dormitories`} className={({ isActive }) => `${styles.navTab} ${isActive ? styles.activeTab : ''}`} end>
           Dormitory
-        </Link>
-        <Link
-          to={`${basePath}/cottages`}
-          className={`${styles.navTab} ${location.pathname === `${basePath}/cottages` ? styles.activeTab : ''}`}
-        >
+        </NavLink>
+        <NavLink to={`${base}/cottages`} className={({ isActive }) => `${styles.navTab} ${isActive ? styles.activeTab : ''}`} end>
           Cottages
-        </Link>
-        <Link
-          to={`${basePath}/conference`}
-          className={`${styles.navTab} ${location.pathname === `${basePath}/conference` ? styles.activeTab : ''}`}
-        >
+        </NavLink>
+        <NavLink to={`${base}/conference`} className={({ isActive }) => `${styles.navTab} ${isActive ? styles.activeTab : ''}`} end>
           Conference
-        </Link>
-        <Link
-          to={`${basePath}/otherservice`}
-          className={`${styles.navTab} ${location.pathname === `${basePath}/otherservice` ? styles.activeTab : ''}`}
-        >
+        </NavLink>
+        <NavLink to={`${base}/otherservice`} className={({ isActive }) => `${styles.navTab} ${isActive ? styles.activeTab : ''}`} end>
           Other Service
-        </Link>
+        </NavLink>
       </div>
 
       <div className={styles.searchFilter}>

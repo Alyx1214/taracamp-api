@@ -17,7 +17,7 @@ function MainServicesCottages({ facilities, loading, searchAttempted }) {
 
   useEffect(() => {
     let ignore = false;
-    if (!facilities || facilities.length === 0) {
+     if (!searchAttempted && (!facilities || facilities.length === 0)) {
       setFetchingDefault(true);
       fetch('/api/facility/get-facilities-by-type/COTTAGE')
         .then(res => res.json())
@@ -38,16 +38,12 @@ function MainServicesCottages({ facilities, loading, searchAttempted }) {
       setFetchingDefault(false);
     }
     return () => { ignore = true; };
-  }, [facilities]);
+  }, [facilities, searchAttempted]);
 
   const isLoading = loading || fetchingDefault;
   const displayCottages = (facilities && facilities.length > 0) ? facilities : defaultCottages;
 
-  const showNoResult =
-    !isLoading &&
-    searchAttempted &&
-    facilities &&
-    facilities.length === 0;
+  const showNoResult = !isLoading && (displayCottages?.length ?? 0) === 0;
 
   return (
     <section className={styles.cottagesSection}>
@@ -69,7 +65,7 @@ function MainServicesCottages({ facilities, loading, searchAttempted }) {
             <div className={styles.cardContent}>
               <h3 className={styles.cottageName}>{cottage.name}</h3> {/* */}
               <p className={styles.cottageRate}>Rates per Person : ₱ {Number(cottage.ratePerPerson).toLocaleString()}</p> {/* */}
-              <Link to={`/services/cottages/${cottage.id}`} className={styles.checkButton}>Check</Link>
+              <Link to={`${cottage.id}`} className={styles.checkButton}>Check</Link>
             </div>
           </div>
         ))}

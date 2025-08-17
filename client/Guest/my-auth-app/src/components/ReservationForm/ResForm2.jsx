@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import HeaderHome from '../HeaderHome/HeaderHome'; 
 import styles from './ResForm2.module.css';
 import { ArrowLeft } from 'lucide-react';
@@ -7,7 +7,13 @@ import { ArrowLeft } from 'lucide-react';
 function ReservationFormStep2() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { type, id } = useParams()
   const formDataFromStep1 = location.state?.formData || {};
+
+  if (!type || !id) {
+    navigate('/services', { replace: true });
+    return null;
+  }
 
   const [formData, setFormData] = useState({
     dateArrival: '',
@@ -29,17 +35,18 @@ function ReservationFormStep2() {
   };
 
   const handleGoBack = () => {
-    navigate(-1);
+    navigate(`/reservation-form/${type}/${id}`, { state: { formData: location.state?.formData } });
   };
   
   const handlePrevious = () => {
-    navigate(-1);
+    navigate(`/reservation-form/${type}/${id}`, { state: { formData: location.state?.formData } });
   };
 
   const handleNext = () => {
     const combinedFormData = { ...formDataFromStep1, ...formData };
     console.log("Combined Form Data:", combinedFormData);
     // TODO: Implement logic to proceed to the next step or submit the form
+    navigate(`/reservation-step2/${type}/${id}`, { state: { formData: combinedFormData } });
   };
 
 const getFacilityOptions = () => {
@@ -260,7 +267,7 @@ return (
                                         </option>
                                     ))}
                                 </select>
-                                <button className={styles.addRequestButton}>+</button>
+                                <button type="button" className={styles.addRequestButton}>+</button>
                             </div>
                         </div>
 

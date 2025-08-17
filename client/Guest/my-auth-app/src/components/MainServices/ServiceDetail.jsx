@@ -9,10 +9,18 @@ const typeToFacilityType = {
   conference: 'CONFERENCE'
 };
 
-//placeholder for authentication logic
 const useAuth = () => {
-    const [isLoggedIn, setIsLoggedIn] = useState(false); 
-    return { isLoggedIn };
+  const [isLoggedIn, setIsLoggedIn] = useState(() => {
+    try { return !!localStorage.getItem('accessToken'); } catch { return false; }
+  });
+
+  useEffect(() => {
+    const onStorage = () => setIsLoggedIn(!!localStorage.getItem('accessToken'));
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
+
+  return { isLoggedIn };
 };
 
 // const allServiceData = {
@@ -103,12 +111,18 @@ function MainServicesServiceDetail() {
     return <section className={styles.serviceDetailSection}><div>Loading...</div></section>;
   }
 
+  const BackLink = ({ children }) => (
+  <Link to=".." relative="path" className={styles.backButton}>
+    {children}
+  </Link>
+);
+
   if (!facility) {
     return (
       <section className={styles.serviceDetailSection}>
         <h2 className={styles.sectionTitle}>Service Not Found</h2>
         <p>The requested service could not be found. Please go back to the list.</p>
-        <Link to={`/services/${type}`} className={styles.backButton}>Back to {type.charAt(0).toUpperCase() + type.slice(1)}</Link>
+        <BackLink>Back to {type?.[0]?.toUpperCase() + type?.slice(1)}</BackLink>
       </section>
     );
   }
@@ -205,9 +219,7 @@ function MainServicesServiceDetail() {
           <button className={styles.reserveButton} onClick={onReserveNow}>
             Reserve Now!
           </button>
-          <Link to={`/services/${type}`} className={styles.backButton}>
-            Back to {type.charAt(0).toUpperCase() + type.slice(1)}
-          </Link>
+          <BackLink>Back to {type?.[0]?.toUpperCase() + type?.slice(1)}</BackLink>
         </div>
 
         <div className={styles.reservationsCalendar}>
