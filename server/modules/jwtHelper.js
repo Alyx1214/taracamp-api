@@ -15,7 +15,7 @@ const jwtHelper = {
                 jti: user.jti
             },
             process.env.JWT_SECRET,
-            { expiresIn: '15m' }
+            { expiresIn: '15m', }
         );
     },
 
@@ -25,14 +25,14 @@ const jwtHelper = {
      * @returns {String} JWT refresh token
      */
     generateRefreshToken: (user) =>
-    jwt.sign(
-      {
-        userId: user._id?.toString(),
-        jti: user.jti
-      },
-      process.env.JWT_REFRESH_SECRET,
-      { expiresIn: '7d' } 
-    ),
+        jwt.sign(
+            {
+                userId: user._id?.toString(),
+                jti: user.jti
+            },
+            process.env.JWT_REFRESH_SECRET,
+            { expiresIn: '7d' }
+        ),
 
     /**
      * Verify a JWT access token and return the decoded payload
@@ -42,7 +42,7 @@ const jwtHelper = {
     verifyAccessToken: (token) => {
         try {
             return jwt.verify(token, process.env.JWT_SECRET);
-        } catch (err) {
+        } catch {
             return null;
         }
     },
@@ -53,12 +53,12 @@ const jwtHelper = {
      * @returns {Object|null} Decoded payload if valid, null otherwise
      */
     verifyRefreshToken: (token) => {
-    try {
-      return jwt.verify(token, process.env.JWT_REFRESH_SECRET);
-    } catch {
-      return null;
-    }
-  }
+        try {
+            return jwt.verify(token, process.env.JWT_REFRESH_SECRET);
+        } catch {
+            return null;
+        }
+    },
 };
 
 export default jwtHelper;

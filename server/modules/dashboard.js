@@ -1,4 +1,4 @@
-import { Status, UserRole, ReservationStatus } from '../constants.js';
+import { Status, UserRole, ReservationStatus, } from '../constants.js';
 
 const dashboardModule = {
     /**
@@ -9,7 +9,7 @@ const dashboardModule = {
     getTodaysReservationCount: async (dbHelper, user) => {
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
-            error: 'Error fetching today\'s reservation count'
+            error: 'Error fetching today\'s reservation count',
         };
         try {
             if (!user || !user.userId) {
@@ -25,15 +25,15 @@ const dashboardModule = {
             }
 
             const today = new Date();
-            today.setHours(0, 0, 0, 0); 
+            today.setHours(0, 0, 0, 0);
             const tomorrow = new Date(today);
-            tomorrow.setDate(today.getDate() + 1); 
+            tomorrow.setDate(today.getDate() + 1);
 
             const reservations = await dbHelper.find('reservation', {
                 dateOfArrival: {
                     $gte: today,
-                    $lt: tomorrow
-                }
+                    $lt: tomorrow,
+                },
             });
 
             responseData.status = Status.OK;
@@ -47,51 +47,63 @@ const dashboardModule = {
         return responseData;
     },
 
+    /**
+     * Retrieves the count of check-ins for the current month.
+     * @param {object} dbHelper - The database helper for database operations.
+     * @param {object} user - The user object containing userId and role.
+     * @returns {object} Response data with status, error, message, and count on success.
+     */
     getMonthlyCheckInsCount: async (dbHelper, user) => {
-    const responseData = {
-        status: Status.INTERNAL_SERVER_ERROR,
-        error: 'Error fetching monthly check-ins count'
-    };
+        const responseData = {
+            status: Status.INTERNAL_SERVER_ERROR,
+            error: 'Error fetching monthly check-ins count',
+        };
 
-    try {
-        if (!user || !user.userId) {
-        responseData.status = Status.UNAUTHORIZED;
-        responseData.error = 'User not logged in.';
+        try {
+            if (!user || !user.userId) {
+                responseData.status = Status.UNAUTHORIZED;
+                responseData.error = 'User not logged in.';
+                return responseData;
+            }
+
+            if (user.role === UserRole.GUEST) {
+                responseData.status = Status.FORBIDDEN;
+                responseData.error = 'You are not authorized to perform this action.';
+                return responseData;
+            }
+
+            const today = new Date();
+            const firstDayOfCurrentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+            const firstDayOfNextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+
+            const checkIns = await dbHelper.find('reservation', {
+                dateOfArrival: {
+                    $gte: firstDayOfCurrentMonth,
+                    $lt: firstDayOfNextMonth,
+                },
+            }, { _id: 1, });
+
+            responseData.status = Status.OK;
+            responseData.error = null;
+            responseData.message = 'Successfully fetched monthly check-ins count';
+            responseData.count = checkIns.length;
+        } catch (error) {
+            console.error('Error fetching monthly check-ins count:', error);
+            responseData.error = error.message;
+        }
         return responseData;
-        }
-
-        if (user.role === UserRole.GUEST) {
-        responseData.status = Status.FORBIDDEN;
-        responseData.error = 'You are not authorized to perform this action.';
-        return responseData;
-        }
-
-        const today = new Date();
-        const firstDayOfCurrentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-        const firstDayOfNextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
-
-        const checkIns = await dbHelper.find('reservation', {
-        dateOfArrival: {
-            $gte: firstDayOfCurrentMonth,
-            $lt: firstDayOfNextMonth
-        }
-        }, { _id: 1 }); 
-
-        responseData.status = Status.OK;
-        responseData.error = null;
-        responseData.message = 'Successfully fetched monthly check-ins count';
-        responseData.count = checkIns.length;
-    } catch (error) {
-        console.error('Error fetching monthly check-ins count:', error);
-        responseData.error = error.message;
-    }
-    return responseData;
     },
 
+    /**
+     * Retrieves the count of confirmed reservations.
+     * @param {object} dbHelper - The database helper for database operations.
+     * @param {object} user - The user object containing userId and role.
+     * @returns {object} Response data with status, error, message, and count on success.
+     */
     getConfirmedReservationsCount: async (dbHelper, user) => {
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
-            error: 'Error fetching confirmed reservations count'
+            error: 'Error fetching confirmed reservations count',
         };
 
         try {
@@ -108,7 +120,7 @@ const dashboardModule = {
             }
 
             const confirmedReservations = await dbHelper.find('reservation', {
-                status: ReservationStatus.CONFIRMED
+                status: ReservationStatus.CONFIRMED,
             });
 
             responseData.status = Status.OK;
@@ -122,10 +134,16 @@ const dashboardModule = {
         return responseData;
     },
 
+    /**
+     * Retrieves the count of pending reservations.
+     * @param {object} dbHelper - The database helper for database operations.
+     * @param {object} user - The user object containing userId and role.
+     * @returns {object} Response data with status, error, message, and count on success.
+     */
     getPendingReservationsCount: async (dbHelper, user) => {
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
-            error: 'Error fetching pending reservations count'
+            error: 'Error fetching pending reservations count',
         };
 
         try {
@@ -142,7 +160,7 @@ const dashboardModule = {
             }
 
             const pendingReservations = await dbHelper.find('reservation', {
-                status: ReservationStatus.PENDING
+                status: ReservationStatus.PENDING,
             });
 
             responseData.status = Status.OK;
@@ -156,10 +174,16 @@ const dashboardModule = {
         return responseData;
     },
 
+    /**
+     * Retrieves the count of cancelled reservations.
+     * @param {object} dbHelper - The database helper for database operations.
+     * @param {object} user - The user object containing userId and role.
+     * @returns {object} Response data with status, error, message, and count on success.
+     */
     getCancelledReservationsCount: async (dbHelper, user) => {
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
-            error: 'Error fetching cancelled reservations count'
+            error: 'Error fetching cancelled reservations count',
         };
 
         try {
@@ -176,7 +200,7 @@ const dashboardModule = {
             }
 
             const cancelledReservations = await dbHelper.find('reservation', {
-                status: ReservationStatus.CANCELLED
+                status: ReservationStatus.CANCELLED,
             });
 
             responseData.status = Status.OK;
@@ -190,10 +214,16 @@ const dashboardModule = {
         return responseData;
     },
 
+    /**
+     * Retrieves the count of total guest users.
+     * @param {object} dbHelper - The database helper for database operations.
+     * @param {object} user - The user object containing userId and role.
+     * @returns {object} Response data with status, error, message, and count on success.
+     */
     getTotalGuestUsers: async (dbHelper, user) => {
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
-            error: 'Error fetching total guest users count'
+            error: 'Error fetching total guest users count',
         };
 
         try {
@@ -210,7 +240,7 @@ const dashboardModule = {
             }
 
             const guestUsers = await dbHelper.find('user', {
-                role: UserRole.GUEST
+                role: UserRole.GUEST,
             });
 
             responseData.status = Status.OK;
@@ -222,7 +252,7 @@ const dashboardModule = {
             responseData.error = error.message;
         }
         return responseData;
-    }
+    },
 };
 
 export default dashboardModule;

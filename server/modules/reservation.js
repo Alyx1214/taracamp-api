@@ -5,7 +5,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const storage = new Storage();
-const bucket = storage.bucket(process.env.BUCKET_NAME,);
+const bucket = storage.bucket(process.env.BUCKET_NAME);
 
 const reservationModule = {
     /**
@@ -17,7 +17,7 @@ const reservationModule = {
      * @param {Object} userSocketMap - The map of user sockets.
      * @return {Promise<Object>} A promise that resolves to an object with the status, error, message, reservationId, and reservation properties.
      */
-    addReservation: async (dbHelper, data, file, user, userSocketMap,) => {
+    addReservation: async (dbHelper, data, file, user, userSocketMap) => {
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
             error: 'Error on booking reservation',
@@ -27,7 +27,7 @@ const reservationModule = {
             let {
                 guestName, homeAddress, officeAddress, category, guestType,
                 telephone, officeTelephone, numberOfAdults, numberOfChildren, numberOfPwds,
-                emergencyContact, dateOfArrival, dateOfDeparture, facility, 
+                emergencyContact, dateOfArrival, dateOfDeparture, facility,
                 serviceType, timeOfArrival, otherRequests,
             } = data;
 
@@ -49,17 +49,17 @@ const reservationModule = {
             serviceType = serviceType?.trim();
 
             if (
-                !isPresent(guestName,) ||
-                !isPresent(homeAddress,) ||
-                !isPresent(category,) ||
-                !isPresent(telephone,) ||
-                !isPresent(numberOfAdults,) ||
-                !isPresent(emergencyContact,) ||
-                !isPresent(dateOfArrival,) ||
-                !isPresent(dateOfDeparture,) ||
-                !isPresent(timeOfArrival,) ||
-                !isPresent(facility,) ||        
-                !isPresent(serviceType,)
+                !isPresent(guestName) ||
+                !isPresent(homeAddress) ||
+                !isPresent(category) ||
+                !isPresent(telephone) ||
+                !isPresent(numberOfAdults) ||
+                !isPresent(emergencyContact) ||
+                !isPresent(dateOfArrival) ||
+                !isPresent(dateOfDeparture) ||
+                !isPresent(timeOfArrival) ||
+                !isPresent(facility) ||
+                !isPresent(serviceType)
             ) {
                 responseData.status = Status.BAD_REQUEST;
                 responseData.error = 'Missing required fields';
@@ -78,79 +78,79 @@ const reservationModule = {
                 return responseData;
             }
 
-            if (!isValidPhone(telephone,)) {
+            if (!isValidPhone(telephone)) {
                 responseData.status = Status.BAD_REQUEST;
                 responseData.error = 'Invalid phone number';
                 return responseData;
             }
 
-            if (!isValidPhone(emergencyContact,)) {
+            if (!isValidPhone(emergencyContact)) {
                 responseData.status = Status.BAD_REQUEST;
                 responseData.error = 'Invalid emergency contact number';
                 return responseData;
             }
 
-            if (!isValidCategory(category,)) {
+            if (!isValidCategory(category)) {
                 responseData.status = Status.BAD_REQUEST;
                 responseData.error = 'Invalid category';
                 return responseData;
             }
 
-            if (!isValidDate(dateOfArrival,) || !isValidDate(dateOfDeparture,)) {
+            if (!isValidDate(dateOfArrival) || !isValidDate(dateOfDeparture)) {
                 responseData.status = Status.BAD_REQUEST;
                 responseData.error = 'Invalid date format';
                 return responseData;
             }
 
-            if (!isValidDateRange(dateOfArrival, dateOfDeparture,)) {
+            if (!isValidDateRange(dateOfArrival, dateOfDeparture)) {
                 responseData.status = Status.BAD_REQUEST;
                 responseData.error = 'Invalid date range: ensure arrival is today or later, and departure is after arrival';
                 return responseData;
             }
 
-            if(!isValidTime(timeOfArrival,)) {
+            if (!isValidTime(timeOfArrival)) {
                 responseData.status = Status.BAD_REQUEST;
                 responseData.error = 'Invalid time format';
                 return responseData;
             }
 
-            if (!isValidGuestType(guestType,)) {
+            if (!isValidGuestType(guestType)) {
                 responseData.status = Status.BAD_REQUEST;
                 responseData.error = 'Invalid guest type';
                 return responseData;
             }
 
-            if (!isValidServiceType(serviceType,)) {
+            if (!isValidServiceType(serviceType)) {
                 responseData.status = Status.BAD_REQUEST;
                 responseData.error = 'Invalid service type';
                 return responseData;
             }
 
-            if (!isValidLength((otherRequests || '').trim(), 500,)) {
+            if (!isValidLength((otherRequests || '').trim(), 500)) {
                 responseData.status = Status.BAD_REQUEST;
                 responseData.error = 'Requests must be 500 characters or less';
                 return responseData;
             }
 
-            if (!isValidFile(file,)) {
+            if (!isValidFile(file)) {
                 responseData.status = Status.BAD_REQUEST;
                 responseData.error = 'Invalid or missing Letter of Intent file';
                 return responseData;
             }
 
             if (
-                !isNonNegativeInteger(numberOfAdults,) ||
-                !isNonNegativeInteger(numberOfChildren,) ||
-                !isNonNegativeInteger(numberOfPwds,)
+                !isNonNegativeInteger(numberOfAdults) ||
+                !isNonNegativeInteger(numberOfChildren) ||
+                !isNonNegativeInteger(numberOfPwds)
             ) {
                 responseData.status = Status.BAD_REQUEST;
                 responseData.error = 'Guest counts must be non-negative integers';
                 return responseData;
             }
 
-            const adults = parseInt(numberOfAdults,) || 0;
-            const children = parseInt(numberOfChildren,) || 0;
-            const pwds = parseInt(numberOfPwds,) || 0;
+            const adults = parseInt(numberOfAdults) || 0;
+            const children = parseInt(numberOfChildren) || 0;
+            const pwds = parseInt(numberOfPwds) || 0;
             const total = adults + children + pwds;
 
             if (total <= 0) {
@@ -159,7 +159,7 @@ const reservationModule = {
                 return responseData;
             }
 
-            const facilityDoc = await dbHelper.findOne('facility', { _id: facility, },);
+            const facilityDoc = await dbHelper.findOne('facility', { _id: facility, });
             if (!facilityDoc) {
                 responseData.status = Status.BAD_REQUEST;
                 responseData.error = 'Selected facility does not exist';
@@ -177,11 +177,11 @@ const reservationModule = {
                 facility: facility,
                 $or: [
                     {
-                        dateOfArrival: { $lte: new Date(dateOfDeparture,), },
-                        dateOfDeparture: { $gte: new Date(dateOfArrival,), },
+                        dateOfArrival: { $lte: new Date(dateOfDeparture), },
+                        dateOfDeparture: { $gte: new Date(dateOfArrival), },
                     },
                 ],
-            },);
+            });
 
             if (userOverlapping) {
                 responseData.status = Status.BAD_REQUEST;
@@ -190,14 +190,14 @@ const reservationModule = {
             }
 
             const overlapping = await dbHelper.findOne('reservation', {
-                facility: facility, 
+                facility: facility,
                 $or: [
                     {
-                        dateOfArrival: { $lte: new Date(dateOfDeparture,), },
-                        dateOfDeparture: { $gte: new Date(dateOfArrival,), },
+                        dateOfArrival: { $lte: new Date(dateOfDeparture), },
+                        dateOfDeparture: { $gte: new Date(dateOfArrival), },
                     },
                 ],
-            },);
+            });
 
             if (overlapping) {
                 responseData.status = Status.BAD_REQUEST;
@@ -214,17 +214,17 @@ const reservationModule = {
             let letterOfIntentUrl = null;
             if (file) {
                 try {
-                    const filename = `letter_of_intent/${Date.now()}_${file.originalname.replace(/\s/g, '_',)}`;
-                    const blob = bucket.file(filename,);
-                    await new Promise((resolve, reject,) => {
+                    const filename = `letter_of_intent/${Date.now()}_${file.originalname.replace(/\s/g, '_')}`;
+                    const blob = bucket.file(filename);
+                    await new Promise((resolve, reject) => {
                         const stream = blob.createWriteStream({
                             resumable: false,
                             contentType: file.mimetype,
-                        },);
-                        stream.on('error', reject,);
-                        stream.on('finish', resolve,);
-                        stream.end(file.buffer,);
-                    },);
+                        });
+                        stream.on('error', reject);
+                        stream.on('finish', resolve);
+                        stream.end(file.buffer);
+                    });
                     letterOfIntentUrl = `https://storage.googleapis.com/${bucket.name}/${filename}`;
                 } catch (err) {
                     responseData.status = Status.INTERNAL_SERVER_ERROR;
@@ -248,10 +248,10 @@ const reservationModule = {
                     pwds: pwds,
                 },
                 emergencyContact,
-                dateOfArrival: normalizeDateOnly(dateOfArrival,),
-                dateOfDeparture: normalizeDateOnly(dateOfDeparture,),
+                dateOfArrival: normalizeDateOnly(dateOfArrival),
+                dateOfDeparture: normalizeDateOnly(dateOfDeparture),
                 timeOfArrival,
-                facility: facilityDoc._id,  
+                facility: facilityDoc._id,
                 serviceType,
                 otherRequests,
                 letterOfIntentFile: letterOfIntentUrl,
@@ -260,14 +260,14 @@ const reservationModule = {
                 createdAt: new Date(),
             };
 
-            const reservation = await dbHelper.create('reservation', reservationData,);
+            const reservation = await dbHelper.create('reservation', reservationData);
 
             await notificationModule.createAndNotifyUser(dbHelper, {
                 title: 'Congratulations, Camper! Confirmation Successful — your reservation is now confirmed. We can\'t wait to welcome you!',
                 message: 'Thank you for choosing Teachers\' Camp! Your reservation has been confirmed. We\'re excited to welcome you and ensure you have a comfortable and memorable stay.',
                 userId: user.userId,
                 reservationId: reservation._id,
-            }, userSocketMap,);
+            }, userSocketMap);
 
             const reservationObject = reservation.toObject();
             delete reservationObject.letterOfIntentUrl;
@@ -286,7 +286,7 @@ const reservationModule = {
             responseData.reservationId = reservation._id.toString();
             responseData.reservation = reservationObject;
         } catch (error) {
-            console.error('Error creating reservation:', error,);
+            console.error('Error creating reservation:', error);
             responseData.error = error.message;
         }
         return responseData;
@@ -298,7 +298,7 @@ const reservationModule = {
      * @param {string} reservationId - The ID of the reservation to be fetched.
      * @returns {Object} Response data with status, error, and reservation on success.
      */
-    getReservationById: async (dbHelper, reservationId,) => {
+    getReservationById: async (dbHelper, reservationId) => {
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
             error: 'Error fetching reservation',
@@ -310,7 +310,7 @@ const reservationModule = {
                 return responseData;
             }
 
-            const reservation = await dbHelper.findOne('reservation', { _id: reservationId, },);
+            const reservation = await dbHelper.findOne('reservation', { _id: reservationId, });
             if (!reservation) {
                 responseData.status = Status.NOT_FOUND;
                 responseData.error = 'Reservation not found';
@@ -321,13 +321,13 @@ const reservationModule = {
             let url = null;
             if (objectName) {
                 try {
-                    [url,] = await bucket.file(objectName,).getSignedUrl({
+                    [url,] = await bucket.file(objectName).getSignedUrl({
                         version: 'v4',
                         expires: Date.now() + 1000 * 60 * 60, // 1 hour
                         action: 'read',
-                    },);
+                    });
                 } catch (urlError) {
-                    console.error('Error generating signed URL:', urlError,);
+                    console.error('Error generating signed URL:', urlError);
                     responseData.error = 'Error generating signed URL';
                     return responseData;
                 }
@@ -345,7 +345,7 @@ const reservationModule = {
             responseData.error = null;
             responseData.reservation = reservationObject;
         } catch (error) {
-            console.error('Error fetching reservation by ID:', error,);
+            console.error('Error fetching reservation by ID:', error);
             responseData.error = error.message;
         }
         return responseData;
@@ -357,7 +357,7 @@ const reservationModule = {
      * @param {Object} user - The user object containing the user ID and role.
      * @returns {Object} Response data with status, error, and reservations on success.
      */
-    getReservationByUserId: async (dbHelper, user,) => {
+    getReservationByUserId: async (dbHelper, user) => {
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
             error: 'Error fetching reservations',
@@ -368,12 +368,12 @@ const reservationModule = {
                 responseData.error = 'User not logged in';
                 return responseData;
             }
-            const reservations = await dbHelper.find('reservation', { userId: user.userId, },);
+            const reservations = await dbHelper.find('reservation', { userId: user.userId, });
             responseData.status = Status.OK;
             responseData.error = null;
             responseData.reservations = reservations;
         } catch (error) {
-            console.error('Error fetching reservations by user ID:', error,);
+            console.error('Error fetching reservations by user ID:', error);
             responseData.error = error.message;
         }
         return responseData;
@@ -386,7 +386,7 @@ const reservationModule = {
      * @param {Object} user - The user object containing the user ID and role.
      * @returns {Object} Response data with status, error, message, and the updated reservation on success.
      */
-    cancelBooking: async (dbHelper, reservationId, user,) => {
+    cancelBooking: async (dbHelper, reservationId, user) => {
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
             error: 'Error cancelling reservation',
@@ -403,7 +403,7 @@ const reservationModule = {
                 return responseData;
             }
 
-            const reservation = await dbHelper.findOne('reservation', { _id: reservationId, },);
+            const reservation = await dbHelper.findOne('reservation', { _id: reservationId, });
 
             if (!reservation) {
                 responseData.status = Status.NOT_FOUND;
@@ -417,7 +417,7 @@ const reservationModule = {
                 return responseData;
             }
 
-            const arrivalDate = new Date(reservation.dateOfArrival,);
+            const arrivalDate = new Date(reservation.dateOfArrival);
             const now = new Date();
             const twentyFourHoursInMs = 24 * 60 * 60 * 1000;
 
@@ -437,7 +437,7 @@ const reservationModule = {
                 'reservation',
                 { _id: reservationId, },
                 { status: ReservationStatus.CANCELLED, },
-                { new: true, },
+                { new: true, }
             );
 
             if (!updatedReservation) {
@@ -454,7 +454,7 @@ const reservationModule = {
                 status: updatedReservation.status,
             };
         } catch (error) {
-            console.error('Error cancelling reservation:', error,);
+            console.error('Error cancelling reservation:', error);
             responseData.error = error.message;
         }
         return responseData;
@@ -467,7 +467,7 @@ const reservationModule = {
      * @param {Object} user - The user object containing the user ID and role.
      * @returns {Object} Response data with status, error, and an array of reservations on success.
      */
-    getAllReservationsByStatus: async (dbHelper, status, user,) => {
+    getAllReservationsByStatus: async (dbHelper, status, user) => {
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
             error: 'Error fetching reservations',
@@ -491,18 +491,18 @@ const reservationModule = {
                 return responseData;
             }
 
-            if (!isValidReservationStatus(status,)) {
+            if (!isValidReservationStatus(status)) {
                 responseData.status = Status.BAD_REQUEST;
                 responseData.error = 'Invalid status';
                 return responseData;
             }
 
-            const reservations = await dbHelper.find('reservation', { status: status, }, { __v: 0, createdAt: 0, },);
+            const reservations = await dbHelper.find('reservation', { status: status, }, { __v: 0, createdAt: 0, });
             responseData.status = Status.OK;
             responseData.error = null;
             responseData.reservations = reservations;
         } catch (error) {
-            console.error('Error fetching reservations by status:', error,);
+            console.error('Error fetching reservations by status:', error);
             responseData.error = error.message;
         }
         return responseData;
@@ -516,7 +516,7 @@ const reservationModule = {
      * @param {Object} user - The user object containing the user ID and role.
      * @returns {Object} Response data with status, error, message, and updated reservation on success.
      */
-    approveOrDeclineReservation: async (dbHelper, reservationId, status, user,) => {
+    approveOrDeclineReservation: async (dbHelper, reservationId, status, user) => {
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
             error: 'Error approving or declining reservation',
@@ -540,7 +540,7 @@ const reservationModule = {
                 return responseData;
             }
 
-            if (!isValidReservationStatus(status,)) {
+            if (!isValidReservationStatus(status)) {
                 responseData.status = Status.BAD_REQUEST;
                 responseData.error = 'Invalid or missing status parameter';
                 return responseData;
@@ -550,7 +550,7 @@ const reservationModule = {
                 'reservation',
                 { _id: reservationId, },
                 { status: status, },
-                { new: true, },
+                { new: true, }
             );
 
             responseData.status = Status.OK;
@@ -561,7 +561,7 @@ const reservationModule = {
                 status: updatedReservation.status,
             };
         } catch (error) {
-            console.error('Error approving or declining reservation:', error,);
+            console.error('Error approving or declining reservation:', error);
             responseData.error = error.message;
         }
         return responseData;
@@ -570,90 +570,88 @@ const reservationModule = {
 
 export default reservationModule;
 
-
-function isValidPhone(number,) {
-    return /^(\+63|0)9\d{9}$/.test(number,);
+function isValidPhone(number) {
+    return /^(\+63|0)9\d{9}$/.test(number);
 }
 
-function isValidCategory(category,) {
-    return Object.values(Category,).includes(category,);
+function isValidCategory(category) {
+    return Object.values(Category).includes(category);
 }
 
-function isValidGuestType(type,) {
-    return Object.values(GuestType,).includes(type,);
+function isValidGuestType(type) {
+    return Object.values(GuestType).includes(type);
 }
 
-function isValidReservationStatus(status,) {
-    return Object.values(ReservationStatus,).includes(status,);
+function isValidReservationStatus(status) {
+    return Object.values(ReservationStatus).includes(status);
 }
 
-function isNonNegativeInteger(value,) {
-    return Number.isInteger(Number(value,),) && Number(value,) >= 0;
+function isNonNegativeInteger(value) {
+    return Number.isInteger(Number(value)) && Number(value) >= 0;
 }
 
-function isValidDate(dateStr,) {
+function isValidDate(dateStr) {
     if (!dateStr) return false;
 
-    const dateOnly = dateStr.split('T',)[0].split(' ',)[0];
+    const dateOnly = dateStr.split('T')[0].split(' ')[0];
 
     const dateFormatRegex = /^\d{4}-\d{2}-\d{2}$/;
-    if (!dateFormatRegex.test(dateOnly,)) return false;
+    if (!dateFormatRegex.test(dateOnly)) return false;
 
-    const date = new Date(dateOnly,);
-    return !isNaN(date.getTime(),);
+    const date = new Date(dateOnly);
+    return !isNaN(date.getTime());
 }
 
+function isValidDateRange(dateOfArrival, dateOfDeparture) {
+    if (!isValidDate(dateOfArrival) || !isValidDate(dateOfDeparture)) return false;
 
-function isValidDateRange(dateOfArrival, dateOfDeparture,) {
-    if (!isValidDate(dateOfArrival,) || !isValidDate(dateOfDeparture,)) return false;
-
-    const arrival = new Date(dateOfArrival.split('T',)[0].split(' ',)[0],);
-    const departure = new Date(dateOfDeparture.split('T',)[0].split(' ',)[0],);
+    const arrival = new Date(dateOfArrival.split('T')[0].split(' ')[0]);
+    const departure = new Date(dateOfDeparture.split('T')[0].split(' ')[0]);
     const today = new Date();
-    today.setHours(0, 0, 0, 0,);
+    today.setHours(0, 0, 0, 0);
 
-    const tomorrow = new Date(today,);
-    tomorrow.setDate(today.getDate() + 1,);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
 
     // Optional: add max window, eg, 6 months from today
-    const maxAdvance = new Date(today,); maxAdvance.setMonth(today.getMonth() + 6,);
+    const maxAdvance = new Date(today); maxAdvance.setMonth(today.getMonth() + 6);
 
-    if (isNaN(arrival.getTime(),) || isNaN(departure.getTime(),)) return false;
-    if (arrival < tomorrow) return false;        
+    if (isNaN(arrival.getTime()) || isNaN(departure.getTime())) return false;
+    if (arrival < tomorrow) return false;
     if (departure <= arrival) return false;
     // if (arrival > maxAdvance) return false;       // Uncomment if you want to limit how far in advance
 
     return true;
 }
 
-function normalizeDateOnly(dateStr,) {
+function normalizeDateOnly(dateStr) {
     if (!dateStr || typeof dateStr !== 'string') return null;
-    const datePart = dateStr.split('T',)[0].split(' ',)[0];
-    const normalized = new Date(datePart + 'T00:00:00',);
-    return isNaN(normalized.getTime(),) ? null : normalized;
+    const datePart = dateStr.split('T')[0].split(' ')[0];
+    const normalized = new Date(datePart + 'T00:00:00');
+    return isNaN(normalized.getTime()) ? null : normalized;
 }
 
-function isValidTime(timeStr,) {
+function isValidTime(timeStr) {
     const timeFormatRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
-    return timeFormatRegex.test(timeStr,);
+    return timeFormatRegex.test(timeStr);
 }
 
-function isValidServiceType(type,) {
-    return Object.values(ServiceType,).includes(type,);
+function isValidServiceType(type) {
+    return Object.values(ServiceType).includes(type);
 }
 
-function isValidLength(value, maxLength,) {
-    if (!value) return true; 
+function isValidLength(value, maxLength) {
+    if (!value) return true;
     return value.length <= maxLength;
 }
 
-function isValidFile(file,) {
+function isValidFile(file) {
     if (!file) return false;
     const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',];
     const maxFileSize = 5 * 1024 * 1024; // 5MB
-    return allowedTypes.includes(file.mimetype,) && file.size <= maxFileSize;
+    return allowedTypes.includes(file.mimetype) && file.size <= maxFileSize;
 }
 
-function isPresent(value,) {
+function isPresent(value) {
     return value !== null && value !== undefined && value.trim().length > 0;
 }

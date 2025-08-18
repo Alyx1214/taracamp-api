@@ -1,13 +1,13 @@
 import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Layout from "./components/Layout/Layout";
-import Dashboard from "./components/Dashboard";
+import Dashboard from "./pages/Dashboard";
 import Reservations from "./components/Reservation/Reservations";
-import Facilities from "./components/Facility/Facilities";
-import Transactions from "./components/Transactions";
-import User from "./components/User";
-import Reports from "./components/Reports.jsx";
-import CheckInOut from "./components/ChecksInOut/CheckInOut";
+import Facilities from "./pages/Facilities";
+import Transactions from "./pages/Transactions";
+import User from "./pages/User";
+import Reports from "./pages/Reports.jsx";
+import CheckInOut from "./pages/CheckInOut";
 import AddReservation from "./components/Reservation/AddReservation.jsx";
 import ReservationDetails from "./components/Reservation/ReservationDetail.jsx";
 

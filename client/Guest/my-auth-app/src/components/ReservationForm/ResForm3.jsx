@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import HeaderHome from '../HeaderHome/HeaderHome';
 import styles from './ResForm3.module.css';
 import { ArrowLeft, UploadCloud } from 'lucide-react';
@@ -9,6 +9,7 @@ const LETTER_TEMPLATE_URL = '#'; // Replace with actual template link
 function ReservationFormStep3() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { type, id } = useParams();
   const formDataFromStep2 = location.state?.formData || {};
   const [file, setFile] = useState(null);
   const fileInputRef = useRef();
@@ -27,6 +28,7 @@ function ReservationFormStep3() {
     console.log('Combined Form Data:', combinedFormData);
     // Navigate to next step or submit
     // navigate('/reservation-step4', { state: { formData: combinedFormData } });
+    navigate(`/reservation-step4/${type}/${id}`, { state: { formData: combinedFormData } });
   };
 
   const handleBoxClick = () => {

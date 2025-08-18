@@ -3,14 +3,12 @@ import http from 'http';
 import path from 'path';
 import dotenv from 'dotenv';
 import rateLimit from 'express-rate-limit';
-import { WebSocketServer } from 'ws';
-import { fileURLToPath } from 'url';
+import { WebSocketServer, } from 'ws';
+import { fileURLToPath, } from 'url';
 import multer from 'multer';
-import { v4 as uuidv4 } from 'uuid';
 import 'dotenv/config';
 import dbHelper from './modules/dbHelper.js';
 import redisClient from './modules/redisClient.js';
-import captchaHelper from './modules/captchaHelper.js';
 import emailModule from './modules/email.js';
 import jwtHelper from './modules/jwtHelper.js';
 import userModule from './modules/user.js';
@@ -19,36 +17,35 @@ import reservationModule from './modules/reservation.js';
 import facilityModule from './modules/facility.js';
 import specialServiceModule from './modules/specialService.js';
 import dashboardModule from './modules/dashboard.js';
-import { Status } from './constants.js';
+import { Status, } from './constants.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-dotenv.config({ path: path.resolve(__dirname, '.env') });
+dotenv.config({ path: path.resolve(__dirname, '.env'), });
 
 const port = process.env.PORT;
-const secretKey = process.env.SESSION_KEY;
 const dbConnectionString = process.env.DB_CONN;
-const upload = multer({ storage: multer.memoryStorage() });
-const __clientPath = path.join(__dirname, '../client');
+//const upload = multer({ storage: multer.memoryStorage(), });
+//const __clientPath = path.join(__dirname, '../client');
 
 dbHelper.connect(dbConnectionString);
 
 const app = express();
 app.set('trust proxy', 1);
-await redisClient.connect(); 
+await redisClient.connect();
 app.use(express.json());
 
 const basicLimiter = rateLimit({
-    windowMs: 60 * 1000, 
-    max: 10, 
+    windowMs: 60 * 1000,
+    max: 10,
     message: {
-        error: 'Too many requests, please try again after a minute.'
-    }
+        error: 'Too many requests, please try again after a minute.',
+    },
 });
 
-const uploadImage = multer({ storage: multer.memoryStorage() }).single('image');
-const uploadLetter = multer({ storage: multer.memoryStorage() }).single('letterOfIntentFile');
+const uploadImage = multer({ storage: multer.memoryStorage(), }).single('image');
+const uploadLetter = multer({ storage: multer.memoryStorage(), }).single('letterOfIntentFile');
 
 // const verificationLimiter = rateLimit({
 //     windowMs: 60 * 60 * 1000, // 1 hour
@@ -59,8 +56,7 @@ const uploadLetter = multer({ storage: multer.memoryStorage() }).single('letterO
 // });
 
 const processGetAPI = async (req, res) => {
-    const { module, action, id } = req.params;
-    const data = { ...req.body, ...req.query };
+    const { module, action, id, } = req.params;
     switch (module) {
         case 'user':
             switch (action) {
@@ -74,13 +70,13 @@ const processGetAPI = async (req, res) => {
                 case 'profile': {
                     let responseData = await userModule.getUser(dbHelper, req.user);
                     let profileResponseData = await profileModule.getProfile(dbHelper, req.user);
-                    profileResponseData.data = { ...responseData.data, ...profileResponseData.data };
+                    profileResponseData.data = { ...responseData.data, ...profileResponseData.data, };
                     return res.status(profileResponseData.status).json(profileResponseData);
                 }
                 default:
-                    return res.status(404).json({ error: 'Unknown action' });
+                    return res.status(404).json({ error: 'Unknown action', });
             }
-          case 'facility':
+        case 'facility':
             switch (action) {
                 case 'get-all-facilities': {
                     let responseData = await facilityModule.getAllFacilities(dbHelper);
@@ -99,14 +95,14 @@ const processGetAPI = async (req, res) => {
                     return res.status(responseData.status).json(responseData);
                 }
                 case 'search-facilities': {
-                  const params = { ...req.query };
-                  let responseData = await facilityModule.searchFacilities(dbHelper, params);
-                  return res.status(responseData.status).json(responseData);
+                    const params = { ...req.query, };
+                    let responseData = await facilityModule.searchFacilities(dbHelper, params);
+                    return res.status(responseData.status).json(responseData);
                 }
                 default:
-                    return res.status(404).json({ error: 'Unknown action' });
+                    return res.status(404).json({ error: 'Unknown action', });
             }
-          case 'special-service':
+        case 'special-service':
             switch (action) {
                 case 'get-all-special-services': {
                     let responseData = await specialServiceModule.getAllSpecialServices(dbHelper);
@@ -117,14 +113,14 @@ const processGetAPI = async (req, res) => {
                     return res.status(responseData.status).json(responseData);
                 }
                 case 'search-special-services': {
-                  const params = { ...req.query };
-                  let responseData = await specialServiceModule.searchSpecialServices(dbHelper, params);
-                  return res.status(responseData.status).json(responseData);
+                    const params = { ...req.query, };
+                    let responseData = await specialServiceModule.searchSpecialServices(dbHelper, params);
+                    return res.status(responseData.status).json(responseData);
                 }
                 default:
-                    return res.status(404).json({ error: 'Unknown action' });
+                    return res.status(404).json({ error: 'Unknown action', });
             }
-          case 'reservation':
+        case 'reservation':
             switch (action) {
                 case 'get-reservation-by-user-id': {
                     let responseData = await reservationModule.getReservationByUserId(dbHelper, req.user);
@@ -139,49 +135,49 @@ const processGetAPI = async (req, res) => {
                     return res.status(responseData.status).json(responseData);
                 }
                 default:
-                    return res.status(404).json({ error: 'Unknown action' });
+                    return res.status(404).json({ error: 'Unknown action', });
             }
-          case 'dashboard':
-                switch (action) {
-                  case 'get-todays-reservations-count': {
-                      let responseData = await dashboardModule.getTodaysReservationCount(dbHelper, req.user);
-                      return res.status(responseData.status).json(responseData);
-                  }
-                  case 'get-monthly-check-ins-count': {
-                      let responseData = await dashboardModule.getMonthlyCheckInsCount(dbHelper, req.user);
-                      return res.status(responseData.status).json(responseData);
-                  }
-                  case 'get-confirmed-reservations-count': {
-                      let responseData = await dashboardModule.getConfirmedReservationsCount(dbHelper, req.user);
-                      return res.status(responseData.status).json(responseData);
-                  }
-                  case 'get-pending-reservations-count': {
-                      let responseData = await dashboardModule.getPendingReservationsCount(dbHelper, req.user);
-                      return res.status(responseData.status).json(responseData);
-                  }
-                  case 'get-cancelled-reservations-count': {
-                      let responseData = await dashboardModule.getCancelledReservationsCount(dbHelper, req.user);
-                      return res.status(responseData.status).json(responseData);
-                  }
-                  case 'get-monthly-check-outs-count': {
-                      let responseData = await dashboardModule.getMonthlyCheckOutsCount(dbHelper, req.user);
-                      return res.status(responseData.status).json(responseData);
-                  }
-                  case 'get-total-guest-users': {
-                      let responseData = await dashboardModule.getTotalGuestUsers(dbHelper, req.user);
-                      return res.status(responseData.status).json(responseData);
-                  }
-                  default:
-                      return res.status(404).json({ error: 'Unknown action' });
+        case 'dashboard':
+            switch (action) {
+                case 'get-todays-reservations-count': {
+                    let responseData = await dashboardModule.getTodaysReservationCount(dbHelper, req.user);
+                    return res.status(responseData.status).json(responseData);
                 }
+                case 'get-monthly-check-ins-count': {
+                    let responseData = await dashboardModule.getMonthlyCheckInsCount(dbHelper, req.user);
+                    return res.status(responseData.status).json(responseData);
+                }
+                case 'get-confirmed-reservations-count': {
+                    let responseData = await dashboardModule.getConfirmedReservationsCount(dbHelper, req.user);
+                    return res.status(responseData.status).json(responseData);
+                }
+                case 'get-pending-reservations-count': {
+                    let responseData = await dashboardModule.getPendingReservationsCount(dbHelper, req.user);
+                    return res.status(responseData.status).json(responseData);
+                }
+                case 'get-cancelled-reservations-count': {
+                    let responseData = await dashboardModule.getCancelledReservationsCount(dbHelper, req.user);
+                    return res.status(responseData.status).json(responseData);
+                }
+                case 'get-monthly-check-outs-count': {
+                    let responseData = await dashboardModule.getMonthlyCheckOutsCount(dbHelper, req.user);
+                    return res.status(responseData.status).json(responseData);
+                }
+                case 'get-total-guest-users': {
+                    let responseData = await dashboardModule.getTotalGuestUsers(dbHelper, req.user);
+                    return res.status(responseData.status).json(responseData);
+                }
+                default:
+                    return res.status(404).json({ error: 'Unknown action', });
+            }
         default:
-            return res.status(404).json({ error: 'Unknown module' });
+            return res.status(404).json({ error: 'Unknown module', });
     }
 };
 
 const processPostAPI = async (req, res) => {
-    const { module, action, id } = req.params;
-    const data = { ...req.body, ...req.query };
+    const { module, action, id, } = req.params;
+    const data = { ...req.body, ...req.query, };
     switch (module) {
         case 'user':
             switch (action) {
@@ -225,7 +221,7 @@ const processPostAPI = async (req, res) => {
                     return res.status(responseData.status).json(responseData);
                 }
                 case 'google-login': {
-                    let responseData = await userModule.googleLogin(dbHelper, data);  
+                    let responseData = await userModule.googleLogin(dbHelper, data);
                     return res.status(responseData.status).json(responseData);
                 }
                 case 'facebook-login': {
@@ -233,8 +229,8 @@ const processPostAPI = async (req, res) => {
                     return res.status(responseData.status).json(responseData);
                 }
                 case 'logout': {
-                    const { userId, jti } = req.user || {};
-                    const responseData = await userModule.logout(userId, jti); 
+                    const { userId, jti, } = req.user || {};
+                    const responseData = await userModule.logout(userId, jti);
                     return res.status(responseData.status).json(responseData);
                 }
                 case 'profile': {
@@ -258,11 +254,11 @@ const processPostAPI = async (req, res) => {
                     return res.status(responseData.status).json(responseData);
                 }
                 case 'refresh-token': {
-                    let responseData = await userModule.refreshToken(data.refreshToken);
+                    let responseData = await userModule.refreshToken(dbHelper, data.refreshToken);
                     return res.status(responseData.status).json(responseData);
                 }
                 default:
-                    return res.status(404).json({ error: 'Unknown action' });
+                    return res.status(404).json({ error: 'Unknown action', });
             }
         case 'reservation':
             switch (action) {
@@ -279,24 +275,24 @@ const processPostAPI = async (req, res) => {
                     return res.status(responseData.status).json(responseData);
                 }
                 default:
-                    return res.status(404).json({ error: 'Unknown action' });
+                    return res.status(404).json({ error: 'Unknown action', });
             }
         case 'facility':
             switch (action) {
-              case 'create-facility': {
-                let responseData = await facilityModule.addFacility(dbHelper, data, req.file, req.user);
-                return res.status(responseData.status).json(responseData);
-              }
-              case 'update-facility': {
-                let responseData = await facilityModule.updateFacility(dbHelper, id, data, req.file, req.user);
-                return res.status(responseData.status).json(responseData);
-              }
-              case 'delete-facility': {
-                let responseData = await facilityModule.deleteFacility(dbHelper, id, req.user);
-                return res.status(responseData.status).json(responseData);
-              }
-              default:
-                return res.status(404).json({ error: 'Unknown action' });
+                case 'create-facility': {
+                    let responseData = await facilityModule.addFacility(dbHelper, data, req.file, req.user);
+                    return res.status(responseData.status).json(responseData);
+                }
+                case 'update-facility': {
+                    let responseData = await facilityModule.updateFacility(dbHelper, id, data, req.file, req.user);
+                    return res.status(responseData.status).json(responseData);
+                }
+                case 'delete-facility': {
+                    let responseData = await facilityModule.deleteFacility(dbHelper, id, req.user);
+                    return res.status(responseData.status).json(responseData);
+                }
+                default:
+                    return res.status(404).json({ error: 'Unknown action', });
             }
         case 'special-service':
             switch (action) {
@@ -313,40 +309,40 @@ const processPostAPI = async (req, res) => {
                     return res.status(responseData.status).json(responseData);
                 }
                 default:
-                    return res.status(404).json({ error: 'Unknown action' });
+                    return res.status(404).json({ error: 'Unknown action', });
             }
         default:
-            return res.status(404).json({ error: 'Unknown module' });
+            return res.status(404).json({ error: 'Unknown module', });
     }
 };
 
 function authenticateJWT(req, res, next) {
-  const authHeader = req.headers.authorization;
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    const token = authHeader.split(' ')[1];
-    const user = jwtHelper.verifyAccessToken(token);
-    if (!user) {
-      return res.status(403).json({ error: 'Invalid or expired token' });
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.split(' ')[1];
+        const user = jwtHelper.verifyAccessToken(token);
+        if (!user) {
+            return res.status(403).json({ error: 'Invalid or expired token', });
+        }
+        req.user = user;
+        next();
+    } else {
+        res.status(401).json({ error: 'Authorization header missing or malformed', });
     }
-    req.user = user; 
-    next();
-  } else {
-    res.status(401).json({ error: 'Authorization header missing or malformed' });
-  }
 }
 
 function isProtected(module, action) {
-  const protectedEndpoints = {
-    user: ['profile', 'logout', 'change-password'],
-    profile: ['update', 'uploadPicture'],
-    reservation: ['create-reservation', 'get-reservation-by-user-id', 'cancel-booking', 
-                  'get-all-reservations-by-status', 'accept-or-decline-reservation'],
-    facility: ['create-facility', 'update-facility', 'delete-facility'],
-    'special-service': ['create-special-service', 'update-special-service', 'delete-special-service'],
-    dashboard: ['get-todays-reservations-count', 'get-monthly-check-ins-count', 'get-monthly-check-outs-count', 
-                'get-confirmed-reservations-count', 'get-pending-reservations-count', 'get-cancelled-reservations-count', 'get-total-guest-users']
-  };
-  return protectedEndpoints[module] && protectedEndpoints[module].includes(action);
+    const protectedEndpoints = {
+        user: ['profile', 'logout', 'change-password',],
+        profile: ['update', 'uploadPicture',],
+        reservation: ['create-reservation', 'get-reservation-by-user-id', 'cancel-booking',
+            'get-all-reservations-by-status', 'accept-or-decline-reservation',],
+        facility: ['create-facility', 'update-facility', 'delete-facility',],
+        'special-service': ['create-special-service', 'update-special-service', 'delete-special-service',],
+        dashboard: ['get-todays-reservations-count', 'get-monthly-check-ins-count', 'get-monthly-check-outs-count',
+            'get-confirmed-reservations-count', 'get-pending-reservations-count', 'get-cancelled-reservations-count', 'get-total-guest-users',],
+    };
+    return protectedEndpoints[module] && protectedEndpoints[module].includes(action);
 }
 
 // const sessionParser = session({
@@ -355,7 +351,7 @@ function isProtected(module, action) {
 //   resave: false,
 //   saveUninitialized: false,
 //   cookie: {
-//     maxAge: 30 * 60 * 1000 * 24, 
+//     maxAge: 30 * 60 * 1000 * 24,
 //     secure: process.env.NODE_ENV === 'production',
 //     httpOnly: true
 //   }
@@ -379,85 +375,79 @@ function isProtected(module, action) {
 //     await processGetAPI(req, res);
 // });
 
-app.get('/api/:module/:action', basicLimiter, (req, res, next) => {
-  if (isProtected(req.params.module, req.params.action)) {
-    authenticateJWT(req, res, () => processGetAPI(req, res));
-  } else {
-    processGetAPI(req, res);
-  }
-});
-
-app.post('/api/:module/:action', basicLimiter, (req, res, next) => {
-  const { module, action } = req.params;
-  if (module === 'reservation' && action === 'create-reservation') {
-    uploadLetter(req, res, (err) => {
-      if (err) return res.status(400).json({ error: 'File upload error', details: err.message });
-      if (isProtected(module, action)) {
-        authenticateJWT(req, res, () => processPostAPI(req, res));
-      } else {
-        processPostAPI(req, res);
-      }
-    });
-  }
-
-  else if (module === 'facility' && (action === 'create-facility' || action === 'update-facility')) {
-    uploadImage(req, res, (err) => {
-      if (err) return res.status(400).json({ error: 'File upload error', details: err.message });
-      if (isProtected(module, action)) {
-        authenticateJWT(req, res, () => processPostAPI(req, res));
-      } else {
-        processPostAPI(req, res);
-      }
-    });
-  }
-  else {
-    if (isProtected(module, action)) {
-      authenticateJWT(req, res, () => processPostAPI(req, res));
+app.get('/api/:module/:action', basicLimiter, (req, res) => {
+    if (isProtected(req.params.module, req.params.action)) {
+        authenticateJWT(req, res, () => processGetAPI(req, res));
     } else {
-      processPostAPI(req, res);
+        processGetAPI(req, res);
     }
-  }
 });
 
-
-app.get('/api/:module/:action/:id', basicLimiter, (req, res, next) => {
-  if (isProtected(req.params.module, req.params.action)) {
-    authenticateJWT(req, res, () => processGetAPI(req, res));
-  } else {
-    processGetAPI(req, res);
-  }
-});
-
-app.post('/api/:module/:action/:id', basicLimiter, (req, res, next) => {
-  const { module, action } = req.params;
-
-  if (module === 'reservation' && action === 'update-reservation') {
-    uploadLetter(req, res, (err) => {
-      if (err) return res.status(400).json({ error: 'File upload error', details: err.message });
-      if (isProtected(module, action)) {
-        authenticateJWT(req, res, () => processPostAPI(req, res));
-      } else {
-        processPostAPI(req, res);
-      }
-    });
-  }
-  else if (module === 'facility' && (action === 'update-facility' || action === 'create-facility')) {
-    uploadImage(req, res, (err) => {
-      if (err) return res.status(400).json({ error: 'File upload error', details: err.message });
-      if (isProtected(module, action)) {
-        authenticateJWT(req, res, () => processPostAPI(req, res));
-      } else {
-        processPostAPI(req, res);
-      }
-    });
-  }
-  else {
-    if (isProtected(module, action)) {
-      authenticateJWT(req, res, () => processPostAPI(req, res));
+app.post('/api/:module/:action', basicLimiter, (req, res) => {
+    const { module, action, } = req.params;
+    if (module === 'reservation' && action === 'create-reservation') {
+        uploadLetter(req, res, (err) => {
+            if (err) return res.status(400).json({ error: 'File upload error', details: err.message, });
+            if (isProtected(module, action)) {
+                authenticateJWT(req, res, () => processPostAPI(req, res));
+            } else {
+                processPostAPI(req, res);
+            }
+        });
+    } else if (module === 'facility' && (action === 'create-facility' || action === 'update-facility')) {
+        uploadImage(req, res, (err) => {
+            if (err) return res.status(400).json({ error: 'File upload error', details: err.message, });
+            if (isProtected(module, action)) {
+                authenticateJWT(req, res, () => processPostAPI(req, res));
+            } else {
+                processPostAPI(req, res);
+            }
+        });
     } else {
-      processPostAPI(req, res);
+        if (isProtected(module, action)) {
+            authenticateJWT(req, res, () => processPostAPI(req, res));
+        } else {
+            processPostAPI(req, res);
+        }
     }
-  }
+});
+
+app.get('/api/:module/:action/:id', basicLimiter, (req, res) => {
+    if (isProtected(req.params.module, req.params.action)) {
+        authenticateJWT(req, res, () => processGetAPI(req, res));
+    } else {
+        processGetAPI(req, res);
+    }
+});
+
+app.post('/api/:module/:action/:id', basicLimiter, (req, res) => {
+    const { module, action, } = req.params;
+
+    if (module === 'reservation' && action === 'update-reservation') {
+        uploadLetter(req, res, (err) => {
+            if (err) return res.status(400).json({ error: 'File upload error', details: err.message, });
+            if (isProtected(module, action)) {
+                authenticateJWT(req, res, () => processPostAPI(req, res));
+            } else {
+                processPostAPI(req, res);
+            }
+        });
+    } else if (module === 'facility' && (action === 'update-facility' || action === 'create-facility')) {
+        uploadImage(req, res, (err) => {
+            if (err) return res.status(400).json({ error: 'File upload error', details: err.message, });
+            if (isProtected(module, action)) {
+                authenticateJWT(req, res, () => processPostAPI(req, res));
+            } else {
+                processPostAPI(req, res);
+            }
+        });
+    } else {
+        if (isProtected(module, action)) {
+            authenticateJWT(req, res, () => processPostAPI(req, res));
+        } else {
+            processPostAPI(req, res);
+        }
+    }
 });
 
 app.use((req, res) => {
@@ -465,38 +455,38 @@ app.use((req, res) => {
 });
 
 const server = http.createServer(app);
-const wss = new WebSocketServer({ noServer: true });
+const wss = new WebSocketServer({ noServer: true, });
 const userSocketMap = new Map();
 
 server.on('upgrade', (req, socket, head) => {
-  const authHeader = req.headers['authorization'];
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
-    socket.destroy();
-    return;
-  }
-  const token = authHeader.split(' ')[1];
-  const user = jwtHelper.verifyAccessToken(token);
-  if (!user) {
-    socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
-    socket.destroy();
-    return;
-  }
-  req.user = user; 
-  wss.handleUpgrade(req, socket, head, ws => wss.emit('connection', ws, req));
+    const authHeader = req.headers['authorization'];
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+        socket.destroy();
+        return;
+    }
+    const token = authHeader.split(' ')[1];
+    const user = jwtHelper.verifyAccessToken(token);
+    if (!user) {
+        socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+        socket.destroy();
+        return;
+    }
+    req.user = user;
+    wss.handleUpgrade(req, socket, head, (ws) => wss.emit('connection', ws, req));
 });
 
 wss.on('connection', (ws, req) => {
-   const userId = req.user.userId;
-  userSocketMap.set(userId, ws);
-  console.log(`New client connected: ${userId}`);
+    const userId = req.user.userId;
+    userSocketMap.set(userId, ws);
+    console.log(`New client connected: ${userId}`);
 
-  ws.on('close', () => {
-    userSocketMap.delete(userId); 
-    console.log(`Client ${userId} has disconnected`);
-  });
+    ws.on('close', () => {
+        userSocketMap.delete(userId);
+        console.log(`Client ${userId} has disconnected`);
+    });
 
-  ws.on('message', msg => ws.send(`Hello ${userId}, you sent -> ${msg}`));
+    ws.on('message', (msg) => ws.send(`Hello ${userId}, you sent -> ${msg}`));
 });
 
 server.listen(port, () => {

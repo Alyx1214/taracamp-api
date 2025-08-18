@@ -25,7 +25,7 @@ export default [
           objects: "always",
           imports: "always",
           exports: "always",
-          functions: "always",
+          functions: "never",
         },
       ],
 

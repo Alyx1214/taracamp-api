@@ -7,7 +7,7 @@ import { ArrowLeft } from 'lucide-react';
 function ReservationFormStep2() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { type, id } = useParams()
+  const { type, id } = useParams();
   const formDataFromStep1 = location.state?.formData || {};
 
   if (!type || !id) {
@@ -46,7 +46,7 @@ function ReservationFormStep2() {
     const combinedFormData = { ...formDataFromStep1, ...formData };
     console.log("Combined Form Data:", combinedFormData);
     // TODO: Implement logic to proceed to the next step or submit the form
-    navigate(`/reservation-step2/${type}/${id}`, { state: { formData: combinedFormData } });
+    navigate(`/reservation-step3/${type}/${id}`, { state: { formData: combinedFormData } });
   };
 
 const getFacilityOptions = () => {
