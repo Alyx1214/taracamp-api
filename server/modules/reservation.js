@@ -24,29 +24,12 @@ const reservationModule = {
         };
 
         try {
-            let {
+            const {
                 guestName, homeAddress, officeAddress, category, guestType,
                 telephone, officeTelephone, numberOfAdults, numberOfChildren, numberOfPwds,
                 emergencyContact, dateOfArrival, dateOfDeparture, facility,
                 serviceType, timeOfArrival, otherRequests,
             } = data;
-
-            guestName = guestName?.trim();
-            homeAddress = homeAddress?.trim();
-            officeAddress = officeAddress?.trim();
-            category = category?.trim();
-            guestType = guestType?.trim();
-            telephone = telephone?.trim();
-            officeTelephone = officeTelephone?.trim();
-            numberOfAdults = numberOfAdults?.trim();
-            numberOfChildren = numberOfChildren?.trim();
-            numberOfPwds = numberOfPwds?.trim();
-            emergencyContact = emergencyContact?.trim();
-            dateOfArrival = dateOfArrival?.trim();
-            dateOfDeparture = dateOfDeparture?.trim();
-            timeOfArrival = timeOfArrival?.trim();
-            otherRequests = otherRequests?.trim();
-            serviceType = serviceType?.trim();
 
             if (
                 !isPresent(guestName) ||
@@ -233,6 +216,45 @@ const reservationModule = {
                 }
             }
 
+            // --- inputs already validated above: adults, children, pwds, serviceType ---
+            const guestTotal = adults + children + pwds;
+
+            // Decide pricing model:
+            // - Accommodation (dorm/cottage) -> per-person
+            // - Everything else (conference/events) -> flat per booking
+            const isAccommodation =
+            serviceType === ServiceType.ACCOMMODATION ||
+            facilityDoc.type === 'DORMITORY' ||
+            facilityDoc.type === 'COTTAGE';
+
+            // Pull numeric fields safely
+            const perPersonRate = Number(facilityDoc.ratePerPerson);
+            const flatBookingPrice = Number(
+            facilityDoc.price ?? facilityDoc.conferencePrice ?? facilityDoc.flatPrice
+            );
+
+            let totalEstimatedAmount = 0;
+
+            if (isAccommodation) {
+            if (!Number.isFinite(perPersonRate) || perPersonRate < 0) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Facility is missing a valid per‑person rate.';
+                return responseData;
+            }
+            // adults = 100%, children+pwds = 80%  (no per‑day multiplication)
+            totalEstimatedAmount =
+                adults * perPersonRate +
+                (children + pwds) * perPersonRate * 0.80;
+            } else {
+            if (!Number.isFinite(flatBookingPrice) || flatBookingPrice < 0) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Facility is missing a valid flat booking price.';
+                return responseData;
+            }
+            // Conference / event: flat price ONCE (NOT per day)
+            totalEstimatedAmount = flatBookingPrice;
+            }
+
             const reservationData = {
                 guestName,
                 homeAddress,
@@ -255,7 +277,7 @@ const reservationModule = {
                 serviceType,
                 otherRequests,
                 letterOfIntentFile: letterOfIntentUrl,
-                totalEstimatedAmount: (adults * facilityDoc.ratePerPerson) + ((children + pwds) * facilityDoc.ratePerPerson * 0.80),
+                totalEstimatedAmount,
                 userId: user.userId,
                 createdAt: new Date(),
             };
@@ -653,5 +675,13 @@ function isValidFile(file) {
 }
 
 function isPresent(value) {
-    return value !== null && value !== undefined && value.trim().length > 0;
+  if (value === null || value === undefined) return false;
+  if (typeof value === 'string') {
+    return value.trim().length > 0;  
+  }
+  if (typeof value === 'number') {
+    return !Number.isNaN(value);
+  }
+  return true; 
 }
+

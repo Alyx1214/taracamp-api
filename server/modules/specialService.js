@@ -16,10 +16,7 @@ const specialServiceModule = {
         };
 
         try {
-            let { name, price, unit, } = data;
-            name = name.trim();
-            price = Number(String(price).replace(/,/g, '')) || 0;
-            unit = unit.trim();
+            const { name, price, unit, } = data;
 
             if (!isPresent(name) || !isPresent(price) || !isPresent(unit)) {
                 responseData.status = Status.BAD_REQUEST;
@@ -182,7 +179,7 @@ const specialServiceModule = {
             }
 
             const updateData = {};
-            if (isPresent(data.name)) updateData.name = data.name.trim();
+            if (isPresent(data.name)) updateData.name = data.name;
             if (isPresent(data.price)) {
                 if (!isValidPrice(data.price)) {
                     responseData.status = Status.BAD_REQUEST;
@@ -191,7 +188,7 @@ const specialServiceModule = {
                 }
                 updateData.price = Number(String(data.price).replace(/,/g, '')) || 0;
             }
-            if (isPresent(data.unit)) updateData.unit = data.unit.trim();
+            if (isPresent(data.unit)) updateData.unit = data.unit;
 
             const existing = await dbHelper.findOne('specialservice', {
                 _id: { $ne: id, },
@@ -311,7 +308,14 @@ const specialServiceModule = {
 export default specialServiceModule;
 
 function isPresent(value) {
-    return value !== null && value !== undefined && String(value).trim().length > 0;
+  if (value === null || value === undefined) return false;
+  if (typeof value === 'string') {
+    return value.trim().length > 0;  
+  }
+  if (typeof value === 'number') {
+    return !Number.isNaN(value);
+  }
+  return true; 
 }
 
 function isValidPrice(price) {

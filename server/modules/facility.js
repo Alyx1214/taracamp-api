@@ -22,16 +22,13 @@ const facilityModule = {
         };
 
         try {
-            let { name, facilityType, capacity, ratePerPerson, price, status, } = data;
-            name = typeof name === 'string' ? name.trim().toUpperCase() : '';
-            facilityType = typeof facilityType === 'string' ? facilityType.trim().toUpperCase() : '';
-            status = status || FacilityStatus.AVAILABLE;
+            const { name, facilityType, capacity, ratePerPerson, price, status, } = data;
 
             if (
                 !isPresent(name) ||
-          !isPresent(facilityType) ||
-          (facilityType === FacilityType.CONFERENCE && !isPresent(price)) ||
-          ((facilityType === FacilityType.DORMITORY || facilityType === FacilityType.COTTAGE) && !isPresent(ratePerPerson))
+                !isPresent(facilityType) ||
+                (facilityType === FacilityType.CONFERENCE && !isPresent(price)) ||
+                ((facilityType === FacilityType.DORMITORY || facilityType === FacilityType.COTTAGE) && !isPresent(ratePerPerson))
             ) {
                 responseData.status = Status.BAD_REQUEST;
                 responseData.error = 'Missing required fields';
@@ -260,12 +257,11 @@ const facilityModule = {
             const updateData = {};
 
             if (isPresent(data.name)) {
-                updateData.name = typeof data.name === 'string' ? data.name.trim().toUpperCase() : '';
+                updateData.name = data.name;
             }
 
             if (isPresent(data.facilityType)) {
-                const typeToCheck = typeof data.facilityType === 'string' ? data.facilityType.trim().toUpperCase() : '';
-                if (!isValidFacilityType(typeToCheck)) {
+                if (!isValidFacilityType(data.facilityType)) {
                     responseData.status = Status.BAD_REQUEST;
                     responseData.error = 'Invalid facility type';
                     return responseData;
@@ -445,8 +441,6 @@ const facilityModule = {
             error: 'Error fetching facilities by type',
             facilities: [],
         };
-
-        facilityType = typeof facilityType === 'string' ? facilityType.trim().toUpperCase() : '';
 
         if (!isPresent(facilityType)) {
             responseData.status = Status.BAD_REQUEST;
@@ -629,7 +623,14 @@ const facilityModule = {
 export default facilityModule;
 
 function isPresent(value) {
-    return value !== null && value !== undefined && String(value).trim().length > 0;
+  if (value === null || value === undefined) return false;
+  if (typeof value === 'string') {
+    return value.trim().length > 0;  
+  }
+  if (typeof value === 'number') {
+    return !Number.isNaN(value);
+  }
+  return true; 
 }
 
 function isValidFacilityType(type) {

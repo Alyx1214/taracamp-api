@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import HeaderHome from '../HeaderHome/HeaderHome'; 
 import styles from './ResForm2.module.css';
@@ -26,6 +26,77 @@ function ReservationFormStep2() {
     specialRequests: '',
   });
 
+  const [facilityOptions, setFacilityOptions] = useState([]); 
+  const [specialOptions, setSpecialOptions] = useState([]);   
+  const [loadingFacilities, setLoadingFacilities] = useState(false);
+  const [loadingSpecials, setLoadingSpecials] = useState(false);
+  const [err, setErr] = useState(null);
+
+  const minArrival = useMemo(() => {
+    const d = new Date(); d.setDate(d.getDate() + 1);
+    return d.toISOString().slice(0,10);
+  }, []);
+
+  useEffect(() => {
+  let active = true;
+  async function loadSpecials() {
+    try {
+      setLoadingSpecials(true);
+      const res = await fetch(`/api/special-service/get-all-special-services`);
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to load special services');
+      if (!active) return;
+
+      const arr = json?.specialServices ?? json?.data ?? json?.services ?? [];
+      const opts = arr.map(s => ({
+        value: s._id || s.id || s.name,
+        label: s.name || s.title || s.displayName || 'Service',
+        _raw: s
+      }));
+      setSpecialOptions(opts);
+    } catch (e) {
+      if (active) setErr(e.message || 'Error loading special services');
+    } finally {
+      if (active) setLoadingSpecials(false);
+    }
+  }
+  loadSpecials();
+  return () => { active = false; };
+}, []);
+
+
+  useEffect(() => {
+    let active = true;
+    async function loadFacilities() {
+      setFacilityOptions([]);
+      setErr(null);
+      if (!formData) return;
+      try {
+        setLoadingFacilities(true);
+        const res = await fetch(`/api/facility/get-facilities-by-type/${encodeURIComponent(formData.typeFacilities)}`);
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || 'Failed to load facilities');
+        if (!active) return;
+        const list = (json?.data || json?.facilities || json || []).map(f => ({
+          value: f._id,
+          label: f.name,
+          _id: f._id,
+          capacity: f.capacity,
+          ratePerPerson: f.ratePerPerson,
+          status: f.status,
+        }));
+        setFacilityOptions(list);
+      } catch (e) {
+        if (active) setErr(e.message || 'Error loading facilities');
+      } finally {
+        if (active) setLoadingFacilities(false);
+      }
+    }
+    loadFacilities();
+    setFormData(prev => ({ ...prev, facilityName: '' }));
+    return () => { active = false; };
+  }, [formData.typeFacilities]);
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData({
@@ -37,89 +108,112 @@ function ReservationFormStep2() {
   const handleGoBack = () => {
     navigate(`/reservation-form/${type}/${id}`, { state: { formData: location.state?.formData } });
   };
+
+
+const step1 = location.state?.step1 || {};
+const tomorrow = (() => {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  return d.toISOString().slice(0,10);
+})();
+
+<input
+  type="date"
+  name="dateArrival"
+  min={tomorrow}
+  value={formData.dateArrival}
+  onChange={handleInputChange}
+  className={styles.input}
+/>
   
   const handlePrevious = () => {
-    navigate(`/reservation-form/${type}/${id}`, { state: { formData: location.state?.formData } });
+    navigate(`/reservation-form/${type}/${id}`, { state: { step1 } });
+ };
+
+const handleNext = () => {
+    const chosenFacility = facilityOptions.find(o => o.value === formData.facilityName);
+    const step2 = {
+      ...formData,
+      facilityIdFromList: chosenFacility?._id || '',
+      facilityLabelFromList: chosenFacility?.label || '',
+      facilityCapacity: chosenFacility?.capacity,
+      facilityRatePerPerson: chosenFacility?.ratePerPerson
+    };
+    navigate(`/reservation-step3/${type}/${id}`, { state: { step1, step2 } });
   };
 
-  const handleNext = () => {
-    const combinedFormData = { ...formDataFromStep1, ...formData };
-    console.log("Combined Form Data:", combinedFormData);
-    // TODO: Implement logic to proceed to the next step or submit the form
-    navigate(`/reservation-step3/${type}/${id}`, { state: { formData: combinedFormData } });
-  };
 
-const getFacilityOptions = () => {
-    switch (formData.typeFacilities) {
-        case 'Dormitory':
-            return [
-                { value: 'Quirino Hall', label: 'Quirino Hall' },
-                { value: 'Roxas Hall', label: 'Roxas Hall' },
-                { value: 'Recto Hall', label: 'Recto Hall' },
-                { value: 'Escoda Room 104', label: 'Escoda Room 104' },
-                { value: 'Pages Hall', label: 'Pages Hall' },
-                { value: 'SQ Medical', label: 'SQ Medical' },
-                { value: 'Hernandez Hall 1-7A', label: 'Hernandez Hall 1-7A' },
-                { value: 'SQ Main 101-102', label: 'SQ Main 101-102' },
-                { value: 'Escoda Hall', label: 'Escoda Hall' },
-                { value: 'Bachelors Hall', label: 'Bachelors Hall' },
-                { value: 'Staffhouse', label: 'Staffhouse' },
-                { value: 'Magsaysay', label: 'Magsaysay' },
-                { value: 'SQ Annex', label: 'SQ Annex' },
-                { value: 'SQ Main', label: 'SQ Main' },
-                { value: 'Hernandez', label: 'Hernandez' }
-            ];
-        case 'Conference Hall':
-            return [
-                { value: 'Benitez Hall', label: 'Benitez Hall' },
-                { value: 'Quezon Hall Main', label: 'Quezon Hall Main' },
-                { value: 'Quezon Hall Down', label: 'Quezon Hall Down' },
-                { value: 'Quirino Conf Hall', label: 'Quirino Conf Hall' },
-                { value: 'Carlos P. Romulo', label: 'Carlos P. Romulo' },
-                { value: 'Quirino Mini Hall', label: 'Quirino Mini Hall' },
-                { value: 'Pages Conf Hall', label: 'Pages Conf Hall' },
-                { value: 'Abada Hall', label: 'Abada Hall' },
-                { value: 'Oring-Ao Hall', label: 'Oring-Ao Hall' },
-                { value: 'Roxas AVR', label: 'Roxas AVR' },
-                { value: 'Albert Hall Main', label: 'Albert Hall Main' },
-                { value: 'Albert Hall (L-R)', label: 'Albert Hall (L-R)' },
-                { value: 'Crounds', label: 'Crounds' }
-            ];
-        case 'Cottage/Guest House':
-            return [
-                { value: 'Cottage (4-5pax)', label: 'Cottage (4-5pax)' },
-                { value: 'Cottage (6-8pax)', label: 'Cottage (6-8pax)' },
-                { value: 'Cottage (9-11pax)', label: 'Cottage (9-11pax)' },
-                { value: 'Cottage (12-14pax)', label: 'Cottage (12-14pax)' },
-                { value: 'Cottage (15-18pax)', label: 'Cottage (15-18pax)' }
-            ];
-        default:
-            return [];
-    }
-};
+// const getFacilityOptions = () => {
+//     switch (formData.typeFacilities) {
+//         case 'Dormitory':
+//             return [
+//                 { value: 'Quirino Hall', label: 'Quirino Hall' },
+//                 { value: 'Roxas Hall', label: 'Roxas Hall' },
+//                 { value: 'Recto Hall', label: 'Recto Hall' },
+//                 { value: 'Escoda Room 104', label: 'Escoda Room 104' },
+//                 { value: 'Pages Hall', label: 'Pages Hall' },
+//                 { value: 'SQ Medical', label: 'SQ Medical' },
+//                 { value: 'Hernandez Hall 1-7A', label: 'Hernandez Hall 1-7A' },
+//                 { value: 'SQ Main 101-102', label: 'SQ Main 101-102' },
+//                 { value: 'Escoda Hall', label: 'Escoda Hall' },
+//                 { value: 'Bachelors Hall', label: 'Bachelors Hall' },
+//                 { value: 'Staffhouse', label: 'Staffhouse' },
+//                 { value: 'Magsaysay', label: 'Magsaysay' },
+//                 { value: 'SQ Annex', label: 'SQ Annex' },
+//                 { value: 'SQ Main', label: 'SQ Main' },
+//                 { value: 'Hernandez', label: 'Hernandez' }
+//             ];
+//         case 'Conference Hall':
+//             return [
+//                 { value: 'Benitez Hall', label: 'Benitez Hall' },
+//                 { value: 'Quezon Hall Main', label: 'Quezon Hall Main' },
+//                 { value: 'Quezon Hall Down', label: 'Quezon Hall Down' },
+//                 { value: 'Quirino Conf Hall', label: 'Quirino Conf Hall' },
+//                 { value: 'Carlos P. Romulo', label: 'Carlos P. Romulo' },
+//                 { value: 'Quirino Mini Hall', label: 'Quirino Mini Hall' },
+//                 { value: 'Pages Conf Hall', label: 'Pages Conf Hall' },
+//                 { value: 'Abada Hall', label: 'Abada Hall' },
+//                 { value: 'Oring-Ao Hall', label: 'Oring-Ao Hall' },
+//                 { value: 'Roxas AVR', label: 'Roxas AVR' },
+//                 { value: 'Albert Hall Main', label: 'Albert Hall Main' },
+//                 { value: 'Albert Hall (L-R)', label: 'Albert Hall (L-R)' },
+//                 { value: 'Crounds', label: 'Crounds' }
+//             ];
+//         case 'Cottage/Guest House':
+//             return [
+//                 { value: 'Cottage (4-5pax)', label: 'Cottage (4-5pax)' },
+//                 { value: 'Cottage (6-8pax)', label: 'Cottage (6-8pax)' },
+//                 { value: 'Cottage (9-11pax)', label: 'Cottage (9-11pax)' },
+//                 { value: 'Cottage (12-14pax)', label: 'Cottage (12-14pax)' },
+//                 { value: 'Cottage (15-18pax)', label: 'Cottage (15-18pax)' }
+//             ];
+//         default:
+//             return [];
+//     }
+// };
 
-const getSpecialRequestOptions = () => {
-  return [
-    { value: 'LCD Projector', label: 'LCD Projector' },
-    { value: 'LED Wall', label: 'LED Wall' },
-    { value: 'Sound System', label: 'Sound System' },
-    { value: 'Videoke', label: 'Videoke' },
-    { value: 'Television (55")', label: 'Television (55")' },
-    { value: 'Television (32")', label: 'Television (32")' },
-    { value: 'Monobloc Chairs', label: 'Monobloc Chairs' },
-    { value: 'Conference Table', label: 'Conference Table' },
-    { value: 'Table Cloth', label: 'Table Cloth' },
-    { value: 'Seat Cover', label: 'Seat Cover' },
-    { value: 'Parachute', label: 'Parachute' },
-    { value: 'Parachute 1/Set up', label: 'Parachute 1/Set up' },
-    { value: 'Towel/Pillow/Blanket', label: 'Towel/Pillow/Blanket' },
-    { value: 'Electricity Fee', label: 'Electricity Fee' },
-    { value: 'Corkage Fee', label: 'Corkage Fee' },
-    { value: 'FAX Machine', label: 'FAX Machine' },
-    { value: 'Telephone', label: 'Telephone' },
-    { value: 'Certification Fee', label: 'Certification Fee' }
-  ];
-};
+// const getSpecialRequestOptions = () => {
+//   return [
+//     { value: 'LCD Projector', label: 'LCD Projector' },
+//     { value: 'LED Wall', label: 'LED Wall' },
+//     { value: 'Sound System', label: 'Sound System' },
+//     { value: 'Videoke', label: 'Videoke' },
+//     { value: 'Television (55")', label: 'Television (55")' },
+//     { value: 'Television (32")', label: 'Television (32")' },
+//     { value: 'Monobloc Chairs', label: 'Monobloc Chairs' },
+//     { value: 'Conference Table', label: 'Conference Table' },
+//     { value: 'Table Cloth', label: 'Table Cloth' },
+//     { value: 'Seat Cover', label: 'Seat Cover' },
+//     { value: 'Parachute', label: 'Parachute' },
+//     { value: 'Parachute 1/Set up', label: 'Parachute 1/Set up' },
+//     { value: 'Towel/Pillow/Blanket', label: 'Towel/Pillow/Blanket' },
+//     { value: 'Electricity Fee', label: 'Electricity Fee' },
+//     { value: 'Corkage Fee', label: 'Corkage Fee' },
+//     { value: 'FAX Machine', label: 'FAX Machine' },
+//     { value: 'Telephone', label: 'Telephone' },
+//     { value: 'Certification Fee', label: 'Certification Fee' }
+//   ];
+// };
 
 return (
     <>
@@ -170,9 +264,9 @@ return (
                                     className={styles.input}
                                 >
                                     <option value="">Select a facility type</option>
-                                    <option value="Dormitory">Dormitory</option>
-                                    <option value="Conference Hall">Conference Hall</option>
-                                    <option value="Cottage/Guest House">Cottage/Guest House</option>
+                                    <option value="DORMITORY">Dormitory</option>
+                                    <option value="CONFERENCE">Conference Hall</option>
+                                    <option value="COTTAGE">Cottage/Guest House</option>
                                 </select>
                             </div>
                             <div className={styles.formGroup}>
@@ -185,7 +279,7 @@ return (
                                     disabled={!formData.typeFacilities}
                                 >
                                     <option value="">Select a facility</option>
-                                    {getFacilityOptions().map(facility => (
+                                    {facilityOptions.map(facility => (
                                         <option key={facility.value} value={facility.value}>
                                             {facility.label}
                                         </option>
@@ -261,7 +355,7 @@ return (
                                     style={{ flex: 1 }}
                                 >
                                     <option value="">Select a special service</option>
-                                    {getSpecialRequestOptions().map(request => (
+                                    {specialOptions.map(request => (
                                         <option key={request.value} value={request.value}>
                                             {request.label}
                                         </option>

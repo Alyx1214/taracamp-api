@@ -70,9 +70,12 @@ function ReservationForm() {
   };
 
   const handleNext = () => {
-    const combinedFormData = { ...formData };
-    navigate(`/reservation-step2/${type}/${id}`, { state: { formData: combinedFormData } });
+    const step1 = { ...formData };
+    navigate(`/reservation-step2/${type}/${id}`, { state: { step1 } });
   };
+
+  const phoneOk = /^(\+63|0)9\d{9}$/.test(formData.phoneNo || '');
+  const emerOk  = /^(\+63|0)9\d{9}$/.test(formData.emergencyContact || '');
 
   return (
     <>
@@ -271,7 +274,7 @@ function ReservationForm() {
               </div>
 
               <div className={styles.buttonContainer}>
-                <button type="submit" onClick={handleNext} className={styles.nextButton}>
+                <button type="submit" onClick={handleNext} className={styles.nextButton} disabled={!phoneOk || !emerOk}>
                   Next
                 </button>
               </div>

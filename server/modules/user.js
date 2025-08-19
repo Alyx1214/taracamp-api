@@ -29,12 +29,9 @@ const userModule = {
                 return responseData;
             }
 
-            email = email.trim().toLowerCase();
-            firstName = firstName.trim();
-            lastName = lastName.trim();
-            const name = `${firstName} ${lastName}`.replace(/\s+/g, ' ').trim();
+            const name = `${firstName} ${lastName}`.replace(/\s+/g, ' ');
 
-            if (!isValidEmail(email)) {
+            if (!isValidEmail(email.toLowerCase())) {
                 responseData.status = Status.BAD_REQUEST;
                 responseData.error = 'Invalid email address';
                 return responseData;
@@ -132,8 +129,6 @@ const userModule = {
                 responseData.error = 'Missing required fields';
                 return responseData;
             }
-
-            email = email.trim().toLowerCase();
 
             if (!isValidEmail(email)) {
                 responseData.status = Status.BAD_REQUEST;
@@ -466,9 +461,7 @@ const userModule = {
                 return responseData;
             }
 
-            email = email.trim().toLowerCase();
-
-            if (!isValidEmail(email)) {
+            if (!isValidEmail(email.toLowerCase())) {
                 responseData.status = Status.BAD_REQUEST;
                 responseData.error = 'Invalid email address';
                 return responseData;
@@ -538,9 +531,7 @@ const userModule = {
                 return responseData;
             }
 
-            email = email.trim().toLowerCase();
-
-            if (!isValidEmail(email)) {
+            if (!isValidEmail(email.toLowerCase())) {
                 responseData.status = Status.BAD_REQUEST;
                 responseData.error = 'Invalid email address';
                 return responseData;
@@ -587,10 +578,7 @@ const userModule = {
                 return responseData;
             }
 
-            email = email.trim().toLowerCase();
-            verificationCode = verificationCode.trim();
-
-            if (!isValidEmail(email)) {
+            if (!isValidEmail(email.toLowerCase())) {
                 responseData.status = Status.BAD_REQUEST;
                 responseData.error = 'Invalid email address';
                 return responseData;

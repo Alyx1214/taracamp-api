@@ -10,7 +10,8 @@ function ReservationFormStep3() {
   const navigate = useNavigate();
   const location = useLocation();
   const { type, id } = useParams();
-  const formDataFromStep2 = location.state?.formData || {};
+  const step1 = location.state?.step1 || {};
+  const step2 = location.state?.step2 || {};
   const [file, setFile] = useState(null);
   const fileInputRef = useRef();
 
@@ -23,14 +24,9 @@ function ReservationFormStep3() {
   };
 
   const handleNext = () => {
-    // Combine all form data and file, then navigate to next step or submit
-    const combinedFormData = { ...formDataFromStep2, letterOfIntent: file };
-    console.log('Combined Form Data:', combinedFormData);
-    // Navigate to next step or submit
-    // navigate('/reservation-step4', { state: { formData: combinedFormData } });
-    navigate(`/reservation-step4/${type}/${id}`, { state: { formData: combinedFormData } });
+    navigate(`/reservation-step4/${type}/${id}`, { state: { step1, step2, file } });
   };
-
+  
   const handleBoxClick = () => {
     fileInputRef.current.click();
   };

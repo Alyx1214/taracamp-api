@@ -3,6 +3,7 @@ import http from 'http';
 import path from 'path';
 import dotenv from 'dotenv';
 import rateLimit from 'express-rate-limit';
+import cors from 'cors';
 import { WebSocketServer, } from 'ws';
 import { fileURLToPath, } from 'url';
 import multer from 'multer';
@@ -34,11 +35,17 @@ dbHelper.connect(dbConnectionString);
 const app = express();
 app.set('trust proxy', 1);
 await redisClient.connect();
+
+app.use(cors({
+  origin: ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:5174'],
+  credentials: true
+}));
+
 app.use(express.json());
 
 const basicLimiter = rateLimit({
     windowMs: 60 * 1000,
-    max: 10,
+    max: 100,
     message: {
         error: 'Too many requests, please try again after a minute.',
     },
@@ -271,7 +278,7 @@ const processPostAPI = async (req, res) => {
                     return res.status(responseData.status).json(responseData);
                 }
                 case 'accept-or-decline-reservation': {
-                    let responseData = await reservationModule.acceptOrDeclineReservation(dbHelper, id, data, req.user);
+                    let responseData = await reservationModule.approveOrDeclineReservation(dbHelper, id, data, req.user);
                     return res.status(responseData.status).json(responseData);
                 }
                 default:
