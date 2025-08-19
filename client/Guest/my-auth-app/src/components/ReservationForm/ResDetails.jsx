@@ -1,8 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import styles from './ResDetails.module.css';
 import HeaderHome from '../HeaderHome/HeaderHome';
-import { buildReservationPayload } from '../Utilities/ReservationMapper';
+import { buildReservationPayload, mapServiceType } from '../Utilities/ReservationMapper';
 
 function ResDetails({ onClose }) {
   const navigate = useNavigate();
@@ -10,6 +10,7 @@ function ResDetails({ onClose }) {
   const { id } = useParams(); 
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState(null);
+  const [quote, setQuote] = useState(null);
 
   const step1 = location.state?.step1 || {};
   const step2 = location.state?.step2 || {};
@@ -32,6 +33,38 @@ function ResDetails({ onClose }) {
   //   amount: '₱ 12,000.00',
   // };
 
+  useEffect(() => {
+  const a = parseInt(step1?.guests?.adult || 0, 10) || 0;
+  const c = parseInt(step1?.guests?.children || 0, 10) || 0;
+  const p = parseInt(step1?.guests?.pwds || 0, 10) || 0;
+  const fid = step2?.facilityIdFromList || id;
+  if (!fid) return;
+
+  const svcEnum = mapServiceType(step2?.typeService);
+  
+  let abort = false;
+  (async () => {
+    try {
+      const qs = new URLSearchParams({
+        facility: fid,
+        adults: String(a),
+        children: String(c),
+        pwds: String(p),
+        serviceType: svcEnum || 'MEETING/CONFERENCE'
+      });
+      const res = await fetch(`/api/reservation/estimate-amount?${qs.toString()}`);
+      const json = await res.json();
+      if (!abort) setQuote(json?.amount ?? null);
+    } catch {
+      if (!abort) setQuote(null);
+    }
+  })();
+
+  return () => { abort = true; };
+}, [step1, step2, id]);
+
+const amountText = quote != null ? `₱ ${Math.round(quote).toLocaleString()}` : '—';
+
   const data = useMemo(() => {
     const catKey = Object.entries(step1?.category || {}).find(([, v]) => v)?.[0];
     const guestsTotal =
@@ -53,17 +86,55 @@ function ResDetails({ onClose }) {
       facilityType: step2.typeFacilities || '—',
       facilityName: step2.facilityName || '—',
       service: step2.typeService === 'Other' ? (step2.customService || 'Other') : (step2.typeService || '—'),
-      amount: '—' // estimated amount is computed server-side; show placeholder
     };
   }, [step1, step2]);
+
+  async function refreshAccessToken() {
+  const rt = localStorage.getItem('refreshToken');
+  if (!rt) throw new Error('No refresh token');
+
+  const res = await fetch('/api/user/refresh-token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refreshToken: rt })
+  });
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data?.accessToken) {
+    throw new Error(data.error || 'Refresh failed');
+  }
+  localStorage.setItem('accessToken', data.accessToken);
+  return data.accessToken;
+}
+
+  async function authorizedFetch(url, options) {
+    let token = localStorage.getItem('accessToken');
+    const headers = new Headers(options?.headers || {});
+    if (token) headers.set('Authorization', `Bearer ${token}`);
+
+    let res = await fetch(url, { ...options, headers });
+    if (res.status === 401 || res.status === 403) {
+      try {
+        const newToken = await refreshAccessToken();
+        const retryHeaders = new Headers(options?.headers || {});
+        retryHeaders.set('Authorization', `Bearer ${newToken}`);
+        res = await fetch(url, { ...options, headers: retryHeaders });
+      } catch (err) {
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        throw err;
+      }
+    }
+    return res;
+  }
 
   async function handleSubmit() {
     setErr(null);
     setSubmitting(true);
     try {
+      const fid = step2?.facilityIdFromList || id;
       const payload = buildReservationPayload(step1, step2, id, file);
 
-      // quick client-side check to avoid obvious 400s
       const atLeastOneGuest = (payload.numberOfAdults + payload.numberOfChildren + payload.numberOfPwds) > 0;
       if (!atLeastOneGuest) throw new Error('At least one guest is required.');
       if (!payload.dateOfArrival || !payload.dateOfDeparture) throw new Error('Arrival and departure dates are required.');
@@ -88,19 +159,16 @@ function ResDetails({ onClose }) {
       fd.append('serviceType', payload.serviceType);
       fd.append('timeOfArrival', payload.timeOfArrival);
       fd.append('otherRequests', payload.otherRequests || '');
-      fd.append('letterOfIntentFile', file); // field name must match multer.single('letterOfIntentFile')
+      fd.append('letterOfIntentFile', file); 
 
-      const token = localStorage.getItem('accessToken'); // you set this on login
-      const res = await fetch(`/api/reservation/create-reservation`, {
+      const res = await authorizedFetch(`/api/reservation/create-reservation`, {
         method: 'POST',
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-        body: fd // never set Content-Type manually for FormData
+        body: fd,
       });
 
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || 'Reservation failed');
 
-      // Success: navigate to your history/confirmation
       navigate('/reservations', { replace: true });
     } catch (e) {
       setErr(e.message || 'Submission failed.');
@@ -138,7 +206,7 @@ function ResDetails({ onClose }) {
                   <td colSpan={3}>
                     <div className={styles.amountLine}></div>
                     <div className={styles.amountLabel}>Total Estimated Amount</div>
-                    <span className={styles.amountValue}>{data.amount}</span>
+                    <span className={styles.amountValue}>{amountText}</span>
                   </td>
                 </tr>
               </tbody>

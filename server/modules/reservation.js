@@ -216,43 +216,18 @@ const reservationModule = {
                 }
             }
 
-            // --- inputs already validated above: adults, children, pwds, serviceType ---
-            const guestTotal = adults + children + pwds;
+            const { amount: totalEstimatedAmount, } = computeEstimate({
+                facilityDoc,
+                adults,
+                children,
+                pwds,
+                serviceType,
+            });
 
-            // Decide pricing model:
-            // - Accommodation (dorm/cottage) -> per-person
-            // - Everything else (conference/events) -> flat per booking
-            const isAccommodation =
-            serviceType === ServiceType.ACCOMMODATION ||
-            facilityDoc.type === 'DORMITORY' ||
-            facilityDoc.type === 'COTTAGE';
-
-            // Pull numeric fields safely
-            const perPersonRate = Number(facilityDoc.ratePerPerson);
-            const flatBookingPrice = Number(
-            facilityDoc.price ?? facilityDoc.conferencePrice ?? facilityDoc.flatPrice
-            );
-
-            let totalEstimatedAmount = 0;
-
-            if (isAccommodation) {
-            if (!Number.isFinite(perPersonRate) || perPersonRate < 0) {
-                responseData.status = Status.BAD_REQUEST;
-                responseData.error = 'Facility is missing a valid per‑person rate.';
+            if (!Number.isFinite(totalEstimatedAmount)) {
+                responseData.status = Status.INTERNAL_SERVER_ERROR;
+                responseData.error = 'Failed to compute estimated amount';
                 return responseData;
-            }
-            // adults = 100%, children+pwds = 80%  (no per‑day multiplication)
-            totalEstimatedAmount =
-                adults * perPersonRate +
-                (children + pwds) * perPersonRate * 0.80;
-            } else {
-            if (!Number.isFinite(flatBookingPrice) || flatBookingPrice < 0) {
-                responseData.status = Status.BAD_REQUEST;
-                responseData.error = 'Facility is missing a valid flat booking price.';
-                return responseData;
-            }
-            // Conference / event: flat price ONCE (NOT per day)
-            totalEstimatedAmount = flatBookingPrice;
             }
 
             const reservationData = {
@@ -588,6 +563,62 @@ const reservationModule = {
         }
         return responseData;
     },
+
+    /**
+     * Estimates the amount for a given facility, number of guests, and service type.
+     * @param {Object} dbHelper - The database helper for database operations.
+     * @param {Object} params - The parameters object containing the following properties:
+     *   - facility (required): The ID of the facility.
+     *   - adults (optional, default 0): The number of adults.
+     *   - children (optional, default 0): The number of children.
+     *   - pwds (optional, default 0): The number of persons with disabilities.
+     *   - serviceType (optional): The type of service (ACCOMMODATION or MEETING).
+     * @returns {Object} Response data with status, error, amount, and model on success.
+     */
+    estimate: async (dbHelper, params = {}) => {
+        const responseData = {
+            status: Status.INTERNAL_SERVER_ERROR,
+            error: 'Error estimating amount',
+        };
+
+        try {
+            const { facility, adults = 0, children = 0, pwds = 0, serviceType, } = params;
+
+            if (!facility) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'facility is required';
+                return responseData;
+            }
+
+            const facilityDoc = await dbHelper.findOne('facility', { _id: facility, });
+            if (!facilityDoc) {
+                responseData.status = Status.NOT_FOUND;
+                responseData.error = 'Facility not found';
+                return responseData;
+            }
+
+            const svcType = serviceType ||
+            ((facilityDoc.type === 'DORMITORY' || facilityDoc.type === 'COTTAGE')
+                ? ServiceType.ACCOMMODATION
+                : ServiceType.MEETING);
+
+            const { amount, model, } = computeEstimate({
+                facilityDoc,
+                adults: Number(adults) || 0,
+                children: Number(children) || 0,
+                pwds: Number(pwds) || 0,
+                serviceType: svcType,
+            });
+
+            responseData.status = Status.OK;
+            responseData.error = null;
+            responseData.amount = amount;
+            responseData.model = model;
+        } catch (err) {
+            responseData.error = err.message;
+        }
+        return responseData;
+    },
 };
 
 export default reservationModule;
@@ -675,13 +706,40 @@ function isValidFile(file) {
 }
 
 function isPresent(value) {
-  if (value === null || value === undefined) return false;
-  if (typeof value === 'string') {
-    return value.trim().length > 0;  
-  }
-  if (typeof value === 'number') {
-    return !Number.isNaN(value);
-  }
-  return true; 
+    if (value === null || value === undefined) return false;
+    if (typeof value === 'string') {
+        return value.trim().length > 0;
+    }
+    if (typeof value === 'number') {
+        return !Number.isNaN(value);
+    }
+    return true;
+}
+
+function computeEstimate({ facilityDoc, adults = 0, children = 0, pwds = 0, serviceType, }) {
+    const isAccommodation =
+    serviceType === ServiceType.ACCOMMODATION ||
+    facilityDoc?.type === 'DORMITORY' ||
+    facilityDoc?.type === 'COTTAGE';
+
+    const perPersonRate = Number(facilityDoc?.ratePerPerson);
+    const flatBookingPrice = Number(
+        facilityDoc?.price ?? facilityDoc?.conferencePrice ?? facilityDoc?.flatPrice
+    );
+
+    if (isAccommodation) {
+        if (!Number.isFinite(perPersonRate) || perPersonRate < 0) {
+            return { amount: 0, model: 'perPerson', };
+        }
+        const amount =
+      adults * perPersonRate +
+      (children + pwds) * perPersonRate * 0.80;
+        return { amount, model: 'perPerson', };
+    } else {
+        if (!Number.isFinite(flatBookingPrice) || flatBookingPrice < 0) {
+            return { amount: 0, model: 'flat', };
+        }
+        return { amount: flatBookingPrice, model: 'flat', };
+    }
 }
 

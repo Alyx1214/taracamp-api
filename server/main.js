@@ -141,6 +141,11 @@ const processGetAPI = async (req, res) => {
                     let responseData = await reservationModule.getAllReservationsByStatus(dbHelper, id, req.user);
                     return res.status(responseData.status).json(responseData);
                 }
+                case 'estimate-amount': {
+                    const params = { ...req.query };
+                    let responseData = await reservationModule.estimate(dbHelper, params);
+                    return res.status(responseData.status).json(responseData);
+                }
                 default:
                     return res.status(404).json({ error: 'Unknown action', });
             }
