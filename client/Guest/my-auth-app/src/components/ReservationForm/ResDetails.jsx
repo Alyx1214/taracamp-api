@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import styles from './ResDetails.module.css';
 import HeaderHome from '../HeaderHome/HeaderHome';
 import { buildReservationPayload, mapServiceType } from '../Utilities/ReservationMapper';
@@ -8,25 +8,40 @@ import ErrorBanner from '../ErrorBanner/ErrorBanner';
 function ResDetails({ onClose }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { type, id } = useParams();
+  const inFlight = useRef(false);
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState(null);
   const [quote, setQuote] = useState(null);
 
-  if (!type || !id) {
-    navigate('/services', { replace: true });
-    return null;
-  }
+  const {
+    id: stateId,
+    facility,
+    type,
+    step1 = {},
+    step2 = {},
+    file,
+  } = location.state || {};
 
-  const step1 = location.state?.step1 || {};
-  const step2 = location.state?.step2 || {};
-  const file = location.state?.file;
+  const id =
+    typeof stateId === 'string'
+      ? stateId
+      : (stateId && (stateId._id || stateId.id)) ||
+        (typeof facility === 'string' ? facility : (facility && (facility._id || facility.id)) || '');
+
+  useEffect(() => {
+    if (!id) navigate('/services', { replace: true });
+  }, [id, navigate]);
+
+  if (!id) return null;
 
   useEffect(() => {
     const a = parseInt(step1?.guests?.adult || 0, 10) || 0;
     const c = parseInt(step1?.guests?.children || 0, 10) || 0;
     const p = parseInt(step1?.guests?.pwds || 0, 10) || 0;
-    const fid = step2?.facilityIdFromList || id;
+    const fid =
+      typeof step2?.facilityIdFromList === 'string'
+        ? step2.facilityIdFromList
+        : (step2?.facilityIdFromList && (step2.facilityIdFromList._id || step2.facilityIdFromList.id)) || id;
     if (!fid) return;
 
     const svcEnum = mapServiceType(step2?.typeService);
@@ -34,8 +49,11 @@ function ResDetails({ onClose }) {
     (async () => {
       try {
         const qs = new URLSearchParams({
-          facility: fid, adults: String(a), children: String(c), pwds: String(p),
-          serviceType: svcEnum || 'MEETING/CONFERENCE'
+          facility: fid,
+          adults: String(a),
+          children: String(c),
+          pwds: String(p),
+          serviceType: svcEnum || 'MEETING/CONFERENCE',
         });
         const res = await fetch(`/api/reservation/estimate-amount?${qs.toString()}`);
         const json = await res.json();
@@ -91,7 +109,7 @@ function ResDetails({ onClose }) {
     const headers = new Headers(options?.headers || {});
     if (token) headers.set('Authorization', `Bearer ${token}`);
     let res = await fetch(url, { ...options, headers });
-    if (res.status === 401 || res.status === 403) {
+    if (res.status === 401) {
       try {
         const newToken = await refreshAccessToken();
         const retryHeaders = new Headers(options?.headers || {});
@@ -111,8 +129,8 @@ function ResDetails({ onClose }) {
       guestName: 'groupAssociation',
       homeAddress: 'homeAddress',
       officeAddress: 'officeAddress',
-      category: 'category',     
-      guestType: 'type',        
+      category: 'category',
+      guestType: 'type',
       telephone: 'phoneNo',
       officeTelephone: 'officeTelephoneNo',
       emergencyContact: 'emergencyContact',
@@ -164,16 +182,25 @@ function ResDetails({ onClose }) {
   }
 
   async function handleSubmit() {
+    if (inFlight.current) return;
+    inFlight.current = true;
     setErr(null);
     setSubmitting(true);
     try {
       const payload = buildReservationPayload(step1, step2, id, file);
 
-      const atLeastOneGuest = (payload.numberOfAdults + payload.numberOfChildren + payload.numberOfPwds) > 0;
+      const atLeastOneGuest =
+        payload.numberOfAdults + payload.numberOfChildren + payload.numberOfPwds > 0;
       if (!atLeastOneGuest) throw new Error('At least one guest is required.');
-      if (!payload.dateOfArrival || !payload.dateOfDeparture) throw new Error('Arrival and departure dates are required.');
+      if (!payload.dateOfArrival || !payload.dateOfDeparture)
+        throw new Error('Arrival and departure dates are required.');
       if (!payload.timeOfArrival) throw new Error('Time of arrival is required.');
       if (!file) throw new Error('Letter of Intent file is required.');
+
+      const facilityForPost =
+        typeof step2?.facilityIdFromList === 'string'
+          ? step2.facilityIdFromList
+          : (step2?.facilityIdFromList && (step2.facilityIdFromList._id || step2.facilityIdFromList.id)) || id;
 
       const fd = new FormData();
       Object.entries({
@@ -190,21 +217,24 @@ function ResDetails({ onClose }) {
         emergencyContact: payload.emergencyContact || '',
         dateOfArrival: payload.dateOfArrival,
         dateOfDeparture: payload.dateOfDeparture,
-        facility: payload.facility,
+        facility: facilityForPost, 
         serviceType: payload.serviceType,
         timeOfArrival: payload.timeOfArrival,
         otherRequests: payload.otherRequests || '',
       }).forEach(([k, v]) => fd.append(k, v));
       fd.append('letterOfIntentFile', file);
 
-      const res = await authorizedFetch(`/api/reservation/create-reservation`, { method: 'POST', body: fd });
+      const res = await authorizedFetch(`/api/reservation/create-reservation`, {
+        method: 'POST',
+        body: fd,
+      });
       const data = await res.json().catch(() => ({}));
 
       if (!res.ok) {
         const server = {
           message: data.error || data.message || 'Reservation failed',
           details: Array.isArray(data.details) ? data.details : null,
-          status: data.status || res.status
+          status: data.status || res.status,
         };
         setErr(server);
 
@@ -213,14 +243,17 @@ function ResDetails({ onClose }) {
         else mapped = heuristics(server.message || '');
 
         if (Object.keys(mapped.errorsStep1).length) {
-          navigate(`/reservation-form/${type}/${id}`, { state: { step1, errorsStep1: mapped.errorsStep1, serverError: server } });
+          navigate('/reservation-form', {
+            state: { step1, errorsStep1: mapped.errorsStep1, serverError: server, type, facility: id, file },
+          });
           return;
         }
         if (Object.keys(mapped.errorsStep2).length) {
-          navigate(`/reservation-step2/${type}/${id}`, { state: { step1, step2, errorsStep2: mapped.errorsStep2, serverError: server } });
+          navigate('/reservation-step2', {
+            state: { step1, step2, errorsStep2: mapped.errorsStep2, serverError: server, type, facility: id, file },
+          });
           return;
         }
-
         return;
       }
 
@@ -229,6 +262,7 @@ function ResDetails({ onClose }) {
       setErr({ message: e.message || 'Submission failed.' });
     } finally {
       setSubmitting(false);
+      inFlight.current = false;
     }
   }
 
@@ -276,7 +310,7 @@ function ResDetails({ onClose }) {
           </div>
         </div>
 
-        <button className={styles.submitBtn} onClick={handleSubmit} disabled={submitting}>
+        <button type="button" className={styles.submitBtn} onClick={handleSubmit} disabled={submitting}>
           {submitting ? 'Submitting…' : 'Submit'}
         </button>
       </div>

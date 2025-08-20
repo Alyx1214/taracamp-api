@@ -1,39 +1,93 @@
-import React, { useRef, useState } from 'react';
-import { useNavigate, useLocation, useParams } from 'react-router-dom';
+import React, { useRef, useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import HeaderHome from '../HeaderHome/HeaderHome';
 import styles from './ResForm3.module.css';
 import { ArrowLeft, UploadCloud } from 'lucide-react';
 
-const LETTER_TEMPLATE_URL = '#'; // Replace with actual template link
+const LETTER_TEMPLATE_URL = '#'; // TODO: real URL
 
 function ReservationFormStep3() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { type, id } = useParams();
+
   const step1 = location.state?.step1 || {};
   const step2 = location.state?.step2 || {};
-  const [file, setFile] = useState(null);
+  const { type, facility } = location.state || {};
+  const facilityId =
+    typeof facility === 'string'
+      ? facility
+      : (facility && (facility._id || facility.id)) || '';
+
+  const [file, setFile] = useState(location.state?.file || null);
+  const [fileError, setFileError] = useState('');
   const fileInputRef = useRef();
 
+  useEffect(() => {
+    if (!type || !facilityId) {
+      if (step1 && Object.keys(step1).length) {
+        navigate('/reservation-step2', {
+          replace: true,
+          state: { step1, step2, type, facility: facilityId },
+        });
+      } else {
+        navigate('/services', { replace: true });
+      }
+    }
+  }, [type, facilityId, step1, step2, navigate]);
+
+  if (!type || !facilityId) return null;
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem('reservation.step3.fileName', file?.name || '');
+    } catch {}
+  }, [file]);
+
   const handleGoBack = () => {
-    navigate(-1);
+    navigate('/reservation-step2', { state: { step1, step2, type, facility: facilityId, file } });
   };
 
   const handlePrevious = () => {
-    navigate(-1);
+    navigate('/reservation-step2', { state: { step1, step2, type, facility: facilityId, file } });
   };
 
   const handleNext = () => {
-    navigate(`/reservation-step4/${type}/${id}`, { state: { step1, step2, file } });
-  };
-  
-  const handleBoxClick = () => {
-    fileInputRef.current.click();
+    if (!file) {
+      setFileError('Letter of Intent is required.');
+      return;
+    }
+    setFileError('');
+    navigate('/reservation-step4', {
+      state: { step1, step2, file, type, facility: facilityId, id: facilityId },
+    });
   };
 
-  const handleFileChange = (e) => {
+  const handleBoxClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = e => {
     if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0]);
+      const f = e.target.files[0];
+
+      const okType =
+        [
+          'application/pdf',
+          'application/msword',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        ].includes(f.type) || /\.(pdf|docx?)$/i.test(f.name);
+
+      if (!okType) {
+        setFileError('Please upload a PDF or Word document.');
+        return;
+      }
+      if (f.size > 5 * 1024 * 1024) {
+        setFileError('File is too large. Max 5 MB.');
+        return;
+      }
+
+      setFileError('');
+      setFile(f);
     }
   };
 
@@ -52,35 +106,26 @@ function ReservationFormStep3() {
             <div className={styles.formTitle}>Upload Letter of Intent</div>
             <div className={styles.formSubtitle}>
               → Download this{' '}
-              <a
-                href={LETTER_TEMPLATE_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={styles.letterLink}
-              >
+              <a href={LETTER_TEMPLATE_URL} target="_blank" rel="noopener noreferrer" className={styles.letterLink}>
                 Letter of Intent Template
               </a>{' '}
-              for your reference and make sure that your Uploaded Letter of Intent covers all the information needed.
+              for your reference and make sure your uploaded file covers all required information.
             </div>
-            <div className={styles.groupNote}>
-              This section is only for group reservation.
-            </div>
-            <div className={styles.uploadBox} onClick={handleBoxClick}>
+            <div className={styles.groupNote}>This section is only for group reservations.</div>
+            <div className={styles.uploadBox} onClick={handleBoxClick} role="button" tabIndex={0}>
               <input
                 type="file"
-                accept=".pdf,.doc,.docx"
+                accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                 style={{ display: 'none' }}
                 ref={fileInputRef}
                 onChange={handleFileChange}
               />
               <UploadCloud className={styles.uploadIcon} />
-              <div className={styles.uploadText}>
-                {file ? file.name : 'Click to upload'}
-              </div>
+              <div className={styles.uploadText}>{file ? file.name : 'Click to upload'}</div>
             </div>
-            <div className={styles.infoText}>
-              Kindly double check the following information before submitting.
-            </div>
+            {fileError && <div className={styles.fieldError} style={{ marginTop: 8 }}>{fileError}</div>}
+
+            <div className={styles.infoText}>Kindly double check the following information before submitting.</div>
             <div className={styles.buttonContainer}>
               <button type="button" onClick={handlePrevious} className={styles.previousButton}>
                 Previous

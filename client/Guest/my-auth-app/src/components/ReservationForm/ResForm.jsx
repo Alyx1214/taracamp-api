@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import HeaderHome from '../HeaderHome/HeaderHome';
 import styles from './ResForm.module.css';
 import { ArrowLeft } from 'lucide-react';
@@ -8,12 +8,17 @@ import ErrorBanner from '../ErrorBanner/ErrorBanner';
 function ReservationForm() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { type, id } = useParams();
+  const { type, facility } = location.state || {};
+  const prevStep2Ref = useRef(location.state?.step2 || null);
+  const prevFileRef = useRef(location.state?.file || null); 
 
-  if (!type || !id) {
-    navigate('/services', { replace: true });
-    return null;
-  }
+  useEffect(() => {
+     if (!type || !facility) {
+       navigate('/services', { replace: true });
+     }
+   }, [type, facility, navigate]);
+
+   if (!type || !facility) return null;
 
   const [formData, setFormData] = useState({
     groupAssociation: '',
@@ -66,6 +71,15 @@ function ReservationForm() {
     if (!formData.homeAddress?.trim()) e.homeAddress = 'Required';
     if (!phoneOk) e.phoneNo = 'Enter a valid PH mobile (e.g., 09XXXXXXXXX or +639XXXXXXXXX).';
     if (!emerOk) e.emergencyContact = 'Enter a valid PH mobile for emergency contact.';
+    const adult = Number(formData.guests.adult || 0);
+    const children = Number(formData.guests.children || 0);
+    const pwds = Number(formData.guests.pwds || 0);
+    const total = adult + children + pwds;
+    if (adult < 0) e.guestsAdult = 'Adult guests cannot be negative.';
+    if (children < 0) e.guestsChildren = 'Children guests cannot be negative.';
+    if (pwds < 0) e.guestsPwds = 'PWD guests cannot be negative.';
+    if (total < 0) e.guestsTotal = 'Total guests cannot be negative.';
+    if (total === 0) e.guestsTotal = 'At least 1 guest is required.';
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -74,12 +88,12 @@ function ReservationForm() {
 
   const handleNext = () => {
     if (!validateStep1()) {
-      setServerErr({ message: 'Please fix the errors highlighted below before continuing.' });
       return;
     }
-    setServerErr(null);
     const step1 = { ...formData };
-    navigate(`/reservation-step2/${type}/${id}`, { state: { step1 } });
+    navigate('/reservation-step2', {
+        state: { step1, type, facility, step2: prevStep2Ref.current, file: prevFileRef.current }
+      });
   };
 
   return (

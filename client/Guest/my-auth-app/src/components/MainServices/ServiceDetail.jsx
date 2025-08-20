@@ -193,7 +193,7 @@ function MainServicesServiceDetail() {
 
   const onReserveNow = () => {
     if (isLoggedIn) {
-      navigate(`/reservation-form/${type}/${facility._id}`);
+      navigate('/reservation-form', { state: { type, facility } });
     } else {
       navigate('/auth/login');
     }

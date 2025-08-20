@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { useNavigate, useLocation, useParams } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import HeaderHome from '../HeaderHome/HeaderHome';
 import styles from './ResForm2.module.css';
 import { ArrowLeft } from 'lucide-react';
@@ -8,19 +8,23 @@ import ErrorBanner from '../ErrorBanner/ErrorBanner';
 function ReservationFormStep2() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { type, id } = useParams();
   const step1 = location.state?.step1 || {};
+  const file = location.state?.file || null;
+  const { type, facility } = location.state || {};
 
-  if (!type || !id) {
-    navigate('/services', { replace: true });
-    return null;
-  }
+  useEffect(() => {
+       if (!type || !facility) {
+         navigate('/services', { replace: true });
+       }
+     }, [type, facility, navigate]);
+  
+     if (!type || !facility) return null;
 
   const [formData, setFormData] = useState({
     dateArrival: '',
     dateDeparture: '',
     typeFacilities: '',
-    facilityName: '',          
+    facilityName: '',
     typeService: '',
     timeArrivalHour: '',
     timeArrivalAMPM: 'AM',
@@ -28,29 +32,53 @@ function ReservationFormStep2() {
     specialRequests: '',
   });
 
-  const [facilityOptions, setFacilityOptions] = useState([]); 
+  const [facilityOptions, setFacilityOptions] = useState([]);
   const [specialOptions, setSpecialOptions] = useState([]);
   const [loadingFacilities, setLoadingFacilities] = useState(false);
   const [loadingSpecials, setLoadingSpecials] = useState(false);
   const [err, setErr] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
   const [checkingAvail, setCheckingAvail] = useState(false);
-  const [isAvailable, setIsAvailable] = useState(null); 
+  const [isAvailable, setIsAvailable] = useState(null);
   const [availReason, setAvailReason] = useState('');
   const abortRef = useRef(null);
 
+  // Hydrate from navigation state, then fall back to sessionStorage
   useEffect(() => {
-    if (location.state?.step2) setFormData(prev => ({ ...prev, ...location.state.step2 }));
+    let hydrated = false;
+    if (location.state?.step2) {
+      setFormData(prev => ({ ...prev, ...location.state.step2 }));
+      hydrated = true;
+    }
     if (location.state?.errorsStep2) setFieldErrors(location.state.errorsStep2);
+    if (!hydrated) {
+      try {
+        const saved = sessionStorage.getItem('reservation.step2');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed && typeof parsed === 'object') {
+            setFormData(prev => ({ ...prev, ...parsed }));
+          }
+        }
+      } catch {}
+    }
   }, [location.state]);
 
+  // Persist to sessionStorage on changes
+  useEffect(() => {
+    try {
+      sessionStorage.setItem('reservation.step2', JSON.stringify(formData));
+    } catch {}
+  }, [formData]);
+
   const minArrival = useMemo(() => {
-    const d = new Date(); d.setDate(d.getDate() + 1);
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
     return d.toISOString().slice(0, 10);
   }, []);
 
   const handleGoBack = () => {
-    navigate(`/reservation-form/${type}/${id}`, { state: { step1 } });
+    navigate('/reservation-form', { state: { step1, step2: formData, type, facility, file } });
   };
 
   useEffect(() => {
@@ -74,7 +102,9 @@ function ReservationFormStep2() {
         if (active) setLoadingSpecials(false);
       }
     })();
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -85,18 +115,20 @@ function ReservationFormStep2() {
       if (!formData.typeFacilities) return;
       try {
         setLoadingFacilities(true);
-        const res = await fetch(`/api/facility/get-facilities-by-type/${encodeURIComponent(formData.typeFacilities)}`);
+        const res = await fetch(
+          `/api/facility/get-facilities-by-type/${encodeURIComponent(formData.typeFacilities)}`
+        );
         const json = await res.json();
         if (!res.ok) throw new Error(json.error || 'Failed to load facilities');
         if (!active) return;
 
         const list = (json?.data || json?.facilities || json || []).map((f, idx) => ({
-          _id: String(f._id || f.id),                               
+          _id: String(f._id || f.id),
           label: f.name,
           capacity: f.capacity,
-          ratePerPerson: f.ratePerPerson ?? f.price,                
+          ratePerPerson: f.ratePerPerson ?? f.price,
           status: f.status ?? 'AVAILABLE',
-          __k: String(f._id || f.id || `f-${idx}`),                  
+          __k: String(f._id || f.id || `f-${idx}`),
         }));
         setFacilityOptions(list);
         setFormData(prev => {
@@ -113,10 +145,12 @@ function ReservationFormStep2() {
 
     setIsAvailable(null);
     setAvailReason('');
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [formData.typeFacilities]);
 
-  const handleInputChange = (e) => {
+  const handleInputChange = e => {
     const { name, value } = e.target;
 
     if (name === 'facilityName') {
@@ -175,7 +209,7 @@ function ReservationFormStep2() {
 
       const available = Boolean(json.available);
       setIsAvailable(available);
-      setAvailReason(available ? '' : (json.reason || 'Facility is not available for the selected dates.'));
+      setAvailReason(available ? '' : json.reason || 'Facility is not available for the selected dates.');
     } catch (e) {
       if (e.name === 'AbortError') return;
       setIsAvailable(false);
@@ -193,7 +227,7 @@ function ReservationFormStep2() {
 
     const t = setTimeout(() => {
       fetchAvailability({
-        facilityId: facilityName,  
+        facilityId: facilityName,
         start: dateArrival,
         end: dateDeparture,
       });
@@ -202,7 +236,7 @@ function ReservationFormStep2() {
   }, [formData.facilityName, formData.dateArrival, formData.dateDeparture]);
 
   const handlePrevious = () => {
-    navigate(`/reservation-form/${type}/${id}`, { state: { step1 } });
+    navigate('/reservation-form', { state: { step1, step2: formData, type, facility, file } });
   };
 
   const handleNext = () => {
@@ -211,7 +245,7 @@ function ReservationFormStep2() {
     if (isAvailable === false) {
       setFieldErrors(prev => ({
         ...prev,
-        dateArrival: prev.dateArrival || (availReason || 'Facility is not available for the selected dates.'),
+        dateArrival: prev.dateArrival || availReason || 'Facility is not available for the selected dates.',
         dateDeparture: prev.dateDeparture || 'Choose different dates.',
         facilityName: prev.facilityName || 'Select another facility or change the date range.',
       }));
@@ -240,7 +274,10 @@ function ReservationFormStep2() {
       facilityCapacity: chosenFacility.capacity,
       facilityRatePerPerson: chosenFacility.ratePerPerson,
     };
-    navigate(`/reservation-step3/${type}/${id}`, { state: { step1, step2 } });
+
+    navigate('/reservation-step3', {
+      state: { step1, step2, type, facility, id: facility, file },
+    });
   };
 
   return (
@@ -258,7 +295,7 @@ function ReservationFormStep2() {
           <div className={styles.formCard}>
             <ErrorBanner err={err} onClose={() => setErr(null)} />
 
-            <form onSubmit={(e) => e.preventDefault()}>
+            <form onSubmit={e => e.preventDefault()}>
               <div className={styles.formRow}>
                 <div className={styles.formGroup}>
                   <label className={styles.label}>Date of Arrival</label>
@@ -270,7 +307,9 @@ function ReservationFormStep2() {
                     onChange={handleInputChange}
                     className={`${styles.input} ${fieldErrors.dateArrival ? styles.inputError : ''}`}
                   />
-                  {fieldErrors.dateArrival && <div className={styles.fieldError}>{fieldErrors.dateArrival}</div>}
+                  {fieldErrors.dateArrival && (
+                    <div className={styles.fieldError}>{fieldErrors.dateArrival}</div>
+                  )}
                 </div>
 
                 <div className={styles.formGroup}>
@@ -283,7 +322,9 @@ function ReservationFormStep2() {
                     onChange={handleInputChange}
                     className={`${styles.input} ${fieldErrors.dateDeparture ? styles.inputError : ''}`}
                   />
-                  {fieldErrors.dateDeparture && <div className={styles.fieldError}>{fieldErrors.dateDeparture}</div>}
+                  {fieldErrors.dateDeparture && (
+                    <div className={styles.fieldError}>{fieldErrors.dateDeparture}</div>
+                  )}
                 </div>
               </div>
 
@@ -293,9 +334,9 @@ function ReservationFormStep2() {
                   <select
                     name="typeFacilities"
                     value={formData.typeFacilities}
-                    onChange={(e) => {
+                    onChange={e => {
                       handleInputChange(e);
-                      setFormData(prev => ({ ...prev, facilityName: '' })); 
+                      setFormData(prev => ({ ...prev, facilityName: '' }));
                       setIsAvailable(null);
                       setAvailReason('');
                     }}
@@ -306,7 +347,9 @@ function ReservationFormStep2() {
                     <option value="CONFERENCE">Conference Hall</option>
                     <option value="COTTAGE">Cottage/Guest House</option>
                   </select>
-                  {fieldErrors.typeFacilities && <div className={styles.fieldError}>{fieldErrors.typeFacilities}</div>}
+                  {fieldErrors.typeFacilities && (
+                    <div className={styles.fieldError}>{fieldErrors.typeFacilities}</div>
+                  )}
                 </div>
 
                 <div className={styles.formGroup}>
@@ -318,19 +361,27 @@ function ReservationFormStep2() {
                     className={`${styles.input} ${fieldErrors.facilityName ? styles.inputError : ''}`}
                     disabled={!formData.typeFacilities || loadingFacilities}
                   >
-                    <option value="">{loadingFacilities ? 'Loading facilities…' : 'Select a facility'}</option>
-                    {facilityOptions.map((f) => (
+                    <option value="">
+                      {loadingFacilities ? 'Loading facilities…' : 'Select a facility'}
+                    </option>
+                    {facilityOptions.map(f => (
                       <option key={f.__k} value={f._id}>
                         {f.label}
                       </option>
                     ))}
                   </select>
-                  {fieldErrors.facilityName && <div className={styles.fieldError}>{fieldErrors.facilityName}</div>}
+                  {fieldErrors.facilityName && (
+                    <div className={styles.fieldError}>{fieldErrors.facilityName}</div>
+                  )}
 
                   {formData.facilityName && formData.dateArrival && formData.dateDeparture && (
                     <div className={styles.availabilityRow}>
-                      {checkingAvail && <span className={styles.availabilityPending}>Checking availability…</span>}
-                      {!checkingAvail && isAvailable === true && <span className={styles.availabilityOk}>Available ✔</span>}
+                      {checkingAvail && (
+                        <span className={styles.availabilityPending}>Checking availability…</span>
+                      )}
+                      {!checkingAvail && isAvailable === true && (
+                        <span className={styles.availabilityOk}>Available ✔</span>
+                      )}
                       {!checkingAvail && isAvailable === false && (
                         <span className={styles.availabilityBad}>
                           {availReason || 'Not available for the selected dates.'}
@@ -359,7 +410,9 @@ function ReservationFormStep2() {
                     <option value="Accommodation">Accommodation</option>
                     <option value="Other">Other</option>
                   </select>
-                  {fieldErrors.typeService && <div className={styles.fieldError}>{fieldErrors.typeService}</div>}
+                  {fieldErrors.typeService && (
+                    <div className={styles.fieldError}>{fieldErrors.typeService}</div>
+                  )}
 
                   {formData.typeService === 'Other' && (
                     <input
@@ -397,7 +450,9 @@ function ReservationFormStep2() {
                       <option value="PM">PM</option>
                     </select>
                   </div>
-                  {fieldErrors.timeArrivalHour && <div className={styles.fieldError}>{fieldErrors.timeArrivalHour}</div>}
+                  {fieldErrors.timeArrivalHour && (
+                    <div className={styles.fieldError}>{fieldErrors.timeArrivalHour}</div>
+                  )}
                 </div>
               </div>
 
@@ -411,14 +466,18 @@ function ReservationFormStep2() {
                     className={styles.input}
                     style={{ flex: 1 }}
                   >
-                    <option value="">{loadingSpecials ? 'Loading options…' : 'Select a special service'}</option>
-                    {specialOptions.map((request) => (
+                    <option value="">
+                      {loadingSpecials ? 'Loading options…' : 'Select a special service'}
+                    </option>
+                    {specialOptions.map(request => (
                       <option key={request.value} value={request.value}>
                         {request.label}
                       </option>
                     ))}
                   </select>
-                  <button type="button" className={styles.addRequestButton}>+</button>
+                  <button type="button" className={styles.addRequestButton}>
+                    +
+                  </button>
                 </div>
               </div>
 
