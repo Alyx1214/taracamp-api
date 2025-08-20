@@ -13,12 +13,12 @@ function ReservationFormStep2() {
   const { type, facility } = location.state || {};
 
   useEffect(() => {
-       if (!type || !facility) {
-         navigate('/services', { replace: true });
-       }
-     }, [type, facility, navigate]);
-  
-     if (!type || !facility) return null;
+    if (!type || !facility) {
+      navigate('/services', { replace: true });
+    }
+  }, [type, facility, navigate]);
+
+  if (!type || !facility) return null;
 
   const [formData, setFormData] = useState({
     dateArrival: '',
@@ -42,6 +42,14 @@ function ReservationFormStep2() {
   const [isAvailable, setIsAvailable] = useState(null);
   const [availReason, setAvailReason] = useState('');
   const abortRef = useRef(null);
+
+  // Total guests from Step 1
+  const totalGuests = useMemo(() => {
+    const a = parseInt(step1?.guests?.adult || 0, 10) || 0;
+    const c = parseInt(step1?.guests?.children || 0, 10) || 0;
+    const p = parseInt(step1?.guests?.pwds || 0, 10) || 0;
+    return a + c + p;
+  }, [step1]);
 
   // Hydrate from navigation state, then fall back to sessionStorage
   useEffect(() => {
@@ -81,6 +89,7 @@ function ReservationFormStep2() {
     navigate('/reservation-form', { state: { step1, step2: formData, type, facility, file } });
   };
 
+  // Load special services
   useEffect(() => {
     let active = true;
     (async () => {
@@ -107,6 +116,7 @@ function ReservationFormStep2() {
     };
   }, []);
 
+  // Load facilities by type
   useEffect(() => {
     let active = true;
     (async () => {
@@ -122,15 +132,24 @@ function ReservationFormStep2() {
         if (!res.ok) throw new Error(json.error || 'Failed to load facilities');
         if (!active) return;
 
-        const list = (json?.data || json?.facilities || json || []).map((f, idx) => ({
-          _id: String(f._id || f.id),
-          label: f.name,
-          capacity: f.capacity,
-          ratePerPerson: f.ratePerPerson ?? f.price,
-          status: f.status ?? 'AVAILABLE',
-          __k: String(f._id || f.id || `f-${idx}`),
-        }));
+        const list = (json?.data || json?.facilities || json || []).map((f, idx) => {
+          const rawName = String(f.name || '');
+          // Title-case inline (no helper)
+          const label = rawName
+            .toLowerCase()
+            .replace(/\b[a-z]/g, c => c.toUpperCase());
+          return {
+            _id: String(f._id || f.id),
+            label,
+            capacity: Number(f.capacity ?? 0),
+            ratePerPerson: f.ratePerPerson ?? f.price,
+            status: f.status ?? 'AVAILABLE',
+            __k: String(f._id || f.id || `f-${idx}`),
+          };
+        });
         setFacilityOptions(list);
+
+        // If selected facility no longer exists, clear it
         setFormData(prev => {
           if (!prev.facilityName) return prev;
           const stillExists = list.some(o => o._id === String(prev.facilityName));
@@ -143,6 +162,7 @@ function ReservationFormStep2() {
       }
     })();
 
+    // reset availability status on type change
     setIsAvailable(null);
     setAvailReason('');
     return () => {
@@ -183,6 +203,7 @@ function ReservationFormStep2() {
     if (!formData.facilityName) e.facilityName = 'Select a facility.';
     if (!formData.typeService) e.typeService = 'Select a service type.';
     if (!formData.timeArrivalHour) e.timeArrivalHour = 'Enter arrival hour.';
+    // IMPORTANT: do NOT set capacity error here; we show it inline to avoid duplicates
     setFieldErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -219,11 +240,27 @@ function ReservationFormStep2() {
     }
   }
 
+  // Capacity gating
+  const chosenFacility = facilityOptions.find(o => o._id === formData.facilityName);
+  const capacityOk = !chosenFacility || Number(chosenFacility.capacity) >= totalGuests;
+  const capacityMsg =
+    chosenFacility && !capacityOk
+      ? `Selected facility capacity is ${chosenFacility.capacity}, but you have ${totalGuests} guests.`
+      : '';
+
+  // Availability check, but skip if capacity already insufficient
   useEffect(() => {
     const { facilityName, dateArrival, dateDeparture } = formData;
     if (!facilityName || facilityName === 'undefined' || facilityName === 'null') return;
     if (!dateArrival || !dateDeparture) return;
     if (dateDeparture < dateArrival) return;
+
+    // If capacity is not enough, don’t check availability
+    if (!capacityOk) {
+      setIsAvailable(null);
+      setAvailReason(capacityMsg);
+      return;
+    }
 
     const t = setTimeout(() => {
       fetchAvailability({
@@ -233,7 +270,8 @@ function ReservationFormStep2() {
       });
     }, 400);
     return () => clearTimeout(t);
-  }, [formData.facilityName, formData.dateArrival, formData.dateDeparture]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.facilityName, formData.dateArrival, formData.dateDeparture, totalGuests, chosenFacility?.capacity, capacityOk]);
 
   const handlePrevious = () => {
     navigate('/reservation-form', { state: { step1, step2: formData, type, facility, file } });
@@ -241,6 +279,9 @@ function ReservationFormStep2() {
 
   const handleNext = () => {
     if (!validateStep2Local()) return;
+
+    // If capacity fails, show single inline error (not fieldErrors duplicate) and block
+    if (!capacityOk) return;
 
     if (isAvailable === false) {
       setFieldErrors(prev => ({
@@ -261,18 +302,18 @@ function ReservationFormStep2() {
       return;
     }
 
-    const chosenFacility = facilityOptions.find(o => o._id === formData.facilityName);
-    if (!chosenFacility) {
+    const chosen = facilityOptions.find(o => o._id === formData.facilityName);
+    if (!chosen) {
       setFieldErrors(prev => ({ ...prev, facilityName: 'Please select a valid facility.' }));
       return;
     }
 
     const step2 = {
       ...formData,
-      facilityIdFromList: chosenFacility._id,
-      facilityLabelFromList: chosenFacility.label,
-      facilityCapacity: chosenFacility.capacity,
-      facilityRatePerPerson: chosenFacility.ratePerPerson,
+      facilityIdFromList: chosen._id,
+      facilityLabelFromList: chosen.label,
+      facilityCapacity: chosen.capacity,
+      facilityRatePerPerson: chosen.ratePerPerson,
     };
 
     navigate('/reservation-step3', {
@@ -364,17 +405,27 @@ function ReservationFormStep2() {
                     <option value="">
                       {loadingFacilities ? 'Loading facilities…' : 'Select a facility'}
                     </option>
-                    {facilityOptions.map(f => (
-                      <option key={f.__k} value={f._id}>
-                        {f.label}
-                      </option>
-                    ))}
+                    {facilityOptions.map(f => {
+                      const tooSmall = Number(f.capacity) < totalGuests;
+                      const label = `${f.label} (max ${Number.isFinite(f.capacity) ? f.capacity : 0})${
+                        tooSmall ? ` — not enough for ${totalGuests}` : ''
+                      }`;
+                      return (
+                        <option key={f.__k} value={f._id} disabled={tooSmall}>
+                          {label}
+                        </option>
+                      );
+                    })}
                   </select>
+                  {/* Show either fieldErrors OR the inline capacity error, not both */}
                   {fieldErrors.facilityName && (
                     <div className={styles.fieldError}>{fieldErrors.facilityName}</div>
                   )}
+                  {!fieldErrors.facilityName && !capacityOk && (
+                    <div className={styles.fieldError}>{capacityMsg}</div>
+                  )}
 
-                  {formData.facilityName && formData.dateArrival && formData.dateDeparture && (
+                  {formData.facilityName && formData.dateArrival && formData.dateDeparture && capacityOk && (
                     <div className={styles.availabilityRow}>
                       {checkingAvail && (
                         <span className={styles.availabilityPending}>Checking availability…</span>
@@ -489,8 +540,14 @@ function ReservationFormStep2() {
                   type="submit"
                   onClick={handleNext}
                   className={styles.nextButton}
-                  disabled={checkingAvail}
-                  title={checkingAvail ? 'Checking availability…' : undefined}
+                  disabled={checkingAvail || !capacityOk}
+                  title={
+                    !capacityOk
+                      ? capacityMsg
+                      : checkingAvail
+                      ? 'Checking availability…'
+                      : undefined
+                  }
                 >
                   Next
                 </button>

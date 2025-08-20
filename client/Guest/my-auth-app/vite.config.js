@@ -7,8 +7,8 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        //target: 'https://codex-oy29.onrender.com',
-        target: 'http://0.0.0.0:3000',
+        target: 'https://codex-oy29.onrender.com',
+        //target: 'http://0.0.0.0:3000',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, '/api'),
       },

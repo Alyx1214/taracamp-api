@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import HeaderHome from '../HeaderHome/HeaderHome';
 import styles from './ResForm.module.css';
@@ -10,15 +10,15 @@ function ReservationForm() {
   const location = useLocation();
   const { type, facility } = location.state || {};
   const prevStep2Ref = useRef(location.state?.step2 || null);
-  const prevFileRef = useRef(location.state?.file || null); 
+  const prevFileRef = useRef(location.state?.file || null);
 
   useEffect(() => {
-     if (!type || !facility) {
-       navigate('/services', { replace: true });
-     }
-   }, [type, facility, navigate]);
+    if (!type || !facility) {
+      navigate('/services', { replace: true });
+    }
+  }, [type, facility, navigate]);
 
-   if (!type || !facility) return null;
+  if (!type || !facility) return null;
 
   const [formData, setFormData] = useState({
     groupAssociation: '',
@@ -28,24 +28,43 @@ function ReservationForm() {
     type: { groups: false, individual: false },
     phoneNo: '',
     officeTelephoneNo: '',
-    guests: { adult: '', children: '', pwds: '' },
+    guests: { adult: '', children: '', pwds: '' }, // keep as strings in inputs
     emergencyContact: '',
   });
 
   const [errors, setErrors] = useState({});
   const [serverErr, setServerErr] = useState(null);
+  const numberGuardProps = {
+  onWheel: e => e.currentTarget.blur(),
+  onKeyDown: e => {
+    if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+      e.preventDefault();
+    }
+  }
+};
 
-  // Restore values + errors + optional banner from backend
+  // restore values + errors + optional banner from backend
   useEffect(() => {
     if (location.state?.step1) setFormData(location.state.step1);
     if (location.state?.errorsStep1) setErrors(location.state.errorsStep1);
     if (location.state?.serverError) setServerErr(location.state.serverError);
   }, [location.state]);
 
+  const hasCategory = useMemo(() => Object.values(formData.category || {}).some(Boolean), [formData.category]);
+  const hasType = useMemo(() => Object.values(formData.type || {}).some(Boolean), [formData.type]);
+
+  // compute total guests from 3 fields (read-only display)
+  const totalGuests = useMemo(() => {
+    const a = parseInt(formData.guests.adult || '0', 10);
+    const c = parseInt(formData.guests.children || '0', 10);
+    const p = parseInt(formData.guests.pwds || '0', 10);
+    return (Number.isFinite(a) ? a : 0) + (Number.isFinite(c) ? c : 0) + (Number.isFinite(p) ? p : 0);
+  }, [formData.guests]);
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
-    setErrors(prev => ({ ...prev, [name]: undefined })); // clear that field's error
+    setErrors(prev => ({ ...prev, [name]: undefined }));
   };
 
   const handleCheckboxChange = (group, name) => {
@@ -53,13 +72,22 @@ function ReservationForm() {
       ...prevData,
       [group]: Object.fromEntries(Object.keys(prevData[group]).map(k => [k, k === name])),
     }));
+    setErrors(prev => ({ ...prev, [group]: undefined }));
+  };
+
+  const clampNonNegativeInt = (raw) => {
+    if (raw === '' || raw === null || raw === undefined) return '';
+    const n = parseInt(String(raw).replace(/[^\d-]/g, ''), 10);
+    if (!Number.isFinite(n)) return '';
+    return Math.max(0, n);
   };
 
   const handleGuestChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, guests: { ...prev.guests, [name]: value } }));
+    const { name, value } = e.target; // name is one of 'adult' | 'children' | 'pwds'
+    const clean = value === '' ? '' : clampNonNegativeInt(value);
+    setFormData(prev => ({ ...prev, guests: { ...prev.guests, [name]: clean } }));
     const guestErrKey = name === 'adult' ? 'guestsAdult' : name === 'children' ? 'guestsChildren' : 'guestsPwds';
-    setErrors(prev => ({ ...prev, [guestErrKey]: undefined }));
+    setErrors(prev => ({ ...prev, [guestErrKey]: undefined, guestsTotal: undefined }));
   };
 
   const phoneOk = /^(\+63|0)9\d{9}$/.test(formData.phoneNo || '');
@@ -71,15 +99,18 @@ function ReservationForm() {
     if (!formData.homeAddress?.trim()) e.homeAddress = 'Required';
     if (!phoneOk) e.phoneNo = 'Enter a valid PH mobile (e.g., 09XXXXXXXXX or +639XXXXXXXXX).';
     if (!emerOk) e.emergencyContact = 'Enter a valid PH mobile for emergency contact.';
-    const adult = Number(formData.guests.adult || 0);
-    const children = Number(formData.guests.children || 0);
-    const pwds = Number(formData.guests.pwds || 0);
-    const total = adult + children + pwds;
-    if (adult < 0) e.guestsAdult = 'Adult guests cannot be negative.';
-    if (children < 0) e.guestsChildren = 'Children guests cannot be negative.';
-    if (pwds < 0) e.guestsPwds = 'PWD guests cannot be negative.';
-    if (total < 0) e.guestsTotal = 'Total guests cannot be negative.';
-    if (total === 0) e.guestsTotal = 'At least 1 guest is required.';
+    if (!hasCategory) e.category = 'Please select a category.';
+    if (!hasType) e.type = 'Please select a type.';
+
+    const a = parseInt(formData.guests.adult || '0', 10) || 0;
+    const c = parseInt(formData.guests.children || '0', 10) || 0;
+    const p = parseInt(formData.guests.pwds || '0', 10) || 0;
+
+    if (a < 0) e.guestsAdult = 'Adult guests cannot be negative.';
+    if (c < 0) e.guestsChildren = 'Children cannot be negative.';
+    if (p < 0) e.guestsPwds = 'PWD guests cannot be negative.';
+    if (a + c + p <= 0) e.guestsTotal = 'At least 1 guest is required.';
+
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -87,13 +118,11 @@ function ReservationForm() {
   const handleGoBack = () => navigate(-1);
 
   const handleNext = () => {
-    if (!validateStep1()) {
-      return;
-    }
+    if (!validateStep1()) return;
     const step1 = { ...formData };
     navigate('/reservation-step2', {
-        state: { step1, type, facility, step2: prevStep2Ref.current, file: prevFileRef.current }
-      });
+      state: { step1, type, facility, step2: prevStep2Ref.current, file: prevFileRef.current }
+    });
   };
 
   return (
@@ -169,6 +198,7 @@ function ReservationForm() {
                       </label>
                     ))}
                   </div>
+                  {errors.category && <div id="category-error" className={styles.fieldError} role="alert">{errors.category}</div>}
                 </div>
 
                 <div className={styles.checkboxGroup}>
@@ -187,56 +217,18 @@ function ReservationForm() {
                       </label>
                     ))}
                   </div>
+                  {errors.type && <div id="type-error" className={styles.fieldError} role="alert">{errors.type}</div>}
                 </div>
               </div>
 
               <div className={styles.formRow}>
-                <div className={styles.formGroup}>
-                  <label className={styles.label} htmlFor="phoneNo">Telephone No./Phone No.</label>
-                  <input
-                    id="phoneNo"
-                    type="tel"
-                    name="phoneNo"
-                    value={formData.phoneNo}
-                    onChange={handleInputChange}
-                    className={`${styles.input} ${errors.phoneNo ? styles.inputError : ''}`}
-                    aria-invalid={!!errors.phoneNo}
-                  />
-                  {errors.phoneNo && <div className={styles.fieldError}>{errors.phoneNo}</div>}
-                </div>
-                <div className={styles.formGroup}>
-                  <label className={styles.label} htmlFor="officeTelephoneNo">Office Telephone No.</label>
-                  <input
-                    id="officeTelephoneNo"
-                    type="tel"
-                    name="officeTelephoneNo"
-                    value={formData.officeTelephoneNo}
-                    onChange={handleInputChange}
-                    className={styles.input}
-                  />
-                </div>
-              </div>
-
-              <div className={styles.formRow}>
-                <div className={styles.formGroup}>
-                  <label className={styles.label} htmlFor="guestsTotal">No. of Guest/s</label>
-                  <input
-                    id="guestsTotal"
-                    type="number"
-                    name="adult"
-                    value={formData.guests.adult}
-                    onChange={handleGuestChange}
-                    className={`${styles.input} ${errors.guestsAdult ? styles.inputError : ''}`}
-                    inputMode="numeric"
-                  />
-                  {errors.guestsAdult && <div className={styles.fieldError}>{errors.guestsAdult}</div>}
-                </div>
                 <div className={styles.formGroup}>
                   <label className={styles.label} htmlFor="adult">Adult</label>
                   <input
                     id="adult"
                     type="number"
                     name="adult"
+                    {...numberGuardProps}
                     value={formData.guests.adult}
                     onChange={handleGuestChange}
                     className={`${styles.input} ${errors.guestsAdult ? styles.inputError : ''}`}
@@ -250,6 +242,7 @@ function ReservationForm() {
                     id="children"
                     type="number"
                     name="children"
+                    {...numberGuardProps}
                     value={formData.guests.children}
                     onChange={handleGuestChange}
                     className={`${styles.input} ${errors.guestsChildren ? styles.inputError : ''}`}
@@ -263,6 +256,7 @@ function ReservationForm() {
                     id="pwds"
                     type="number"
                     name="pwds"
+                    {...numberGuardProps}
                     value={formData.guests.pwds}
                     onChange={handleGuestChange}
                     className={`${styles.input} ${errors.guestsPwds ? styles.inputError : ''}`}
@@ -272,8 +266,21 @@ function ReservationForm() {
                 </div>
               </div>
 
+              {/* Derived, read-only total */}
               <div className={styles.formGroup}>
-                <label className={styles.label} htmlFor="emergencyContact">Person/s to be notified in case of emergency:</label>
+                <label className={styles.label} htmlFor="guestsTotal">Total Guests</label>
+                <input
+                  id="guestsTotal"
+                  type="number"
+                  value={totalGuests}
+                  readOnly
+                  className={styles.input}
+                />
+                {errors.guestsTotal && <div className={styles.fieldError}>{errors.guestsTotal}</div>}
+              </div>
+
+              <div className={styles.formGroup}>
+                <label className={styles.label} htmlFor="emergencyContact">Person/s to be notified in case of emergency</label>
                 <input
                   id="emergencyContact"
                   type="tel"
@@ -287,7 +294,11 @@ function ReservationForm() {
               </div>
 
               <div className={styles.buttonContainer}>
-                <button type="submit" onClick={handleNext} className={styles.nextButton}>
+                <button
+                  type="submit"
+                  onClick={handleNext}
+                  className={styles.nextButton}
+                >
                   Next
                 </button>
               </div>

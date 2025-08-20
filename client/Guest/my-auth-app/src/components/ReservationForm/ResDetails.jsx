@@ -75,18 +75,18 @@ function ResDetails({ onClose }) {
       (parseInt(step1?.guests?.pwds || '0', 10) || 0);
 
     return {
-      group: step1.groupAssociation || '—',
-      address: step1.homeAddress || '—',
-      officeAddress: step1.officeAddress || '—',
-      category: catKey ? catKey.toUpperCase() : '—',
-      phone: step1.phoneNo || '—',
-      officeTel: step1.officeTelephoneNo || '—',
+      group: step1.groupAssociation || 'N/A',
+      address: step1.homeAddress || 'N/A',
+      officeAddress: step1.officeAddress || 'N/A',
+      category: catKey ? catKey.toUpperCase() : 'N/A',
+      phone: step1.phoneNo || 'N/A',
+      officeTel: step1.officeTelephoneNo || 'N/A',
       guests: String(guestsTotal),
-      emergency: step1.emergencyContact || '—',
-      arrival: step2.dateArrival || '—',
-      departure: step2.dateDeparture || '—',
-      facilityType: step2.typeFacilities || '—',
-      facilityName: step2.facilityName || '—',
+      emergency: step1.emergencyContact || 'N/A',
+      arrival: step2.dateArrival || 'N/A',
+      departure: step2.dateDeparture || 'N/A',
+      facilityType: step2.typeFacilities || 'N/A',
+      facilityName: step2.facilityName || 'N/A',
       service: step2.typeService === 'Other' ? (step2.customService || 'Other') : (step2.typeService || '—'),
     };
   }, [step1, step2]);
