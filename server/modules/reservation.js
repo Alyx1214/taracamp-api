@@ -619,6 +619,84 @@ const reservationModule = {
         }
         return responseData;
     },
+
+    /**
+     * Checks if a facility is available for a date range (preflight).
+     * @param {Object} dbHelper
+     * @param {Object} params - { facility, start, end }
+     * @returns {Object} { status, error, available, reason }
+     */
+    checkAvailability: async (dbHelper, params = {}) => {
+        const responseData = {
+            status: Status.INTERNAL_SERVER_ERROR,
+            error: 'Error checking availability',
+            available: false,
+        };
+
+        try {
+            const { facility, start, end, } = params;
+
+            if (!facility) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'facility is required';
+                return responseData;
+            }
+            if (!isValidDate(start) || !isValidDate(end)) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Invalid date format';
+                return responseData;
+            }
+            if (!isValidDateRange(start, end)) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Invalid date range: ensure arrival is today or later, and departure is after arrival';
+                return responseData;
+            }
+
+            const facilityDoc = await dbHelper.findOne('facility', { _id: facility, });
+            if (!facilityDoc) {
+                responseData.status = Status.NOT_FOUND;
+                responseData.error = 'Facility not found';
+                return responseData;
+            }
+            if (facilityDoc.status !== FacilityStatus.AVAILABLE) {
+                responseData.status = Status.OK;
+                responseData.error = null;
+                responseData.available = false;
+                responseData.reason = 'Facility is not available for booking.';
+                return responseData;
+            }
+
+            const startDate = normalizeDateOnly(start);
+            const endDate = normalizeDateOnly(end);
+
+            const overlapping = await dbHelper.findOne('reservation', {
+                facility: facilityDoc._id,
+                $or: [
+                    {
+                        dateOfArrival: { $lte: endDate, },
+                        dateOfDeparture: { $gte: startDate, },
+                    },
+                ],
+            });
+
+            if (overlapping) {
+                responseData.status = Status.OK;
+                responseData.error = null;
+                responseData.available = false;
+                responseData.reason = 'Facility is not available for the selected dates.';
+                return responseData;
+            }
+
+            responseData.status = Status.OK;
+            responseData.error = null;
+            responseData.available = true;
+            return responseData;
+        } catch (err) {
+            responseData.error = err.message;
+            return responseData;
+        }
+    },
+
 };
 
 export default reservationModule;

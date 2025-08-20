@@ -1,0 +1,28 @@
+.errorBanner {
+  background: #fee;
+  border: 1px solid #f99;
+  padding: 10px;
+  border-radius: 8px;
+  margin: 12px 0;
+}
+.errorBannerRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.errorBannerMsg {
+  flex: 1;
+}
+.errorBannerClose {
+  border: 0;
+  background: transparent;
+  font-size: 18px;
+  cursor: pointer;
+  line-height: 1;
+}
+.errorList {
+  margin: 6px 0 0 16px;
+  padding-left: 16px;
+}
+
+

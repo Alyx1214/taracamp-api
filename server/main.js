@@ -37,15 +37,15 @@ app.set('trust proxy', 1);
 await redisClient.connect();
 
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:5174'],
-  credentials: true
+    origin: ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:5174',],
+    credentials: true,
 }));
 
 app.use(express.json());
 
 const basicLimiter = rateLimit({
     windowMs: 60 * 1000,
-    max: 100,
+    max: 20,
     message: {
         error: 'Too many requests, please try again after a minute.',
     },
@@ -142,8 +142,13 @@ const processGetAPI = async (req, res) => {
                     return res.status(responseData.status).json(responseData);
                 }
                 case 'estimate-amount': {
-                    const params = { ...req.query };
+                    const params = { ...req.query, };
                     let responseData = await reservationModule.estimate(dbHelper, params);
+                    return res.status(responseData.status).json(responseData);
+                }
+                case 'check-availability': {
+                    const params = { ...req.query, }; 
+                    const responseData = await reservationModule.checkAvailability(dbHelper, params);
                     return res.status(responseData.status).json(responseData);
                 }
                 default:

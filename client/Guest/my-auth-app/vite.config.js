@@ -11,9 +11,6 @@ export default defineConfig({
         target: 'http://0.0.0.0:3000',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, '/api'),
-        headers: {
-          "ngrok-skip-browser-warning": "1"
-        }
       },
     },
   },
