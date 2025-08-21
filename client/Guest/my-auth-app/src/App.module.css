@@ -7,6 +7,7 @@
   background-repeat: no-repeat;
   background-size: cover;
   background-position: left center;
+  padding: 20px; /* add breathing room on small screens */
 }
 
 .authContainer {
@@ -16,8 +17,31 @@
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
   overflow: hidden; 
   width: 900px;
-  max-width: 100vw; 
-  height: 550px;
+  max-width: 100%; 
+  height: auto; /* let content decide height */
   backdrop-filter: blur(10px); 
   -webkit-backdrop-filter: blur(10px); 
+}
+
+/* 📱 Mobile layout */
+@media (max-width: 768px) {
+  .authContainer {
+    flex-direction: column; /* stack vertically */
+    width: 100%;
+    max-width: 500px; /* optional, prevents stretching too wide */
+    height: auto;
+    border-radius: 15px; /* uniform corners when stacked */
+  }
+
+  /* move side panel to the top */
+  .authContainer > :first-child {
+    order: -1; /* 👉 put side panel above form */
+    border-radius: 15px 15px 0 0;
+  }
+
+  /* if you prefer side panel at the bottom, use order: 1 instead */
+  /* .authContainer > :first-child {
+    order: 1;
+    border-radius: 0 0 15px 15px;
+  } */
 }

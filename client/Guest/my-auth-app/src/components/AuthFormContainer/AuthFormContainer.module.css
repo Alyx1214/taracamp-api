@@ -7,6 +7,8 @@
   justify-content: center;
   align-items: center;
   border-radius: 0 15px 15px 0;
+  width: 100%; /* ✅ ensure it never overflows */
+  box-sizing: border-box; /* ✅ padding included in width */
 }
 
 .formContainer h2 {
@@ -77,4 +79,24 @@
   margin: 20px;
   color: #888;
   font-size: 0.9em;
+}
+
+@media (max-width: 768px) {
+  .formContainer {
+    flex: 1;
+    padding: 20px;
+    border-radius: 15px;
+    width: 100%;  /* ✅ fills parent but no cutoff */
+    max-width: 100%; /* ✅ prevents right cutoff */
+  }
+  
+  .formInput {
+    padding: 14px 15px;
+    font-size: 16px; 
+    width: 100%; /* ✅ fit small screens */
+  }
+
+  .formButton {
+    width: 100%; /* ✅ button full width without cutoff */
+  }
 }
