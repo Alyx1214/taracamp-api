@@ -86,17 +86,20 @@
     flex: 1;
     padding: 20px;
     border-radius: 15px;
-    width: 100%;  /* ✅ fills parent but no cutoff */
-    max-width: 100%; /* ✅ prevents right cutoff */
+    width: 100%;  
+    max-width: 100%;
   }
   
   .formInput {
     padding: 14px 15px;
-    font-size: 16px; 
-    width: 100%; /* ✅ fit small screens */
+    width: 100%;
   }
 
   .formButton {
-    width: 100%; /* ✅ button full width without cutoff */
+    width: 100%;
+  }
+
+  .formInput, .formButton {
+    font-size: 16px;
   }
 }
