@@ -1,0 +1,26 @@
+.calendar {
+  width: 100%;
+  margin-top: 20px;
+}
+
+h3 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 10px;
+}
+
+.react-calendar {
+  border: none;
+  font-family: Arial, sans-serif;
+}
+
+.react-calendar__tile {
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.react-calendar__tile--active {
+  background-color: #4caf50;
+  color: white;
+}
