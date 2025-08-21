@@ -66,7 +66,8 @@
 
 .serviceCard {
   width: 100%;
-  padding-bottom: 56.25%;
+  height: 100%;
+  padding-bottom: 0;
   position: absolute;
   top: 0;
   left: 0;
@@ -118,6 +119,9 @@
   font-size: 1.8em;
   font-weight: bold;
   margin: 0;
+  text-align: center;
+  word-wrap: break-word;
+  padding: 0 10px;
 }
 
 .carouselArrow {
@@ -174,16 +178,29 @@
 
 @media (max-width: 992px) {
   .carouselOuterWrapper {
-    max-width: calc(100% - 80px); 
+    max-width: calc(100% - 40px);
   }
+
   .carouselArrow {
     font-size: 2em; 
+  }
+
+  .leftArrow {
     left: -20px;
+    right: auto;
+  }
+
+  .rightArrow {
     right: -20px;
+    left: auto;
   }
 }
 
 @media (max-width: 768px) {
+  .carouselContainer {
+    min-height: 300px;
+  }
+
   .sectionTitle {
     font-size: 2.5em;
   }
@@ -193,7 +210,22 @@
   }
 
   .serviceCard {
-    font-size: 2em;
+    font-size: 1.2em;
+  }
+
+  .cardTitle {
+    font-size: 1.2em;
+    line-height: 1.3;
+  }
+
+  .cardBottomText {
+    font-size: 0.5em;
+  }
+}
+
+@media (max-width: 480px) {
+  .cardTitle {
+    font-size: 1em;
   }
 }
 
