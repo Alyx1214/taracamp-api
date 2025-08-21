@@ -28,7 +28,7 @@ function ReservationForm() {
     type: { groups: false, individual: false },
     phoneNo: '',
     officeTelephoneNo: '',
-    guests: { adult: '', children: '', pwds: '' }, // keep as strings in inputs
+    guests: { adult: '', children: '', pwds: '' }, 
     emergencyContact: '',
   });
 
@@ -43,7 +43,6 @@ function ReservationForm() {
   }
 };
 
-  // restore values + errors + optional banner from backend
   useEffect(() => {
     if (location.state?.step1) setFormData(location.state.step1);
     if (location.state?.errorsStep1) setErrors(location.state.errorsStep1);
@@ -53,7 +52,6 @@ function ReservationForm() {
   const hasCategory = useMemo(() => Object.values(formData.category || {}).some(Boolean), [formData.category]);
   const hasType = useMemo(() => Object.values(formData.type || {}).some(Boolean), [formData.type]);
 
-  // compute total guests from 3 fields (read-only display)
   const totalGuests = useMemo(() => {
     const a = parseInt(formData.guests.adult || '0', 10);
     const c = parseInt(formData.guests.children || '0', 10);
@@ -83,7 +81,7 @@ function ReservationForm() {
   };
 
   const handleGuestChange = (e) => {
-    const { name, value } = e.target; // name is one of 'adult' | 'children' | 'pwds'
+    const { name, value } = e.target;
     const clean = value === '' ? '' : clampNonNegativeInt(value);
     setFormData(prev => ({ ...prev, guests: { ...prev.guests, [name]: clean } }));
     const guestErrKey = name === 'adult' ? 'guestsAdult' : name === 'children' ? 'guestsChildren' : 'guestsPwds';
@@ -180,6 +178,20 @@ function ReservationForm() {
                   className={styles.input}
                 />
               </div>
+              
+              <div className={styles.formGroup}>
+                <label className={styles.label} htmlFor="phoneNo">Phone No.</label>
+                <input
+                  id="phoneNo"
+                  type="tel"
+                  name="phoneNo"
+                  value={formData.phoneNo}
+                  onChange={handleInputChange}
+                  className={`${styles.input} ${errors.phoneNo ? styles.inputError : ''}`}
+                  aria-invalid={!!errors.phoneNo}
+                />
+                {errors.phoneNo && <div className={styles.fieldError}>{errors.phoneNo}</div>}
+              </div>
 
               <div className={styles.checkboxGroupContainer}>
                 <div className={styles.checkboxGroup}>
@@ -222,6 +234,18 @@ function ReservationForm() {
               </div>
 
               <div className={styles.formRow}>
+                {/* Derived, read-only total */}
+              <div className={styles.formGroup}>
+                <label className={styles.label} htmlFor="guestsTotal">Total Guests</label>
+                <input
+                  id="guestsTotal"
+                  type="number"
+                  value={totalGuests}
+                  readOnly
+                  className={styles.input}
+                />
+                {errors.guestsTotal && <div className={styles.fieldError}>{errors.guestsTotal}</div>}
+              </div>
                 <div className={styles.formGroup}>
                   <label className={styles.label} htmlFor="adult">Adult</label>
                   <input
@@ -264,19 +288,6 @@ function ReservationForm() {
                   />
                   {errors.guestsPwds && <div className={styles.fieldError}>{errors.guestsPwds}</div>}
                 </div>
-              </div>
-
-              {/* Derived, read-only total */}
-              <div className={styles.formGroup}>
-                <label className={styles.label} htmlFor="guestsTotal">Total Guests</label>
-                <input
-                  id="guestsTotal"
-                  type="number"
-                  value={totalGuests}
-                  readOnly
-                  className={styles.input}
-                />
-                {errors.guestsTotal && <div className={styles.fieldError}>{errors.guestsTotal}</div>}
               </div>
 
               <div className={styles.formGroup}>

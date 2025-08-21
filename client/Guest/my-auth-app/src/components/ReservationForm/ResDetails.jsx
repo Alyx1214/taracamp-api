@@ -118,6 +118,9 @@ function ResDetails({ onClose }) {
       } catch (err) {
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
+        localStorage.removeItem('userId');
+        localStorage.removeItem('userRole');
+        navigate('/auth/login');
         throw err;
       }
     }
