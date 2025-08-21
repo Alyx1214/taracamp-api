@@ -1,0 +1,39 @@
+.faci-types-container {
+background-color: #183c2d;
+height: 60px;
+padding: 0 1rem;
+border-radius: 20px;
+width: fit-content;
+max-width: 700px;
+font-family: "Poppins", sans-serif;
+font-size: 14px;
+display: flex;
+align-items: center;
+gap: 1rem;
+}
+
+.faci-type-btn {
+text-align: center;
+padding: 0.5rem 18px;
+height: 2.5rem;
+border: none;
+border-radius: 1rem;
+background-color: transparent;
+color: #ffffff;
+font-weight: 500;
+font-size: 16px;
+cursor: pointer;
+transition: background-color 0.2s ease, color 0.2s ease;
+
+min-width: 130px;
+}
+
+.active {
+background-color: #ffffff;
+color: #183c2d;
+padding: 0 2rem;
+}
+
+.faci-type-btn:hover:not(.active) {
+background-color: rgba(255, 255, 255, 0.2);
+}

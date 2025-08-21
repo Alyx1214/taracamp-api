@@ -1,0 +1,33 @@
+.dormitory-header-container {
+display: flex;
+align-items: center;
+gap: 30px;
+margin-bottom: 0;
+}
+
+.dormitory-header-title {
+font-size: 50px;
+font-weight: 700;
+color: #4d2e17;
+}
+
+.dormitory-header-add-btn {
+background: #1e3c2f;
+color: #fff;
+border: none;
+border-radius: 20px;
+padding: 15px 24px;
+font-size: 1.2rem;
+display: flex;
+align-items: center;
+cursor: pointer;
+transition: all 0.2s ease-in-out;
+}
+
+.dormitory-header-add-btn:hover {
+background: #538e5e;
+}
+
+.dormitory-header-icon {
+font-size: 1.2rem;
+}
