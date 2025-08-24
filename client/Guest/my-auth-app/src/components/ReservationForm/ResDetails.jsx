@@ -26,25 +26,27 @@ function ResDetails({ onClose }) {
     typeof stateId === 'string'
       ? stateId
       : (stateId && (stateId._id || stateId.id)) ||
-        (typeof facility === 'string' ? facility : (facility && (facility._id || facility.id)) || '');
+        (typeof facility === 'string'
+          ? facility
+          : (facility && (facility._id || facility.id)) || '');
 
   useEffect(() => {
-    if (!id) navigate('/services', { replace: true });
-  }, [id, navigate]);
-
-  if (!id) return null;
+      if (!id) navigate('/services', { replace: true });
+    }, [id, navigate]);
 
   useEffect(() => {
+    if (!id) return;
+
     const a = parseInt(step1?.guests?.adult || 0, 10) || 0;
     const c = parseInt(step1?.guests?.children || 0, 10) || 0;
     const p = parseInt(step1?.guests?.pwds || 0, 10) || 0;
+
     const fid =
       typeof step2?.facilityIdFromList === 'string'
         ? step2.facilityIdFromList
         : (step2?.facilityIdFromList && (step2.facilityIdFromList._id || step2.facilityIdFromList.id)) || id;
     if (!fid) return;
 
-    const svcEnum = mapServiceType(step2?.typeService);
     let abort = false;
     (async () => {
       try {
@@ -53,7 +55,7 @@ function ResDetails({ onClose }) {
           adults: String(a),
           children: String(c),
           pwds: String(p),
-          serviceType: svcEnum || 'MEETING/CONFERENCE',
+          serviceType: (mapServiceType(step2?.typeService) || 'MEETING/CONFERENCE'),
         });
         const res = await fetch(`/api/reservation/estimate-amount?${qs.toString()}`);
         const json = await res.json();
@@ -62,6 +64,7 @@ function ResDetails({ onClose }) {
         if (!abort) setQuote(null);
       }
     })();
+
     return () => { abort = true; };
   }, [step1, step2, id]);
 
@@ -86,7 +89,7 @@ function ResDetails({ onClose }) {
       arrival: step2.dateArrival || 'N/A',
       departure: step2.dateDeparture || 'N/A',
       facilityType: step2.typeFacilities || 'N/A',
-      facilityName: step2.facilityName || 'N/A',
+      facilityName: step2.facilityLabelFromList || step2.facilityName || 'N/A',
       service: step2.typeService === 'Other' ? (step2.customService || 'Other') : (step2.typeService || '—'),
     };
   }, [step1, step2]);
@@ -95,7 +98,8 @@ function ResDetails({ onClose }) {
     const rt = localStorage.getItem('refreshToken');
     if (!rt) throw new Error('No refresh token');
     const res = await fetch('/api/user/refresh-token', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refreshToken: rt })
     });
     const data = await res.json().catch(() => ({}));
@@ -105,83 +109,28 @@ function ResDetails({ onClose }) {
   }
 
   async function authorizedFetch(url, options) {
-    let token = localStorage.getItem('accessToken');
-    const headers = new Headers(options?.headers || {});
-    if (token) headers.set('Authorization', `Bearer ${token}`);
-    let res = await fetch(url, { ...options, headers });
-    if (res.status === 401) {
+    const tryOnce = async (tokenOverride) => {
+      const headers = new Headers(options?.headers || {});
+      const token = tokenOverride || localStorage.getItem('accessToken');
+      if (token) headers.set('Authorization', `Bearer ${token}`);
+      return fetch(url, { ...options, headers });
+    };
+
+    let res = await tryOnce();
+    if (res.status === 401 || res.status === 403) {
       try {
         const newToken = await refreshAccessToken();
-        const retryHeaders = new Headers(options?.headers || {});
-        retryHeaders.set('Authorization', `Bearer ${newToken}`);
-        res = await fetch(url, { ...options, headers: retryHeaders });
+        res = await tryOnce(newToken);
       } catch (err) {
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
         localStorage.removeItem('userId');
         localStorage.removeItem('userRole');
-        navigate('/auth/login');
+        navigate('/auth/login', { replace: true });
         throw err;
       }
     }
     return res;
-  }
-
-  function mapServerDetails(details = []) {
-    const step1Map = {
-      guestName: 'groupAssociation',
-      homeAddress: 'homeAddress',
-      officeAddress: 'officeAddress',
-      category: 'category',
-      guestType: 'type',
-      telephone: 'phoneNo',
-      officeTelephone: 'officeTelephoneNo',
-      emergencyContact: 'emergencyContact',
-      numberOfAdults: 'guestsAdult',
-      numberOfChildren: 'guestsChildren',
-      numberOfPwds: 'guestsPwds',
-    };
-    const step2Map = {
-      dateOfArrival: 'dateArrival',
-      dateOfDeparture: 'dateDeparture',
-      facility: 'facilityName',
-      serviceType: 'typeService',
-      timeOfArrival: 'timeArrivalHour',
-      otherRequests: 'specialRequests',
-    };
-
-    const errorsStep1 = {};
-    const errorsStep2 = {};
-
-    for (const d of details) {
-      const ui1 = step1Map[d.field];
-      const ui2 = step2Map[d.field];
-      const msg = d.message || d.code || 'Invalid';
-      if (ui1) errorsStep1[ui1] = msg;
-      if (ui2) errorsStep2[ui2] = msg;
-    }
-    return { errorsStep1, errorsStep2 };
-  }
-
-  function heuristics(message = '') {
-    const m = message.toLowerCase();
-    const errorsStep1 = {};
-    const errorsStep2 = {};
-
-    if (m.includes('invalid phone')) errorsStep1.phoneNo = 'Enter a valid PH mobile number.';
-    if (m.includes('emergency')) errorsStep1.emergencyContact = 'Enter a valid PH mobile number.';
-    if (m.includes('at least one guest')) errorsStep1.guestsAdult = 'Enter at least one guest.';
-
-    if (m.includes('invalid date range')) {
-      errorsStep2.dateArrival = 'Arrival must be tomorrow or later.';
-      errorsStep2.dateDeparture = 'Departure must be after arrival.';
-    }
-    if (m.includes('facility is not available')) {
-      errorsStep2.dateArrival = 'Facility is not available for the selected dates.';
-      errorsStep2.dateDeparture = 'Choose different dates.';
-      errorsStep2.facilityName = 'Select another facility or change the date range.';
-    }
-    return { errorsStep1, errorsStep2 };
   }
 
   async function handleSubmit() {
@@ -189,6 +138,7 @@ function ResDetails({ onClose }) {
     inFlight.current = true;
     setErr(null);
     setSubmitting(true);
+
     try {
       const payload = buildReservationPayload(step1, step2, id, file);
 
@@ -242,8 +192,41 @@ function ResDetails({ onClose }) {
         setErr(server);
 
         let mapped = { errorsStep1: {}, errorsStep2: {} };
-        if (server.details?.length) mapped = mapServerDetails(server.details);
-        else mapped = heuristics(server.message || '');
+        if (server.details?.length) {
+          const step1Map = {
+            guestName: 'groupAssociation', homeAddress: 'homeAddress', officeAddress: 'officeAddress',
+            category: 'category', guestType: 'type', telephone: 'phoneNo', officeTelephone: 'officeTelephoneNo',
+            emergencyContact: 'emergencyContact', numberOfAdults: 'guestsAdult', numberOfChildren: 'guestsChildren', numberOfPwds: 'guestsPwds',
+          };
+          const step2Map = {
+            dateOfArrival: 'dateArrival', dateOfDeparture: 'dateDeparture', facility: 'facilityName',
+            serviceType: 'typeService', timeOfArrival: 'timeArrivalHour', otherRequests: 'specialRequests',
+          };
+          const e1 = {}, e2 = {};
+          for (const d of server.details) {
+            const ui1 = step1Map[d.field]; const ui2 = step2Map[d.field];
+            const msg = d.message || d.code || 'Invalid';
+            if (ui1) e1[ui1] = msg;
+            if (ui2) e2[ui2] = msg;
+          }
+          mapped = { errorsStep1: e1, errorsStep2: e2 };
+        } else {
+          const m = (server.message || '').toLowerCase();
+          const e1 = {}, e2 = {};
+          if (m.includes('invalid phone')) e1.phoneNo = 'Enter a valid PH mobile number.';
+          if (m.includes('emergency')) e1.emergencyContact = 'Enter a valid PH mobile number.';
+          if (m.includes('at least one guest')) e1.guestsAdult = 'Enter at least one guest.';
+          if (m.includes('invalid date range')) {
+            e2.dateArrival = 'Arrival must be tomorrow or later.';
+            e2.dateDeparture = 'Departure must be after arrival.';
+          }
+          if (m.includes('facility is not available')) {
+            e2.dateArrival = 'Facility is not available for the selected dates.';
+            e2.dateDeparture = 'Choose different dates.';
+            e2.facilityName = 'Select another facility or change the date range.';
+          }
+          mapped = { errorsStep1: e1, errorsStep2: e2 };
+        }
 
         if (Object.keys(mapped.errorsStep1).length) {
           navigate('/reservation-form', {

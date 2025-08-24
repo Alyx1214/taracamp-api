@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import HeaderHome from '../HeaderHome/HeaderHome';
 import ErrorBanner from '../ErrorBanner/ErrorBanner';
@@ -13,7 +13,12 @@ function ReservationHistory() {
   const [openReservationId, setOpenReservationId] = useState(null);
   const abortRef = useRef(null);
 
-  async function refreshAccessToken() {
+  useEffect(() => {
+    const token = localStorage.getItem('accessToken');
+    if (!token) navigate('/auth/login', { replace: true });
+  }, [navigate]);
+
+  const refreshAccessToken = useCallback(async () => {
     const rt = localStorage.getItem('refreshToken');
     if (!rt) throw new Error('No refresh token');
     const res = await fetch('/api/user/refresh-token', {
@@ -21,40 +26,41 @@ function ReservationHistory() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refreshToken: rt }),
     });
-    const data = await res.json().catch(() => ({}));
+    const data = res.status !== 404 ? await res.json().catch(() => ({})) : {};
     if (!res.ok || !data?.accessToken) throw new Error(data.error || 'Refresh failed');
     localStorage.setItem('accessToken', data.accessToken);
     return data.accessToken;
-  }
+  }, []);
 
-  async function authorizedFetch(url, options) {
+  const authorizedFetch = useCallback(async (url, options) => {
     let token = localStorage.getItem('accessToken');
     const headers = new Headers(options?.headers || {});
     if (token) headers.set('Authorization', `Bearer ${token}`);
+
     const ctrl = new AbortController();
     abortRef.current = ctrl;
+
     let res = await fetch(url, { ...options, headers, signal: ctrl.signal });
+
     if (res.status === 401 || res.status === 403) {
       try {
         const newToken = await refreshAccessToken();
         const retryHeaders = new Headers(options?.headers || {});
         retryHeaders.set('Authorization', `Bearer ${newToken}`);
-        res = await fetch(url, { ...options, headers: retryHeaders });
+        res = await fetch(url, { ...options, headers: retryHeaders, signal: ctrl.signal });
       } catch (e) {
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
+        localStorage.clear();
+        navigate('/auth/login', { replace: true });
         throw e;
       }
     }
     return res;
-  }
+  }, [refreshAccessToken, navigate]);
 
   const mapFacilityTypeLabel = (t) => {
     const s = String(t || '').trim().toUpperCase();
     if (!s) return 'N/A';
-    if (s === 'CONFERENCE' || s === 'CONFERENCE HALL' || s === 'CONFERENCE_HALL' || s === 'HALL') {
-      return 'Conference Hall';
-    }
+    if (s === 'CONFERENCE' || s === 'CONFERENCE HALL' || s === 'CONFERENCE_HALL' || s === 'HALL') return 'Conference Hall';
     if (s.includes('DORM')) return 'Dormitory';
     if (s.includes('COTTAGE') || s.includes('GUEST')) return 'Cottage';
     return t || 'N/A';
@@ -97,16 +103,25 @@ function ReservationHistory() {
 
   useEffect(() => {
     let active = true;
+
     (async () => {
       setLoading(true);
       setErr(null);
+
       try {
         const res = await authorizedFetch('/api/reservation/get-reservation-by-user-id', { method: 'GET' });
-        const json = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(json.error || 'Failed to load reservations');
+        const json = res.status !== 404 ? await res.json().catch(() => ({})) : {};
+        if (!res.ok && res.status !== 404) throw new Error(json.error || 'Failed to load reservations');
 
         const list = Array.isArray(json?.reservations) ? json.reservations : [];
         if (!active) return;
+
+        if (list.length === 0) {
+          setReservationsRaw([]);
+          setOpenReservationId(null);
+          return;
+        }
+
         const ids = [...new Set(list.map(r => String(r?.facility || '')).filter(Boolean))];
         const pairs = await Promise.all(ids.map(async (fid) => {
           try {
@@ -121,23 +136,27 @@ function ReservationHistory() {
             return [fid, { name: 'N/A', type: 'N/A' }];
           }
         }));
+
         const fidToInfo = Object.fromEntries(pairs);
         setReservationsRaw(list.map(r => ({
           ...r,
           __facilityInfo: fidToInfo[String(r?.facility || '')] || { name: 'N/A', type: 'N/A' },
         })));
-        if (list.length > 0) setOpenReservationId(String(list[0]._id || list[0].id));
+
+        const firstId = String(list[0]._id || list[0].id || '');
+        setOpenReservationId(firstId || null);
       } catch (e) {
         if (active) setErr({ message: e.message || 'Unable to load reservations' });
       } finally {
         if (active) setLoading(false);
       }
     })();
+
     return () => {
       active = false;
       abortRef.current?.abort?.();
     };
-  }, []);
+  }, [authorizedFetch]);
 
   const reservationsView = useMemo(() => {
     return reservationsRaw.map((r) => {
@@ -153,7 +172,7 @@ function ReservationHistory() {
       return {
         id: rid,
         date: fmtMDY(r?.createdAt || r?.dateOfArrival || Date.now()),
-        type: facType, 
+        type: facType,
         details: {
           groupAssociation: r?.guestName || 'N/A',
           address: r?.homeAddress || 'N/A',
@@ -176,14 +195,8 @@ function ReservationHistory() {
   }, [reservationsRaw]);
 
   const handleGoBack = () => navigate(-1);
-
-  const toggleReservation = (id) => {
-    setOpenReservationId(openReservationId === id ? null : id);
-  };
-
-  const handleConfirmNow = (reservationId) => {
-    alert(`Reservation ${reservationId} confirmed! (placeholder)`);
-  };
+  const toggleReservation = (id) => setOpenReservationId(openReservationId === id ? null : id);
+  const handleConfirmNow = (reservationId) => alert(`Reservation ${reservationId} confirmed! (placeholder)`);
 
   return (
     <>
@@ -192,9 +205,7 @@ function ReservationHistory() {
         <div className={styles.contentWrapper}>
           <div className={styles.headerSection}>
             <button onClick={handleGoBack} className={styles.backButton}>
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                   viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                   strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="19" y1="12" x2="5" y2="12"></line>
                 <polyline points="12 19 5 12 12 5"></polyline>
               </svg>
@@ -209,7 +220,15 @@ function ReservationHistory() {
           ) : (
             <div className={styles.reservationList}>
               {reservationsView.length === 0 && (
-                <div className={styles.emptyState}>No reservations yet.</div>
+                <div className={styles.emptyStateCard}>
+                  <h3 className={styles.emptyTitle}>No reservations yet</h3>
+                  <p className={styles.emptyDesc}>When you book your first stay, it will appear here.</p>
+                  <div className={styles.emptyActions}>
+                    <button className={styles.primaryBtn} onClick={() => navigate('/user/services')}>
+                      Make a reservation
+                    </button>
+                  </div>
+                </div>
               )}
 
               {reservationsView.map((reservation) => (
@@ -238,9 +257,9 @@ function ReservationHistory() {
                             {(key === 'facilityName' || key === 'typeOfService')
                               ? String(value ?? '')
                                   .toLowerCase()
-                                  .split(/(\s|\/)/) 
-                                  .map(word => /[a-zA-Z]/.test(word) 
-                                    ? word.charAt(0).toUpperCase() + word.slice(1) 
+                                  .split(/(\s|\/)/)
+                                  .map(word => /[a-zA-Z]/.test(word)
+                                    ? word.charAt(0).toUpperCase() + word.slice(1)
                                     : word
                                   )
                                   .join('')

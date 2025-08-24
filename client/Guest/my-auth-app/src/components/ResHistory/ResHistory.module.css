@@ -445,3 +445,70 @@
         font-size: 0.85em;
     }
 }
+
+.emptyStateCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 32px 24px;
+  background: linear-gradient(180deg, #ffffff, #fafbff);
+  box-shadow: 0 6px 24px rgba(16, 24, 40, 0.06);
+  margin-top: 20px;
+}
+
+.emptyIcon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #f1f5f9;
+  color: #3b82f6;
+  display: grid;
+  place-items: center;
+  margin-bottom: 12px;
+}
+
+.emptyTitle {
+  font-size: 18px;
+  font-weight: 600;
+  color: #0f172a;
+  margin: 4px 0 6px;
+}
+
+.emptyDesc {
+  font-size: 14px;
+  color: #475569;
+  margin: 0 0 16px;
+}
+
+.emptyActions {
+  display: flex;
+  gap: 12px;
+}
+
+.primaryBtn {
+  background: #16a34a;
+  border: 1px solid #16a34a;
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: 10px;
+}
+
+.primaryBtn:hover {
+  background: #15803d;
+  border-color: #15803d;
+}
+
+.secondaryBtn {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  color: #334155;
+  padding: 10px 16px;
+  border-radius: 10px;
+}
+
+.secondaryBtn:hover {
+  background: #f8fafc;
+}

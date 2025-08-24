@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import AuthFormContainer from './components/AuthFormContainer/AuthFormContainer';
 import AuthSidePanel from './components/AuthSidePanel/AuthSidePanel';
 import LoginForm from './components/LoginForm/LoginForm';
