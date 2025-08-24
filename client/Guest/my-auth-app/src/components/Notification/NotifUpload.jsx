@@ -1,0 +1,112 @@
+import React, { useRef } from 'react';
+import styles from './NotifUpload.module.css';
+
+const uploadFields = {
+  deped: [
+    {
+      label: 'Upload Memorandum of Agreement',
+      description: (
+        <>
+          Download this <a href="#" className={styles.link}>Memorandum of Agreement Template</a> and Upload in the following submission bin.
+        </>
+      ),
+      accept: '.pdf,.doc,.docx',
+      key: 'moa',
+    },
+    {
+      label: 'Upload Certificate of Availability of Funds',
+      accept: '.pdf,.doc,.docx',
+      key: 'funds',
+    },
+  ],
+  gov: [
+    {
+      label: 'Upload Service Contract',
+      accept: '.pdf,.doc,.docx',
+      key: 'service',
+    },
+    {
+      label: 'Upload Certificate of Availability of Funds',
+      accept: '.pdf,.doc,.docx',
+      key: 'funds',
+    },
+  ],
+  'priva-group': [
+    {
+      label: 'Upload Service Contract',
+      accept: '.pdf,.doc,.docx',
+      key: 'service',
+    },
+    {
+      label: 'Upload Certificate of Availability of Funds',
+      accept: '.pdf,.doc,.docx',
+      key: 'funds',
+    },
+  ],
+};
+
+export default function NotifUpload({ clientType = 'deped', onSubmit }) {
+  const fields = uploadFields[clientType] || uploadFields['deped'];
+  const fileRefs = useRef({});
+
+  const handleFileClick = (key) => {
+    fileRefs.current[key].click();
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const files = {};
+    fields.forEach(f => {
+      files[f.key] = fileRefs.current[f.key]?.files[0] || null;
+    });
+    if (onSubmit) onSubmit(files);
+  };
+
+  return (
+    <div className={styles.uploadContainer}>
+      <div className={styles.headerRow}>
+        <button className={styles.backBtn}>&#8592;</button>
+        <span className={styles.headerTitle}>Notifications</span>
+      </div>
+      <div className={styles.contentBox}>
+        <div className={styles.titleBox}>
+          <span>Congratulations, Camper! Confirmation Successful — your reservation is now confirmed. We can't wait to welcome you!</span>
+        </div>
+        <div className={styles.bodyText}>
+          Thank you for choosing Teachers' Camp! Your reservation has been confirmed. We're excited to welcome you and ensure you have a comfortable and memorable stay.
+        </div>
+        <div className={styles.noticeText}>
+          Please ensure to download and upload the necessary documents before your arrival to avoid conflict on your reservation.
+        </div>
+        <form onSubmit={handleSubmit}>
+          {fields.map((f, idx) => (
+            <div className={styles.uploadField} key={f.key}>
+              <div className={styles.uploadLabel}>{f.label}</div>
+              {f.description && <div className={styles.uploadDesc}>{f.description}</div>}
+              <div className={styles.uploadInputRow}>
+                <input
+                  type="file"
+                  accept={f.accept}
+                  ref={el => (fileRefs.current[f.key] = el)}
+                  style={{ display: 'none' }}
+                />
+                <div className={styles.uploadInput} onClick={() => handleFileClick(f.key)}>
+                  Click to upload
+                </div>
+                <button type="button" className={styles.uploadIconBtn} onClick={() => handleFileClick(f.key)}>
+                  <span className={styles.uploadIcon}>&#8682;</span>
+                </button>
+              </div>
+            </div>
+          ))}
+          <button type="submit" className={styles.submitBtn}>Submit</button>
+        </form>
+        <div className={styles.footerText}>Looking forward to seeing you soon!</div>
+        <div className={styles.metaRow}>
+          <span className={styles.metaSource}>Teachers Camp</span>
+          <span className={styles.metaTime}>30mins</span>
+        </div>
+      </div>
+    </div>
+  );
+}
