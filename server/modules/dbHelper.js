@@ -33,7 +33,7 @@ const dbHelper = {
                 verificationCodeHash: { type: String, required: false, },
                 verificationCodeExpiry: { type: Date, required: false, },
                 resetTokenHash: { type: String, required: false, },
-                resetTokenExpiry: { type: Date, required: false, }
+                resetTokenExpiry: { type: Date, required: false, },
             });
 
             const ProfileSchema = new mongoose.Schema({
@@ -46,7 +46,7 @@ const dbHelper = {
                 profilePic: { type: String, required: true, },
                 createdProfileAt: { type: Date, default: Date.now, },
                 updatedProfileAt: { type: Date, required: false, },
-                userId: { type: mongoose.Schema.Types.ObjectId, ref: 'user', required: true, }
+                userId: { type: mongoose.Schema.Types.ObjectId, ref: 'user', required: true, },
             });
 
             const ReservationSchema = new mongoose.Schema({
@@ -74,7 +74,7 @@ const dbHelper = {
                 totalEstimatedAmount: { type: Number, required: true, },
                 otherRequests: { type: String, required: false, },
                 createdAt: { type: Date, default: Date.now, },
-                userId: { type: mongoose.Schema.Types.ObjectId, ref: 'user', required: true, }
+                userId: { type: mongoose.Schema.Types.ObjectId, ref: 'user', required: true, },
             });
 
             const FacilitySchema = new mongoose.Schema({
@@ -85,7 +85,7 @@ const dbHelper = {
                 price: { type: Number, required: false, },
                 status: { type: String, enum: Object.values(FacilityStatus), default: FacilityStatus.AVAILABLE, required: true, },
                 image: { type: String, required: false, },
-                createdAt: { type: Date, default: Date.now, }
+                createdAt: { type: Date, default: Date.now, },
             });
 
             const SpecialServiceSchema = new mongoose.Schema({
@@ -101,7 +101,7 @@ const dbHelper = {
                 isRead: { type: Boolean, default: false, },
                 createdAt: { type: Date, default: Date.now, },
                 userId: { type: mongoose.Schema.Types.ObjectId, ref: 'user', required: true, },
-                reservationId: { type: mongoose.Schema.Types.ObjectId, ref: 'reservation', required: true, },
+                reservationId: { type: mongoose.Schema.Types.ObjectId, ref: 'reservation', required: false, },
             });
 
             mongoose.model('user', UserSchema);
@@ -146,6 +146,26 @@ const dbHelper = {
             update = sanitizeObject({ ...update, });
         }
         return await mongoose.model(collectionName).findOneAndUpdate(query, update, { new: true, runValidators: true, });
+    },
+
+    findMany: async (collectionName, query = {}, options = {}) => {
+        const { projection = null, sort = null, limit = null, skip = null, } = options;
+        return await mongoose
+            .model(collectionName)
+            .find(query, projection, { sort, limit, skip, });
+    },
+
+    count: async (collectionName, query = {}) => {
+        return await mongoose.model(collectionName).countDocuments(query);
+    },
+
+    updateMany: async (collectionName, query, update) => {
+        if (update && update.$set) {
+            update.$set = sanitizeObject({ ...update.$set, });
+        } else if (update) {
+            update = sanitizeObject({ ...update, });
+        }
+        return await mongoose.model(collectionName).updateMany(query, update, { runValidators: true, });
     },
 
     deleteOne: async (collectionName, query) => {

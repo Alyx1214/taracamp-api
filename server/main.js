@@ -18,6 +18,7 @@ import reservationModule from './modules/reservation.js';
 import facilityModule from './modules/facility.js';
 import specialServiceModule from './modules/specialService.js';
 import dashboardModule from './modules/dashboard.js';
+import notificationModule from './modules/notification.js';
 import { Status, } from './constants.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -147,9 +148,23 @@ const processGetAPI = async (req, res) => {
                     return res.status(responseData.status).json(responseData);
                 }
                 case 'check-availability': {
-                    const params = { ...req.query, }; 
+                    const params = { ...req.query, };
                     const responseData = await reservationModule.checkAvailability(dbHelper, params);
                     return res.status(responseData.status).json(responseData);
+                }
+                default:
+                    return res.status(404).json({ error: 'Unknown action', });
+            }
+        case 'notification':
+            switch (action) {
+                case 'list': {
+                    const { limit, before, } = req.query;
+                    const data = await notificationModule.listForUser(dbHelper, req.user.userId, { limit, before, });
+                    return res.status(200).json({ status: 200, data, });
+                }
+                case 'count-unread': {
+                    const count = await notificationModule.countUnread(dbHelper, req.user.userId);
+                    return res.status(200).json({ status: 200, data: { count, }, });
                 }
                 default:
                     return res.status(404).json({ error: 'Unknown action', });
@@ -328,6 +343,20 @@ const processPostAPI = async (req, res) => {
                 default:
                     return res.status(404).json({ error: 'Unknown action', });
             }
+        case 'notification':
+            switch (action) {
+                case 'mark-read': {
+                    const { id, } = req.params;
+                    await notificationModule.markRead(dbHelper, id, req.user.userId);
+                    return res.status(200).json({ status: 200, });
+                }
+                case 'mark-all-read': {
+                    await notificationModule.markAllRead(dbHelper, req.user.userId);
+                    return res.status(200).json({ status: 200, });
+                }
+                default:
+                    return res.status(404).json({ error: 'Unknown action', });
+            }
         default:
             return res.status(404).json({ error: 'Unknown module', });
     }
@@ -356,6 +385,7 @@ function isProtected(module, action) {
             'get-all-reservations-by-status', 'accept-or-decline-reservation',],
         facility: ['create-facility', 'update-facility', 'delete-facility',],
         'special-service': ['create-special-service', 'update-special-service', 'delete-special-service',],
+        notification: ['list', 'mark-read', 'mark-all-read', 'count-unread',],
         dashboard: ['get-todays-reservations-count', 'get-monthly-check-ins-count', 'get-monthly-check-outs-count',
             'get-confirmed-reservations-count', 'get-pending-reservations-count', 'get-cancelled-reservations-count', 'get-total-guest-users',],
     };
@@ -476,36 +506,68 @@ const wss = new WebSocketServer({ noServer: true, });
 const userSocketMap = new Map();
 
 server.on('upgrade', (req, socket, head) => {
-    const authHeader = req.headers['authorization'];
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+    const { pathname, searchParams, } = new URL(req.url, `http://${req.headers.host}`);
+    if (pathname !== '/socket') {
         socket.destroy();
         return;
     }
-    const token = authHeader.split(' ')[1];
-    const user = jwtHelper.verifyAccessToken(token);
+
+    let token = searchParams.get('token');
+    if (!token) {
+        const protoHeader = req.headers['sec-websocket-protocol'];
+        if (protoHeader) {
+            const parts = protoHeader.split(',').map((s) => s.trim());
+            token = parts.find((p) => p && p.toLowerCase() !== 'bearer') || null;
+        }
+    }
+
+    const user = token ? jwtHelper.verifyAccessToken(token) : null;
     if (!user) {
         socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
         socket.destroy();
         return;
     }
+
     req.user = user;
-    wss.handleUpgrade(req, socket, head, (ws) => wss.emit('connection', ws, req));
+    wss.handleUpgrade(req, socket, head, (ws) => {
+        wss.emit('connection', ws, req);
+    });
 });
 
 wss.on('connection', (ws, req) => {
     const userId = req.user.userId;
     userSocketMap.set(userId, ws);
-    console.log(`New client connected: ${userId}`);
+    ws.isAlive = true;
+
+    ws.on('pong', () => { ws.isAlive = true; });
 
     ws.on('close', () => {
         userSocketMap.delete(userId);
-        console.log(`Client ${userId} has disconnected`);
     });
 
-    ws.on('message', (msg) => ws.send(`Hello ${userId}, you sent -> ${msg}`));
+    ws.on('error', () => {
+        userSocketMap.delete(userId);
+    });
+
+    ws.on('message', (msg) => {
+        console.log(`WS from ${userId}:`, msg.toString());
+    });
 });
 
+const interval = setInterval(() => {
+    for (const [uid, ws,] of userSocketMap.entries()) {
+        if (ws.isAlive === false) {
+            userSocketMap.delete(uid);
+            ws.terminate();
+            continue;
+        }
+        ws.isAlive = false;
+        ws.ping();
+    }
+}, 30000);
+
+wss.on('close', () => clearInterval(interval));
+
 server.listen(port, () => {
-    console.log(`API listening at http://0.0.0.0:${port}`);
+    console.log(`API listening at http://localhost:${port}`);
 });

@@ -12,7 +12,7 @@ const jwtHelper = {
                 userId: user._id?.toString(),
                 email: user.email,
                 role: user.role,
-                jti: user.jti
+                jti: user.jti,
             },
             process.env.JWT_SECRET,
             { expiresIn: '15m', }
@@ -28,10 +28,10 @@ const jwtHelper = {
         jwt.sign(
             {
                 userId: user._id?.toString(),
-                jti: user.jti
+                jti: user.jti,
             },
             process.env.JWT_REFRESH_SECRET,
-            { expiresIn: '7d' }
+            { expiresIn: '7d', }
         ),
 
     /**
@@ -42,7 +42,8 @@ const jwtHelper = {
     verifyAccessToken: (token) => {
         try {
             return jwt.verify(token, process.env.JWT_SECRET);
-        } catch {
+        } catch (err) {
+            console.error('WS JWT verify failed:', err.message);
             return null;
         }
     },
