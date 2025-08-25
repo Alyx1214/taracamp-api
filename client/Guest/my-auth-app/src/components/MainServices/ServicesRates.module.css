@@ -33,16 +33,66 @@
 }
 
 @media (max-width: 992px) {
+  .ratesExcessSection {
+    margin: 50px 40px; 
+  }
   .excessRatesContent {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+  }
+}
+
+@media (max-width: 768px) {
+  .ratesExcessSection {
+    margin: 40px 20px;
+    padding: 15px;
   }
 }
 
 @media (max-width: 576px) {
+/*  
   .excessRatesTitle {
     font-size: 1.5em;
   }
   .excessRatesContent p {
     font-size: 0.9em;
+  } 
+*/
+
+    .ratesExcessSection {
+    margin: 30px 15px;
+    padding: 20px 15px;
+  }
+  
+  .excessRatesTitle {
+    font-size: 1.3em;
+    margin-bottom: 15px;
+  }
+  
+  .excessRatesContent {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  
+  .excessRatesContent p {
+    padding: 12px;
+    font-size: 0.85em;
+    margin: 0 5px;
+  }
+}
+
+/* For very small screens */
+@media (max-width: 400px) {
+  .ratesExcessSection {
+    margin: 25px 10px;
+  }
+  
+  .excessRatesTitle {
+    font-size: 1.2em;
+  }
+  
+  .excessRatesContent p {
+    padding: 10px;
+    font-size: 0.8em;
   }
 }
