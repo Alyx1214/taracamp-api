@@ -1,9 +1,9 @@
 import React from "react";
-import DashboardCard from "./DashboardCard";
-import ReservationGraph from "./ReservationGraph";
-import ReservationCalendar from "./Calendar";
-import Sidebar from "./Sidebar"; 
-import "./Dashboard.css";
+import DashboardCard from "../DashboardCard/DashboardCard.jsx";
+import ReservationGraph from "../ReservationGraph/ReservationGraph.jsx";
+import ReservationCalendar from "../DashboardCalendar/DashboardCalendar.jsx";
+import Sidebar from "../Sidebar/Sidebar.jsx"; 
+import "../Dashboard/Dashboard.module.css";
 
 const Dashboard = ({ isOpen, onClose }) => {
   return (

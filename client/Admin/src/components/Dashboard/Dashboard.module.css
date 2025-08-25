@@ -20,9 +20,12 @@
 }
 
 .dashboard-header h1 {
-  font-size: 2rem;
+  color: #4F3718;
+  font-family: Montserrat;
+  font-size: 48px;
+  font-style: normal;
   font-weight: 700;
-  color: #333;
+  line-height: normal;
 }
 
 .dashboard-cards {
@@ -39,7 +42,7 @@
 }
 
 .stats-section {
-  width: 65%;
+  width: 30%;
 }
 
 .calendar-section {

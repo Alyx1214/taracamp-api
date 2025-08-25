@@ -1,17 +1,17 @@
 import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Layout from "./components/Layout/Layout";
-import Dashboard from "./components/DashboardCard/DashboardCard.jsx";
+import Dashboard from "../src/components/Dashboard/Dashboard.jsx";
 import Reservations from "./components/Reservation/Reservations";
 import Facilities from "./components/Facility/Facilities";
-import Transactions from "./components/Transaction/Transaction.jsx";
-import User from "./components/Users/Users.jsx";
-import Reports from "./components/Report/Report.jsx";
-import CheckInOut from "./components/CheckInOuts/CheckInOuts.jsx";
-import AddReservation from "./components/Reservation/AddReservation.jsx";
-import ReservationDetails from "./components/Reservation/ReservationDetail.jsx";
-import AddForm from "./components/Facility/AddForm.jsx";
-import EditForm from "./components/Facility/EditForm.jsx"; 
+import Transactions from "../src/pages/Transactions.jsx";
+import User from "../src/pages/User.jsx";
+import Reports from "../src/pages/Reports.jsx";
+import CheckInOut from "../src/pages/CheckInOut.jsx";
+import AddReservation from "../src/components/Reservation/AddReservation.jsx";
+import ReservationDetails from "../src/components/Reservation/ReservationDetail.jsx";
+import AddForm from "../src/components/Facility/AddForm.jsx";
+import EditForm from "../src/components/Facility/EditForm.jsx"; 
 
 function App() {
 return (
@@ -23,7 +23,7 @@ return (
 <Route path="dashboard" element={<Dashboard />} />
 <Route path="reservations" element={<Reservations />} />
 <Route path="facilities" element={<Facilities />} />
-<Route path="transactions" element={<Transactions />} />
+<Route path="transactions" element={<Transactions />} /> 
 <Route path="user" element={<User />} />
 <Route path="checkin" element={<CheckInOut />} />
 <Route path="reports" element={<Reports />} />

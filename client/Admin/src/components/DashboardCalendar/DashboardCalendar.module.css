@@ -1,5 +1,7 @@
 .calendar {
-  width: 100%;
+  width: 492px;
+  height: 527px;
+  flex-shrink: 0;
   margin-top: 20px;
 }
 
@@ -11,7 +13,8 @@ h3 {
 }
 
 .react-calendar {
-  border: none;
+  border-radius: 16px;
+  background: #FFF;
   font-family: Arial, sans-serif;
 }
 

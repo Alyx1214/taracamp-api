@@ -1,5 +1,5 @@
 import React from "react";
-import "./DashboardCard.css";
+import "./DashboardCard.module.css";
 
 const DashboardCard = ({ title, value }) => {
   return (

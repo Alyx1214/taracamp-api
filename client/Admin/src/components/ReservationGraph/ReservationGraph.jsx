@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { Line } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -6,13 +6,34 @@ import {
   Tooltip,
   Legend,
   LineElement,
+  PointElement,
   CategoryScale,
   LinearScale,
+  Filler,
 } from "chart.js";
+import "./ReservationGraph.module.css";
 
-ChartJS.register(Title, Tooltip, Legend, LineElement, CategoryScale, LinearScale);
+// Register required components
+ChartJS.register(
+  Title,
+  Tooltip,
+  Legend,
+  LineElement,
+  PointElement,
+  CategoryScale,
+  LinearScale,
+  Filler
+);
 
 const ReservationGraph = () => {
+  const chartRef = useRef(null);
+
+  useEffect(() => {
+    if (chartRef.current && chartRef.current.chartInstance) {
+      chartRef.current.chartInstance.destroy();  // Destroy previous chart instance
+    }
+  }, []);
+
   const data = {
     labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
     datasets: [
@@ -50,7 +71,7 @@ const ReservationGraph = () => {
   return (
     <div className="reservation-graph">
       <h3>Monthly Reservations</h3>
-      <Line data={data} options={options} />
+      <Line ref={chartRef} data={data} options={options} />
     </div>
   );
 };
