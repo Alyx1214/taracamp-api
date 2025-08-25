@@ -1,6 +1,5 @@
 .dormitoriesSection {
-  margin-top: 10px;
-  margin: 0 132px;
+  margin: 10px 132px 60px 132px;
 }
 
 .sectionTitle {
@@ -8,6 +7,7 @@
   color: #538E5E;
   margin-bottom: 30px;
   letter-spacing: 15px;
+  font-weight: bold;
 }
 
 .dormitoryGrid {
@@ -86,8 +86,13 @@
 }
 
 @media (max-width: 992px) {
+  .dormitoriesSection {
+    margin: 10px 20px 60px 20px;
+}
   .sectionTitle {
     font-size: 2em;
+    letter-spacing: normal;
+    text-align: center;
   }
   .dormitoryGrid {
     grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
@@ -95,8 +100,12 @@
 }
 
 @media (max-width: 576px) {
+  .dormitoriesSection {
+    margin: 10px 10px 40px 10px;
+}
   .sectionTitle {
     font-size: 1.8em;
+    text-align: center;
   }
   .dormitoryCard {
     padding-bottom: 10px;

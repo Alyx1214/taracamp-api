@@ -73,6 +73,7 @@
   .sectionTitle {
     font-size: 2em;
     letter-spacing: normal;
+    text-align: center;
   }
   .servicesContainer {
     padding: 20px 25px;
@@ -92,6 +93,7 @@
   }
   .sectionTitle {
     font-size: 1.8em;
+    text-align: center;
   }
   .servicesContainer {
     padding: 15px 15px;
