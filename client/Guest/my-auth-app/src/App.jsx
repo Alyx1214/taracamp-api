@@ -13,72 +13,37 @@ import HistoryPage from './components/History/History';
 import ServicesPage from './components/MServices/Services';
 import FAQsPage from './components/FAQs/FAQs';
 import ContactsPage from './components/Contacts/Contacts';
-
 import backgroundImage from './assets/background-blur.png';
 import styles from './App.module.css';
-import {
-  BrowserRouter as Router,
-  Routes,
-  Route,
-  useNavigate,
-  useParams,
-  useSearchParams
-} from 'react-router-dom';
-
+import { BrowserRouter as Router, Routes, Route, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import Transactions from './components/Transactions/Transactions';
 import ResHistory from './components/ResHistory/ResHistory';
 import ReservationForm from './components/ReservationForm/ResForm';
 import ReservationFormStep2 from './components/ReservationForm/ResForm2';
 import ReservationFormStep3 from './components/ReservationForm/ResForm3';
 import ReservationFormStep4 from './components/ReservationForm/ResDetails';
-
-// NOTE: your folder is "Notification" (singular). Sticking with that.
 import Notif from './components/Notification/Notif';
-import NotifIndiv from './components/Notification/NotifIndiv';
 import NotifPreview from './components/Notification/NotifPreview';
 import NotifUpload from './components/Notification/NotifUpload';
-
-// import RequireAuth from './components/Utilities/RequireAuth';
-
-// Hook we wrote earlier (no api.js version)
 import { useNotifications } from './components/Utilities/useNotifications';
-
-/* -------------------------
-   Inline Notification Pages
---------------------------*/
 
 function NotificationsListPage() {
   const { items, markAllAsRead, markRead } = useNotifications();
   const navigate = useNavigate();
-
   return (
     <Notif
       notifications={items.map(n => ({
         ...n,
-        // clicking the ">" action
         onAction: () => {
           markRead(n.id);
-          navigate(`/notifications/${n.id}`); // or choose preview/upload based on n.kind
+          navigate(`/notifications/${n.id}/preview`);
         }
       }))}
       onMarkAllAsRead={markAllAsRead}
-      // clicking the whole row
       onItemClick={(n) => {
         markRead(n.id);
-        navigate(`/notifications/${n.id}`);
+        navigate(`/notifications/${n.id}/preview`);
       }}
-    />
-  );
-}
-
-function NotificationsIndivPage() {
-  const { id } = useParams();
-  const navigate = useNavigate();
-  return (
-    <NotifIndiv
-      notif={{ id }}
-      onFoodPref={() => navigate('/reservation-step4')}
-      onCancel={() => navigate('/reservations')}
     />
   );
 }
@@ -86,12 +51,19 @@ function NotificationsIndivPage() {
 function NotificationsPreviewPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  async function loadReservation() {
+    const res = await fetch(`/api/reservations/${id}`, { credentials: 'include' });
+    if (!res.ok) throw new Error('Failed to load');
+    return res.json();
+  }
   return (
     <NotifPreview
       notif={{ id }}
-      clientType="individual" // adjust if you infer client type elsewhere
+      clientType="individual"
+      loadReservation={loadReservation}
       onConfirm={() => navigate('/transactions')}
       onCancel={() => navigate('/reservations')}
+      onBack={() => navigate('/notifications')}
     />
   );
 }
@@ -101,12 +73,10 @@ function NotificationsUploadPage() {
   const [qs] = useSearchParams();
   const clientType = qs.get('clientType') || 'deped';
   const navigate = useNavigate();
-
   return (
     <NotifUpload
       clientType={clientType}
       onSubmit={(files) => {
-        // do your upload logic here
         console.log('Uploading documents for', id, files);
         navigate('/reservations');
       }}
@@ -114,23 +84,17 @@ function NotificationsUploadPage() {
   );
 }
 
-/* -------------------------
-   Auth layout
---------------------------*/
 function AuthLayout() {
   const [authFormState, setAuthFormState] = useState('login');
   const [showTermsModal, setShowTermsModal] = useState(false);
   const navigate = useNavigate();
-
   const toggleAuthForm = (state) => {
     setAuthFormState(state);
     navigate(`/auth/${state}`);
   };
-
   const handleLoginSuccess = () => {
     navigate('/homepage');
   };
-
   return (
     <div className={styles.authPageWrapper} style={{ backgroundImage: `url(${backgroundImage})` }}>
       <div className={styles.authContainer}>
@@ -165,23 +129,16 @@ function AuthLayout() {
   );
 }
 
-/* -------------------------
-   App routes
---------------------------*/
 function App() {
   const navigate = useNavigate();
-
   const handleReserveNow = () => {
     navigate('/auth/login');
   };
-
   return (
     <Routes>
       <Route path="/" element={<LandingPage onReserveNow={handleReserveNow} />} />
       <Route path="/auth/*" element={<AuthLayout />} />
       <Route path="/services/*" element={<MainServices />} />
-
-      {/* <Route element={<RequireAuth />}> */}
       <Route path="/homepage/*" element={<Homepage />} />
       <Route path="/history" element={<HistoryPage />} />
       <Route path="/user/services/*" element={<ServicesPage />} />
@@ -193,20 +150,14 @@ function App() {
       <Route path="/reservation-step2" element={<ReservationFormStep2 />} />
       <Route path="/reservation-step3" element={<ReservationFormStep3 />} />
       <Route path="/reservation-step4" element={<ReservationFormStep4 />} />
-      {/* </Route> */}
-
-      {/* Notifications */}
       <Route path="/notifications" element={<NotificationsListPage />} />
-      <Route path="/notifications/:id" element={<NotificationsIndivPage />} />
+      <Route path="/notifications/:id" element={<NotificationsPreviewPage />} />
       <Route path="/notifications/:id/preview" element={<NotificationsPreviewPage />} />
       <Route path="/notifications/:id/upload" element={<NotificationsUploadPage />} />
     </Routes>
   );
 }
 
-/* -------------------------
-   Wrapper with Router
---------------------------*/
 function AppWrapper() {
   return (
     <Router>

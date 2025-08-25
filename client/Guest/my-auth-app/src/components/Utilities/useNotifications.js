@@ -48,12 +48,13 @@ async function postJSON(path, body) {
 
 function toClientShape(n) {
   return {
-    id: n.id || n._id,
+    id: n._id ?? n.id,  
     title: n.title,
     body: n.message || n.body,
     source: n.source || "Teachers' Camp",
     time: n.time || (n.createdAt ? new Date(n.createdAt).toLocaleString() : ''),
     read: n.isRead ?? n.read ?? false,
+    reservationId: n.reservationId,
   };
 }
 

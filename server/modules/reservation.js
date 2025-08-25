@@ -307,7 +307,8 @@ const reservationModule = {
                 return responseData;
             }
 
-            const reservation = await dbHelper.findOne('reservation', { _id: reservationId, });
+            const reservation = await dbHelper.findOne('reservation', { _id: reservationId }); // fetch facility details
+            const facilityDoc = reservation?.facility ? await dbHelper.findOne('facility', { _id: reservation.facility }) : null;
             if (!reservation) {
                 responseData.status = Status.NOT_FOUND;
                 responseData.error = 'Reservation not found';
@@ -336,7 +337,9 @@ const reservationModule = {
                 delete reservationObject.numberOfGuests.children;
                 delete reservationObject.numberOfGuests.pwds;
             }
+            
             reservationObject.letterOfIntentFile = url;
+            reservationObject.facilityType = facilityDoc?.facilityType ?? null;
 
             responseData.status = Status.OK;
             responseData.error = null;

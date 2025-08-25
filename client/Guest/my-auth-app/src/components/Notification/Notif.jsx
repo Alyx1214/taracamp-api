@@ -1,4 +1,3 @@
-
 import React from 'react';
 import styles from './Notif.module.css';
 
@@ -28,6 +27,7 @@ export default function Notif({ notifications = [], onMarkAllAsRead, onItemClick
                       e.stopPropagation();
                       notif.onAction && notif.onAction(notif);
                     }}
+                    aria-label="Open notification"
                   >
                     &gt;
                   </button>
@@ -38,6 +38,9 @@ export default function Notif({ notifications = [], onMarkAllAsRead, onItemClick
                 <span className={styles.notifSource}>{notif.source}</span>
                 <span className={styles.notifTime}>{notif.time}</span>
               </div>
+              {!notif.reservationId && (
+                <div className={styles.notifHint}>Missing reservation link</div>
+              )}
             </div>
           ))
         )}
