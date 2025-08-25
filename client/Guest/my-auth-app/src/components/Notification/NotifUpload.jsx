@@ -7,7 +7,7 @@ const uploadFields = {
       label: 'Upload Memorandum of Agreement',
       description: (
         <>
-          Download this <a href="#" className={styles.link}>Memorandum of Agreement Template</a> and Upload in the following submission bin.
+          Download this <a href="#" className={styles.link}>Memorandum of Agreement Template</a> and upload in the following submission bin.
         </>
       ),
       accept: '.pdf,.doc,.docx',
@@ -43,21 +43,28 @@ const uploadFields = {
       key: 'funds',
     },
   ],
+  individual: [
+    {
+      label: 'Upload Valid ID (optional)',
+      accept: '.pdf,.jpg,.jpeg,.png',
+      key: 'id',
+    },
+  ],
 };
 
-export default function NotifUpload({ clientType = 'deped', onSubmit }) {
+export default function NotifUpload({ clientType = 'deped', onSubmit, onBack = () => {} }) {
   const fields = uploadFields[clientType] || uploadFields['deped'];
   const fileRefs = useRef({});
 
   const handleFileClick = (key) => {
-    fileRefs.current[key].click();
+    fileRefs.current[key]?.click();
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
     const files = {};
     fields.forEach(f => {
-      files[f.key] = fileRefs.current[f.key]?.files[0] || null;
+      files[f.key] = fileRefs.current[f.key]?.files?.[0] || null;
     });
     if (onSubmit) onSubmit(files);
   };
@@ -65,7 +72,7 @@ export default function NotifUpload({ clientType = 'deped', onSubmit }) {
   return (
     <div className={styles.uploadContainer}>
       <div className={styles.headerRow}>
-        <button className={styles.backBtn}>&#8592;</button>
+        <button className={styles.backBtn} onClick={onBack} aria-label="Back">&#8592;</button>
         <span className={styles.headerTitle}>Notifications</span>
       </div>
       <div className={styles.contentBox}>
@@ -79,7 +86,7 @@ export default function NotifUpload({ clientType = 'deped', onSubmit }) {
           Please ensure to download and upload the necessary documents before your arrival to avoid conflict on your reservation.
         </div>
         <form onSubmit={handleSubmit}>
-          {fields.map((f, idx) => (
+          {fields.map((f) => (
             <div className={styles.uploadField} key={f.key}>
               <div className={styles.uploadLabel}>{f.label}</div>
               {f.description && <div className={styles.uploadDesc}>{f.description}</div>}
@@ -90,10 +97,17 @@ export default function NotifUpload({ clientType = 'deped', onSubmit }) {
                   ref={el => (fileRefs.current[f.key] = el)}
                   style={{ display: 'none' }}
                 />
-                <div className={styles.uploadInput} onClick={() => handleFileClick(f.key)}>
+                <div
+                  className={styles.uploadInput}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => handleFileClick(f.key)}
+                  onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && handleFileClick(f.key)}
+                  aria-label={`Upload ${f.label}`}
+                >
                   Click to upload
                 </div>
-                <button type="button" className={styles.uploadIconBtn} onClick={() => handleFileClick(f.key)}>
+                <button type="button" className={styles.uploadIconBtn} onClick={() => handleFileClick(f.key)} aria-label="Browse">
                   <span className={styles.uploadIcon}>&#8682;</span>
                 </button>
               </div>
@@ -103,7 +117,7 @@ export default function NotifUpload({ clientType = 'deped', onSubmit }) {
         </form>
         <div className={styles.footerText}>Looking forward to seeing you soon!</div>
         <div className={styles.metaRow}>
-          <span className={styles.metaSource}>Teachers Camp</span>
+          <span className={styles.metaSource}>Teachers' Camp</span>
           <span className={styles.metaTime}>30mins</span>
         </div>
       </div>

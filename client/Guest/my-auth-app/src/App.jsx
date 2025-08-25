@@ -154,6 +154,7 @@ function App() {
       <Route path="/notifications/:id" element={<NotificationsPreviewPage />} />
       <Route path="/notifications/:id/preview" element={<NotificationsPreviewPage />} />
       <Route path="/notifications/:id/upload" element={<NotificationsUploadPage />} />
+      <Route path="/notifications/uploadpreview" element={<NotificationsUploadPage />} /> 
     </Routes>
   );
 }

@@ -5,15 +5,21 @@ import mountainLogo from '../../assets/logo.png';
 import { useNotifications } from '../Utilities/useNotifications';
 import Notif from '../Notification/Notif';
 import NotifPreview from '../Notification/NotifPreview';
+import NotifUpload from '../Notification/NotifUpload';
 
 function HeaderHome() {
   const navigate = useNavigate();
   const location = useLocation();
+
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
+
+  // 'list' | 'preview' | 'upload'
   const [notifPane, setNotifPane] = useState('list');
   const [selectedNotif, setSelectedNotif] = useState(null);
+  const [uploadClientType, setUploadClientType] = useState('deped');
+
   const accountMenuRef = useRef(null);
   const notifMenuRef = useRef(null);
   const { items: notifications, unreadCount, markAllAsRead, markRead } = useNotifications();
@@ -39,6 +45,7 @@ function HeaderHome() {
     setIsNotifOpen(false);
     setNotifPane('list');
     setSelectedNotif(null);
+
     if (location.pathname === path || (location.pathname === '/' && path === '/')) {
       const element = document.getElementById(sectionId);
       if (element) element.scrollIntoView({ behavior: 'smooth' });
@@ -103,30 +110,25 @@ function HeaderHome() {
     navigate('/auth/login');
   };
 
-  function openNotifDetail(notif) {
-    if (!notif?.reservationId) {
-      // no linked reservation; stay on list and do nothing useful
-      return;
-    }
-    if (notif?.id) markRead(notif.id);
-
-    if (window.matchMedia('(max-width: 640px)').matches) {
-      setIsNotifOpen(false);
-      setNotifPane('list');
-      setSelectedNotif(null);
-      navigate(`/notifications/${notif.id}/preview`);
-      return;
-    }
-    setSelectedNotif(notif);
-    setNotifPane('preview');
-    setIsNotifOpen(true);
+  function humanizeType(t) {
+    if (!t) return null;
+    return String(t).toLowerCase().replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
   }
 
-  async function loadReservation(notif) {
+  function categoryToClientType(cat) {
+    const c = String(cat || '').toLowerCase();
+    if (c === 'deped') return 'deped';
+    if (c === 'government') return 'gov';
+    if (c === 'private_group' || c === 'private-group' || c === 'private' || c.includes('priva')) return 'priva-group';
+    if (c === 'individual') return 'individual';
+    return 'individual';
+  }
+
+  async function fetchReservation(notif) {
     const reservationId = notif?.reservationId;
     if (!reservationId) throw new Error('Missing reservationId');
-    const url = `/api/reservation/get-reservation-by-id/${reservationId}`;
-    const res = await fetch(url, {
+
+    const res = await fetch(`/api/reservation/get-reservation-by-id/${reservationId}`, {
       method: 'GET',
       headers: { Accept: 'application/json' },
       credentials: 'include',
@@ -139,29 +141,62 @@ function HeaderHome() {
     }
 
     const json = await res.json();
-    if (!res.ok || json.error) {
-      throw new Error(json.error || `HTTP ${res.status}`);
-    }
+    if (!res.ok || json.error) throw new Error(json.error || `HTTP ${res.status}`);
 
     const r = json.reservation || json;
-
-    function humanizeType(t) {
-      if (!t) return null;
-      return String(t).toLowerCase()
-        .replace(/_/g, ' ')
-        .replace(/\b\w/g, c => c.toUpperCase());  
-    }
 
     return {
       title: r.title,
       body: r.message,
       checkInDate: r.dateOfArrival,
       checkOutDate: r.dateOfDeparture,
-      accommodationType: humanizeType(r.facilityType) || humanizeType(r?.facility?.type) || r.accommodationType,  
+      accommodationType: humanizeType(r.facilityType) || humanizeType(r?.facility?.type) || r.accommodationType,
       numGuests: r?.numberOfGuests?.total ?? r.guests ?? r.pax,
-      source: r.source || 'Teachers Camp',
+      source: r.source || "Teachers' Camp",
       time: r.updatedAt || r.createdAt,
+      category: r.category || null,
+      clientType: categoryToClientType(r.category),
     };
+  }
+
+  function openNotifDetail(notif) {
+    if (!notif?.reservationId) return;
+    if (notif?.id) markRead(notif.id);
+
+    // keep mobile route-based behavior
+    if (window.matchMedia('(max-width: 640px)').matches) {
+      setIsNotifOpen(false);
+      setNotifPane('list');
+      setSelectedNotif(null);
+      navigate(`/notifications/${notif.id}/preview`);
+      return;
+    }
+
+    (async () => {
+      try {
+        const data = await fetchReservation(notif);
+        const hydrated = { ...notif, __reservation: data };
+        setSelectedNotif(hydrated);
+
+        // enforce your rule: preview only for priva-group/individual, upload only for deped
+        const ct = data.clientType;
+        if (ct === 'deped') {
+          setUploadClientType('deped');
+          setNotifPane('upload');
+        } else if (ct === 'priva-group' || ct === 'individual') {
+          setNotifPane('preview');
+        } else {
+          // e.g., government: do not render preview or upload; bounce back to list
+          setNotifPane('list');
+        }
+        setIsNotifOpen(true);
+      } catch (e) {
+        console.error(e);
+        // if fetch fails, don't guess — back to list
+        setNotifPane('list');
+        setIsNotifOpen(true);
+      }
+    })();
   }
 
   return (
@@ -206,20 +241,27 @@ function HeaderHome() {
 
             {isNotifOpen && (
               <div className={styles.accountDropdownMenu} role="dialog" aria-label="Notifications">
-                {notifPane === 'list' ? (
+                {notifPane === 'list' && (
                   <Notif
-                    notifications={notifications.map(n => ({
-                      ...n,
-                      onAction: () => openNotifDetail(n),
-                    }))}
+                    notifications={notifications.map(n => ({ ...n, onAction: () => openNotifDetail(n) }))}
                     onMarkAllAsRead={markAllAsRead}
                     onItemClick={(n) => openNotifDetail(n)}
                   />
-                ) : (
+                )}
+
+                {notifPane === 'preview' && (
                   <NotifPreview
                     notif={selectedNotif || {}}
-                    clientType={(selectedNotif && selectedNotif.clientType) || 'individual'}
-                    loadReservation={loadReservation}
+                    clientType={
+                      (selectedNotif?.__reservation?.clientType) ||
+                      (selectedNotif && selectedNotif.clientType) ||
+                      'individual'
+                    }
+                    loadReservation={
+                      selectedNotif?.__reservation
+                        ? async () => selectedNotif.__reservation
+                        : async (n) => fetchReservation(n)
+                    }
                     onBack={() => setNotifPane('list')}
                     onConfirm={() => {
                       setIsNotifOpen(false);
@@ -233,6 +275,17 @@ function HeaderHome() {
                       setSelectedNotif(null);
                       navigate('/reservations');
                     }}
+                  />
+                )}
+
+                {notifPane === 'upload' && (
+                  <NotifUpload
+                    clientType={uploadClientType}
+                    onSubmit={(files) => {
+                      // TODO: POST files to your API
+                      setNotifPane('preview'); // after submit you can show preview or go back to list
+                    }}
+                    onBack={() => setNotifPane('preview')}
                   />
                 )}
               </div>
