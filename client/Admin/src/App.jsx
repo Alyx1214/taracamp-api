@@ -4,13 +4,14 @@ import Layout from "./components/Layout/Layout";
 import Dashboard from "./components/DashboardCard/DashboardCard.jsx";
 import Reservations from "./components/Reservation/Reservations";
 import Facilities from "./components/Facility/Facilities";
-import Transactions from "./components/Trans/Transactions.jsx";
-import User from "./components/Users/User.jsx";
-import Reports from "./components/Reports/Reports.jsx";
-import CheckInOut from "./components/CheckInOuts/CheckInOut.jsx";
+import Transactions from "./components/Transaction/Transaction.jsx";
+import User from "./components/Users/Users.jsx";
+import Reports from "./components/Report/Report.jsx";
+import CheckInOut from "./components/CheckInOuts/CheckInOuts.jsx";
 import AddReservation from "./components/Reservation/AddReservation.jsx";
 import ReservationDetails from "./components/Reservation/ReservationDetail.jsx";
 import AddForm from "./components/Facility/AddForm.jsx";
+import EditForm from "./components/Facility/EditForm.jsx"; 
 
 function App() {
 return (
@@ -30,6 +31,7 @@ return (
 <Route path="/reservations/:id" element={<ReservationDetails />} />
 
 <Route path="/add-facility" element={<AddForm />} />
+<Route path="/facilities/edit/:id" element={<EditForm />} /> 
 
 <Route path="*" element={<Navigate to="/" replace />} />
 </Route>

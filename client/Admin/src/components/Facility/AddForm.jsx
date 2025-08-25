@@ -1,10 +1,14 @@
 import React, { useState } from "react";
 import { FaArrowLeft, FaUpload } from "react-icons/fa";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import styles from "./AddForm.module.css";
 
 const AddForm = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const category = location.state?.category || "Facility";
+
   const [formData, setFormData] = useState({
     name: "",
     rate: "",
@@ -30,23 +34,22 @@ const AddForm = () => {
   return (
     <div className={styles.formContainer}>
       <div className={styles.header}>
-        <FaArrowLeft
-          className={styles.backArrow}
-          onClick={() => navigate(-1)}
-        />
-        <h2 className={styles.title}>DORMITORIES</h2>
+        <FaArrowLeft className={styles.backArrow} onClick={() => navigate(-1)} />
+        <h2 className={styles.title}>
+          {category.toUpperCase()}
+        </h2>
       </div>
 
       <label className={styles.uploadBox}>
         <FaUpload className={styles.uploadIcon} />
-        <p className={styles.uploadText}>Upload Facility Image</p>
+        <p className={styles.uploadText}>Upload {category} Image</p>
         <input type="file" name="image" onChange={handleChange} hidden />
       </label>
 
       <form onSubmit={handleSubmit}>
         <div className={styles.formRow}>
           <label>
-            Facility Name:
+            {category} Name:
             <input
               type="text"
               name="name"
@@ -94,7 +97,7 @@ const AddForm = () => {
         </div>
 
         <button type="submit" className={styles.submitBtn}>
-          ADD FACILITY
+          ADD {category.toUpperCase()}
         </button>
       </form>
     </div>

@@ -1,0 +1,96 @@
+.overlay {
+position: fixed;
+inset: 0;
+display: flex;
+align-items: center;
+justify-content: center;
+background: rgba(0, 0, 0, 0.5);
+z-index: 50;
+}
+
+.modal {
+background: white;
+border-radius: 12px;
+overflow: hidden; 
+max-width: 28rem;
+width: 100%;
+box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+}
+
+.modalHeader {
+background: #0f3d25; 
+height: 2.5rem;
+width: 100%;
+}
+
+.modalContent {
+padding: 1.5rem;
+display: flex;
+flex-direction: column;
+align-items: center;
+text-align: center;
+}
+
+.icon {
+font-size: 2.5rem;
+margin-bottom: 1rem;
+color: #4F3718; 
+border: 2px solid #4F3718;
+border-radius: 50%;
+padding: 0.5rem 1rem;
+line-height: 1;
+}
+
+.text {
+margin-bottom: 0.5rem;
+font-size: 0.95rem;
+color: #333;
+}
+
+.text strong {
+font-weight: 600;
+}
+
+.warning {
+margin-bottom: 1.5rem;
+font-size: 0.9rem;
+color: #444;
+}
+
+.confirmText {
+font-weight: 600;
+margin-bottom: 1.5rem;
+}
+
+.actions {
+display: flex;
+gap: 1rem;
+}
+
+.cancelButton {
+padding: 0.5rem 1.5rem;
+border-radius: 9999px;
+border: 1px solid #d1d5db;
+background: #f3f4f6;
+color: #374151;
+cursor: pointer;
+transition: background 0.2s ease;
+}
+
+.cancelButton:hover {
+background: #e5e7eb;
+}
+
+.confirmButton {
+padding: 0.5rem 1.5rem;
+border-radius: 9999px;
+background: #0f3d25;
+color: white;
+border: none;
+cursor: pointer;
+transition: background 0.2s ease;
+}
+
+.confirmButton:hover {
+background: #15803d;
+}

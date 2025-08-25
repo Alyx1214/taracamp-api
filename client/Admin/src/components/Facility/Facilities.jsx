@@ -13,24 +13,27 @@ export default function Facilities() {
   const [activeTab, setActiveTab] = useState("Dormitory");
   const navigate = useNavigate();
 
-  const handleEdit = (id) => {
+  const handleEdit = (id, type, facility) => {
     if (!id) {
       console.warn("No facility ID passed to edit — generating fallback ID");
       id = "temp-id-001";
     }
-    navigate(`/facilities/edit/${id}`);
+
+    navigate(`/facilities/edit/${id}`, { state: { category: type, facility } });
   };
 
   const renderContent = () => {
     switch (activeTab) {
       case "Dormitory":
-        return <Dormitory onEdit={handleEdit} />;
+        return <Dormitory onEdit={(id, f) => handleEdit(id, "Dormitory", f)} />;
       case "Cottages":
-        return <Cottages onEdit={handleEdit} />;
+        return <Cottages onEdit={(id, f) => handleEdit(id, "Cottages", f)} />;
       case "Conference":
-        return <Conference onEdit={handleEdit} />;
+        return <Conference onEdit={(id, f) => handleEdit(id, "Conference", f)} />;
       case "Other Service":
-        return <OtherService onEdit={handleEdit} />;
+        return (
+          <OtherService onEdit={(id, f) => handleEdit(id, "Other Service", f)} />
+        );
       default:
         return null;
     }
@@ -38,8 +41,7 @@ export default function Facilities() {
 
   return (
     <div className={styles.facilitiesContainer}>
-
-      <DormAddFaci />
+      <DormAddFaci activeTab={activeTab} />
 
       <div className={styles.facilitiesControls}>
         <FaciTypes activeTab={activeTab} setActiveTab={setActiveTab} />

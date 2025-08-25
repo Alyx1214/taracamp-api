@@ -1,64 +1,134 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { FaEdit, FaTrash } from "react-icons/fa";
 import styles from "./BoxCard.module.css";
+import ConfirmDeleteModal from "./ConfirmDeleteModal";
 
-export default function BoxCards() {
+const getSingularLabel = (category) => {
+  switch (category) {
+    case "Dormitory":
+      return "Dormitory";
+    case "Cottages":
+      return "Cottage";
+    case "Conference":
+      return "Conference";
+    case "Other Service":
+      return "Service";
+    default:
+      return "Facility";
+  }
+};
+
+export default function BoxCard({ facilities, onDelete, type, onEdit }) {
   const navigate = useNavigate();
   const [openMenuIndex, setOpenMenuIndex] = useState(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedFacility, setSelectedFacility] = useState(null);
 
-  const facilities = [
-    { name: "QUIRINO HALL", rate: 375, capacity: 100 },
-    { name: "ROXAS HALL", rate: 375, capacity: 100 },
-    { name: "RECTO HALL", rate: 375, capacity: 100 },
-    { name: "ESCODA ROOM 104", rate: 375, capacity: 100 },
-    { name: "PAGES HALL", rate: 350, capacity: 100 },
-    { name: "SQ MEDICAL", rate: 350, capacity: 100 },
-  ];
+  const menuRefs = useRef([]);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (
+        openMenuIndex !== null &&
+        menuRefs.current[openMenuIndex] &&
+        !menuRefs.current[openMenuIndex].contains(e.target)
+      ) {
+        setOpenMenuIndex(null);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [openMenuIndex]);
 
   const handleMenuToggle = (index) => {
     setOpenMenuIndex(openMenuIndex === index ? null : index);
   };
 
-  const handleEdit = (facility) => {
-    navigate("/edit-facility", { state: { facility } });
+  const handleEditClick = (facility) => {
+    setOpenMenuIndex(null);
+    if (onEdit) {
+      onEdit(facility.id, type, facility);
+    } else {
+      navigate(`/facilities/edit/${facility.id}`, {
+        state: { category: type, facility },
+      });
+    }
+  };
+
+  const handleDeleteClick = (facility) => {
+    setSelectedFacility(facility);
+    setModalOpen(true);
+    setOpenMenuIndex(null);
+  };
+
+  const handleConfirmDelete = () => {
+    if (selectedFacility && onDelete) {
+      onDelete(selectedFacility.id);
+    }
+    setModalOpen(false);
+    setSelectedFacility(null);
   };
 
   return (
-    <div className={styles["boxcards-container"]}>
-      {facilities.map((facility, index) => (
-        <div className={styles.card} key={index}>
-
-          <div className={styles["card-image"]} />
-
-          <div className={styles["card-content"]}>
-            <h3 className={styles["card-title"]}>{facility.name}</h3>
-            <p className={styles["card-rate"]}>
-              Rate per Person: ₱ {facility.rate}
-            </p>
-            <p className={styles["card-capacity"]}>
-              Capacity: {facility.capacity}
-            </p>
-          </div>
-
+    <>
+      <div className={styles["boxcards-container"]}>
+        {facilities.map((facility, index) => (
           <div
-            className={styles["card-menu"]}
-            onClick={() => handleMenuToggle(index)}
+            className={styles.card}
+            key={facility.id}
+            style={{ position: "relative" }}
           >
-            ⋮
-          </div>
+            <div className={styles["card-image"]} />
 
-          {openMenuIndex === index && (
-            <div className={styles["menu-dropdown"]}>
-              <div
-                className={styles["menu-item"]}
-                onClick={() => handleEdit(facility)}
-              >
-                Edit
-              </div>
+            <div className={styles["card-content"]}>
+              <h3 className={styles["card-title"]}>{facility.name}</h3>
+              <p className={styles["card-rate"]}>
+                Rate per Person: ₱ {facility.rate}
+              </p>
+              <p className={styles["card-capacity"]}>
+                Capacity: {facility.capacity}
+              </p>
             </div>
-          )}
-        </div>
-      ))}
-    </div>
+
+            <div
+              className={styles["card-menu"]}
+              onClick={() => handleMenuToggle(index)}
+            >
+              ⋮
+            </div>
+
+            {openMenuIndex === index && (
+              <div
+                className={styles["dropdown-menu"]}
+                ref={(el) => (menuRefs.current[index] = el)}
+              >
+                <div
+                  className={styles["dropdown-item"]}
+                  onClick={() => handleEditClick(facility)}
+                >
+                  <FaEdit className={styles.icon} /> Edit
+                </div>
+                <div
+                  className={styles["dropdown-item"]}
+                  onClick={() => handleDeleteClick(facility)}
+                >
+                  <FaTrash className={styles.icon} /> Delete
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <ConfirmDeleteModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onConfirm={handleConfirmDelete}
+        type={getSingularLabel(type)}
+      />
+    </>
   );
 }
