@@ -1,109 +1,176 @@
 .notifContainer {
-	background: #232e23;
-	border-radius: 16px;
-	box-shadow: 0 2px 16px rgba(0,0,0,0.15);
-	width: 400px;
-	padding: 0 0 16px 0;
-	color: #fff;
-	font-family: 'Inter', Arial, sans-serif;
+	background: #ffffff;
+	border-radius: 12px;
+	box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+	max-width: 400px;
+	padding: 0;
+	color: #333333;
+	font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+	overflow: hidden;
+	border: 1px solid #e5e5e5;
 }
 
 .headerRow {
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
-	padding: 20px 24px 12px 24px;
-	border-bottom: 1px solid #3a4a3a;
+	padding: 16px 20px;
+	background: #1E3C24;
+	color: #f5f5f5;
 }
 
 .headerTitle {
-	font-size: 1.25rem;
+	font-size: 1.1rem;
 	font-weight: 600;
+	color: white;
 }
 
 .markAllBtn {
 	background: none;
 	border: none;
-	color: #b6e2b6;
+	color: rgba(255, 255, 255, 0.9);
 	font-weight: 500;
 	cursor: pointer;
-	font-size: 1rem;
-	transition: color 0.2s;
+	font-size: 0.85rem;
+	transition: color 0.2s ease;
+	text-decoration: none;
 }
 .markAllBtn:hover {
-	color: #fff;
+	color: white;
+	text-decoration: underline;
 }
 
 .notifList {
-	max-height: 420px;
+	max-height: 400px;
 	overflow-y: auto;
-	padding: 0 8px;
+	background: #f5f5f5;
 }
 
 .notifItem, .notifItemRead {
-	background: #2e3b2e;
-	border-radius: 10px;
-	margin: 16px 0 0 0;
-	padding: 18px 18px 12px 18px;
-	box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+	background: #ffffff;
+	margin: 0;
+	padding: 16px 20px;
+	border-bottom: 1px solid #f0f0f0;
 	position: relative;
-	transition: background 0.2s;
+	transition: background-color 0.2s ease;
+	cursor: pointer;
 }
-.notifItem {
-	border-left: 4px solid #b6e2b6;
+
+.notifItem:hover, .notifItemRead:hover {
+	background: #f8f9fa;
 }
-.notifItemRead {
-	opacity: 0.7;
-	border-left: 4px solid #3a4a3a;
+
+.notifItem::before {
+	content: '';
+	position: absolute;
+	left: 12px;
+	top: 23px;
+	width: 8px;
+	height: 8px;
+	background: #538E5E;
+	border-radius: 50%;
+}
+
+.notifItemRead::before {
+	display: none;
+}
+
+.notifItem:last-child, .notifItemRead:last-child {
+	border-bottom: none;
 }
 
 .notifTitleRow {
 	display: flex;
 	justify-content: space-between;
 	align-items: flex-start;
+	margin-left: 16px;
 }
+
 .notifTitle {
-	font-size: 1.1rem;
-	font-weight: 500;
-	margin-bottom: 4px;
+	font-size: 1rem;
+	font-weight: 600;
+	color: #1E3C24;
+	line-height: 1.3;
+	margin: 0;
+	flex: 1;
+	margin-right: 8px;
 }
+
 .notifBody {
-	font-size: 0.98rem;
-	color: #d2e3d2;
-	margin: 6px 0 0 0;
+	font-size: 0.9rem;
+	color: #666666;
+	margin: 6px 0 8px 16px;
+	line-height: 1.4;
 }
+
 .notifMeta {
 	display: flex;
 	justify-content: flex-start;
 	align-items: center;
-	gap: 12px;
-	font-size: 0.92rem;
-	color: #b6e2b6;
-	margin-top: 10px;
+	gap: 8px;
+	font-size: 0.85rem;
+	color: #999999;
+	margin: 8px 0 0 16px;
 }
+
 .notifSource {
-	font-weight: 400;
+	font-weight: 500;
+	color: #1e3c24be;
 }
+
 .notifTime {
-	font-size: 0.9rem;
-	color: #b6e2b6;
+	font-size: 0.85rem;
+	color: #1e3c24be;
 }
+
 .actionBtn {
 	background: none;
 	border: none;
-	color: #b6e2b6;
+	color: #1e3c24be;
 	font-size: 1.2rem;
 	cursor: pointer;
-	margin-left: 8px;
-	padding: 0 4px;
-	transition: color 0.2s;
+	padding: 0;
+	margin: 0;
+	transition: color 0.2s ease;
+	min-width: 20px;
+	height: 20px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
 }
 .actionBtn:hover {
-	color: #fff;
+	color: #538E5E;
 }
+
 .emptyMsg {
-	color: #b6e2b6;
+	color: #1e3c24;
 	text-align: center;
-	margin: 32px 0;
-	font-size: 1.1rem;
+	margin: 32px 20px;
+	font-size: 1rem;
+	font-weight: 500;
+}
+
+/* Scrollbar styling for webkit browsers */
+.notifList::-webkit-scrollbar {
+	width: 6px;
+}
+
+.notifList::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+.notifList::-webkit-scrollbar-thumb {
+	background: #e0e0e0;
+	border-radius: 3px;
+}
+
+.notifList::-webkit-scrollbar-thumb:hover {
+	background: #cccccc;
+}
+
+.notifHint {
+	font-size: 0.8rem;
+	color: #ff9800;
+	margin: 8px 0 0 16px;
+	font-style: italic;
 }
