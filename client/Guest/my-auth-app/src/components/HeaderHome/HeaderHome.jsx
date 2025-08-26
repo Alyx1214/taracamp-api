@@ -2,10 +2,81 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import styles from './HeaderHome.module.css';
 import mountainLogo from '../../assets/logo.png';
-import { useNotifications } from '../Utilities/useNotifications';
 import Notif from '../Notification/Notif';
-import NotifPreview from '../Notification/NotifPreview';
-import NotifUpload from '../Notification/NotifUpload';
+
+let refreshingPromise = null;
+
+function getAccessToken() {
+  return localStorage.getItem('accessToken');
+}
+function getRefreshToken() {
+  return localStorage.getItem('refreshToken');
+}
+function setTokens({ accessToken, refreshToken }) {
+  if (accessToken) localStorage.setItem('accessToken', accessToken);
+  if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
+}
+
+async function callRefresh() {
+  if (refreshingPromise) return refreshingPromise; 
+  const rt = getRefreshToken();
+  if (!rt) throw new Error('No refresh token');
+
+  refreshingPromise = fetch('/api/user/refresh-token', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refreshToken: rt }),
+  })
+    .then(async (res) => {
+      const json = await res.json().catch(() => ({}));
+      const ok = res.ok && (json?.accessToken || json?.status === 200);
+      if (!ok) throw new Error(json?.error || `HTTP ${res.status}`);
+      setTokens({ accessToken: json.accessToken, refreshToken: json.refreshToken });
+      return json.accessToken;
+    })
+    .finally(() => { refreshingPromise = null; });
+
+  return refreshingPromise;
+}
+
+async function authFetch(url, opts = {}, didRetry = false) {
+  const token = getAccessToken();
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(opts.headers || {}),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+
+  const res = await fetch(url, { credentials: 'include', ...opts, headers });
+  if (res.status !== 401 || didRetry) return res;
+
+  // First 401: try refresh, then retry once
+  try {
+    await callRefresh();
+  } catch {
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    window.location.assign('/auth/login');
+    throw new Error('Unauthorized');
+  }
+
+  const newToken = getAccessToken();
+  const retryHeaders = {
+    'Content-Type': 'application/json',
+    ...(opts.headers || {}),
+    ...(newToken ? { Authorization: `Bearer ${newToken}` } : {}),
+  };
+  return fetch(url, { credentials: 'include', ...opts, headers: retryHeaders });
+}
+
+async function api(path, opts = {}) {
+  const res = await authFetch(path, opts);
+  const text = await res.text().catch(() => '');
+  if (!res.ok) throw new Error(text || `HTTP ${res.status}`);
+  return text ? JSON.parse(text) : {};
+}
+/* ================== end auth-aware fetch ================== */
 
 function HeaderHome() {
   const navigate = useNavigate();
@@ -21,8 +92,8 @@ function HeaderHome() {
 
   const accountMenuRef = useRef(null);
   const notifMenuRef = useRef(null);
-  const { items: notifications, unreadCount, markAllAsRead, markRead } = useNotifications();
 
+  // Close menus when clicking outside
   useEffect(() => {
     function handleClickOutside(event) {
       if (accountMenuRef.current && !accountMenuRef.current.contains(event.target)) {
@@ -30,20 +101,52 @@ function HeaderHome() {
       }
       if (notifMenuRef.current && !notifMenuRef.current.contains(event.target)) {
         setIsNotifOpen(false);
-        setNotifPane('list');
-        setSelectedNotif(null);
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Fetch unread count when notifications panel opens; refresh while open
+  useEffect(() => {
+    let timer;
+    let cancelled = false;
+
+    async function refreshCount() {
+      try {
+        const json = await api('/api/notification/count-unread');
+        if (!cancelled) setUnreadCount(Number(json?.data?.count || 0));
+      } catch {
+        // badge errors are not worth a meltdown
+      }
+    }
+
+    if (isNotifOpen) {
+      refreshCount();
+      timer = setInterval(refreshCount, 20000);
+    }
+    return () => {
+      cancelled = true;
+      if (timer) clearInterval(timer);
+    };
+  }, [isNotifOpen]);
+
+  // Also try to refresh unread count when route changes
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const json = await api('/api/notification/count-unread');
+        if (!cancelled) setUnreadCount(Number(json?.data?.count || 0));
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, [location.pathname]);
+
   const handleNavLinkClick = (path, sectionId) => {
     setIsMenuOpen(false);
     setIsAccountMenuOpen(false);
     setIsNotifOpen(false);
-    setNotifPane('list');
-    setSelectedNotif(null);
 
     if (location.pathname === path || (location.pathname === '/' && path === '/')) {
       const element = document.getElementById(sectionId);
@@ -61,27 +164,16 @@ function HeaderHome() {
     setIsMenuOpen(!isMenuOpen);
     setIsAccountMenuOpen(false);
     setIsNotifOpen(false);
-    setNotifPane('list');
-    setSelectedNotif(null);
   };
 
   const handleProfileClick = () => {
     setIsAccountMenuOpen(prev => !prev);
     setIsMenuOpen(false);
     setIsNotifOpen(false);
-    setNotifPane('list');
-    setSelectedNotif(null);
   };
 
   const handleNotificationsClick = () => {
-    setIsNotifOpen(prev => {
-      const next = !prev;
-      if (next) {
-        setNotifPane('list');
-        setSelectedNotif(null);
-      }
-      return next;
-    });
+    setIsNotifOpen(prev => !prev);
     setIsMenuOpen(false);
     setIsAccountMenuOpen(false);
   };
@@ -90,8 +182,6 @@ function HeaderHome() {
     setIsMenuOpen(false);
     setIsAccountMenuOpen(false);
     setIsNotifOpen(false);
-    setNotifPane('list');
-    setSelectedNotif(null);
   };
 
   const handleReservationClick = () => {
@@ -229,9 +319,18 @@ function HeaderHome() {
 
       <div className={styles.desktopActions}>
         <div className={styles.userIconsGroup}>
+          {/* Notifications */}
           <div className={styles.accountIconWrapper} ref={notifMenuRef}>
-            <button className={styles.iconButton} onClick={handleNotificationsClick} aria-haspopup="dialog" aria-expanded={isNotifOpen}>
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="feather feather-bell">
+            <button
+              className={styles.iconButton}
+              onClick={handleNotificationsClick}
+              aria-haspopup="dialog"
+              aria-expanded={isNotifOpen}
+              aria-controls="notif-dropdown"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none"
+                   stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                   className="feather feather-bell">
                 <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
                 <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
               </svg>
@@ -239,67 +338,27 @@ function HeaderHome() {
             </button>
 
             {isNotifOpen && (
-              <div className={styles.accountDropdownMenu} role="dialog" aria-label="Notifications">
-                {notifPane === 'list' && (
-                  <Notif
-                    notifications={notifications.map(n => ({ ...n, onAction: () => openNotifDetail(n) }))}
-                    onMarkAllAsRead={markAllAsRead}
-                    onItemClick={(n) => openNotifDetail(n)}
-                  />
-                )}
-
-                {notifPane === 'preview' && (
-                  <NotifPreview
-                    notif={selectedNotif || {}}
-                    clientType={
-                      (selectedNotif?.__reservation?.clientType) ||
-                      (selectedNotif && selectedNotif.clientType) ||
-                      'individual'
-                    }
-                    loadReservation={
-                      selectedNotif?.__reservation
-                        ? async () => selectedNotif.__reservation
-                        : async (n) => fetchReservation(n)
-                    }
-                    onBack={() => setNotifPane('list')}
-                    onConfirm={() => {
-                      setIsNotifOpen(false);
-                      setNotifPane('list');
-                      setSelectedNotif(null);
-                      navigate('/transactions');
-                    }}
-                    onCancel={() => {
-                      setIsNotifOpen(false);
-                      setNotifPane('list');
-                      setSelectedNotif(null);
-                      navigate('/reservations');
-                    }}
-                  />
-                )}
-
-                {notifPane === 'upload' && (
-                  <NotifUpload
-                    clientType={uploadClientType}
-                    onSubmit={(files) => {
-                      // TODO: POST files to your API
-                      setNotifPane('preview'); // after submit you can show preview or go back to list
-                    }}
-                    onBack={() => setNotifPane('preview')}
-                  />
-                )}
+              <div id="notif-dropdown" className={styles.accountDropdownMenu} role="dialog" aria-label="Notifications">
+                <Notif onMarkAllAsRead={() => setUnreadCount(0)} />
               </div>
             )}
           </div>
 
+          {/* Messages placeholder */}
           <button className={styles.iconButton} onClick={handleMessagesClick}>
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="feather feather-message-square">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none"
+                 stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                 className="feather feather-message-square">
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
             </svg>
           </button>
 
+          {/* Account menu */}
           <div className={styles.accountIconWrapper} ref={accountMenuRef}>
             <button className={styles.iconButton} onClick={handleProfileClick}>
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="feather feather-user">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none"
+                   stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                   className="feather feather-user">
                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
                 <circle cx="12" cy="7" r="4"></circle>
               </svg>
@@ -315,9 +374,12 @@ function HeaderHome() {
         </div>
       </div>
 
+      {/* Mobile hamburger */}
       <button className={styles.hamburgerButton} onClick={toggleMenu}>
         <svg fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-          <path fillRule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd"></path>
+          <path fillRule="evenodd"
+                d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z"
+                clipRule="evenodd"></path>
         </svg>
       </button>
     </header>

@@ -1,5 +1,7 @@
 // src/App.jsx
 import { useState } from 'react';
+import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
+
 import AuthFormContainer from './components/AuthFormContainer/AuthFormContainer';
 import AuthSidePanel from './components/AuthSidePanel/AuthSidePanel';
 import LoginForm from './components/LoginForm/LoginForm';
@@ -13,9 +15,6 @@ import HistoryPage from './components/History/History';
 import ServicesPage from './components/MServices/Services';
 import FAQsPage from './components/FAQs/FAQs';
 import ContactsPage from './components/Contacts/Contacts';
-import backgroundImage from './assets/background-blur.png';
-import styles from './App.module.css';
-import { BrowserRouter as Router, Routes, Route, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import Transactions from './components/Transactions/Transactions';
 import ResHistory from './components/ResHistory/ResHistory';
 import ReservationForm from './components/ReservationForm/ResForm';
@@ -70,33 +69,21 @@ function NotificationsPreviewPage() {
   );
 }
 
-function NotificationsUploadPage() {
-  const { id } = useParams();
-  const [qs] = useSearchParams();
-  const clientType = qs.get('clientType') || 'deped';
-  const navigate = useNavigate();
-  return (
-    <NotifUpload
-      clientType={clientType}
-      onSubmit={(files) => {
-        console.log('Uploading documents for', id, files);
-        navigate('/reservations');
-      }}
-    />
-  );
-}
-
+// ===== Auth layout =====
 function AuthLayout() {
   const [authFormState, setAuthFormState] = useState('login');
   const [showTermsModal, setShowTermsModal] = useState(false);
   const navigate = useNavigate();
+
   const toggleAuthForm = (state) => {
     setAuthFormState(state);
     navigate(`/auth/${state}`);
   };
+
   const handleLoginSuccess = () => {
     navigate('/homepage');
   };
+
   return (
     <div className={styles.authPageWrapper} style={{ backgroundImage: `url(${backgroundImage})` }}>
       <div className={styles.authContainer}>
@@ -131,11 +118,13 @@ function AuthLayout() {
   );
 }
 
+// ===== Main app routes =====
 function App() {
   const navigate = useNavigate();
   const handleReserveNow = () => {
     navigate('/auth/login');
   };
+
   return (
     <Routes>
       <Route path="/" element={<LandingPage onReserveNow={handleReserveNow} />} />
@@ -152,11 +141,9 @@ function App() {
       <Route path="/reservation-step2" element={<ReservationFormStep2 />} />
       <Route path="/reservation-step3" element={<ReservationFormStep3 />} />
       <Route path="/reservation-step4" element={<ReservationFormStep4 />} />
+
+      {/* Messenger-style notifications: single route */}
       <Route path="/notifications" element={<NotificationsListPage />} />
-      <Route path="/notifications/:id" element={<NotificationsPreviewPage />} />
-      <Route path="/notifications/:id/preview" element={<NotificationsPreviewPage />} />
-      <Route path="/notifications/:id/upload" element={<NotificationsUploadPage />} />
-      <Route path="/notifications/uploadpreview" element={<NotificationsUploadPage />} /> 
     </Routes>
   );
 }

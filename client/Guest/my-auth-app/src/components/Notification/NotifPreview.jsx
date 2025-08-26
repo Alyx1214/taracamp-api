@@ -44,7 +44,8 @@ export default function NotifPreview({
   };
 
   const title = reservation?.title || notif.title || 'Congratulations, Camper!  You have successfully booked a reservation!';
-  const body = reservation?.body || notif.body;
+  const body = reservation?.body || notif.message;
+
   const checkInDate = reservation?.checkInDate || notif.checkInDate;
   const checkOutDate = reservation?.checkOutDate || notif.checkOutDate;
   const accommodationType = reservation?.accommodationType || notif.accommodationType;
