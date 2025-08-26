@@ -5,7 +5,7 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   transition: all 0.3s ease;
   max-width: 100%;
-  width: 500px;
+  width: 375px;
   margin: 10px auto; /* Centers the card */
   height: 150px;
 }
@@ -16,15 +16,17 @@
 }
 
 .cardContent {
+  margin-top: 20px;
   display: flex;
-  align-items: center;
+  align-content: center;
+  justify-content: center;
   gap: 16px;
   flex-wrap: wrap; /* Ensures the content adapts on smaller screens */
 }
 
 .iconContainer {
-  width: 48px;
-  height: 48px;
+  width: 70px;
+  height: 70px;
   border-radius: 8px;
   display: flex;
   align-items: center;
@@ -54,7 +56,7 @@
 }
 
 .value {
-  font-size: 32px;
+  font-size: 40px;
   font-weight: 700;
   color: #1f2937;
   line-height: 1;
@@ -62,7 +64,8 @@
 }
 
 .label {
-  font-size: 14px;
+  font-size: 20px;
+  font-weight: 700;
   color: #6b7280;
   font-weight: 500;
 }

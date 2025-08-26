@@ -4,12 +4,12 @@ import MonthlyChart from './MonthlyChart';
 import ReservationsCalendar from './ReservationsCalendar';
 import { Icon } from '@iconify/react';
 
-const CalendarIcon = () => <Icon icon="mdi:calendar" />;
-const CheckInIcon = () => <Icon icon="mdi:hotel" />;
-const ConfirmedIcon = () => <Icon icon="mdi:check-circle" />;
-const UsersIcon = () => <Icon icon="mdi:account-group" />;
-const PendingIcon = () => <Icon icon="mdi:clock-outline" />;
-const CancelledIcon = () => <Icon icon="mdi:close-circle" />;
+const CalendarIcon = () => <Icon icon="mdi:calendar" style={{ width: '50px', height: '50px' }} />;
+const CheckInIcon = () => <Icon icon="mdi:hotel" style={{ width: '50px', height: '50px' }}/>;
+const ConfirmedIcon = () => <Icon icon="mdi:check-circle" style={{ width: '50px', height: '50px' }} />;
+const UsersIcon = () => <Icon icon="mdi:account-group" style={{ width: '50px', height: '50px' }}/>;
+const PendingIcon = () => <Icon icon="mdi:clock-outline" style={{ width: '50px', height: '50px' }}/>;
+const CancelledIcon = () => <Icon icon="mdi:close-circle" style={{ width: '50px', height: '50px' }}/>;
 
 const Dashboard = () => {
   return (
