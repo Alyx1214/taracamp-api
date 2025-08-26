@@ -16,10 +16,11 @@
 .chartTitle {
   display: inline-block;
   width: 48%;
-  font-size: 18px;
-  font-weight: 600;
-  color: #1f2937;
-  margin: 0;
+  color: #1E3C24;
+  font: Montserrat;
+  font-size: 24px;
+  font-style: normal;
+  font-weight: 700;
 }
 
 .legend {
