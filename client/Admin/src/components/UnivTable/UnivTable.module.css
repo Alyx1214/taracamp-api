@@ -1,29 +1,35 @@
 .univtable-container {
   width: 100%;
   overflow-x: auto;
+  background-color: #f5f5f5;
+  font-family: "Montserrat", sans-serif;
 }
 
 .univtable {
   width: 100%;
   border-collapse: collapse;
-  font-family: Arial, sans-serif;
-  background-color: white;
+  background-color: #f5f5f5;
   border-radius: 12px; 
   overflow: hidden; 
-  border: 1px solid #ccc; 
+  border: 1px solid #ccc;
 }
 
 .univtable thead tr {
-  background-color: #3f7f4c;
-  color: white;
+  background-color: #538E5E;
+  color: #f5f5f5;
   font-weight: bold;
 }
 
 .univtable th,
 .univtable td {
-  padding: 12px 15px;
+  padding: 10px 40px;
   text-align: left;
   border-bottom: 1px solid #ddd;
+}
+
+.univtable th:last-child,
+.univtable td:last-child {
+  text-align: center;
 }
 
 .univtable tbody tr:nth-child(odd) {
@@ -38,7 +44,7 @@
 
 .univ-no-data {
   text-align: center;
-  padding: 20px;
+  padding: 10px;
   font-style: italic;
   color: #888;
 }
@@ -51,15 +57,16 @@
 .univ-actions-wrapper {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
 }
 
 .univ-approve-btn {
   background-color: #1E3C24;
   color: #fff;
-  padding: 8px 16px;
+  padding: 8px 25px;
   border: none;
-  border-radius: 6px;
+  border-radius: 20px;
   font-size: 14px;
   cursor: pointer;
   transition: background 0.3s ease;
@@ -72,9 +79,9 @@
 .univ-decline-btn {
   background-color: #4F3718;
   color: #fff;
-  padding: 8px 16px;
+  padding: 8px 25px;
   border: none;
-  border-radius: 6px;
+  border-radius: 20px;
   font-size: 14px;
   cursor: pointer;
   transition: background 0.3s ease;
