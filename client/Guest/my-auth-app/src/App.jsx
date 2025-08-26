@@ -1,5 +1,7 @@
 // src/App.jsx
 import { useState } from 'react';
+import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
+
 import AuthFormContainer from './components/AuthFormContainer/AuthFormContainer';
 import AuthSidePanel from './components/AuthSidePanel/AuthSidePanel';
 import LoginForm from './components/LoginForm/LoginForm';
@@ -13,88 +15,39 @@ import HistoryPage from './components/History/History';
 import ServicesPage from './components/MServices/Services';
 import FAQsPage from './components/FAQs/FAQs';
 import ContactsPage from './components/Contacts/Contacts';
-import backgroundImage from './assets/background-blur.png';
-import styles from './App.module.css';
-import { BrowserRouter as Router, Routes, Route, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import Transactions from './components/Transactions/Transactions';
 import ResHistory from './components/ResHistory/ResHistory';
 import ReservationForm from './components/ReservationForm/ResForm';
 import ReservationFormStep2 from './components/ReservationForm/ResForm2';
 import ReservationFormStep3 from './components/ReservationForm/ResForm3';
 import ReservationFormStep4 from './components/ReservationForm/ResDetails';
-import Notif from './components/Notification/Notif';
-import NotifPreview from './components/Notification/NotifPreview';
-import NotifUpload from './components/Notification/NotifUpload';
-import { useNotifications } from './components/Utilities/useNotifications';
 
+import Notif from './components/Notification/Notif'; // Messenger-style list + inline detail
+
+import backgroundImage from './assets/background-blur.png';
+import styles from './App.module.css';
+
+// ===== Notifications page (Messenger-style) =====
 function NotificationsListPage() {
-  const { items, markAllAsRead, markRead } = useNotifications();
-  const navigate = useNavigate();
-  return (
-    <Notif
-      notifications={items.map(n => ({
-        ...n,
-        onAction: () => {
-          markRead(n.id);
-          navigate(`/notifications/${n.id}/preview`);
-        }
-      }))}
-      onMarkAllAsRead={markAllAsRead}
-      onItemClick={(n) => {
-        markRead(n.id);
-        navigate(`/notifications/${n.id}/preview`);
-      }}
-    />
-  );
+  // Notif.jsx fetches notifications itself and shows inline detail.
+  return <Notif />;
 }
 
-function NotificationsPreviewPage() {
-  const { id } = useParams();
-  const navigate = useNavigate();
-  async function loadReservation() {
-    const res = await fetch(`/api/reservations/${id}`, { credentials: 'include' });
-    if (!res.ok) throw new Error('Failed to load');
-    return res.json();
-  }
-  return (
-    <NotifPreview
-      notif={{ id }}
-      clientType="individual"
-      loadReservation={loadReservation}
-      onConfirm={() => navigate('/transactions')}
-      onCancel={() => navigate('/reservations')}
-      onBack={() => navigate('/notifications')}
-    />
-  );
-}
-
-function NotificationsUploadPage() {
-  const { id } = useParams();
-  const [qs] = useSearchParams();
-  const clientType = qs.get('clientType') || 'deped';
-  const navigate = useNavigate();
-  return (
-    <NotifUpload
-      clientType={clientType}
-      onSubmit={(files) => {
-        console.log('Uploading documents for', id, files);
-        navigate('/reservations');
-      }}
-    />
-  );
-}
-
+// ===== Auth layout =====
 function AuthLayout() {
   const [authFormState, setAuthFormState] = useState('login');
   const [showTermsModal, setShowTermsModal] = useState(false);
   const navigate = useNavigate();
+
   const toggleAuthForm = (state) => {
     setAuthFormState(state);
     navigate(`/auth/${state}`);
   };
+
   const handleLoginSuccess = () => {
     navigate('/homepage');
   };
+
   return (
     <div className={styles.authPageWrapper} style={{ backgroundImage: `url(${backgroundImage})` }}>
       <div className={styles.authContainer}>
@@ -129,11 +82,13 @@ function AuthLayout() {
   );
 }
 
+// ===== Main app routes =====
 function App() {
   const navigate = useNavigate();
   const handleReserveNow = () => {
     navigate('/auth/login');
   };
+
   return (
     <Routes>
       <Route path="/" element={<LandingPage onReserveNow={handleReserveNow} />} />
@@ -150,11 +105,9 @@ function App() {
       <Route path="/reservation-step2" element={<ReservationFormStep2 />} />
       <Route path="/reservation-step3" element={<ReservationFormStep3 />} />
       <Route path="/reservation-step4" element={<ReservationFormStep4 />} />
+
+      {/* Messenger-style notifications: single route */}
       <Route path="/notifications" element={<NotificationsListPage />} />
-      <Route path="/notifications/:id" element={<NotificationsPreviewPage />} />
-      <Route path="/notifications/:id/preview" element={<NotificationsPreviewPage />} />
-      <Route path="/notifications/:id/upload" element={<NotificationsUploadPage />} />
-      <Route path="/notifications/uploadpreview" element={<NotificationsUploadPage />} /> 
     </Routes>
   );
 }

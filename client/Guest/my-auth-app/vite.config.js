@@ -6,13 +6,12 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'https://codex-oy29.onrender.com',
-        //target: 'http://localhost:3000',
+        target: 'http://backend:3000',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, '/api'),
       },
       '/ws': {
-        target: 'ws://localhost:3000',
+        target: 'ws://backend:3000',
         ws: true,
         changeOrigin: true,
       },
