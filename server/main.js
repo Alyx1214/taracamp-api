@@ -37,9 +37,27 @@ const app = express();
 app.set('trust proxy', 1);
 await redisClient.connect();
 
+
+const ALLOWED_ORIGINS = [
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:5174',
+  'https://taracamp-q9bqu1k5s-alyssas-projects-927ddea5.vercel.app', 
+  'https://taracamp.vercel.app' 
+];
+
 app.use(cors({
-    origin: ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:5174',],
-    credentials: true,
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true);
+    if (ALLOWED_ORIGINS.includes(origin)) {
+      return callback(null, true);
+    } else {
+      return callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true, 
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 app.use(express.json());
