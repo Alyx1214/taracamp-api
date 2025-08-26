@@ -25,12 +25,13 @@ import styles from './OtherService.module.css';
 function MainServicesOtherService({ specialServices, loading, searchAttempted }) {
   const [defaultServices, setDefaultServices] = useState([]);
   const [fetchingDefault, setFetchingDefault] = useState(false);
+  const API = import.meta.env.VITE_API_URL; 
 
   useEffect(() => {
     let ignore = false;
     if (!searchAttempted && (!specialServices || specialServices.length === 0)) {
       setFetchingDefault(true);
-      fetch('/api/special-service/get-all-special-services')
+      fetch(`${API}/special-service/get-all-special-services`)
         .then(res => res.json())
         .then(data => {
           if (!ignore) {

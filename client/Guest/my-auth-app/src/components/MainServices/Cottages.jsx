@@ -14,12 +14,13 @@ import { Link } from 'react-router-dom';
 function MainServicesCottages({ facilities, loading, searchAttempted }) {
   const [defaultCottages, setDefaultCottages] = useState([]);
   const [fetchingDefault, setFetchingDefault] = useState(false);
+  const API = import.meta.env.VITE_API_URL; 
 
   useEffect(() => {
     let ignore = false;
      if (!searchAttempted && (!facilities || facilities.length === 0)) {
       setFetchingDefault(true);
-      fetch('/api/facility/get-facilities-by-type/COTTAGE')
+      fetch(`${API}/facility/get-facilities-by-type/COTTAGE`)
         .then(res => res.json())
         .then(data => {
           if (!ignore) {

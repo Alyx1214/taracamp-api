@@ -19,6 +19,7 @@ function MainServices() {
   const [searchAttempted, setSearchAttempted] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const API = import.meta.env.VITE_API_URL; 
 
   const getFacilityTypeFromPath = (pathname) => {
     if (pathname.includes('/dormitories')) return 'DORMITORY';
@@ -47,7 +48,7 @@ function MainServices() {
         url = `/api/special-service/search-special-services?query=${encodeURIComponent(query)}`;
         key = 'specialServices';
       } else {
-        url = `/api/facility/search-facilities?type=${encodeURIComponent(facilityType)}&query=${encodeURIComponent(query)}`;
+        url = `${API}/facility/search-facilities?type=${encodeURIComponent(facilityType)}&query=${encodeURIComponent(query)}`;
         key = 'facilities';
       }
       const res = await fetch(url);
@@ -89,7 +90,7 @@ function MainServices() {
         if (filters.capacity) params.append('capacity', filters.capacity);
         if (filters.checkInDate) params.append('checkInDate', filters.checkInDate);
         if (filters.checkOutDate) params.append('checkOutDate', filters.checkOutDate);
-        url = `/api/facility/search-facilities?${params.toString()}`;
+        url = `${API}/facility/search-facilities?${params.toString()}`;
         key = 'facilities';
       }
 

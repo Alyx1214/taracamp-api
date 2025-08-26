@@ -23,12 +23,13 @@ import { Link } from 'react-router-dom';
 function MainServicesConference({ facilities, loading, searchAttempted }) {
   const [defaultConferences, setDefaultConferences] = useState([]);
   const [fetchingDefault, setFetchingDefault] = useState(false);
+  const API = import.meta.env.VITE_API_URL; 
 
   useEffect(() => {
     let ignore = false;
      if (!searchAttempted && (!facilities || facilities.length === 0)) {
       setFetchingDefault(true);
-      fetch('/api/facility/get-facilities-by-type/CONFERENCE')
+      fetch(`${API}/facility/get-facilities-by-type/CONFERENCE`)
         .then(res => res.json())
         .then(data => {
           if (!ignore) {

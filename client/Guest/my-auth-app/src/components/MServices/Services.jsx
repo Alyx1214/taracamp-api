@@ -20,6 +20,7 @@ function Services() {
   const [searchAttempted, setSearchAttempted] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const API = import.meta.env.VITE_API_URL; 
 
   const getFacilityTypeFromPath = (pathname) => {
     if (pathname.includes('/dormitories')) return 'DORMITORY';
@@ -37,7 +38,7 @@ function Services() {
     setSearchAttempted(true);
     try {
       const res = await fetch(
-        `/api/facility/search-facilities?type=${encodeURIComponent(facilityType)}&query=${encodeURIComponent(query)}`
+        `${API}/facility/search-facilities?type=${encodeURIComponent(facilityType)}&query=${encodeURIComponent(query)}`
       );
       const data = await res.json();
       if (data.status === 200) {
@@ -74,7 +75,7 @@ function Services() {
         if (!value) params.delete(key);
       }
 
-      const res = await fetch(`/api/facility/search-facilities?${params.toString()}`);
+      const res = await fetch(`${API}/facility/search-facilities?${params.toString()}`);
       const data = await res.json();
       if (data.status === 200) {
         setFacilities(data.facilities || []);

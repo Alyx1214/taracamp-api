@@ -75,10 +75,11 @@ function MainServicesServiceDetail() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const navigate = useNavigate();
   const { isLoggedIn } = useAuth();
+  const API = import.meta.env.VITE_API_URL; 
 
   useEffect(() => {
     setLoading(true);
-    fetch(`/api/facility/get-facility-by-id/${id}`)
+    fetch(`${API}/api/facility/get-facility-by-id/${id}`)
       .then(res => res.json())
       .then(data => {
         if (data.status === 200 && data.facility) {

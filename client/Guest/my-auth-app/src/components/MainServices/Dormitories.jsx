@@ -25,12 +25,13 @@ import { Link } from 'react-router-dom';
 function MainServicesDormitories({ facilities, loading, searchAttempted }) {
   const [defaultDorms, setDefaultDorms] = useState([]);
   const [fetchingDefault, setFetchingDefault] = useState(false);
+  const API = import.meta.env.VITE_API_URL; 
 
   useEffect(() => {
       let ignore = false;
       if (!searchAttempted && (!facilities || facilities.length === 0)) {
         setFetchingDefault(true);
-        fetch('/api/facility/get-facilities-by-type/DORMITORY')
+        fetch(`${API}/facility/get-facilities-by-type/DORMITORY`)
           .then(res => res.json())
           .then(data => {
             if (!ignore) {

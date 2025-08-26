@@ -27,6 +27,8 @@ import NotifPreview from './components/Notification/NotifPreview';
 import NotifUpload from './components/Notification/NotifUpload';
 import { useNotifications } from './components/Utilities/useNotifications';
 
+const API = import.meta.env.VITE_API_URL; 
+
 function NotificationsListPage() {
   const { items, markAllAsRead, markRead } = useNotifications();
   const navigate = useNavigate();
