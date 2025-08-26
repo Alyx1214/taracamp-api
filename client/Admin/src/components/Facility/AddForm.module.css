@@ -3,7 +3,6 @@ padding: 1rem 4rem;
 max-width: 85%;
 margin: 0 auto;
 font-family: "Arial", sans-serif;
-max-height: 90vh;
 }
 
 .header {
@@ -29,14 +28,14 @@ letter-spacing: 10px;
 
 .uploadBox {
 border: 2px solid #ccc;
-padding: 4rem 3rem;
+padding: 3rem 2rem;
 margin-bottom: 3rem;
 cursor: pointer;
 display: flex;
 flex-direction: column;
 align-items: center;
 justify-content: center;
-min-height: 250px;
+min-height: 200px;
 background: transparent;
 border-radius: 20px;
 }
@@ -56,7 +55,7 @@ color: #1e3c24d0;
 display: flex;
 justify-content: space-between;
 gap: 3rem;
-margin-bottom: 2rem;
+margin-bottom: 1rem;
 }
 
 .formRow label {
@@ -71,7 +70,7 @@ font-weight: 600;
 
 input,
 select {
-padding: 1.25rem;
+padding: 1.1rem;
 border: 2px solid #e0e0e0;
 border-radius: 20px;
 font-size: 1.25rem;
