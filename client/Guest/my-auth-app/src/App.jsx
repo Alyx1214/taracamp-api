@@ -21,52 +21,16 @@ import ReservationForm from './components/ReservationForm/ResForm';
 import ReservationFormStep2 from './components/ReservationForm/ResForm2';
 import ReservationFormStep3 from './components/ReservationForm/ResForm3';
 import ReservationFormStep4 from './components/ReservationForm/ResDetails';
-import Notif from './components/Notification/Notif';
-import NotifPreview from './components/Notification/NotifPreview';
-import NotifUpload from './components/Notification/NotifUpload';
-import { useNotifications } from './components/Utilities/useNotifications';
 
-const API = import.meta.env.VITE_API_URL; 
+import Notif from './components/Notification/Notif'; // Messenger-style list + inline detail
 
+import backgroundImage from './assets/background-blur.png';
+import styles from './App.module.css';
+
+// ===== Notifications page (Messenger-style) =====
 function NotificationsListPage() {
-  const { items, markAllAsRead, markRead } = useNotifications();
-  const navigate = useNavigate();
-  return (
-    <Notif
-      notifications={items.map(n => ({
-        ...n,
-        onAction: () => {
-          markRead(n.id);
-          navigate(`/notifications/${n.id}/preview`);
-        }
-      }))}
-      onMarkAllAsRead={markAllAsRead}
-      onItemClick={(n) => {
-        markRead(n.id);
-        navigate(`/notifications/${n.id}/preview`);
-      }}
-    />
-  );
-}
-
-function NotificationsPreviewPage() {
-  const { id } = useParams();
-  const navigate = useNavigate();
-  async function loadReservation() {
-    const res = await fetch(VITE_API_URL + `/reservations/${id}`, { credentials: 'include' });
-    if (!res.ok) throw new Error('Failed to load');
-    return res.json();
-  }
-  return (
-    <NotifPreview
-      notif={{ id }}
-      clientType="individual"
-      loadReservation={loadReservation}
-      onConfirm={() => navigate('/transactions')}
-      onCancel={() => navigate('/reservations')}
-      onBack={() => navigate('/notifications')}
-    />
-  );
+  // Notif.jsx fetches notifications itself and shows inline detail.
+  return <Notif />;
 }
 
 // ===== Auth layout =====
