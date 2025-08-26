@@ -42,6 +42,7 @@ const STABLE_ORIGINS = [
   'http://localhost:3000',
   'http://localhost:5174',
   'https://taracamp-api.vercel.app',
+  'https://taracamp-nvfxqb16a-alyssas-projects-927ddea5.vercel.app'
 ];
 
 const PREVIEW_MATCH = /^https:\/\/taracamp-api-[a-z0-9-]+\.vercel\.app$/i;
