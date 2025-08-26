@@ -1,37 +1,37 @@
 .faci-types-container {
-background-color: #183c2d;
+background-color: #1E3C24;
 height: 60px;
-padding: 0 1rem;
+padding: 20px;
 border-radius: 20px;
 width: fit-content;
 max-width: 700px;
-font-family: "Poppins", sans-serif;
+font-family: "Montserrat", sans-serif;
 font-size: 14px;
 display: flex;
 align-items: center;
-gap: 1rem;
+gap: 0.5rem;
 }
 
 .faci-type-btn {
 text-align: center;
-padding: 0.5rem 18px;
+padding: 0.4rem 18px;
 height: 2.5rem;
 border: none;
 border-radius: 1rem;
 background-color: transparent;
 color: #ffffff;
-font-weight: 500;
+font-weight: 600;
 font-size: 16px;
 cursor: pointer;
 transition: background-color 0.2s ease, color 0.2s ease;
-
 min-width: 130px;
 }
 
 .active {
 background-color: #ffffff;
 color: #183c2d;
-padding: 0 2rem;
+padding: 0 0.5rem;
+font-weight: 600;
 }
 
 .faci-type-btn:hover:not(.active) {

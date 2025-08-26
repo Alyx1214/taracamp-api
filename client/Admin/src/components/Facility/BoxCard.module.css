@@ -1,8 +1,9 @@
 .boxcards-container {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 1.5rem;
   padding: -0.5rem 0;
+  margin-top: 15px;
 }
 
 .card {
@@ -26,13 +27,13 @@
 }
 
 .card-content {
-  padding: 1rem;
+  padding: 1.5rem;
 }
 
 .card-title {
   font-weight: bold;
   margin: 0 0 0.4rem;
-  font-size: 1rem;
+  font-size: 1.4rem;
   color: #222;
 }
 
@@ -40,7 +41,7 @@
 .card-capacity {
   margin: 0.2rem 0;
   font-size: 0.9rem;
-  color: #444;
+  color: #535353;
 }
 
 .card-menu {
