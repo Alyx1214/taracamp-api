@@ -24,7 +24,7 @@ export default function Cancelled() {
   ];
 
   const renderActions = (row) => (
-    <button className={styles["univ-delete-btn"]}>Delete</button>
+    <button className={styles["univ-decline-btn"]}>Delete</button>
   );
 
   const renderMenu = (row) => [
