@@ -1,0 +1,63 @@
+.statsCard {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.statsCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.cardContent {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.iconContainer {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  color: white;
+}
+
+.iconContainer.green {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+}
+
+.iconContainer.brown {
+  background: linear-gradient(135deg, #a16207, #854d0e);
+}
+
+.iconContainer.blue {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+}
+
+.iconContainer.gray {
+  background: linear-gradient(135deg, #6b7280, #4b5563);
+}
+
+.textContent {
+  flex: 1;
+}
+
+.value {
+  font-size: 32px;
+  font-weight: 700;
+  color: #1f2937;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.label {
+  font-size: 14px;
+  color: #6b7280;
+  font-weight: 500;
+}
