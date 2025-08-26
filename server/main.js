@@ -54,11 +54,21 @@ function isAllowed(origin) {
   return false;
 }
 
-app.use(cors({
-  origin: (origin, cb) => cb(null, isAllowed(origin)),
-  credentials: false,
-}));
-app.options('*', cors({ origin: (origin, cb) => cb(null, isAllowed(origin)), credentials: false }));
+const corsOptionsDelegate = (req, cb) => {
+  const origin = req.header('Origin');
+  const allowed = isAllowed(origin);
+  cb(null, {
+    origin: allowed ? origin : false,  
+    credentials: true,                 
+    methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
+    allowedHeaders: ['Content-Type','Authorization','X-Requested-With'],
+    exposedHeaders: [],                
+    maxAge: 600                       
+  });
+};
+
+app.use(cors(corsOptionsDelegate));
+app.options('*', cors(corsOptionsDelegate));
 app.use(express.json());
 
 const basicLimiter = rateLimit({
