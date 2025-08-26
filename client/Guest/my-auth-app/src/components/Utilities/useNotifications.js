@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { initSocket, subscribe, closeSocket } from './webSocketClient';
 
+const WS = import.meta.env.VITE_API_URL;
+
 function getToken() {
   return localStorage.getItem('accessToken');
 }
@@ -75,7 +77,7 @@ export function useNotifications() {
           throw new Error('Not authenticated');
         }
 
-        const { data } = await getJSON('/api/notification/list?limit=50');
+        const { data } = await getJSON(`${WS}/notification/list?limit=50`);
         if (!cancelled) {
           const list = Array.isArray(data) ? data.map(toClientShape) : [];
           setItems(list);
@@ -99,7 +101,7 @@ export function useNotifications() {
     const token = getToken();
     if (!token || isJwtExpired(token)) return;
 
-    const apiOrigin = import.meta.env.VITE_API_ORIGIN ?? 'http://localhost:3000';
+    const apiOrigin = import.meta.env.VITE_API_URL;
     initSocket(token, apiOrigin);
 
     const unsub = subscribe((evt) => {
@@ -122,7 +124,7 @@ export function useNotifications() {
     function onStorage(e) {
       if (e.key === 'accessToken') {
         const t = e.newValue;
-        const apiOrigin = import.meta.env.VITE_API_ORIGIN ?? 'http://localhost:3000';
+        const apiOrigin = import.meta.env.VITE_API_URL;
         closeSocket();
         if (t && !isJwtExpired(t)) {
           initSocket(t, apiOrigin);
@@ -137,7 +139,7 @@ export function useNotifications() {
 
   async function markAllAsRead() {
     try {
-      await postJSON('/api/notification/mark-all-read');
+      await postJSON(`${WS}/notification/mark-all-read`);
       setItems((prev) => prev.map((i) => ({ ...i, read: true })));
     } catch (e) {
        
@@ -148,7 +150,7 @@ export function useNotifications() {
   async function markRead(id) {
     if (!id) return;
     try {
-      await postJSON(`/api/notification/mark-read/${id}`);
+      await postJSON(`${WS}/notification/mark-read/${id}`);
       setItems((prev) => prev.map((i) => (i.id === id ? { ...i, read: true } : i)));
     } catch (e) {
        

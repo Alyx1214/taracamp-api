@@ -44,7 +44,7 @@ export default function NotificationDetail() {
       try {
         setLoading(true);
         setError(null);
-        const { data } = await getJSON('/api/notification/list?limit=100');
+        const { data } = await getJSON(`${API}/notification/list?limit=100`);
         if (cancelled) return;
         const arr = Array.isArray(data) ? data : [];
         const found = arr.find(n => (n.id || n._id) === id);

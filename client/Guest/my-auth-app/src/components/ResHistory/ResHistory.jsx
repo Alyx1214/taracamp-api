@@ -110,7 +110,7 @@ function ReservationHistory() {
       setErr(null);
 
       try {
-        const res = await authorizedFetch('/api/reservation/get-reservation-by-user-id', { method: 'GET' });
+        const res = await authorizedFetch(`${API}/reservation/get-reservation-by-user-id`, { method: 'GET' });
         const json = res.status !== 404 ? await res.json().catch(() => ({})) : {};
         if (!res.ok && res.status !== 404) throw new Error(json.error || 'Failed to load reservations');
 
@@ -126,7 +126,7 @@ function ReservationHistory() {
         const ids = [...new Set(list.map(r => String(r?.facility || '')).filter(Boolean))];
         const pairs = await Promise.all(ids.map(async (fid) => {
           try {
-            const rf = await fetch(`/api/facility/get-facility-by-id/${encodeURIComponent(fid)}`);
+            const rf = await fetch(`${API}/facility/get-facility-by-id/${encodeURIComponent(fid)}`);
             const fj = await rf.json().catch(() => ({}));
             const f = fj?.data || fj?.facility || fj?.result || fj;
             return [fid, {
