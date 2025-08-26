@@ -12,6 +12,7 @@ function ResDetails({ onClose }) {
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState(null);
   const [quote, setQuote] = useState(null);
+  const API = import.meta.env.VITE_API_URL;
 
   const {
     id: stateId,
@@ -57,7 +58,7 @@ function ResDetails({ onClose }) {
           pwds: String(p),
           serviceType: (mapServiceType(step2?.typeService) || 'MEETING/CONFERENCE'),
         });
-        const res = await fetch(`/api/reservation/estimate-amount?${qs.toString()}`);
+        const res = await fetch(`${API}/reservation/estimate-amount?${qs.toString()}`);
         const json = await res.json();
         if (!abort) setQuote(json?.amount ?? null);
       } catch {
@@ -97,7 +98,7 @@ function ResDetails({ onClose }) {
   async function refreshAccessToken() {
     const rt = localStorage.getItem('refreshToken');
     if (!rt) throw new Error('No refresh token');
-    const res = await fetch('/api/user/refresh-token', {
+    const res = await fetch(`${API}/user/refresh-token`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refreshToken: rt })
@@ -177,7 +178,7 @@ function ResDetails({ onClose }) {
       }).forEach(([k, v]) => fd.append(k, v));
       fd.append('letterOfIntentFile', file);
 
-      const res = await authorizedFetch(`/api/reservation/create-reservation`, {
+      const res = await authorizedFetch(`${API}/reservation/create-reservation`, {
         method: 'POST',
         body: fd,
       });

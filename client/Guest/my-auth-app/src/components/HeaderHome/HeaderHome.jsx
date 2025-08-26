@@ -14,11 +14,10 @@ function HeaderHome() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
-
-  // 'list' | 'preview' | 'upload'
   const [notifPane, setNotifPane] = useState('list');
   const [selectedNotif, setSelectedNotif] = useState(null);
   const [uploadClientType, setUploadClientType] = useState('deped');
+  const API = import.meta.env.VITE_API_URL;
 
   const accountMenuRef = useRef(null);
   const notifMenuRef = useRef(null);
@@ -128,7 +127,7 @@ function HeaderHome() {
     const reservationId = notif?.reservationId;
     if (!reservationId) throw new Error('Missing reservationId');
 
-    const res = await fetch(`/api/reservation/get-reservation-by-id/${reservationId}`, {
+    const res = await fetch(`${API}/reservation/get-reservation-by-id/${reservationId}`, {
       method: 'GET',
       headers: { Accept: 'application/json' },
       credentials: 'include',

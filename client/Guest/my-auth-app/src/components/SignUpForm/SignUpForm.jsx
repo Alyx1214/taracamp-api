@@ -22,6 +22,7 @@ function SignUpForm({ onRegistrationSuccess }) {
   const [facebookLoading, setFacebookLoading] = useState(false);
   const [facebookError, setFacebookError] = useState(null);
   const navigate = useNavigate();
+  const API = import.meta.env.VITE_API_URL;
 
   const handleRegistrationSuccess = () => {
     if (onRegistrationSuccess) {
@@ -36,7 +37,7 @@ function SignUpForm({ onRegistrationSuccess }) {
       setLoading(true);
       setError(null);
       try {
-        const response = await fetch('/api/user/google-login', {
+        const response = await fetch(`${API}/user/google-login`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -77,7 +78,7 @@ function SignUpForm({ onRegistrationSuccess }) {
       setFacebookError(null);
       try {
         const accessToken = response.authResponse.accessToken;
-        const apiRes = await fetch('/api/user/facebook-login', {
+        const apiRes = await fetch(`${API}/user/facebook-login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ token: accessToken }),
@@ -134,7 +135,7 @@ function SignUpForm({ onRegistrationSuccess }) {
     }
 
     try {
-      const response = await fetch('/api/user/register', {
+      const response = await fetch(`${API}/user/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

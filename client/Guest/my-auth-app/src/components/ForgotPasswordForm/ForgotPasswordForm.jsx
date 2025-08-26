@@ -5,6 +5,7 @@ import styles from './ForgotPasswordForm.module.css';
 function ForgotPasswordForm({ onBackToLogin }) {
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState(''); 
+  const API = import.meta.env.VITE_API_URL;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -17,7 +18,7 @@ function ForgotPasswordForm({ onBackToLogin }) {
 
   
     try {
-      const response = await fetch('/api/user/send-password-reset-verification-code', {
+      const response = await fetch(`${API}/user/send-password-reset-verification-code`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),

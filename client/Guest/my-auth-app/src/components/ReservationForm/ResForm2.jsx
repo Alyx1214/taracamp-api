@@ -11,6 +11,7 @@ function ReservationFormStep2() {
   const step1 = location.state?.step1 || {};
   const file = location.state?.file || null;
   const { type, facility } = location.state || {};
+  const API = import.meta.env.VITE_API_URL;
 
   useEffect(() => {
     if (!type || !facility) {
@@ -95,7 +96,7 @@ function ReservationFormStep2() {
     (async () => {
       try {
         setLoadingSpecials(true);
-        const res = await fetch(`/api/special-service/get-all-special-services`);
+        const res = await fetch(`${API}/special-service/get-all-special-services`);
         const json = await res.json();
         if (!res.ok) throw new Error(json.error || 'Failed to load special services');
         if (!active) return;
@@ -126,7 +127,7 @@ function ReservationFormStep2() {
       try {
         setLoadingFacilities(true);
         const res = await fetch(
-          `/api/facility/get-facilities-by-type/${encodeURIComponent(formData.typeFacilities)}`
+          `${API}/facility/get-facilities-by-type/${encodeURIComponent(formData.typeFacilities)}`
         );
         const json = await res.json();
         if (!res.ok) throw new Error(json.error || 'Failed to load facilities');
@@ -217,7 +218,7 @@ function ReservationFormStep2() {
     setAvailReason('');
     try {
       const qs = new URLSearchParams({ facility: facilityId, start, end });
-      const url = `/api/reservation/check-availability?${qs.toString()}`;
+      const url = `${API}/reservation/check-availability?${qs.toString()}`;
 
       const res = await fetch(url, { method: 'GET', signal: ctrl.signal });
       const json = await res.json().catch(() => ({}));

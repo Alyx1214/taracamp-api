@@ -45,7 +45,7 @@ function MainServices() {
       let url, key;
       if (facilityType === 'OTHER SERVICE') {
         // Special Services search
-        url = `/api/special-service/search-special-services?query=${encodeURIComponent(query)}`;
+        url = `${API}/special-service/search-special-services?query=${encodeURIComponent(query)}`;
         key = 'specialServices';
       } else {
         url = `${API}/facility/search-facilities?type=${encodeURIComponent(facilityType)}&query=${encodeURIComponent(query)}`;
@@ -81,7 +81,7 @@ function MainServices() {
         if (filters.maxPrice) params.append('maxPrice', filters.maxPrice);
         if (filters.query) params.append('query', filters.query);
         if (filters.unit) params.append('unit', filters.unit);
-        url = `/api/special-service/search-special-services?${params.toString()}`;
+        url = `${API}/special-service/search-special-services?${params.toString()}`;
         key = 'specialServices';
       } else {
         params.append('type', facilityType);

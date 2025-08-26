@@ -79,7 +79,7 @@ function MainServicesServiceDetail() {
 
   useEffect(() => {
     setLoading(true);
-    fetch(`${API}/api/facility/get-facility-by-id/${id}`)
+    fetch(`${API}/facility/get-facility-by-id/${id}`)
       .then(res => res.json())
       .then(data => {
         if (data.status === 200 && data.facility) {
@@ -96,7 +96,7 @@ function MainServicesServiceDetail() {
   }, [id]);
 
   useEffect(() => {
-    fetch(`/api/facility/get-available-dates-by-facility/${id}`)
+    fetch(`${API}/facility/get-available-dates-by-facility/${id}`)
       .then(res => res.json())
       .then(data => {
         if (data.status === 200) {

@@ -12,6 +12,7 @@ function ReservationHistory() {
   const [reservationsRaw, setReservationsRaw] = useState([]);
   const [openReservationId, setOpenReservationId] = useState(null);
   const abortRef = useRef(null);
+  const API = import.meta.env.VITE_API_URL;
 
   useEffect(() => {
     const token = localStorage.getItem('accessToken');
@@ -21,7 +22,7 @@ function ReservationHistory() {
   const refreshAccessToken = useCallback(async () => {
     const rt = localStorage.getItem('refreshToken');
     if (!rt) throw new Error('No refresh token');
-    const res = await fetch('/api/user/refresh-token', {
+    const res = await fetch(`${API}/user/refresh-token`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refreshToken: rt }),
