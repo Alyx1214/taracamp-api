@@ -26,7 +26,7 @@ const __dirname = path.dirname(__filename);
 
 dotenv.config({ path: path.resolve(__dirname, '.env'), });
 
-const port = process.env.PORT;
+const port = process.env.PORT || 3000;
 const dbConnectionString = process.env.DB_CONN;
 //const upload = multer({ storage: multer.memoryStorage(), });
 //const __clientPath = path.join(__dirname, '../client');
@@ -37,28 +37,27 @@ const app = express();
 app.set('trust proxy', 1);
 await redisClient.connect();
 
-
-const ALLOWED_ORIGINS = [
+const STABLE_ORIGINS = [
   'http://localhost:5173',
   'http://localhost:3000',
   'http://localhost:5174',
-  'https://taracamp-api.vercel.app', 
+  'https://taracamp-api.vercel.app',
 ];
 
+const PREVIEW_MATCH = /^https:\/\/taracamp-api-[a-z0-9-]+\.vercel\.app$/i;
+
+function isAllowed(origin) {
+  if (!origin) return true;               
+  if (STABLE_ORIGINS.includes(origin)) return true;
+  if (PREVIEW_MATCH.test(origin)) return true;
+  return false;
+}
 app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin) return callback(null, true);
-    if (ALLOWED_ORIGINS.includes(origin)) {
-      return callback(null, true);
-    } else {
-      return callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true, 
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  origin: (origin, cb) => cb(null, isAllowed(origin)),
+  credentials: false,
 }));
 
+app.options('*', cors());
 app.use(express.json());
 
 const basicLimiter = rateLimit({
@@ -586,5 +585,5 @@ const interval = setInterval(() => {
 wss.on('close', () => clearInterval(interval));
 
 server.listen(port, () => {
-    console.log(`API listening at http://localhost:${port}`);
+    console.log(`API listening at http://0.0.0.0:${port}`);
 });
