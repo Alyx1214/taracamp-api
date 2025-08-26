@@ -89,6 +89,7 @@ function HeaderHome() {
   const [notifPane, setNotifPane] = useState('list');
   const [selectedNotif, setSelectedNotif] = useState(null);
   const [uploadClientType, setUploadClientType] = useState('deped');
+  const [unreadCount, setUnreadCount] = useState(0);
   const API = import.meta.env.VITE_API_URL;
 
   const accountMenuRef = useRef(null);
