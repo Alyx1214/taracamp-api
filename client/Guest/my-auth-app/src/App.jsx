@@ -52,7 +52,7 @@ function NotificationsPreviewPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   async function loadReservation() {
-    const res = await fetch(`/api/reservations/${id}`, { credentials: 'include' });
+    const res = await fetch(VITE_API_URL + `/reservations/${id}`, { credentials: 'include' });
     if (!res.ok) throw new Error('Failed to load');
     return res.json();
   }

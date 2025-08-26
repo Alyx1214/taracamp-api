@@ -12,7 +12,7 @@ export default defineConfig({
         rewrite: (path) => path.replace(/^\/api/, '/api'),
       },
       '/ws': {
-        target: 'ws://localhost:3000',
+        target: 'wss://taracamp-api.onrender.com',
         ws: true,
         changeOrigin: true,
       },

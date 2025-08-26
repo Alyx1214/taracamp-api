@@ -19,7 +19,7 @@ function LoginForm({ onForgotPassword, onLoginSuccess }) {
       setLoading(true);
       setError(null);
       try {
-        const response = await fetch('/api/user/google-login', {
+        const response = await fetch(VITE_API_URL + '/user/google-login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ code: codeResponse.code }),
@@ -51,7 +51,7 @@ function LoginForm({ onForgotPassword, onLoginSuccess }) {
       setFacebookError(null);
       try {
         const accessToken = response.authResponse.accessToken;
-        const apiRes = await fetch('/api/user/facebook-login', {
+        const apiRes = await fetch(VITE_API_URL + '/user/facebook-login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ token: accessToken }),
@@ -95,7 +95,7 @@ function LoginForm({ onForgotPassword, onLoginSuccess }) {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('/api/user/login', {
+      const response = await fetch(VITE_API_URL + '/user/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
