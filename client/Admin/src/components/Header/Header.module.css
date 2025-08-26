@@ -14,7 +14,7 @@
 }
 
 .header-logo {
-  height: 50px;
+  height: 40px;
   width: auto;
   object-fit: contain;
   margin-left: 40px;
@@ -27,7 +27,7 @@
 }
 
 .hamburger {
-  font-size: 40px;
+  font-size: 30px;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -52,13 +52,13 @@
 
 .logo-text {
   font-size: 1.2rem;
-  font-weight: 600;
+  font-weight: 200;
 }
 
 .header-right {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 2rem;
 }
 
 .header-action {
@@ -78,6 +78,8 @@
 }
 
 .header-title {
+  font-family: "Montserrat", sans-serif;
   font-size: 1.2rem;
   font-weight: 600;
+  letter-spacing: 5px;
 }
