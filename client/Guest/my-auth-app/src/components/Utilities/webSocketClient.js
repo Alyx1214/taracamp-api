@@ -1,7 +1,8 @@
 let socket = null;
 const listeners = new Set();
+const WS = import.meta.env.VITE_WS_URL;
 
-export function initSocket(token, apiOrigin = 'http://localhost:3000') {
+export function initSocket(token, apiOrigin = WS) {
   if (socket && socket.readyState <= 1) return socket; 
 
   const u = new URL('/socket', apiOrigin);
