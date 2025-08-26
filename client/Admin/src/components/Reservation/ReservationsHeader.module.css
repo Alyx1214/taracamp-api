@@ -2,28 +2,37 @@
   display: flex;
   align-items: center;
   gap: 30px;
-  margin-bottom: 0;
+  margin-bottom: auto;
+  font-family: "Montserrat", sans-serif;
 }
 
 .reservations-header__title {
   margin: 0;
   font-weight: 700;
   font-size: 50px;
-  color: #4d2e17;
+  color: #4F3718;
+  letter-spacing: 10px;
 }
 
 .reservations-header__add-btn {
-  background-color: #1e3c2f;
-  color: #fff;
-  padding: 15px 14px;
+  background: #1E3C24;
+  color: #f5f5f5;
   border: none;
   border-radius: 20px;
+  padding: 15px 24px;
   font-size: 1.2rem;
+  display: flex;
+  align-items: center;
   cursor: pointer;
   transition: all 0.2s ease-in-out;
+  font-family: "Montserrat", sans-serif;
 }
 
 .reservations-header__add-btn:hover {
-  background-color: #538e5e;
-  color: #f5f5f5;
+  background: #538e5e;
+}
+
+.reservations-header__icon {
+  font-size: 1rem;
+  margin-right: 10px;
 }
