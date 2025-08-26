@@ -41,24 +41,24 @@ const STABLE_ORIGINS = [
   'http://localhost:5173',
   'http://localhost:3000',
   'http://localhost:5174',
-  'https://taracamp-api.vercel.app',
-  'https://taracamp-nvfxqb16a-alyssas-projects-927ddea5.vercel.app'
 ];
 
-const PREVIEW_MATCH = /^https:\/\/taracamp-api-[a-z0-9-]+\.vercel\.app$/i;
+const VERCEL_PREVIEW = /^https:\/\/taracamp-[a-z0-9-]+\.vercel\.app$/i;      
+const VERCEL_API_PREVIEW = /^https:\/\/taracamp-api-[a-z0-9-]+\.vercel\.app$/i; 
 
 function isAllowed(origin) {
-  if (!origin) return true;               
+  if (!origin) return true;             
   if (STABLE_ORIGINS.includes(origin)) return true;
-  if (PREVIEW_MATCH.test(origin)) return true;
+  if (VERCEL_PREVIEW.test(origin)) return true;
+  if (VERCEL_API_PREVIEW.test(origin)) return true;
   return false;
 }
+
 app.use(cors({
   origin: (origin, cb) => cb(null, isAllowed(origin)),
   credentials: false,
 }));
-
-app.options('*', cors());
+app.options('*', cors({ origin: (origin, cb) => cb(null, isAllowed(origin)), credentials: false }));
 app.use(express.json());
 
 const basicLimiter = rateLimit({
