@@ -26,8 +26,9 @@
 
 .shellSidebar {
   background: #183c2d;
-  overflow: hidden;
+  overflow: visible;
   height: calc(100vh - var(--header-height));
+  position: relative;
 }
 
 .shellMain {
