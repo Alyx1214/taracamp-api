@@ -1,50 +1,308 @@
-.searchfil-container {
-display: flex;
-align-items: center;
-gap: 0.5rem;
+.searchFilterContainer {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 20px;
+  justify-content: center;
 }
 
-.searchfil-input {
-display: flex;
-align-items: center;
-background-color: white;
-border-radius: 50px;
-padding: 0.50rem 0.8rem;
-box-shadow: 0px 4px 50px rgba(0, 0, 0, 0.603);
-flex: 0 0 220px;
-height: 60px;
+.searchFilter {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
 }
 
-.searchfil-input input {
-border: none;
-outline: none;
-font-size: 0.85rem;
-color: #183c2d;
-width: 100%;
-height: 100%;
-line-height: 1;
-padding: 0 0.3rem;
+.searchInput,
+.filterInput {
+  padding: 20px 15px;
+  border: 1px solid #ccc;
+  border-radius: 20px;
+  outline: none;
+  font-size: 1em;
+  height: 20px;
+  box-shadow: 0 5px 5px rgba(0, 0, 0, 0.207);
+  width: 120px;
 }
 
-.searchfil-input input::placeholder {
-color: #183c2d;
+.searchInput {
+  width: 250px;
 }
 
-.searchfil-btn {
-background-color: #183c2d;
-border: none;
-border-radius: 10px;
-padding: 0.9rem;
-cursor: pointer;
-display: flex;
-align-items: center;
-justify-content: center;
-box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
-height: 45px;
+.searchInput:focus,
+.filterInput:focus {
+  border-color: #538E5E;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(83, 142, 94, 0.2);
 }
 
-.searchfil-btn svg {
-color: white;
-width: 16px;
-height: 16px;
+.filterInput[type="date"] {
+  width: 150px;
+  min-width: 140px;
+}
+
+.filterInput[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+.filterInput[type="number"]::-webkit-outer-spin-button,
+.filterInput[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+}
+
+.searchButton,
+.filterButton {
+  background-color: #1E3C24;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  flex-shrink: 0;
+}
+
+.searchButton:hover,
+.filterButton:hover {
+  background-color: #3a2b13;
+}
+
+.searchButton svg,
+.filterButton svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* Filter Overlay Styles */
+.filterOverlayBackdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.filterOverlayContent {
+  background-color: white;
+  padding: 30px;
+  border-radius: 20px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+  max-width: 500px;
+  width: 90%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  position: relative;
+}
+
+.filterOverlayContent h3 {
+  margin-top: 0;
+  color: #183c2d;
+  text-align: center;
+  font-size: 1.8em;
+  margin-bottom: 25px;
+}
+
+.overlayInputsGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.overlayInputRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.overlayInputRow label {
+  flex-basis: 90px;
+  font-weight: bold;
+  color: #333;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.overlayInput {
+  padding: 12px 15px;
+  border: 1px solid #ddd;
+  border-radius: 20px;
+  font-size: 1em;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.overlayInput:focus {
+  border-color: #538E5E;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(83, 142, 94, 0.2);
+}
+
+.overlayInput[type="date"],
+.overlayInput[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+.overlayInput[type="number"]::-webkit-outer-spin-button,
+.overlayInput[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+}
+
+.overlayButtons {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.overlayApplyButton,
+.overlayClearButton {
+  padding: 12px 20px;
+  border: none;
+  border-radius: 20px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.3s ease, color 0.3s ease;
+  flex-grow: 1;
+}
+
+.overlayApplyButton {
+  background-color: #183c2d;
+  color: white;
+}
+
+.overlayApplyButton:hover {
+  background-color: #538E5E;
+}
+
+.overlayClearButton {
+  background-color: #3a2b13;
+  color: white;
+}
+
+.overlayClearButton:hover {
+  background-color: #d32f2f;
+}
+
+.overlayCloseTopButton {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 5px;
+  color: #1E1E1E;
+  transition: color 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.overlayCloseTopButton:hover {
+  color: #183c2d;
+}
+
+.overlayCloseTopButton svg {
+  width: 24px;
+  height: 24px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 992px) {
+  .searchFilterContainer {
+    flex-direction: column;
+    align-items: stretch;
+    margin: 0px 20px;
+    padding-top: 20px;
+  }
+  
+  .searchFilter {
+    width: 100%;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  
+  .searchInput {
+    flex-grow: 1;
+    width: auto;
+    max-width: none;
+  }
+}
+
+@media (max-width: 600px) {
+  .filterOverlayContent {
+    padding: 20px;
+    width: 95%;
+  }
+  
+  .overlayInputRow {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .overlayInputRow label {
+    text-align: left;
+    flex-basis: auto;
+    margin-bottom: 5px;
+  }
+  
+  .overlayButtons {
+    flex-direction: column;
+  }
+  
+  .overlayCloseTopButton {
+    top: 10px;
+    right: 10px;
+  }
+}
+
+@media (max-width: 576px) {
+  .searchInput {
+    width: auto;
+  }
+  
+  .searchButton,
+  .filterButton {
+    width: 35px;
+    height: 35px;
+  }
+  
+  .searchButton svg,
+  .filterButton svg {
+    width: 18px;
+    height: 18px;
+  }
+  
+  .searchFilter {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .searchInput,
+  .searchButton,
+  .filterButton {
+    width: 100%;
+    max-width: none;
+  }
+  
+  .searchButton,
+  .filterButton {
+    border-radius: 20px;
+  }
 }
