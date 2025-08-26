@@ -1,6 +1,6 @@
 .sidebar {
   width: 100%;
-  height: calc(100vh - 64px);
+  height: calc(100vh - 70px);
   background: #1E3C24;
   color: white;
   display: flex;
@@ -8,7 +8,7 @@
   justify-content: space-between;
   transition: all 0.3s ease-in-out;
   position: sticky;
-  top: 64px;
+  top: 70px;
   overflow-y: auto;
 }
 
@@ -67,7 +67,6 @@
 
 .logout-section {
   border-top: 1px solid rgba(255, 255, 255, 0.2);
-  padding: 1rem 0;
 }
 
 .logout-btn {
