@@ -42,8 +42,7 @@ const ALLOWED_ORIGINS = [
   'http://localhost:5173',
   'http://localhost:3000',
   'http://localhost:5174',
-  'https://taracamp-q9bqu1k5s-alyssas-projects-927ddea5.vercel.app', 
-  'https://taracamp.vercel.app' 
+  'https://taracamp-api.vercel.app', 
 ];
 
 app.use(cors({
