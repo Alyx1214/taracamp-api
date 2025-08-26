@@ -36,7 +36,7 @@ const AddForm = () => {
       <div className={styles.header}>
         <FaArrowLeft className={styles.backArrow} onClick={() => navigate(-1)} />
         <h2 className={styles.title}>
-          {category.toUpperCase()}
+          {category.charAt(0).toUpperCase() + category.slice(1).toLowerCase()}
         </h2>
       </div>
 
@@ -97,7 +97,7 @@ const AddForm = () => {
         </div>
 
         <button type="submit" className={styles.submitBtn}>
-          ADD {category.toUpperCase()}
+          Add {category.charAt(0).toUpperCase() + category.slice(1).toLowerCase()}
         </button>
       </form>
     </div>
