@@ -1,0 +1,37 @@
+.checkInOutTabs {
+  background-color: #183c2d;
+  height: 60px;
+  padding: 0 1rem;
+  border-radius: 20px;
+  width: fit-content;
+  max-width: 700px;
+  font-family: "Poppins", sans-serif;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 1rem; 
+}
+
+.checkInOutTab {
+  text-align: center;
+  padding: 0.5rem 1.5rem; 
+  border: none;
+  border-radius: 9999px;   
+  background-color: transparent;
+  color: #ffffff;
+  font-weight: 500;
+  font-size: 16px;
+  line-height: 1;          
+  white-space: nowrap;     
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.checkInOutTabActive {
+  background-color: #ffffff;
+  color: #183c2d;
+}
+
+.checkInOutTab:hover:not(.checkInOutTabActive) {
+  background-color: rgba(255, 255, 255, 0.2);
+}
