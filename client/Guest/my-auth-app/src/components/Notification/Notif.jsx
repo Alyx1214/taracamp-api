@@ -3,6 +3,8 @@ import styles from './Notif.module.css';
 import NotifPreview from './NotifPreview';
 
 let refreshingPromise = null;
+const API = import.meta.env.VITE_API_URL;
+
 
 function getAccessToken() {
   return localStorage.getItem('accessToken');
@@ -20,7 +22,7 @@ async function callRefresh() {
   const rt = getRefreshToken();
   if (!rt) throw new Error('No refresh token');
 
-  refreshingPromise = fetch('/api/user/refresh-token', {
+  refreshingPromise = fetch(`${API}/user/refresh-token`, {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
@@ -74,12 +76,11 @@ async function api(path, opts = {}) {
   if (!res.ok) throw new Error(text || `HTTP ${res.status}`);
   return text ? JSON.parse(text) : null;
 }
-/* ================== end auth-aware fetch ================== */
 
 export default function Notif({ onMarkAllAsRead }) {
-  const [mode, setMode] = useState('list');                 // "list" | "detail"
+  const [mode, setMode] = useState('list');                 
   const [selected, setSelected] = useState(null);
-  const [notifications, setNotifications] = useState([]);   // always an array
+  const [notifications, setNotifications] = useState([]);   
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
 
@@ -87,9 +88,7 @@ export default function Notif({ onMarkAllAsRead }) {
     setErr('');
     setLoading(true);
     try {
-      const json = await api('/api/notification/list');
-
-      // Accept shapes: {data:{items:[]}}, {data:[]}, or [].
+      const json = await api(`${API}/notification/list`);
       const raw =
         Array.isArray(json?.data?.items) ? json.data.items :
         Array.isArray(json?.data)        ? json.data :
@@ -128,7 +127,7 @@ export default function Notif({ onMarkAllAsRead }) {
 
   async function markAll() {
     try {
-      await api('/api/notification/mark-all', { method: 'POST' });
+      await api(`${API}/notification/mark-all`, { method: 'POST' });
       setNotifications(n => n.map(x => ({ ...x, isRead: true })));
       onMarkAllAsRead?.();
     } catch (e) {
@@ -138,7 +137,7 @@ export default function Notif({ onMarkAllAsRead }) {
 
   const handleOpenDetail = async (notif) => {
     try {
-      await api(`/api/notification/mark-read/${notif._id}`, { method: 'POST' });
+      await api(`${API}/notification/mark-read/${notif._id}`, { method: 'POST' });
       setNotifications(n => n.map(x => x._id === notif._id ? { ...x, isRead: true } : x));
     } catch (e) {
       console.error('mark-read failed', e);
@@ -200,7 +199,7 @@ export default function Notif({ onMarkAllAsRead }) {
             clientType={selected.clientType || 'individual'}
             loadReservation={async () => {
               if (!selected.reservationId) return selected;
-              const json = await api(`/api/reservation/get-reservation-by-id/${selected.reservationId}`);
+              const json = await api(`${API}/reservation/get-reservation-by-id/${selected.reservationId}`);
               const r = json?.data || json?.reservation || json;
               return {
                 title: r.title,

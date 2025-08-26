@@ -5,6 +5,7 @@ import mountainLogo from '../../assets/logo.png';
 import Notif from '../Notification/Notif';
 
 let refreshingPromise = null;
+const API = import.meta.env.VITE_API_URL;
 
 function getAccessToken() {
   return localStorage.getItem('accessToken');
@@ -22,7 +23,7 @@ async function callRefresh() {
   const rt = getRefreshToken();
   if (!rt) throw new Error('No refresh token');
 
-  refreshingPromise = fetch('/api/user/refresh-token', {
+  refreshingPromise = fetch(`${API}/user/refresh-token`, {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
@@ -114,7 +115,7 @@ function HeaderHome() {
 
     async function refreshCount() {
       try {
-        const json = await api('/api/notification/count-unread');
+        const json = await api(`${API}/notification/count-unread`);
         if (!cancelled) setUnreadCount(Number(json?.data?.count || 0));
       } catch {
         // badge errors are not worth a meltdown
@@ -136,7 +137,7 @@ function HeaderHome() {
     let cancelled = false;
     (async () => {
       try {
-        const json = await api('/api/notification/count-unread');
+        const json = await api(`${API}/notification/count-unread`);
         if (!cancelled) setUnreadCount(Number(json?.data?.count || 0));
       } catch {}
     })();
