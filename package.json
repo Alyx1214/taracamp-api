@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "@iconify/react": "^6.0.0",
     "@react-oauth/google": "^0.12.2"
   },
   "devDependencies": {

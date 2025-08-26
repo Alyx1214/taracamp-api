@@ -59,24 +59,29 @@ const ReservationsCalendar = () => {
     <div className={styles.calendarContainer}>
       <div className={styles.calendarHeader}>
         <h3 className={styles.calendarTitle}>Reservations Calendar</h3>
+      </div>
+
+      <div className={styles.subheader}>
+        <span className={styles.monthYear}>
+          {months[currentDate.getMonth()]} {currentDate.getFullYear()}
+        </span> 
         <div className={styles.monthNavigation}>
           <button 
             className={styles.navButton} 
             onClick={() => navigateMonth(-1)}
           >
-            ←
+           ←
           </button>
-          <span className={styles.monthYear}>
-            {months[currentDate.getMonth()]} {currentDate.getFullYear()}
-          </span>
           <button 
             className={styles.navButton} 
             onClick={() => navigateMonth(1)}
           >
-            →
+          →
           </button>
         </div>
       </div>
+
+      
       
       <div className={styles.calendar}>
         <div className={styles.weekdaysHeader}>

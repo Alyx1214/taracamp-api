@@ -4,6 +4,9 @@
   padding: 20px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   transition: all 0.3s ease;
+  max-width: 100%;
+  width: 300px;
+  margin: 10px auto; /* Centers the card */
 }
 
 .statsCard:hover {
@@ -15,6 +18,7 @@
   display: flex;
   align-items: center;
   gap: 16px;
+  flex-wrap: wrap; /* Ensures the content adapts on smaller screens */
 }
 
 .iconContainer {
@@ -60,4 +64,12 @@
   font-size: 14px;
   color: #6b7280;
   font-weight: 500;
+}
+
+/* Responsive Design for smaller screens */
+@media (max-width: 768px) {
+  .statsCard {
+    width: 100%;
+    padding: 15px; /* Adjust padding for smaller screens */
+  }
 }

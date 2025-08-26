@@ -1,5 +1,6 @@
 import React from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
+import { FaArrowLeft, FaUpload } from "react-icons/fa";
 import styles from "./EditForm.module.css";
 
 const getSingularLabel = (category) => {
@@ -32,9 +33,7 @@ export default function EditForm() {
   return (
     <div className={styles.editFormContainer}>
       <div className={styles.header}>
-        <button className={styles.backBtn} onClick={() => navigate(-1)}>
-          ←
-        </button>
+        <FaArrowLeft className={styles.backArrow} onClick={() => navigate(-1)} />
         <h2 className={styles.title}>{category || "FACILITY"}</h2>
       </div>
 
