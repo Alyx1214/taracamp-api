@@ -296,26 +296,8 @@ const MonthlyChart = () => {
   return (
     <div className={styles.chartContainer}>
       <div className={styles.chartHeader}>
-        <h3 className={styles.chartTitle}>Monthly Reservations</h3>
-        <div className={styles.legend}>
-          <div className={styles.legendItem}>
-            <div className={`${styles.legendDot} ${styles.completed}`}></div>
-            <span>Completed</span>
-          </div>
-          <div className={styles.legendItem}>
-            <div className={`${styles.legendDot} ${styles.cancelled}`}></div>
-            <span>Cancelled</span>
-          </div>
-        </div>
-      </div>
-      <canvas 
-        ref={canvasRef} 
-        className={styles.canvas}
-        onMouseMove={handleMouseMove}
-        onMouseLeave={handleMouseLeave}
-        style={{ cursor: hoveredPoint ? 'pointer' : 'default' }}
-      />
-      <div className={styles.yearSelector}>
+        <div className={styles.chartTitle}>Monthly Reservations</div>
+        <div className={styles.yearSelector}>
         <select 
           className={styles.yearSelect}
           value={selectedYear}
@@ -326,6 +308,32 @@ const MonthlyChart = () => {
           <option value="2025">2025</option>
         </select>
       </div>
+
+      <div className={styles.legend}>
+          <div className={styles.legendItem}>
+            <div className={`${styles.legendDot} ${styles.completed}`}></div>
+            <span>Completed</span>
+          </div>
+          <div className={styles.legendItem}>
+            <div className={`${styles.legendDot} ${styles.cancelled}`}></div>
+            <span>Cancelled</span>
+          </div>
+        </div>
+
+        
+        
+      </div>
+        
+
+
+      <canvas 
+        ref={canvasRef} 
+        className={styles.canvas}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+        style={{ cursor: hoveredPoint ? 'pointer' : 'default' }}
+      />
+      
     </div>
   );
 };

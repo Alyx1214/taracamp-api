@@ -16,12 +16,7 @@ import "./Sidebar.css";
 const Sidebar = ({ isOpen, onClose }) => {
   return (
     <div className={`sidebar ${isOpen ? "open" : ""}`}>
-      <div className="sidebar-header">
-        <div className="close-btn" onClick={onClose}>
-          <FaTimes />
-        </div>
-      </div>
-
+      
       <nav className="nav-links">
         <NavLink to="/dashboard" className="nav-item" activeclassname="active">
           <FaTachometerAlt />
