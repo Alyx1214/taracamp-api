@@ -74,12 +74,11 @@ async function api(path, opts = {}) {
   if (!res.ok) throw new Error(text || `HTTP ${res.status}`);
   return text ? JSON.parse(text) : null;
 }
-/* ================== end auth-aware fetch ================== */
 
 export default function Notif({ onMarkAllAsRead }) {
-  const [mode, setMode] = useState('list');                 // "list" | "detail"
+  const [mode, setMode] = useState('list');                 
   const [selected, setSelected] = useState(null);
-  const [notifications, setNotifications] = useState([]);   // always an array
+  const [notifications, setNotifications] = useState([]);   
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
 
@@ -88,8 +87,6 @@ export default function Notif({ onMarkAllAsRead }) {
     setLoading(true);
     try {
       const json = await api('/api/notification/list');
-
-      // Accept shapes: {data:{items:[]}}, {data:[]}, or [].
       const raw =
         Array.isArray(json?.data?.items) ? json.data.items :
         Array.isArray(json?.data)        ? json.data :

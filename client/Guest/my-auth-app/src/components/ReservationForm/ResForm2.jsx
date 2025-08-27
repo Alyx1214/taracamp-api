@@ -1,29 +1,32 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import HeaderHome from '../HeaderHome/HeaderHome';
 import styles from './ResForm2.module.css';
 import { ArrowLeft } from 'lucide-react';
 import ErrorBanner from '../ErrorBanner/ErrorBanner';
 
+import { getFacilitiesByType, getAllSpecialServices, checkAvailability as apiCheckAvailability, } from '../../apis/facilityApi';
+
 function ReservationFormStep2() {
   const navigate = useNavigate();
   const location = useLocation();
+
   const step1 = location.state?.step1 || {};
   const file = location.state?.file || null;
-  const { type, facility } = location.state || {};
+  const { type, id } = useParams();
 
   useEffect(() => {
-    if (!type || !facility) {
-      navigate('/services', { replace: true });
+    if (!location.state?.step1 || !Object.keys(location.state.step1).length) {
+      navigate(`/reservation-form/${type}/${id}`, { replace: true });
     }
-  }, [type, facility, navigate]);
+  }, [location.state, type, id, navigate]);
 
-  if (!type || !facility) return null;
+
 
   const [formData, setFormData] = useState({
     dateArrival: '',
     dateDeparture: '',
-    typeFacilities: '',
+    typeFacilities: (type || '').toUpperCase(),   
     facilityName: '',
     typeService: '',
     timeArrivalHour: '',
@@ -41,9 +44,7 @@ function ReservationFormStep2() {
   const [checkingAvail, setCheckingAvail] = useState(false);
   const [isAvailable, setIsAvailable] = useState(null);
   const [availReason, setAvailReason] = useState('');
-  const abortRef = useRef(null);
-
-  // Total guests from Step 1
+  const availReqId = useRef(0);
   const totalGuests = useMemo(() => {
     const a = parseInt(step1?.guests?.adult || 0, 10) || 0;
     const c = parseInt(step1?.guests?.children || 0, 10) || 0;
@@ -51,11 +52,10 @@ function ReservationFormStep2() {
     return a + c + p;
   }, [step1]);
 
-  // Hydrate from navigation state, then fall back to sessionStorage
   useEffect(() => {
     let hydrated = false;
     if (location.state?.step2) {
-      setFormData(prev => ({ ...prev, ...location.state.step2 }));
+      setFormData(prev => ({ ...prev, ...location.state.step2, typeFacilities: prev.typeFacilities || (type || '').toUpperCase() || location.state.step2.typeFacilities || ''}));
       hydrated = true;
     }
     if (location.state?.errorsStep2) setFieldErrors(location.state.errorsStep2);
@@ -72,7 +72,6 @@ function ReservationFormStep2() {
     }
   }, [location.state]);
 
-  // Persist to sessionStorage on changes
   useEffect(() => {
     try {
       sessionStorage.setItem('reservation.step2', JSON.stringify(formData));
@@ -86,19 +85,17 @@ function ReservationFormStep2() {
   }, []);
 
   const handleGoBack = () => {
-    navigate('/reservation-form', { state: { step1, step2: formData, type, facility, file } });
+    navigate(`/reservation-form/${type}/${id}`, { state: { step1, step2: formData, file } });
   };
 
-  // Load special services
   useEffect(() => {
     let active = true;
     (async () => {
       try {
         setLoadingSpecials(true);
-        const res = await fetch(`/api/special-service/get-all-special-services`);
-        const json = await res.json();
-        if (!res.ok) throw new Error(json.error || 'Failed to load special services');
+        const json = await getAllSpecialServices();
         if (!active) return;
+
         const arr = json?.specialServices ?? json?.data ?? json?.services ?? [];
         const opts = arr.map((s, idx) => ({
           value: String(s._id || s.id || `svc-${idx}`),
@@ -106,17 +103,14 @@ function ReservationFormStep2() {
         }));
         setSpecialOptions(opts);
       } catch (e) {
-        if (active) setErr({ message: e.message });
+        if (active) setErr({ message: e.message || 'Failed to load special services' });
       } finally {
         if (active) setLoadingSpecials(false);
       }
     })();
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, []);
 
-  // Load facilities by type
   useEffect(() => {
     let active = true;
     (async () => {
@@ -125,19 +119,12 @@ function ReservationFormStep2() {
       if (!formData.typeFacilities) return;
       try {
         setLoadingFacilities(true);
-        const res = await fetch(
-          `/api/facility/get-facilities-by-type/${encodeURIComponent(formData.typeFacilities)}`
-        );
-        const json = await res.json();
-        if (!res.ok) throw new Error(json.error || 'Failed to load facilities');
+        const json = await getFacilitiesByType(formData.typeFacilities);
         if (!active) return;
 
         const list = (json?.data || json?.facilities || json || []).map((f, idx) => {
           const rawName = String(f.name || '');
-          // Title-case inline (no helper)
-          const label = rawName
-            .toLowerCase()
-            .replace(/\b[a-z]/g, c => c.toUpperCase());
+          const label = rawName.toLowerCase().replace(/\b[a-z]/g, c => c.toUpperCase());
           return {
             _id: String(f._id || f.id),
             label,
@@ -149,25 +136,26 @@ function ReservationFormStep2() {
         });
         setFacilityOptions(list);
 
-        // If selected facility no longer exists, clear it
         setFormData(prev => {
-          if (!prev.facilityName) return prev;
-          const stillExists = list.some(o => o._id === String(prev.facilityName));
-          return stillExists ? prev : { ...prev, facilityName: '' };
+          if (prev.facilityName) {
+              const stillExists = list.some(o => o._id === String(prev.facilityName));
+              return stillExists ? prev : { ...prev, facilityName: '' };
+          }
+          
+          const urlMatch = list.find(o => o._id === String(id));
+          return urlMatch ? { ...prev, facilityName: urlMatch._id } : prev;
+
         });
       } catch (e) {
-        if (active) setErr({ message: e.message });
+        if (active) setErr({ message: e.message || 'Failed to load facilities' });
       } finally {
         if (active) setLoadingFacilities(false);
       }
     })();
 
-    // reset availability status on type change
     setIsAvailable(null);
     setAvailReason('');
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, [formData.typeFacilities]);
 
   const handleInputChange = e => {
@@ -203,44 +191,10 @@ function ReservationFormStep2() {
     if (!formData.facilityName) e.facilityName = 'Select a facility.';
     if (!formData.typeService) e.typeService = 'Select a service type.';
     if (!formData.timeArrivalHour) e.timeArrivalHour = 'Enter arrival hour.';
-    // IMPORTANT: do NOT set capacity error here; we show it inline to avoid duplicates
     setFieldErrors(e);
     return Object.keys(e).length === 0;
   }
 
-  async function fetchAvailability({ facilityId, start, end }) {
-    if (abortRef.current) abortRef.current.abort();
-    const ctrl = new AbortController();
-    abortRef.current = ctrl;
-
-    setCheckingAvail(true);
-    setAvailReason('');
-    try {
-      const qs = new URLSearchParams({ facility: facilityId, start, end });
-      const url = `/api/reservation/check-availability?${qs.toString()}`;
-
-      const res = await fetch(url, { method: 'GET', signal: ctrl.signal });
-      const json = await res.json().catch(() => ({}));
-
-      if (!res.ok) {
-        setIsAvailable(false);
-        setAvailReason(json.error || `HTTP ${res.status}`);
-        return;
-      }
-
-      const available = Boolean(json.available);
-      setIsAvailable(available);
-      setAvailReason(available ? '' : json.reason || 'Facility is not available for the selected dates.');
-    } catch (e) {
-      if (e.name === 'AbortError') return;
-      setIsAvailable(false);
-      setAvailReason(e.message || 'Unable to verify availability.');
-    } finally {
-      setCheckingAvail(false);
-    }
-  }
-
-  // Capacity gating
   const chosenFacility = facilityOptions.find(o => o._id === formData.facilityName);
   const capacityOk = !chosenFacility || Number(chosenFacility.capacity) >= totalGuests;
   const capacityMsg =
@@ -248,39 +202,52 @@ function ReservationFormStep2() {
       ? `Selected facility capacity is ${chosenFacility.capacity}, but you have ${totalGuests} guests.`
       : '';
 
-  // Availability check, but skip if capacity already insufficient
   useEffect(() => {
     const { facilityName, dateArrival, dateDeparture } = formData;
     if (!facilityName || facilityName === 'undefined' || facilityName === 'null') return;
     if (!dateArrival || !dateDeparture) return;
     if (dateDeparture < dateArrival) return;
 
-    // If capacity is not enough, don’t check availability
     if (!capacityOk) {
       setIsAvailable(null);
       setAvailReason(capacityMsg);
       return;
     }
 
-    const t = setTimeout(() => {
-      fetchAvailability({
-        facilityId: facilityName,
-        start: dateArrival,
-        end: dateDeparture,
-      });
+    const currentId = ++availReqId.current;
+
+    const t = setTimeout(async () => {
+      setCheckingAvail(true);
+      setAvailReason('');
+      try {
+        const json = await apiCheckAvailability({
+          facility: facilityName,
+          start: dateArrival,
+          end: dateDeparture,
+        });
+
+        if (availReqId.current !== currentId) return; 
+        const available = Boolean(json?.available);
+        setIsAvailable(available);
+        setAvailReason(available ? '' : json?.reason || 'Facility is not available for the selected dates.');
+      } catch (e) {
+        if (availReqId.current !== currentId) return;
+        setIsAvailable(false);
+        setAvailReason(e?.message || 'Unable to verify availability.');
+      } finally {
+        if (availReqId.current === currentId) setCheckingAvail(false);
+      }
     }, 400);
+
     return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formData.facilityName, formData.dateArrival, formData.dateDeparture, totalGuests, chosenFacility?.capacity, capacityOk]);
 
   const handlePrevious = () => {
-    navigate('/reservation-form', { state: { step1, step2: formData, type, facility, file } });
+    navigate(`/reservation-form/${type}/${id}`, { state: { step1, step2: formData, file } });
   };
 
   const handleNext = () => {
     if (!validateStep2Local()) return;
-
-    // If capacity fails, show single inline error (not fieldErrors duplicate) and block
     if (!capacityOk) return;
 
     if (isAvailable === false) {
@@ -316,8 +283,8 @@ function ReservationFormStep2() {
       facilityRatePerPerson: chosen.ratePerPerson,
     };
 
-    navigate('/reservation-step3', {
-      state: { step1, step2, type, facility, id: facility, file },
+    navigate(`/reservation-step3/${type}/${id}`, {
+      state: { step1, step2, file },
     });
   };
 
@@ -382,6 +349,7 @@ function ReservationFormStep2() {
                       setAvailReason('');
                     }}
                     className={`${styles.input} ${fieldErrors.typeFacilities ? styles.inputError : ''}`}
+                    disabled={Boolean(type)}
                   >
                     <option value="">Select a facility type</option>
                     <option value="DORMITORY">Dormitory</option>
@@ -417,12 +385,13 @@ function ReservationFormStep2() {
                       );
                     })}
                   </select>
-                  {/* Show either fieldErrors OR the inline capacity error, not both */}
                   {fieldErrors.facilityName && (
                     <div className={styles.fieldError}>{fieldErrors.facilityName}</div>
                   )}
-                  {!fieldErrors.facilityName && !capacityOk && (
-                    <div className={styles.fieldError}>{capacityMsg}</div>
+                  {!fieldErrors.facilityName && chosenFacility && !capacityOk && (
+                    <div className={styles.fieldError}>
+                      {`Selected facility capacity is ${chosenFacility.capacity}, but you have ${totalGuests} guests.`}
+                    </div>
                   )}
 
                   {formData.facilityName && formData.dateArrival && formData.dateDeparture && capacityOk && (
@@ -526,9 +495,7 @@ function ReservationFormStep2() {
                       </option>
                     ))}
                   </select>
-                  <button type="button" className={styles.addRequestButton}>
-                    +
-                  </button>
+                  <button type="button" className={styles.addRequestButton}>+</button>
                 </div>
               </div>
 
@@ -543,7 +510,7 @@ function ReservationFormStep2() {
                   disabled={checkingAvail || !capacityOk}
                   title={
                     !capacityOk
-                      ? capacityMsg
+                      ? (chosenFacility ? `Selected facility capacity is ${chosenFacility.capacity}, but you have ${totalGuests} guests.` : '')
                       : checkingAvail
                       ? 'Checking availability…'
                       : undefined

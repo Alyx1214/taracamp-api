@@ -21,7 +21,7 @@ const userModule = {
         };
 
         try {
-            let { email, firstName, lastName, password, role, } = data;
+            let { email, firstName, lastName, password, } = data;
 
             if (!isPresent(email) || !isPresent(firstName) || !isPresent(lastName) || !isPresent(password)) {
                 responseData.status = Status.BAD_REQUEST;
@@ -49,12 +49,6 @@ const userModule = {
                 return responseData;
             }
 
-            if (!isValidRole(role)) {
-                responseData.status = Status.BAD_REQUEST;
-                responseData.error = 'Invalid role';
-                return responseData;
-            }
-
             const emailExists = await dbHelper.findOne('user', { email, });
             if (emailExists) {
                 responseData.status = Status.BAD_REQUEST;
@@ -66,7 +60,7 @@ const userModule = {
                 email,
                 name,
                 password: await hashPassword(password),
-                role,
+                role: UserRole.GUEST,
                 createdAt: Date.now(),
                 lastLoggedIn: null,
             });
