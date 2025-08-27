@@ -272,3 +272,9 @@
 .availabilityBad { 
   color: #d32f2f; 
 }
+
+.input:disabled {
+  color: #000 !important;     
+  -webkit-text-fill-color: #000; 
+  opacity: 1;               
+}

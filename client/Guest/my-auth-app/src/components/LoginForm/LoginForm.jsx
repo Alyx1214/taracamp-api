@@ -3,6 +3,8 @@ import styles from '../AuthFormContainer/AuthFormContainer.module.css';
 import { FaGoogle, FaFacebook, FaEye, FaEyeSlash } from 'react-icons/fa';
 import { useGoogleLogin } from '@react-oauth/google';
 import { useFacebookLogin } from '@kazion/react-facebook-login';
+import { login as apiLogin, googleLogin as apiGoogleLogin, facebookLogin as apiFacebookLogin } from '../../apis/userApi.js';
+import { persistAuth } from '../../utils/auth';
 
 function LoginForm({ onForgotPassword, onLoginSuccess }) {
   const [email, setEmail] = useState('');
@@ -20,23 +22,11 @@ function LoginForm({ onForgotPassword, onLoginSuccess }) {
       setLoading(true);
       setError(null);
       try {
-        const response = await fetch(`${API}/user/google-login`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code: codeResponse.code }),
-        });
-        const data = await response.json();
-        if (response.ok) {
-          localStorage.setItem('accessToken', data.accessToken);
-          localStorage.setItem('refreshToken', data.refreshToken); 
-          localStorage.setItem('userId', data.userId);
-          localStorage.setItem('userRole', data.role);
-          onLoginSuccess();
-        } else {
-          setError(data.error || 'Google login failed. Please try again.');
-        }
+        const data = await apiGoogleLogin({ code: codeResponse.code });
+        persistAuth(data);
+        onLoginSuccess();
       } catch (err) {
-        setError('An unexpected error occurred. Please try again later.');
+        setError(err?.data?.error || 'Google login failed. Please try again.');
       } finally {
         setLoading(false);
       }
@@ -45,29 +35,18 @@ function LoginForm({ onForgotPassword, onLoginSuccess }) {
     flow: 'auth-code',
   });
 
-  const facebookLogin = useFacebookLogin({
+  const fbLogin = useFacebookLogin({
     scope: 'public_profile,email',
     onSuccess: async (response) => {
       setFacebookLoading(true);
       setFacebookError(null);
       try {
         const accessToken = response.authResponse.accessToken;
-        const apiRes = await fetch(`${API}/user/facebook-login`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token: accessToken }),
-        });
-        const data = await apiRes.json();
-        if (apiRes.ok) {
-          localStorage.setItem('accessToken', data.accessToken);
-          localStorage.setItem('userId', data.userId);
-          localStorage.setItem('userRole', data.role);
-          onLoginSuccess();
-        } else {
-          setFacebookError(data.error || 'Facebook login failed. Please try again.');
-        }
+        const data = await apiFacebookLogin({ token: accessToken });
+        persistAuth(data);
+        onLoginSuccess();
       } catch (err) {
-        setFacebookError('An unexpected error occurred during Facebook login.');
+        setFacebookError(err?.data?.error || 'Facebook login failed. Please try again.');
       } finally {
         setFacebookLoading(false);
       }
@@ -83,7 +62,7 @@ function LoginForm({ onForgotPassword, onLoginSuccess }) {
     setFacebookLoading(true);
     setFacebookError(null);
     try {
-      await facebookLogin();
+      await fbLogin();
     } catch (err) {
       console.error('Network error:', err);
       setFacebookError('An unexpected error occurred. Please try again later.');
@@ -96,23 +75,11 @@ function LoginForm({ onForgotPassword, onLoginSuccess }) {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${API}/user/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-      const data = await response.json();
-      if (response.ok) {
-        localStorage.setItem('accessToken', data.accessToken);
-        localStorage.setItem('refreshToken', data.refreshToken);
-        localStorage.setItem('userId', data.userId);
-        localStorage.setItem('userRole', data.role);
-        onLoginSuccess();
-      } else {
-        setError(data.error || 'Login failed. Please try again.');
-      }
+      const data = await apiLogin({ email, password });
+      persistAuth(data);
+      onLoginSuccess();
     } catch (err) {
-      setError('An unexpected error occurred. Please try again later.');
+      setError(err?.data?.error || 'Login failed. Please try again.');
     } finally {
       setLoading(false);
     }

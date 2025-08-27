@@ -88,7 +88,7 @@ export default function Notif({ onMarkAllAsRead }) {
     setErr('');
     setLoading(true);
     try {
-      const json = await api(`${API}/notification/list`);
+      const json = await api('/api/notification/list');
       const raw =
         Array.isArray(json?.data?.items) ? json.data.items :
         Array.isArray(json?.data)        ? json.data :

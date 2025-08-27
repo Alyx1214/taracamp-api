@@ -1,8 +1,12 @@
-import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+// components/ResHistory/ResHistory.jsx
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import HeaderHome from '../HeaderHome/HeaderHome';
 import ErrorBanner from '../ErrorBanner/ErrorBanner';
 import styles from './ResHistory.module.css';
+
+import { getMyReservations } from '../../apis/reservationApi';
+import { getFacilityById } from '../../apis/facilityApi';
 
 function ReservationHistory() {
   const navigate = useNavigate();
@@ -11,52 +15,12 @@ function ReservationHistory() {
   const [err, setErr] = useState(null);
   const [reservationsRaw, setReservationsRaw] = useState([]);
   const [openReservationId, setOpenReservationId] = useState(null);
-  const abortRef = useRef(null);
-  const API = import.meta.env.VITE_API_URL;
 
   useEffect(() => {
-    const token = localStorage.getItem('accessToken');
-    if (!token) navigate('/auth/login', { replace: true });
-  }, [navigate]);
-
-  const refreshAccessToken = useCallback(async () => {
-    const rt = localStorage.getItem('refreshToken');
-    if (!rt) throw new Error('No refresh token');
-    const res = await fetch(`${API}/user/refresh-token`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refreshToken: rt }),
-    });
-    const data = res.status !== 404 ? await res.json().catch(() => ({})) : {};
-    if (!res.ok || !data?.accessToken) throw new Error(data.error || 'Refresh failed');
-    localStorage.setItem('accessToken', data.accessToken);
-    return data.accessToken;
-  }, []);
-
-  const authorizedFetch = useCallback(async (url, options) => {
-    let token = localStorage.getItem('accessToken');
-    const headers = new Headers(options?.headers || {});
-    if (token) headers.set('Authorization', `Bearer ${token}`);
-
-    const ctrl = new AbortController();
-    abortRef.current = ctrl;
-
-    let res = await fetch(url, { ...options, headers, signal: ctrl.signal });
-
-    if (res.status === 401 || res.status === 403) {
-      try {
-        const newToken = await refreshAccessToken();
-        const retryHeaders = new Headers(options?.headers || {});
-        retryHeaders.set('Authorization', `Bearer ${newToken}`);
-        res = await fetch(url, { ...options, headers: retryHeaders, signal: ctrl.signal });
-      } catch (e) {
-        localStorage.clear();
-        navigate('/auth/login', { replace: true });
-        throw e;
-      }
+    if (!localStorage.getItem('accessToken')) {
+      navigate('/auth/login', { replace: true });
     }
-    return res;
-  }, [refreshAccessToken, navigate]);
+  }, [navigate]);
 
   const mapFacilityTypeLabel = (t) => {
     const s = String(t || '').trim().toUpperCase();
@@ -81,25 +45,19 @@ function ReservationHistory() {
     if (!Number.isFinite(num)) return 'N/A';
     return num.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
-
   const fmtMDY = (d) => {
     try {
-      const date = new Date(d);
-      if (Number.isNaN(date.getTime())) return 'N/A';
-      return date.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
-    } catch {
-      return 'N/A';
-    }
+      const dt = new Date(d);
+      if (Number.isNaN(dt.getTime())) return 'N/A';
+      return dt.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
+    } catch { return 'N/A'; }
   };
-
   const fmtLong = (d) => {
     try {
-      const date = new Date(d);
-      if (Number.isNaN(date.getTime())) return '—';
-      return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-    } catch {
-      return 'N/A';
-    }
+      const dt = new Date(d);
+      if (Number.isNaN(dt.getTime())) return '—';
+      return dt.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    } catch { return 'N/A'; }
   };
 
   useEffect(() => {
@@ -108,15 +66,15 @@ function ReservationHistory() {
     (async () => {
       setLoading(true);
       setErr(null);
-
       try {
-        const res = await authorizedFetch(`${API}/reservation/get-reservation-by-user-id`, { method: 'GET' });
-        const json = res.status !== 404 ? await res.json().catch(() => ({})) : {};
-        if (!res.ok && res.status !== 404) throw new Error(json.error || 'Failed to load reservations');
+        const data = await getMyReservations().catch((e) => {
+          if (e?.status === 404) return { reservations: [] }; 
+          throw e;
+        });
 
-        const list = Array.isArray(json?.reservations) ? json.reservations : [];
         if (!active) return;
 
+        const list = Array.isArray(data?.reservations) ? data.reservations : [];
         if (list.length === 0) {
           setReservationsRaw([]);
           setOpenReservationId(null);
@@ -126,38 +84,40 @@ function ReservationHistory() {
         const ids = [...new Set(list.map(r => String(r?.facility || '')).filter(Boolean))];
         const pairs = await Promise.all(ids.map(async (fid) => {
           try {
-            const rf = await fetch(`${API}/facility/get-facility-by-id/${encodeURIComponent(fid)}`);
-            const fj = await rf.json().catch(() => ({}));
+            const fj = await getFacilityById(fid);
             const f = fj?.data || fj?.facility || fj?.result || fj;
             return [fid, {
-              name: (f?.name || 'N/A'),
-              type: (f?.type || f?.facilityType || f?.typeOfFacility || f?.category || 'N/A'),
+              name: f?.name || 'N/A',
+              type: f?.type || f?.facilityType || f?.typeOfFacility || f?.category || 'N/A',
             }];
           } catch {
             return [fid, { name: 'N/A', type: 'N/A' }];
           }
         }));
 
-        const fidToInfo = Object.fromEntries(pairs);
+        if (!active) return;
+
+        const byId = Object.fromEntries(pairs);
         setReservationsRaw(list.map(r => ({
           ...r,
-          __facilityInfo: fidToInfo[String(r?.facility || '')] || { name: 'N/A', type: 'N/A' },
+          __facilityInfo: byId[String(r?.facility || '')] || { name: 'N/A', type: 'N/A' },
         })));
 
         const firstId = String(list[0]._id || list[0].id || '');
         setOpenReservationId(firstId || null);
       } catch (e) {
-        if (active) setErr({ message: e.message || 'Unable to load reservations' });
+        if (!active) return;
+        setErr({ message: e?.data?.error || e?.message || 'Unable to load reservations' });
+        if (e?.status === 401 || e?.status === 403) {
+          navigate('/auth/login', { replace: true });
+        }
       } finally {
         if (active) setLoading(false);
       }
     })();
 
-    return () => {
-      active = false;
-      abortRef.current?.abort?.();
-    };
-  }, [authorizedFetch]);
+    return () => { active = false; };
+  }, [navigate]);
 
   const reservationsView = useMemo(() => {
     return reservationsRaw.map((r) => {
@@ -187,7 +147,7 @@ function ReservationHistory() {
           dateOfDeparture: fmtLong(r?.dateOfDeparture),
           typeOfFacility: facType,
           facilityName: facName,
-          typeOfService: (r?.serviceType || 'N/A'),
+          typeOfService: r?.serviceType || 'N/A',
         },
         totalEstimatedAmount: fmtPeso(r?.totalEstimatedAmount),
         confirmed: String(r?.status || '').toUpperCase() === 'CONFIRMED',
@@ -196,8 +156,10 @@ function ReservationHistory() {
   }, [reservationsRaw]);
 
   const handleGoBack = () => navigate(-1);
-  const toggleReservation = (id) => setOpenReservationId(openReservationId === id ? null : id);
-  const handleConfirmNow = (reservationId) => alert(`Reservation ${reservationId} confirmed! (placeholder)`);
+  const toggleReservation = (id) =>
+    setOpenReservationId(openReservationId === id ? null : id);
+  const handleConfirmNow = (reservationId) =>
+    alert(`Reservation ${reservationId} confirmed! (placeholder)`);
 
   return (
     <>

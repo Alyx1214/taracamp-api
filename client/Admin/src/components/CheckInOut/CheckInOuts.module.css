@@ -1,0 +1,51 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.headerRow {
+  display: flex;
+  justify-content: space-between; 
+  align-items: center;
+  gap: 20px;
+}
+
+.content {
+  margin-top: 12px;
+}
+
+.pillBtn {
+  padding: 6px 14px;
+  border: none;
+  border-radius: 9999px; 
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.1s ease;
+  color: white;
+}
+
+.checkInBtn {
+  background-color: #28a745; 
+}
+.checkInBtn:hover {
+  background-color: #218838;
+  transform: scale(1.05);
+}
+
+.checkOutBtn {
+  background-color: #664923; 
+}
+.checkOutBtn:hover {
+  background-color: #4F3718;
+  transform: scale(1.05);
+}
+
+.deleteBtn {
+  background-color: #64030de5; 
+}
+.deleteBtn:hover {
+  background-color: #64030d8e;
+  transform: scale(1.05);
+}

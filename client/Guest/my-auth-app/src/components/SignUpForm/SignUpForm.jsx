@@ -7,6 +7,9 @@ import { useGoogleLogin } from '@react-oauth/google';
 import { useFacebookLogin } from '@kazion/react-facebook-login';
 import Terms from '../Terms/Terms';
 
+import { register as apiRegister, googleLogin as apiGoogleLogin, facebookLogin as apiFacebookLogin, } from '../../apis/userApi';
+import { persistAuth } from '../../utils/auth';
+
 function SignUpForm({ onRegistrationSuccess }) {
   const [email, setEmail] = useState('');
   const [firstName, setFirstName] = useState('');
@@ -14,87 +17,59 @@ function SignUpForm({ onRegistrationSuccess }) {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+
   const [facebookLoading, setFacebookLoading] = useState(false);
   const [facebookError, setFacebookError] = useState(null);
+
   const navigate = useNavigate();
   const API = import.meta.env.VITE_API_URL;
 
   const handleRegistrationSuccess = () => {
-    if (onRegistrationSuccess) {
-      onRegistrationSuccess();
-    } else {
-      navigate('/auth/login');
-    }
+    if (onRegistrationSuccess) onRegistrationSuccess();
+    else navigate('/auth/login');
   };
 
+  // Google OAuth (auth code flow)
   const handleGoogleLogin = useGoogleLogin({
     onSuccess: async (codeResponse) => {
       setLoading(true);
       setError(null);
       try {
-        const response = await fetch(`${API}/user/google-login`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ token: codeResponse.code }),
-        });
-
-        const data = await response.json();
-
-        if (response.ok) {
-          console.log('Google login successful:', data);
-          localStorage.setItem('accessToken', data.accessToken);
-          localStorage.setItem('refreshToken', data.refreshToken);
-          localStorage.setItem('userId', data.userId);
-          localStorage.setItem('userRole', data.role);
-          navigate('/homepage');
-        } else {
-          console.error('Google login failed:', data.error);
-          setError(data.error || 'Google login failed. Please try again.');
-        }
+        // IMPORTANT: backend expects { code }, not { token }
+        const data = await apiGoogleLogin({ code: codeResponse.code });
+        // Social signups usually log you in right away
+        persistAuth(data);
+        navigate('/homepage');
       } catch (err) {
-        console.error('Network error or unexpected issue:', err);
-        setError('An unexpected error occurred. Please try again later.');
+        setError(err?.data?.error || 'Google login failed. Please try again.');
       } finally {
         setLoading(false);
       }
     },
-    onError: () => {
-      setError('Google login failed. Please try again.');
-    },
+    onError: () => setError('Google login failed. Please try again.'),
     flow: 'auth-code',
   });
 
-  const facebookLogin = useFacebookLogin({
+  // Facebook OAuth
+  const fbLogin = useFacebookLogin({
     scope: 'public_profile,email',
     onSuccess: async (response) => {
       setFacebookLoading(true);
       setFacebookError(null);
       try {
-        const accessToken = response.authResponse.accessToken;
-        const apiRes = await fetch(`${API}/user/facebook-login`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token: accessToken }),
-        });
-        const data = await apiRes.json();
-        if (apiRes.ok) {
-          localStorage.setItem('accessToken', data.accessToken);
-          localStorage.setItem('refreshToken', data.refreshToken);
-          localStorage.setItem('userId', data.userId);
-          localStorage.setItem('userRole', data.role);
-          navigate('/homepage');
-        } else {
-          setFacebookError(data.error || 'Facebook login failed. Please try again.');
-        }
+        const accessToken = response.authResponse?.accessToken;
+        const data = await apiFacebookLogin({ token: accessToken });
+        persistAuth(data);
+        navigate('/homepage');
       } catch (err) {
-        setFacebookError('An unexpected error occurred during Facebook login.');
+        setFacebookError(err?.data?.error || 'Facebook login failed. Please try again.');
       } finally {
         setFacebookLoading(false);
       }
@@ -110,7 +85,7 @@ function SignUpForm({ onRegistrationSuccess }) {
     setFacebookLoading(true);
     setFacebookError(null);
     try {
-      await facebookLogin();
+      await fbLogin();
     } catch (err) {
       console.error('Network error:', err);
       setFacebookError('An unexpected error occurred. Please try again later.');
@@ -118,6 +93,7 @@ function SignUpForm({ onRegistrationSuccess }) {
     }
   };
 
+  // Email/password signup
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -135,25 +111,11 @@ function SignUpForm({ onRegistrationSuccess }) {
     }
 
     try {
-      const response = await fetch(`${API}/user/register`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, firstName, lastName, password }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        handleRegistrationSuccess(); 
-      } else {
-        console.error('Registration failed:', data.error);
-        setError(data.error || 'Registration failed. Please try again.');
-      }
+      await apiRegister({ email, firstName, lastName, password });
+      handleRegistrationSuccess();
     } catch (err) {
-      console.error('Network error or unexpected issue:', err);
-      setError('An unexpected error occurred. Please try again later.');
+      console.error('Registration failed:', err);
+      setError(err?.data?.error || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -165,6 +127,7 @@ function SignUpForm({ onRegistrationSuccess }) {
       <p style={{ fontSize: '0.8em', marginBottom: '25px', textAlign: 'left' }}>
         Join and Explore the possibilities that Teachers Camp have!
       </p>
+
       <form onSubmit={handleSubmit}>
         <input
           type="email"
@@ -174,6 +137,7 @@ function SignUpForm({ onRegistrationSuccess }) {
           onChange={(e) => setEmail(e.target.value)}
           required
         />
+
         <div style={{ display: 'flex', gap: '10px', width: '100%', marginBottom: '15px' }}>
           <input
             type="text"
@@ -194,6 +158,7 @@ function SignUpForm({ onRegistrationSuccess }) {
             style={{ marginBottom: '0', flex: 1 }}
           />
         </div>
+
         <div style={{ position: 'relative', marginBottom: '15px', width: '100%' }}>
           <input
             type={showPassword ? 'text' : 'password'}
@@ -214,12 +179,13 @@ function SignUpForm({ onRegistrationSuccess }) {
               color: '#666',
               fontSize: '1.1em',
             }}
-            onClick={() => setShowPassword(!showPassword)}
+            onClick={() => setShowPassword((v) => !v)}
             aria-label={showPassword ? 'Hide password' : 'Show password'}
           >
             {showPassword ? <FaEyeSlash /> : <FaEye />}
           </span>
         </div>
+
         <div style={{ position: 'relative', marginBottom: '20px', width: '100%' }}>
           <input
             type={showConfirmPassword ? 'text' : 'password'}
@@ -240,12 +206,13 @@ function SignUpForm({ onRegistrationSuccess }) {
               color: '#666',
               fontSize: '1.1em',
             }}
-            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+            onClick={() => setShowConfirmPassword((v) => !v)}
             aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
           >
             {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
           </span>
         </div>
+
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: '15px', width: '100%' }}>
           <input
             type="checkbox"
@@ -264,15 +231,23 @@ function SignUpForm({ onRegistrationSuccess }) {
             </span>
           </label>
         </div>
-        <button type="submit" className={`${commonStyles.formButton} ${specificStyles.signUpFormButton}`} disabled={loading}>
+
+        <button
+          type="submit"
+          className={`${commonStyles.formButton} ${specificStyles.signUpFormButton}`}
+          disabled={loading}
+        >
           Sign Up
         </button>
       </form>
+
       {loading && <p>Signing up...</p>}
       {error && <p style={{ color: 'red' }}>{error}</p>}
       {facebookLoading && <p>Signing up with Facebook...</p>}
       {facebookError && <p style={{ color: 'red' }}>{facebookError}</p>}
+
       <p className={`${commonStyles.orSeparator} ${specificStyles.signUpOrSeparator}`}>or</p>
+
       <div className={commonStyles.socialLogin}>
         <button
           onClick={handleFacebookLogin}
@@ -282,10 +257,16 @@ function SignUpForm({ onRegistrationSuccess }) {
         >
           <FaFacebook style={{ color: '#1877F2' }} />
         </button>
-        <button onClick={() => handleGoogleLogin()} className={commonStyles.socialButton} aria-label="Sign up with Google">
+
+        <button
+          onClick={() => handleGoogleLogin()}
+          className={commonStyles.socialButton}
+          aria-label="Sign up with Google"
+        >
           <FaGoogle style={{ color: '#DB4437' }} />
         </button>
       </div>
+
       {showTermsModal && <Terms onClose={() => setShowTermsModal(false)} />}
     </div>
   );

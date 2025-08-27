@@ -1,8 +1,8 @@
+// Services.jsx
 import React, { useState } from 'react';
 import { useNavigate, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import HeaderHome from '../HeaderHome/HeaderHome'; 
-import FooterHome from '../FooterHome/FooterHome'; 
-
+import HeaderHome from '../HeaderHome/HeaderHome';
+import FooterHome from '../FooterHome/FooterHome';
 import styles from '../MainServices/MainServices.module.css';
 import MainServicesHeader from '../MainServices/Header';
 import MainServicesNavSearch from '../MainServices/NavSearch';
@@ -12,7 +12,7 @@ import MainServicesRates from '../MainServices/ServicesRates';
 import MainServicesConference from '../MainServices/Conference';
 import MainServicesOtherService from '../MainServices/OtherService';
 import MainServicesServiceDetail from '../MainServices/ServiceDetail';
-
+import { searchFacilities } from '../../apis/facilityApi'; 
 
 function Services() {
   const [facilities, setFacilities] = useState([]);
@@ -37,20 +37,22 @@ function Services() {
     setLoading(true);
     setSearchAttempted(true);
     try {
-      const res = await fetch(
-        `${API}/facility/search-facilities?type=${encodeURIComponent(facilityType)}&query=${encodeURIComponent(query)}`
-      );
-      const data = await res.json();
-      if (data.status === 200) {
-        setFacilities(data.facilities || []);
+      const res = await searchFacilities({ type: facilityType, query });
+      if (res?.status === 200) {
+        const list =
+          Array.isArray(res.facilities) ? res.facilities :
+          Array.isArray(res.data) ? res.data :
+          Array.isArray(res?.data?.facilities) ? res.data.facilities : [];
+        setFacilities(list);
       } else {
         setFacilities([]);
       }
-    } catch (error) { 
-      console.error("Search failed:", error);
+    } catch (err) {
+      console.error('Search failed:', err);
       setFacilities([]);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleClearSearch = () => {
@@ -62,33 +64,32 @@ function Services() {
     setLoading(true);
     setSearchAttempted(true);
     try {
-      const params = new URLSearchParams({
+      const params = {
         type: facilityType,
-        minPrice: filters.minPrice,
-        maxPrice: filters.maxPrice,
-        capacity: filters.capacity,
-        checkInDate: filters.checkInDate,
-        checkOutDate: filters.checkOutDate
-      });
+        minPrice: filters.minPrice || undefined,
+        maxPrice: filters.maxPrice || undefined,
+        capacity: filters.capacity || undefined,
+        checkInDate: filters.checkInDate || undefined,
+        checkOutDate: filters.checkOutDate || undefined,
+      };
 
-      for (const [key, value] of params.entries()) {
-        if (!value) params.delete(key);
-      }
-
-      const res = await fetch(`${API}/facility/search-facilities?${params.toString()}`);
-      const data = await res.json();
-      if (data.status === 200) {
-        setFacilities(data.facilities || []);
+      const res = await searchFacilities(params);
+      if (res?.status === 200) {
+        const list =
+          Array.isArray(res.facilities) ? res.facilities :
+          Array.isArray(res.data) ? res.data :
+          Array.isArray(res?.data?.facilities) ? res.data.facilities : [];
+        setFacilities(list);
       } else {
         setFacilities([]);
       }
-    } catch (error) { 
-      console.error("Filter application failed:", error);
+    } catch (err) {
+      console.error('Filter application failed:', err);
       setFacilities([]);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
-
 
   const isDetailViewOrOtherService =
     (location.pathname.includes('/dormitories/') && location.pathname.split('/').length > 3) ||
@@ -98,27 +99,43 @@ function Services() {
 
   return (
     <div className={styles.mainServicesPageContainer}>
-      <HeaderHome /> 
+      <HeaderHome />
 
       <main className={styles.mainContent}>
         <MainServicesHeader />
         <div className={styles.contentWrapper}>
-          <MainServicesNavSearch onSearch={handleSearch} onClearSearch={handleClearSearch} onApplyFilters={handleApplyFilters} />
+          <MainServicesNavSearch
+            onSearch={handleSearch}
+            onClearSearch={handleClearSearch}
+            onApplyFilters={handleApplyFilters}
+          />
 
-         <Routes>
-          <Route index element={<Navigate to="dormitories" replace />} />
-          <Route path="dormitories" element={<MainServicesDormitories facilities={facilities} loading={loading} searchAttempted={searchAttempted} />} />
-          <Route path="cottages" element={<MainServicesCottages facilities={facilities} loading={loading} searchAttempted={searchAttempted} />} />
-          <Route path="conference" element={<MainServicesConference facilities={facilities} loading={loading} searchAttempted={searchAttempted} />} />
-          <Route path="otherservice" element={<MainServicesOtherService facilities={facilities} loading={loading} searchAttempted={searchAttempted} />} />
-          <Route path=":type/:id" element={<MainServicesServiceDetail />} />
-        </Routes>
+          <Routes>
+            <Route index element={<Navigate to="dormitories" replace />} />
+            <Route
+              path="dormitories"
+              element={<MainServicesDormitories facilities={facilities} loading={loading} searchAttempted={searchAttempted} />}
+            />
+            <Route
+              path="cottages"
+              element={<MainServicesCottages facilities={facilities} loading={loading} searchAttempted={searchAttempted} />}
+            />
+            <Route
+              path="conference"
+              element={<MainServicesConference facilities={facilities} loading={loading} searchAttempted={searchAttempted} />}
+            />
+            <Route
+              path="otherservice"
+              element={<MainServicesOtherService facilities={facilities} loading={loading} searchAttempted={searchAttempted} />}
+            />
+            <Route path=":type/:id" element={<MainServicesServiceDetail />} />
+          </Routes>
 
           {!isDetailViewOrOtherService && <MainServicesRates />}
         </div>
       </main>
 
-      <FooterHome /> 
+      <FooterHome />
     </div>
   );
 }
