@@ -1,0 +1,13 @@
+.overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.28); display: flex; align-items: center; justify-content: center; z-index: 50; }
+.container { background: #fff; width: 96%; max-width: 620px; border-radius: 16px; box-shadow: 0 8px 28px rgba(0,0,0,0.18); overflow: hidden; }
+.header { height: 8px; background: linear-gradient(90deg, #335533, #4b7c4b); }
+.checkmarkWrapper { display: flex; justify-content: center; margin: 24px 0 8px; }
+.checkmarkCircle { width: 64px; height: 64px; border-radius: 50%; background: #4b7c4b; display: flex; align-items: center; justify-content: center; color: #fff; }
+.checkmarkIcon { width: 34px; height: 34px; }
+.title { margin: 10px 18px 6px; font-size: 1.25rem; font-weight: 700; text-align: center; color: #222; }
+.desc { margin: 0 24px 14px; font-size: 0.98rem; color: #555; text-align: center; }
+.buttonRow { display: flex; gap: 12px; justify-content: center; padding: 16px 18px 22px; }
+.btnBase { border: none; border-radius: 20px; padding: 10px 18px; font-weight: 600; cursor: pointer; }
+.doneBtn { background: #335533; color: #fff; }
+.reviewBtn { background: #eee; color: #333; }
+
