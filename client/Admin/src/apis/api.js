@@ -36,7 +36,7 @@ async function rawFetch(path, options = {}) {
   return fetch(url, { ...options, headers: retryHeaders });
 }
 
-async function tryRefresh() {
+export async function tryRefresh() {
   const refresh = getRefreshToken();
   if (!refresh) return null;
   try {
