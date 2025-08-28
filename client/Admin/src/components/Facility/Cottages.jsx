@@ -1,18 +1,57 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import BoxCard from "./BoxCard";
+import { getFacilitiesByType, deleteFacility } from "../../apis/facilityApi";
 
 export default function Cottages({ onEdit }) {
-const cottages = [
-{ id: "c1", name: "Beachfront Cottage", rate: 1500, capacity: 4, status: "Available" },
-{ id: "c2", name: "Garden Cottage", rate: 1200, capacity: 3, status: "Occupied" },
-];
+  const [cottages, setCottages] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-return (
-<BoxCard
-facilities={cottages}
-type="Cottages"
-onEdit={onEdit}
-onDelete={(id) => console.log("Delete Cottage", id)}
-/>
-);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await getFacilitiesByType('COTTAGE');
+        if (cancelled) return;
+        const mapped = (res.facilities || []).map(f => ({
+          id: f.id,
+          name: f.name,
+          capacity: f.capacity,
+          rate: f.ratePerPerson ?? f.price ?? 0,
+          image: f.image || null,
+        }));
+        setCottages(mapped);
+      } catch (e) {
+        if (!cancelled) setError(e?.data?.error || e.message || 'Failed to load facilities');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const handleDelete = async (id) => {
+    try {
+      await deleteFacility(id);
+      setCottages((prev) => prev.filter((f) => f.id !== id));
+    } catch (e) {
+      setError(e?.data?.error || e.message || 'Failed to delete facility');
+    }
+  };
+
+  return (
+    <>
+      {loading && <p>Loading cottages...</p>}
+      {error && <p style={{ color: 'red' }}>{error}</p>}
+      {!loading && !error && cottages.length === 0 && <p>No Cottages found</p>}
+      {!loading && !error && cottages.length > 0 && (
+        <BoxCard
+          facilities={cottages}
+          type="Cottages"
+          onEdit={onEdit}
+          onDelete={handleDelete}
+        />
+      )}
+    </>
+  );
 }

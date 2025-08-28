@@ -1,5 +1,5 @@
 import React from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import {
   FaTachometerAlt,
   FaBed,
@@ -12,8 +12,22 @@ import {
   FaTimes,
 } from "react-icons/fa";
 import "./Sidebar.css";
+import { logout as apiLogout } from "../../apis/userApi";
+import { clearTokens } from "../../apis/api";
 
 const Sidebar = ({ isOpen, onClose }) => {
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    try {
+      await apiLogout();
+    } catch (e) {
+      // ignore API error; proceed to clear client state
+    } finally {
+      try { clearTokens(); } catch {}
+      navigate('/auth/login', { replace: true });
+    }
+  };
   return (
     <div className={`sidebar ${isOpen ? "open" : ""}`}>
       
@@ -49,7 +63,7 @@ const Sidebar = ({ isOpen, onClose }) => {
       </nav>
 
       <div className="logout-section">
-        <button className="logout-btn" onClick={onClose}>
+        <button className="logout-btn" onClick={handleLogout}>
           <FaSignOutAlt />
           <span>LOG OUT</span>
         </button>

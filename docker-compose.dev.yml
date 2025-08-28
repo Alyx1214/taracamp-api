@@ -19,6 +19,7 @@ services:
         - "5174:5174"
       volumes:
         - ./client/Admin:/app
+        - /app/node_modules
       environment:
         - NODE_ENV=development
 
@@ -35,12 +36,6 @@ services:
       - ./server/modules/taracamp-e87a751f4810.json:/app/modules/taracamp-e87a751f4810.json
     environment:
       - NODE_ENV=development
-      - REDIS_URL=redis://redis:6379
       - GOOGLE_APPLICATION_CREDENTIALS=/app/modules/taracamp-e87a751f4810.json
-    depends_on:
-      - redis
 
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
+

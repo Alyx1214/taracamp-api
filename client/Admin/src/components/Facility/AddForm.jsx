@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { FaArrowLeft, FaUpload } from "react-icons/fa";
 import { useNavigate, useLocation } from "react-router-dom";
 import styles from "./AddForm.module.css";
+import { createFacility } from "../../apis/facilityApi";
 
 const AddForm = () => {
   const navigate = useNavigate();
@@ -16,6 +17,22 @@ const AddForm = () => {
     status: "Available",
     image: null,
   });
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
+
+  const facilityType = useMemo(() => {
+    switch (category) {
+      case "Dormitory":
+        return "DORMITORY";
+      case "Cottages":
+        return "COTTAGE";
+      case "Conference":
+        return "CONFERENCE";
+      default:
+        return "";
+    }
+  }, [category]);
 
   const handleChange = (e) => {
     const { name, value, files } = e.target;
@@ -26,9 +43,40 @@ const AddForm = () => {
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Form submitted:", formData);
+    setSubmitting(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const payload = {
+        name: formData.name,
+        facilityType,
+        status: formData.status.toUpperCase(), // maps to AVAILABLE/UNAVAILABLE
+        image: formData.image,
+      };
+
+      // capacity required for Dormitory and Conference
+      if (facilityType === "DORMITORY" || facilityType === "CONFERENCE" || facilityType === "COTTAGE") {
+        payload.capacity = formData.capacity;
+      }
+      // price/rate mapping
+      if (facilityType === "CONFERENCE") {
+        payload.price = formData.rate;
+      } else if (facilityType === "DORMITORY" || facilityType === "COTTAGE") {
+        payload.ratePerPerson = formData.rate;
+      }
+
+      const res = await createFacility(payload);
+      setSuccess(res.message || "Facility created successfully");
+      // navigate back after a brief delay
+      setTimeout(() => navigate(-1), 800);
+    } catch (err) {
+      setError(err?.data?.error || err.message || "Failed to create facility");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -43,8 +91,19 @@ const AddForm = () => {
       <label className={styles.uploadBox}>
         <FaUpload className={styles.uploadIcon} />
         <p className={styles.uploadText}>Upload {category} Image</p>
-        <input type="file" name="image" onChange={handleChange} hidden />
+        <input
+          type="file"
+          name="image"
+          accept="image/png,image/jpeg"
+          onChange={handleChange}
+          hidden
+        />
       </label>
+      {formData.image && (
+        <div style={{ marginBottom: 16 }}>
+          <small>Selected: {formData.image.name}</small>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit}>
         <div className={styles.formRow}>
@@ -60,7 +119,7 @@ const AddForm = () => {
           </label>
 
           <label>
-            Rate per Person:
+            {facilityType === "CONFERENCE" ? "Price:" : "Rate per Person:"}
             <input
               type="number"
               name="rate"
@@ -72,16 +131,18 @@ const AddForm = () => {
         </div>
 
         <div className={styles.formRow}>
-          <label>
-            Capacity:
-            <input
-              type="number"
-              name="capacity"
-              value={formData.capacity}
-              onChange={handleChange}
-              required
-            />
-          </label>
+          {(facilityType === "DORMITORY" || facilityType === "CONFERENCE" || facilityType === "COTTAGE") && (
+            <label>
+              Capacity:
+              <input
+                type="number"
+                name="capacity"
+                value={formData.capacity}
+                onChange={handleChange}
+                required
+              />
+            </label>
+          )}
 
           <label>
             Status:
@@ -96,7 +157,9 @@ const AddForm = () => {
           </label>
         </div>
 
-        <button type="submit" className={styles.submitBtn}>
+        {error && <p style={{ color: 'red' }}>{error}</p>}
+        {success && <p style={{ color: 'green' }}>{success}</p>}
+        <button type="submit" className={styles.submitBtn} disabled={submitting}>
           Add {category.charAt(0).toUpperCase() + category.slice(1).toLowerCase()}
         </button>
       </form>

@@ -5,7 +5,6 @@ dotenv.config();
 
 const storage = new Storage();
 const bucket = storage.bucket(process.env.BUCKET_NAME);
-
 const facilityModule = {
     /**
      * Adds a new facility to the database.
@@ -73,7 +72,11 @@ const facilityModule = {
                 return responseData;
             }
 
-            if (facilityType === FacilityType.CONFERENCE || facilityType === FacilityType.DORMITORY) {
+            if (
+                facilityType === FacilityType.CONFERENCE ||
+                facilityType === FacilityType.DORMITORY ||
+                facilityType === FacilityType.COTTAGE
+            ) {
                 if (!isPresent(capacity) || !isValidCapacity(capacity)) {
                     responseData.status = Status.BAD_REQUEST;
                     responseData.error = 'Invalid or missing capacity for this facility type';
@@ -109,7 +112,11 @@ const facilityModule = {
                 status,
             };
 
-            if (facilityType === FacilityType.CONFERENCE || facilityType === FacilityType.DORMITORY) {
+            if (
+                facilityType === FacilityType.CONFERENCE ||
+                facilityType === FacilityType.DORMITORY ||
+                facilityType === FacilityType.COTTAGE
+            ) {
                 facilityData.capacity = parseInt(String(capacity).replace(/,/g, ''), 10);
             }
 
@@ -667,7 +674,8 @@ function isValidImage(file) {
 
 async function uploadImageAndGetKey(file) {
     const filename = `${Date.now()}_${file.originalname.replace(/\s/g, '_')}`;
-    const blob = bucket.file(filename);
+    const blob = bucket.file((('facility_images/')
+        .replace(/(^\/+|\/+$)/g, '') + '/') + filename);
     await new Promise((resolve, reject) => {
         const stream = blob.createWriteStream({
             resumable: false,
@@ -677,7 +685,8 @@ async function uploadImageAndGetKey(file) {
         stream.on('finish', resolve);
         stream.end(file.buffer);
     });
-    return filename;
+    return (((process.env.FACILITY_IMAGE_PREFIX || 'facility_images/')
+        .replace(/(^\/+|\/+$)/g, '') + '/') + filename);
 }
 
 async function getSignedReadUrl(imageKey, expiresInMs = 60 * 60 * 1000) {
