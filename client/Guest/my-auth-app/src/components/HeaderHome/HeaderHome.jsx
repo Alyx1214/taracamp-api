@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import styles from './HeaderHome.module.css';
 import mountainLogo from '../../assets/logo.png';
 import Notif from '../Notification/Notif';
+import Message from '../Message/Message';
 
 let refreshingPromise = null;
 const API = import.meta.env.VITE_API_URL;
@@ -19,7 +20,7 @@ function setTokens({ accessToken, refreshToken }) {
 }
 
 async function callRefresh() {
-  if (refreshingPromise) return refreshingPromise; 
+  if (refreshingPromise) return refreshingPromise;
   const rt = getRefreshToken();
   if (!rt) throw new Error('No refresh token');
 
@@ -52,13 +53,11 @@ async function authFetch(url, opts = {}, didRetry = false) {
   const res = await fetch(url, { credentials: 'include', ...opts, headers });
   if (res.status !== 401 || didRetry) return res;
 
-  // First 401: try refresh, then retry once
   try {
     await callRefresh();
   } catch {
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
-    window.location.assign('/auth/login');
     throw new Error('Unauthorized');
   }
 
@@ -86,14 +85,19 @@ function HeaderHome() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
-  const [notifPane, setNotifPane] = useState('list');
-  const [selectedNotif, setSelectedNotif] = useState(null);
-  const [uploadClientType, setUploadClientType] = useState('deped');
+
+  // Notifications badge
   const [unreadCount, setUnreadCount] = useState(0);
-  const API = import.meta.env.VITE_API_URL;
+
+  // Messages dropdown state
+  const [isMsgOpen, setIsMsgOpen] = useState(false);
+  const [msgUnreadCount, setMsgUnreadCount] = useState(0);
+  const [messages, setMessages] = useState([]);
+  const [msgLoading, setMsgLoading] = useState(false);
 
   const accountMenuRef = useRef(null);
   const notifMenuRef = useRef(null);
+  const msgMenuRef = useRef(null);
 
   // Close menus when clicking outside
   useEffect(() => {
@@ -104,12 +108,15 @@ function HeaderHome() {
       if (notifMenuRef.current && !notifMenuRef.current.contains(event.target)) {
         setIsNotifOpen(false);
       }
+      if (msgMenuRef.current && !msgMenuRef.current.contains(event.target)) {
+        setIsMsgOpen(false);
+      }
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Fetch unread count when notifications panel opens; refresh while open
+  // Fetch unread notifications when panel opens; refresh while open
   useEffect(() => {
     let timer;
     let cancelled = false;
@@ -119,7 +126,7 @@ function HeaderHome() {
         const json = await api(`${API}/notification/count-unread`);
         if (!cancelled) setUnreadCount(Number(json?.data?.count || 0));
       } catch {
-        // badge errors are not worth a meltdown
+        // ignore badge errors
       }
     }
 
@@ -133,7 +140,7 @@ function HeaderHome() {
     };
   }, [isNotifOpen]);
 
-  // Also try to refresh unread count when route changes
+  // Refresh notification badge on route change
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -145,10 +152,72 @@ function HeaderHome() {
     return () => { cancelled = true; };
   }, [location.pathname]);
 
+  // Load messages when opening the dropdown
+  useEffect(() => {
+    let cancelled = false;
+    async function loadMessages() {
+      try {
+        setMsgLoading(true);
+        // Replace with your API:
+        // const json = await api('/api/message/list');
+        // const items = json?.data ?? [];
+        const items = [
+          { _id: 'm1', sender: 'Front Desk', role: 'Support', text: 'Hi! Your booking is confirmed. Need anything else?', timeLabel: '3m', isRead: false, isUser: false },
+          { _id: 'm2', sender: 'You', text: 'Thanks! What time is check-in?', timeLabel: '7m', isRead: true, isUser: true },
+          { _id: 'm3', sender: 'Front Desk', role: 'Support', text: 'Check-in starts at 2 PM. See you soon!', timeLabel: '10m', isRead: false, isUser: false },
+        ];
+        if (!cancelled) setMessages(items);
+      } catch {
+        if (!cancelled) setMessages([]);
+      } finally {
+        if (!cancelled) setMsgLoading(false);
+      }
+    }
+    if (isMsgOpen) loadMessages();
+    return () => { cancelled = true; };
+  }, [isMsgOpen]);
+
+  // Unread messages badge: refresh while open
+  useEffect(() => {
+    let timer;
+    let cancelled = false;
+    async function refreshCount() {
+      try {
+        // const json = await api('/api/message/count-unread');
+        // if (!cancelled) setMsgUnreadCount(Number(json?.data?.count || 0));
+        if (!cancelled) setMsgUnreadCount(2); // demo placeholder
+      } catch {
+        // ignore badge errors
+      }
+    }
+    if (isMsgOpen) {
+      refreshCount();
+      timer = setInterval(refreshCount, 20000);
+    }
+    return () => {
+      cancelled = true;
+      if (timer) clearInterval(timer);
+    };
+  }, [isMsgOpen]);
+
+  // Also refresh message badge on route change
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        // const json = await api('/api/message/count-unread');
+        // if (!cancelled) setMsgUnreadCount(Number(json?.data?.count || 0));
+        if (!cancelled) setMsgUnreadCount(2); // demo
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, [location.pathname]);
+
   const handleNavLinkClick = (path, sectionId) => {
     setIsMenuOpen(false);
     setIsAccountMenuOpen(false);
     setIsNotifOpen(false);
+    setIsMsgOpen(false);
 
     if (location.pathname === path || (location.pathname === '/' && path === '/')) {
       const element = document.getElementById(sectionId);
@@ -166,21 +235,25 @@ function HeaderHome() {
     setIsMenuOpen(!isMenuOpen);
     setIsAccountMenuOpen(false);
     setIsNotifOpen(false);
+    setIsMsgOpen(false);
   };
 
   const handleProfileClick = () => {
     setIsAccountMenuOpen(prev => !prev);
     setIsMenuOpen(false);
     setIsNotifOpen(false);
+    setIsMsgOpen(false);
   };
 
   const handleNotificationsClick = () => {
     setIsNotifOpen(prev => !prev);
     setIsMenuOpen(false);
     setIsAccountMenuOpen(false);
+    setIsMsgOpen(false);
   };
 
   const handleMessagesClick = () => {
+    setIsMsgOpen(prev => !prev);
     setIsMenuOpen(false);
     setIsAccountMenuOpen(false);
     setIsNotifOpen(false);
@@ -346,14 +419,57 @@ function HeaderHome() {
             )}
           </div>
 
-          {/* Messages placeholder */}
-          <button className={styles.iconButton} onClick={handleMessagesClick}>
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none"
-                 stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-                 className="feather feather-message-square">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-            </svg>
-          </button>
+          {/* Messages dropdown that reuses Message.jsx */}
+          <div className={styles.accountIconWrapper} ref={msgMenuRef}>
+            <button
+              className={styles.iconButton}
+              onClick={handleMessagesClick}
+              aria-haspopup="dialog"
+              aria-expanded={isMsgOpen}
+              aria-controls="msg-dropdown"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none"
+                   stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                   className="feather feather-message-square">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+              </svg>
+              {msgUnreadCount > 0 && <span className={styles.badge}>{msgUnreadCount}</span>}
+            </button>
+
+            {isMsgOpen && (
+              <div id="msg-dropdown" className={styles.accountDropdownMenu} role="dialog" aria-label="Messages">
+                <div className={styles.msgHeaderRow}>
+                  <span className={styles.msgHeaderTitle}>Messages</span>
+                  <button
+                    className={styles.markAllBtn}
+                    onClick={() => {
+                      setMessages(arr => arr.map(m => ({ ...m, isRead: true })));
+                      setMsgUnreadCount(0);
+                      // Optionally persist:
+                      // api('/api/message/mark-all-read', { method: 'POST' }).catch(()=>{});
+                    }}
+                  >
+                    Mark all as Read
+                  </button>
+                </div>
+
+                <div className={styles.msgList}>
+                  {msgLoading && <div className={styles.msgEmpty}>Loading…</div>}
+                  {!msgLoading && messages.length === 0 && (
+                    <div className={styles.msgEmpty}>No messages yet.</div>
+                  )}
+                  {!msgLoading && messages.map(m => (
+                    <div key={m._id} className={m.isRead ? styles.msgItemRead : styles.msgItem}>
+                      <div className={styles.msgMetaRow}>
+                        <span className={styles.msgTime}>{m.timeLabel}</span>
+                      </div>
+                      <Message sender={m.sender} text={m.text} isUser={m.isUser} role={m.role} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Account menu */}
           <div className={styles.accountIconWrapper} ref={accountMenuRef}>

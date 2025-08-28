@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'taracamp-api.onrender.com';
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://taracamp-api.onrender.com';
 const ACCESS_KEY = 'accessToken';
 const REFRESH_KEY = 'refreshToken';
 

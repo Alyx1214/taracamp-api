@@ -31,7 +31,6 @@ function MainServices() {
     return '';
   }, [location.pathname]);
 
-  // Clear results when switching tabs
   useEffect(() => {
     setFacilities([]);
     setSearchAttempted(false);
@@ -47,11 +46,9 @@ function MainServices() {
     try {
       if (facilityType === 'OTHER SERVICE') {
         const data = await searchSpecialServices({ query });
-        // backend shape: { status, specialServices: [...] }
         setFacilities(Array.isArray(data?.specialServices) ? data.specialServices : []);
       } else {
         const data = await searchFacilities({ type: facilityType, query });
-        // backend shape: { status, facilities: [...] }
         setFacilities(Array.isArray(data?.facilities) ? data.facilities : []);
       }
     } catch (err) {
