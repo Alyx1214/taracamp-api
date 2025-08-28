@@ -51,13 +51,12 @@ async function authFetch(url, opts = {}, didRetry = false) {
   const res = await fetch(url, { credentials: 'include', ...opts, headers });
   if (res.status !== 401 || didRetry) return res;
 
-  // First 401: try refresh, then retry once
   try {
     await callRefresh();
   } catch {
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
-    window.location.assign('/auth/login');
+    // window.location.assign('/auth/login');
     throw new Error('Unauthorized');
   }
 
