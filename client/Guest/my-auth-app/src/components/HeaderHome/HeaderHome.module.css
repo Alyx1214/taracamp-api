@@ -216,6 +216,63 @@
   z-index: 1000;
 }
 
+.msgHeaderRow {
+  display:flex;
+  align-items:center;
+  justify-content:
+  space-between;
+  margin-bottom:8px
+}
+
+.msgHeaderTitle {
+  font-weight:600
+}
+
+.markAllBtn {
+  font-size:12px;
+  background:transparent;
+  border:1px solid #ddd;
+  padding:4px 8px;
+  border-radius:6px;
+  cursor:pointer
+}
+
+.msgList {
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  max-height:70vh;
+  overflow:auto
+}
+
+.msgItem,.msgItemRead {
+  border:1px solid #eee;
+  border-radius:10px;
+  padding:8px
+}
+
+.msgItemRead {
+  background:#fafafa;
+  opacity:.95
+}
+
+.msgMetaRow {
+  display:flex;
+  justify-content:flex-end;
+  font-size:12px;
+  color:#888;
+  margin-bottom:4px
+}
+
+.msgTime {
+  font-variant-numeric: tabular-nums
+}
+
+.msgEmpty {
+  text-align:center;
+  color:#777;
+  padding:16px 0
+}
 
 .dropdownItem {
   background: none;
@@ -276,3 +333,4 @@
     stroke: white;
   }
 }
+
