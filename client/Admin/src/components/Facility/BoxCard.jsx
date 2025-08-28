@@ -81,16 +81,31 @@ export default function BoxCard({ facilities, onDelete, type, onEdit }) {
             key={facility.id}
             style={{ position: "relative" }}
           >
-            <div className={styles["card-image"]} />
+            <div
+              className={styles["card-image"]}
+              style={facility.image ? {
+                backgroundImage: `url(${facility.image})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+              } : undefined}
+            />
 
             <div className={styles["card-content"]}>
               <h3 className={styles["card-title"]}>{facility.name}</h3>
               <p className={styles["card-rate"]}>
-                Rate per Person: ₱ {facility.rate}
+                {type === "Other Service"
+                  ? "Price per Unit"
+                  : type === "Conference"
+                  ? "Price"
+                  : "Rate per Person"}
+                : ₱ {facility.rate}
+                {type === "Other Service" && facility.capacity && facility.capacity !== '-' ? ` / ${facility.capacity}` : ''}
               </p>
-              <p className={styles["card-capacity"]}>
-                Capacity: {facility.capacity}
-              </p>
+              {type !== "Other Service" && (
+                <p className={styles["card-capacity"]}>
+                  Capacity: {facility.capacity}
+                </p>
+              )}
             </div>
 
             <div

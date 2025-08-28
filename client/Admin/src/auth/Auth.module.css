@@ -1,0 +1,45 @@
+html, body { overflow-x: hidden; }
+
+.authPageWrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  width: 100%;
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: left center;
+  padding: 20px;
+}
+
+.authContainer {
+  display: flex;
+  flex-direction: row;
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 15px;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+  width: 100%;
+  max-width: 900px;
+  height: auto;
+  min-height: 550px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+@media (max-width: 768px) {
+  .authContainer {
+    flex-direction: column;
+    width: 95%;
+    max-width: 500px;
+    height: auto;
+    min-height: unset;
+    border-radius: 15px;
+  }
+
+  .authContainer > :first-child {
+    order: -1;
+    border-radius: 15px 15px 0 0;
+  }
+}
+
