@@ -7,7 +7,7 @@ const ReservationsHeader = () => {
   const navigate = useNavigate();
 
   const handleAddClick = () => {
-    navigate("/reservations/add");
+    navigate("/reservation-form");
   };
 
   return (

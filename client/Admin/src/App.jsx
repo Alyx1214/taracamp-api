@@ -5,6 +5,10 @@ import Dashboard from "../src/components/Dashboard/Dashboard.jsx";
 import Reservations from "./components/Reservation/Reservations";
 import Facilities from "./components/Facility/Facilities";
 import AddReservation from "../src/components/Reservation/AddReservation.jsx";
+import ReservationForm from './components/ReservationForm/ResForm.jsx';
+import ReservationFormStep2 from './components/ReservationForm/ResForm2.jsx';
+import ReservationFormStep3 from './components/ReservationForm/ResForm3.jsx';
+import ReservationFormStep4 from './components/ReservationForm/ResDetails.jsx';
 import ReservationDetails from "../src/components/Reservation/ReservationDetail.jsx";
 import AddForm from "../src/components/Facility/AddForm.jsx";
 import EditForm from "../src/components/Facility/EditForm.jsx"; 
@@ -85,6 +89,10 @@ return (
 <Route path="checkin" element={<CheckInOut />} />
 <Route path="reports" element={<Reports />} /> 
 <Route path="/reservations/add" element={<AddReservation />} />
+<Route path="/reservation-form" element={<ReservationForm />} />
+<Route path="/reservation-step2" element={<ReservationFormStep2 />} />
+<Route path="/reservation-step3" element={<ReservationFormStep3 />} />
+<Route path="/reservation-step4" element={<ReservationFormStep4 />} />
 <Route path="/reservations/:id" element={<ReservationDetails />} />
 
 <Route path="/add-facility" element={<AddForm />} />
