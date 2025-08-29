@@ -49,6 +49,11 @@ function MainServicesCottages({ facilities, loading, searchAttempted }) {
     const val = Number(n);
     return Number.isFinite(val) ? val.toLocaleString() : '—';
   };
+  const formatCapacity = (c) => {
+    if (typeof c === 'string' && /\bpax\b/i.test(c)) return c;
+    if (c == null) return '—';
+    return `${c} pax`;
+  };
   const imgSrc = (c) => c?.image || placeholderImage;
 
   return (
@@ -81,6 +86,7 @@ function MainServicesCottages({ facilities, loading, searchAttempted }) {
             </div>
             <div className={styles.cardContent}>
               <h3 className={styles.cottageName}>{cottage?.name || 'Unnamed Cottage'}</h3>
+              <p className={styles.cottageInfo}>Capacity: {formatCapacity(cottage?.capacity)}</p>
               <p className={styles.cottageRate}>
                 Rates per Person : ₱ {formatPeso(cottage?.ratePerPerson ?? cottage?.rate)}
               </p>

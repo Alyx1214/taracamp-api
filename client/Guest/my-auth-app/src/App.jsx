@@ -84,7 +84,10 @@ function App() {
       <Route path="/services/*" element={<MainServices />} />
 
       {/* <Route element={<RequireAuth />}> */}
-      <Route path="/homepage/*" element={<Homepage />} />
+      <Route
+        path="/homepage/*"
+        element={<Homepage onReserveNow={() => navigate('/user/services')} isLoggedIn />}
+      />
       <Route path="/history" element={<HistoryPage />} />
       <Route path="/user/services/*" element={<ServicesPage />} />
       <Route path="/faqs" element={<FAQsPage />} />

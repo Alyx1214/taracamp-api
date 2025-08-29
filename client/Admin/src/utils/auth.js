@@ -7,6 +7,8 @@ export function persistAuth({ accessToken, refreshToken, userId, role }) {
   if (accessToken) localStorage.setItem(ACCESS_KEY, accessToken);
   if (refreshToken) localStorage.setItem(REFRESH_KEY, refreshToken);
   if (userId) localStorage.setItem(USER_ID_KEY, userId);
-  if (role) localStorage.setItem(ROLE_KEY, role);
+  if (role) {
+    const normalized = String(role).trim().toUpperCase();
+    localStorage.setItem(ROLE_KEY, normalized);
+  }
 }
-

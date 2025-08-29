@@ -21,7 +21,7 @@ function ReservationForm() {
     if (facility) return;           
     setLoading(true);
     getFacilityById(id)
-      .then(res => active && setFacility(res?.facility || null))
+      .then(res => active && setFacility(res.facility))
       .catch(() => active && setFacility(null))
       .finally(() => active && setLoading(false));
     return () => { active = false; };

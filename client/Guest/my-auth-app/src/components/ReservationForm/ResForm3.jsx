@@ -13,10 +13,6 @@ function ReservationFormStep3() {
   const { type, id } = useParams();
   const step1 = location.state?.step1 || {};
   const step2 = location.state?.step2 || {};
-  const facilityId =
-    typeof facility === 'string'
-      ? facility
-      : (facility && (facility._id || facility.id)) || '';
 
   const [file, setFile] = useState(location.state?.file || null);
   const [fileError, setFileError] = useState('');

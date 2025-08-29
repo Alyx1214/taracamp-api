@@ -10,15 +10,17 @@ export function pickGuestType(t = {}) {
 }
 
 export function mapServiceType(label = '') {
-  switch (label) {
-    case 'Meeting/Conference': return 'MEETING/CONFERENCE';
-    case 'Wedding': return 'WEDDING';
-    case 'Birthday Party': return 'BIRTHDAY PARTY';
-    case 'Corporate Event': return 'CORPORATE EVENT';
-    case 'Training/Seminar': return 'TRAINING/SEMINAR';
-    case 'Accommodation': return 'ACCOMMODATION';
-    default: return 'OTHER';
-  }
+  const s = String(label || '').trim().toUpperCase();
+  const allowed = new Set([
+    'MEETING/CONFERENCE',
+    'WEDDING',
+    'BIRTHDAY PARTY',
+    'CORPORATE EVENT',
+    'TRAINING/SEMINAR',
+    'ACCOMMODATION',
+    'OTHER',
+  ]);
+  return allowed.has(s) ? s : 'OTHER';
 }
 
 export function to24h(hour12, ampm) {
@@ -30,7 +32,7 @@ export function to24h(hour12, ampm) {
   return `${hh}:00`;
 }
 
-export function buildReservationPayload(step1 = {}, step2 = {}, facilityId, file) {
+export function buildReservationPayload(step1 = {}, step2 = {}, facilityId) {
   const adults   = parseInt(step1?.guests?.adult    || '0', 10) || 0;
   const children = parseInt(step1?.guests?.children || '0', 10) || 0;
   const pwds     = parseInt(step1?.guests?.pwds     || '0', 10) || 0;
@@ -50,9 +52,11 @@ export function buildReservationPayload(step1 = {}, step2 = {}, facilityId, file
     dateOfArrival: step2.dateArrival,         
     dateOfDeparture: step2.dateDeparture,     
     facility: facilityId,                    
-    serviceType: mapServiceType(step2.typeService === 'OTHER' ? step2.customService : step2.typeService),
+    // Normalize service type to permanent UPPERCASE for API
+    serviceType: mapServiceType(
+      String(step2?.typeService || '').toUpperCase() === 'OTHER' ? 'OTHER' : step2?.typeService
+    ),
     timeOfArrival: to24h(step2.timeArrivalHour, step2.timeArrivalAMPM || 'AM'),
-    otherRequests: step2.specialRequests || '',
-    file
+    otherRequests: step2.specialRequests || ''
   };
 }

@@ -42,7 +42,7 @@ function ResDetails({ onClose }) {
           pwds: p,
           serviceType: mapServiceType(step2?.typeService) || 'MEETING/CONFERENCE',
         });
-        if (!abort) setQuote(data?.amount ?? null);
+        if (!abort) setQuote(data.amount);
       } catch {
         if (!abort) setQuote(null);
       }
@@ -86,7 +86,7 @@ function ResDetails({ onClose }) {
     setSubmitting(true);
 
     try {
-      const payload = buildReservationPayload(step1, step2, id, file);
+      const payload = buildReservationPayload(step1, step2, id);
 
       const atLeastOneGuest =
         (payload.numberOfAdults || 0) + (payload.numberOfChildren || 0) + (payload.numberOfPwds || 0) > 0;
