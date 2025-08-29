@@ -5,7 +5,7 @@ import styles from './ResForm2.module.css';
 import { ArrowLeft } from 'lucide-react';
 import ErrorBanner from '../ErrorBanner/ErrorBanner';
 
-import { getFacilitiesByType, getAllSpecialServices, checkAvailability as apiCheckAvailability, } from '../../apis/facilityApi';
+import { getFacilitiesByType, searchFacilities, getAllSpecialServices, checkAvailability as apiCheckAvailability, } from '../../apis/facilityApi';
 
 function ReservationFormStep2() {
   const navigate = useNavigate();
@@ -14,6 +14,13 @@ function ReservationFormStep2() {
   const step1 = location.state?.step1 || {};
   const file = location.state?.file || null;
   const { type, id } = useParams();
+  const routeFacilityType = useMemo(() => {
+    const t = String(type || '').toLowerCase();
+    if (t.startsWith('dormi')) return 'DORMITORY';
+    if (t.startsWith('cott')) return 'COTTAGE';
+    if (t.startsWith('conf')) return 'CONFERENCE';
+    return '';
+  }, [type]);
 
   useEffect(() => {
     if (!location.state?.step1 || !Object.keys(location.state.step1).length) {
@@ -26,7 +33,7 @@ function ReservationFormStep2() {
   const [formData, setFormData] = useState({
     dateArrival: '',
     dateDeparture: '',
-    typeFacilities: (type || '').toUpperCase(),   
+    typeFacilities: routeFacilityType,   
     facilityName: '',
     typeService: '',
     timeArrivalHour: '',
@@ -55,7 +62,7 @@ function ReservationFormStep2() {
   useEffect(() => {
     let hydrated = false;
     if (location.state?.step2) {
-      setFormData(prev => ({ ...prev, ...location.state.step2, typeFacilities: prev.typeFacilities || (type || '').toUpperCase() || location.state.step2.typeFacilities || ''}));
+      setFormData(prev => ({ ...prev, ...location.state.step2, typeFacilities: prev.typeFacilities || routeFacilityType || location.state.step2.typeFacilities || ''}));
       hydrated = true;
     }
     if (location.state?.errorsStep2) setFieldErrors(location.state.errorsStep2);
@@ -70,7 +77,7 @@ function ReservationFormStep2() {
         }
       } catch {}
     }
-  }, [location.state]);
+  }, [location.state, routeFacilityType]);
 
   useEffect(() => {
     try {
@@ -96,10 +103,10 @@ function ReservationFormStep2() {
         const json = await getAllSpecialServices();
         if (!active) return;
 
-        const arr = json?.specialServices ?? json?.data ?? json?.services ?? [];
-        const opts = arr.map((s, idx) => ({
-          value: String(s._id || s.id || `svc-${idx}`),
-          label: s.name || s.title || s.displayName || 'Service',
+        const arr = Array.isArray(json.specialServices) ? json.specialServices : [];
+        const opts = arr.map((s) => ({
+          value: String(s._id),
+          label: s.name,
         }));
         setSpecialOptions(opts);
       } catch (e) {
@@ -119,19 +126,22 @@ function ReservationFormStep2() {
       if (!formData.typeFacilities) return;
       try {
         setLoadingFacilities(true);
-        const json = await getFacilitiesByType(formData.typeFacilities);
+        const json = await searchFacilities({ type: formData.typeFacilities });
         if (!active) return;
 
-        const list = (json?.data || json?.facilities || json || []).map((f, idx) => {
+        const src = Array.isArray(json.facilities) ? json.facilities : [];
+        const filtered = src.filter(f => String(f?.status || '').toUpperCase() === 'AVAILABLE');
+        const list = filtered.map((f) => {
           const rawName = String(f.name || '');
           const label = rawName.toLowerCase().replace(/\b[a-z]/g, c => c.toUpperCase());
           return {
             _id: String(f._id || f.id),
             label,
-            capacity: Number(f.capacity ?? 0),
-            ratePerPerson: f.ratePerPerson ?? f.price,
-            status: f.status ?? 'AVAILABLE',
-            __k: String(f._id || f.id || `f-${idx}`),
+            capacity: Number(f.capacity) || 0,
+            ratePerPerson: Number(f.ratePerPerson) || 0,
+            price: Number(f.price) || 0,
+            image: f.image || null,
+            status: f.status || null,
           };
         });
         setFacilityOptions(list);
@@ -375,9 +385,7 @@ function ReservationFormStep2() {
                     </option>
                     {facilityOptions.map(f => {
                       const tooSmall = Number(f.capacity) < totalGuests;
-                      const label = `${f.label} (max ${Number.isFinite(f.capacity) ? f.capacity : 0})${
-                        tooSmall ? ` — not enough for ${totalGuests}` : ''
-                      }`;
+                      const label = `${f.label} (max ${Number.isFinite(f.capacity) ? f.capacity : 0})`;
                       return (
                         <option key={f.__k} value={f._id} disabled={tooSmall}>
                           {label}

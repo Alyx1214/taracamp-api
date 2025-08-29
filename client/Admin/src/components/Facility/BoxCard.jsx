@@ -84,7 +84,8 @@ export default function BoxCard({ facilities, onDelete, type, onEdit }) {
             <div
               className={styles["card-image"]}
               style={facility.image ? {
-                backgroundImage: `url(${facility.image})`,
+                // Quote the URL to avoid CSS parsing issues with query params
+                backgroundImage: `url("${facility.image}")`,
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
               } : undefined}

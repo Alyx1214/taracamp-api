@@ -5,7 +5,8 @@ import { apiGet } from './api';
  * @param {'CONFERENCE'|'DORMITORY'|'COTTAGE'|string} type
  */
 export function getFacilitiesByType(type) {
-  return apiGet(`/api/facility/get-facilities-by-type/${encodeURIComponent(type)}`);
+  const t = String(type || '').trim().toUpperCase();
+  return apiGet(`/api/facility/get-facilities-by-type/${encodeURIComponent(t)}`);
 }
 
 export function getAllFacilities() {
@@ -14,7 +15,9 @@ export function getAllFacilities() {
 
 export function searchFacilities(params = {}) {
   const q = new URLSearchParams();
-  Object.entries(params).forEach(([k, v]) => {
+  const normalized = { ...params };
+  if (normalized.type != null) normalized.type = String(normalized.type).trim().toUpperCase();
+  Object.entries(normalized).forEach(([k, v]) => {
     if (v !== undefined && v !== null && String(v).trim() !== '') q.append(k, v);
   });
   return apiGet(`/api/facility/search-facilities?${q.toString()}`);

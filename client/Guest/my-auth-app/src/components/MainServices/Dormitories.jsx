@@ -85,12 +85,14 @@ function MainServicesDormitories({ facilities, loading, searchAttempted }) {
             <div className={styles.dormitoryImagePlaceholder}>
               <img src={imgSrc(dorm)} alt={dorm?.name || 'Dormitory'} />
             </div>
-            <h3 className={styles.dormitoryName}>{dorm?.name || 'Unnamed Dorm'}</h3>
-            <p className={styles.dormitoryInfo}>Capacity: {formatCapacity(dorm?.capacity)}</p>
-            <p className={styles.dormitoryRate}>
-              Rates per Person : ₱ {formatPeso(dorm?.ratePerPerson ?? dorm?.rate)}
-            </p>
-            <Link to={`${dorm.id}`} relative="path" className={styles.checkButton}>Check</Link>
+            <div className={styles.cardContent}>
+              <h3 className={styles.dormitoryName}>{dorm?.name || 'Unnamed Dorm'}</h3>
+              <p className={styles.dormitoryInfo}>Capacity: {formatCapacity(dorm?.capacity)}</p>
+              <p className={styles.dormitoryRate}>
+                Rates per Person : ₱ {formatPeso(dorm?.ratePerPerson ?? dorm?.rate)}
+              </p>
+              <Link to={`${dorm.id}`} relative="path" className={styles.checkButton}>Check</Link>
+            </div>
           </div>
         ))}
       </div>

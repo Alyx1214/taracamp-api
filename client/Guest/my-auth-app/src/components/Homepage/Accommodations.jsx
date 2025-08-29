@@ -66,7 +66,7 @@ export default function AccommodationsSection({ limit = 6 }) {
   }, [limit]);
 
   const onExploreMore = () => {
-    navigate('/services');
+    navigate('/user/services');
   };
 
   return (
@@ -85,7 +85,7 @@ export default function AccommodationsSection({ limit = 6 }) {
               <Link key={item.id} to={to} className={styles.accommodationCard}>
                 <div
                   className={styles.cardImagePlaceholder}
-                  style={{ backgroundImage: `url(${item.image || placeholderImage})` }}
+                  style={{ backgroundImage: `url("${item.image || placeholderImage}")`, backgroundSize: 'cover', backgroundPosition: 'center' }}
                   aria-label={`${item.name} image`}
                 />
                 <h3 className={styles.cardTitle}>{item.name}</h3>

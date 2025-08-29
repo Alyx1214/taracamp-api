@@ -4,7 +4,7 @@ import styles from './ResForm2.module.css';
 import { ArrowLeft } from 'lucide-react';
 import ErrorBanner from '../ErrorBanner/ErrorBanner';
 
-import { getFacilitiesByType, getAllSpecialServices, checkAvailability as apiCheckAvailability, } from '../../apis/facilityApi';
+import { getFacilitiesByType, searchFacilities, getAllSpecialServices, checkAvailability as apiCheckAvailability, } from '../../apis/facilityApi';
 
 function ReservationFormStep2() {
   const navigate = useNavigate();
@@ -117,10 +117,12 @@ function ReservationFormStep2() {
       if (!formData.typeFacilities) return;
       try {
         setLoadingFacilities(true);
-        const json = await getFacilitiesByType(formData.typeFacilities);
+        const json = await searchFacilities({ type: formData.typeFacilities });
         if (!active) return;
 
-        const list = (json?.data || json?.facilities || json || []).map((f, idx) => {
+        const source = (json?.facilities || json?.data || json || []);
+        const filtered = source.filter(f => String(f?.status || '').toUpperCase() === 'AVAILABLE');
+        const list = filtered.map((f, idx) => {
           const rawName = String(f.name || '');
           const label = rawName.toLowerCase().replace(/\b[a-z]/g, c => c.toUpperCase());
           return {
@@ -358,12 +360,21 @@ function ReservationFormStep2() {
                     disabled={!formData.typeFacilities}
                   >
                     <option value="">{loadingFacilities ? 'Loading facilities…' : 'Select a facility'}</option>
-                    {facilityOptions.map(o => (
-                      <option key={o.__k} value={o._id}>{o.label}</option>
-                    ))}
+                    {facilityOptions.map(o => {
+                      const cap = Number.isFinite(o.capacity) ? o.capacity : 0;
+                      const label = `${o.label} (${cap} pax)`;
+                      return (
+                        <option key={o.__k} value={o._id}>{label}</option>
+                      );
+                    })}
                   </select>
-                  {fieldErrors.facilityName && (
-                    <div className={styles.fieldError}>{fieldErrors.facilityName}</div>
+                {fieldErrors.facilityName && (
+                  <div className={styles.fieldError}>{fieldErrors.facilityName}</div>
+                )}
+                  {!fieldErrors.facilityName && chosenFacility && !capacityOk && (
+                    <div className={styles.fieldError}>
+                      {`Selected facility capacity is ${chosenFacility.capacity}, but you have ${totalGuests} guests.`}
+                    </div>
                   )}
                   {formData.facilityName && (
                     <div className={styles.availabilityRow}>
