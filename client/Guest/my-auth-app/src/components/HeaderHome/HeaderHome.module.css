@@ -121,81 +121,8 @@
   display: none;
 }
 
-@media (max-width: 992px) {
-  .navbarNav {
-    position: fixed;
-    top: 0;
-    right: -100%;
-    width: 70%;
-    height: 100vh;
-    background-color: #1e3c24;
-    box-shadow: -2px 0 10px rgba(0,0,0,0.2);
-    transition: right 0.3s ease-in-out;
-    z-index: 1050;
-    flex-direction: column;
-    padding-top: 80px;
-    justify-content: flex-start;
-    align-items: center;
-  }
-
-  .navbarNav.menuOpen {
-    right: 0;
-    display: flex;
-  }
-
-  .navList {
-    flex-direction: column;
-    align-items: center;
-    gap: 20px;
-  }
-
-  .navItem {
-    margin: 0;
-  }
-
-  .navLink {
-    font-size: 1.3em;
-    padding: 10px 0;
-  }
-
-  .desktopActions {
-    display: none;
-  }
-
-  .hamburgerButton {
-    display: block;
-  }
-
-  .mobileOnlyNavItem {
-    display: block;
-    margin-top: 20px;
-    width: 100%;
-    text-align: center;
-  }
-  .mobileOnlyNavItem .iconButton {
-    justify-content: center;
-    gap: 10px;
-  }
-  .mobileOnlyNavItem .iconButton span {
-    display: inline-block;
-    font-size: 1.1em;
-    font-weight: 500;
-  }
-}
-
-@media (max-width: 576px) {
-  .headerLogoText {
-    display: none;
-  }
-
-  .headerContainer {
-    padding: 15px 20px;
-  }
-
-  .hamburgerButton svg {
-    width: 25px;
-    height: 25px;
-  }
+.mobileUserIcons {
+  display: none;
 }
 
 .accountIconWrapper {
@@ -304,33 +231,148 @@
   stroke: #538E5E; 
 }
 
+  @media (max-width: 992px) {
+    /* Navbar (hamburger) */
+    .navbarNav {
+      position: fixed;
+      top: 0;
+      right: -100%;
+      width: 70%;
+      height: 100vh;
+      background-color: #1e3c24;
+      box-shadow: -2px 0 10px rgba(0,0,0,0.2);
+      transition: right 0.3s ease-in-out;
+      z-index: 1050;
+      flex-direction: column;
+      padding-top: 80px;
+      justify-content: flex-start;
+      align-items: stretch; /* stretch instead of center */
+    }
+    .navbarNav.menuOpen {
+      right: 0;
+      display: flex;
+    }
 
-@media (max-width: 768px) {
-  .desktopActions {
-    display: none;
-  }
-  .accountDropdownMenu {
-    position: static;
-    box-shadow: none;
-    background: none;
-    padding: 0;
-    min-width: unset;
-    border-top: 1px solid rgba(255,255,255,0.1); 
-    margin-top: 10px; 
-  }
-  .accountDropdownMenu .dropdownItem {
-    padding-left: 40px; 
-    color: white; 
-  }
-  .accountDropdownMenu .dropdownItem svg {
-    stroke: white;
-  }
-  .accountDropdownMenu .dropdownItem:hover {
-    background-color: rgba(255,255,255,0.1); 
-    color: white;
-  }
-  .accountDropdownMenu .dropdownItem:hover svg {
-    stroke: white;
-  }
-}
+    /* Nav links */
+    .navList {
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+    }
+    .navItem {
+      margin: 0;
+    }
+    .navLink {
+      font-size: 1.3em;
+      padding: 10px 0;
+    }
 
+    /* Desktop actions hidden */
+    .desktopActions {
+      display: none;
+    }
+
+    /* Hamburger button shown */
+    .hamburgerButton {
+      display: block;
+    }
+
+    /* Mobile-only nav item */
+    .mobileOnlyNavItem {
+      display: block;
+      margin-top: 20px;
+      width: 100%;
+      text-align: center;
+    }
+    .mobileOnlyNavItem .iconButton {
+      justify-content: center;
+      gap: 10px;
+    }
+    .mobileOnlyNavItem .iconButton span {
+      display: inline-block;
+      font-size: 1.1em;
+      font-weight: 500;
+    }
+
+    .mobileUserIcons {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      margin-top: 20px;
+      gap: 15px;
+      padding: 0 20px;
+      box-sizing: border-box;
+    }
+    .mobileUserIcons .accountIconWrapper {
+      width: 100%;      /* let the dropdown span the hamburger width */
+      display: flex;
+      flex-direction: column;
+      align-items: center; /* keep icon centered */
+    }
+    .mobileUserIcons .accountDropdownMenu {
+      width: 100%;
+    }
+
+    .accountDropdownMenu {
+      position: static;
+      width: 100%;
+      max-height: none;
+      box-shadow: none;
+      background: #1e3c24;   /* match hamburger menu bg */
+      border: none;
+      margin-top: 10px;
+      padding: 0;
+    }
+
+    .accountDropdownMenu .dropdownItem {
+      width: 100%;
+      padding: 15px 20px;
+      border-top: 1px solid rgba(255, 255, 255, 0.15);
+      color: white;
+      background: transparent;
+      text-align: left;
+    }
+    .accountDropdownMenu .dropdownItem svg {
+      stroke: white;
+    }
+    .accountDropdownMenu .dropdownItem:hover {
+      background-color: rgba(255,255,255,0.1);
+      color: white;
+    }
+    .accountDropdownMenu .dropdownItem:hover svg {
+      stroke: white;
+    }
+
+    /* Messages + notifications list inside hamburger */
+    .msgList,
+    .msgHeaderRow {
+      width: 100%;
+      padding: 15px 20px;
+      box-sizing: border-box;
+      background-color: white;
+    }
+    .msgList {
+      max-height: 50vh;   /* so long lists can scroll */
+      overflow-y: auto;
+    }
+    .msgItem,
+    .msgItemRead {
+      width: 100%;
+    }
+  }
+
+  @media (max-width: 576px) {
+    .headerLogoText {
+      display: none;
+    }
+
+    .headerContainer {
+      padding: 15px 20px;
+    }
+
+    .hamburgerButton svg {
+      width: 25px;
+      height: 25px;
+    }
+  }
