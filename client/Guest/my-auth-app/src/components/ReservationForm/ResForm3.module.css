@@ -153,3 +153,10 @@
   background-color: #558b5e;
   transform: translateY(-2px);
 }
+
+.fieldError {
+  color: #d32f2f; 
+  text-align: center;
+  font-size: 0.95rem;
+  margin-top: 8px;
+}

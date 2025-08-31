@@ -5,7 +5,6 @@ dotenv.config();
 
 const storage = new Storage();
 const bucket = storage.bucket(process.env.BUCKET_NAME);
-
 const facilityModule = {
     /**
      * Adds a new facility to the database.
@@ -27,6 +26,7 @@ const facilityModule = {
             if (
                 !isPresent(name) ||
                 !isPresent(facilityType) ||
+                !isPresent(capacity) ||
                 (facilityType === FacilityType.CONFERENCE && !isPresent(price)) ||
                 ((facilityType === FacilityType.DORMITORY || facilityType === FacilityType.COTTAGE) && !isPresent(ratePerPerson))
             ) {
@@ -73,12 +73,10 @@ const facilityModule = {
                 return responseData;
             }
 
-            if (facilityType === FacilityType.CONFERENCE || facilityType === FacilityType.DORMITORY) {
-                if (!isPresent(capacity) || !isValidCapacity(capacity)) {
-                    responseData.status = Status.BAD_REQUEST;
-                    responseData.error = 'Invalid or missing capacity for this facility type';
-                    return responseData;
-                }
+            if (!isValidCapacity(capacity)) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Invalid or missing capacity';
+                return responseData;
             }
 
             if (
@@ -96,7 +94,8 @@ const facilityModule = {
                 return responseData;
             }
 
-            const existing = await dbHelper.findOne('facility', { name, facilityType, });
+            // Normalize facility name to Title Case directly in queries
+            const existing = await dbHelper.findOne('facility', { name: toTitleCase(String(name || '')), facilityType, });
             if (existing) {
                 responseData.status = Status.BAD_REQUEST;
                 responseData.error = 'Facility already exists';
@@ -104,14 +103,13 @@ const facilityModule = {
             }
 
             const facilityData = {
-                name,
+                name: toTitleCase(String(name || '')),
                 facilityType,
                 status,
             };
 
-            if (facilityType === FacilityType.CONFERENCE || facilityType === FacilityType.DORMITORY) {
-                facilityData.capacity = parseInt(String(capacity).replace(/,/g, ''), 10);
-            }
+            // Store capacity for all facility types
+            facilityData.capacity = parseInt(String(capacity).replace(/,/g, ''), 10);
 
             if (imageKey) {
                 facilityData.image = imageKey;
@@ -155,6 +153,7 @@ const facilityModule = {
             const withSigned = await Promise.all(
                 facilities.map(async (f) => {
                     const obj = f.toObject ? f.toObject() : f;
+                    obj.name = toTitleCase(String(obj.name || ''));
                     obj.image = obj.image ? await getSignedReadUrl(obj.image) : null;
                     return obj;
                 })
@@ -200,6 +199,8 @@ const facilityModule = {
             delete facilityObject.__v;
             delete facilityObject.createdAt;
 
+            // Ensure name is Title Case when returned
+            facilityObject.name = toTitleCase(String(facilityObject.name || ''));
             facilityObject.image = facilityObject.image
                 ? await getSignedReadUrl(facilityObject.image)
                 : null;
@@ -257,7 +258,7 @@ const facilityModule = {
             const updateData = {};
 
             if (isPresent(data.name)) {
-                updateData.name = data.name;
+                updateData.name = toTitleCase(String(data.name));
             }
 
             if (isPresent(data.facilityType)) {
@@ -266,7 +267,7 @@ const facilityModule = {
                     responseData.error = 'Invalid facility type';
                     return responseData;
                 }
-                updateData.facilityType = typeToCheck;
+                updateData.facilityType = data.facilityType;
             }
 
             if (isPresent(data.capacity)) {
@@ -463,7 +464,7 @@ const facilityModule = {
 
             const facilitiesObject = await Promise.all(facilities.map(async (facility) => ({
                 id: facility._id.toString(),
-                name: facility.name,
+                name: toTitleCase(String(facility.name || '')),
                 capacity: facility.capacity,
                 ratePerPerson: facility.ratePerPerson,
                 price: facility.price,
@@ -604,6 +605,7 @@ const facilityModule = {
             const withSigned = await Promise.all(
                 facilities.map(async (f) => {
                     const obj = f.toObject ? f.toObject() : f;
+                    obj.name = toTitleCase(String(obj.name || ''));
                     obj.image = obj.image ? await getSignedReadUrl(obj.image) : null;
                     return obj;
                 })
@@ -631,6 +633,12 @@ function isPresent(value) {
     return !Number.isNaN(value);
   }
   return true; 
+}
+
+// Convert a string to Title Case (first letter uppercase per word)
+function toTitleCase(str = '') {
+    const lower = String(str).toLowerCase();
+    return lower.replace(/\b([a-z])(\w*)/g, (_, a, b) => a.toUpperCase() + b);
 }
 
 function isValidFacilityType(type) {
@@ -667,7 +675,8 @@ function isValidImage(file) {
 
 async function uploadImageAndGetKey(file) {
     const filename = `${Date.now()}_${file.originalname.replace(/\s/g, '_')}`;
-    const blob = bucket.file(filename);
+    const blob = bucket.file((('facility_images/')
+        .replace(/(^\/+|\/+$)/g, '') + '/') + filename);
     await new Promise((resolve, reject) => {
         const stream = blob.createWriteStream({
             resumable: false,
@@ -677,7 +686,8 @@ async function uploadImageAndGetKey(file) {
         stream.on('finish', resolve);
         stream.end(file.buffer);
     });
-    return filename;
+    return (((process.env.FACILITY_IMAGE_PREFIX || 'facility_images/')
+        .replace(/(^\/+|\/+$)/g, '') + '/') + filename);
 }
 
 async function getSignedReadUrl(imageKey, expiresInMs = 60 * 60 * 1000) {

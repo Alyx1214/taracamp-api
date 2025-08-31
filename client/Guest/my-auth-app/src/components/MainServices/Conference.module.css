@@ -88,10 +88,12 @@
   cursor: pointer;
   transition: background-color 0.3s ease;
   align-self: center;
+  text-decoration: none; 
 }
 
 .checkButton:hover {
   background-color: #45a049;
+  text-decoration: none; 
 }
 
 @media (max-width: 992px) {

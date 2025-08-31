@@ -1,55 +1,76 @@
 import React, { useState, useEffect } from 'react';
-import styles from './Cottages.module.css'; 
+import styles from './Cottages.module.css';
 import placeholderImage from '../../assets/conference.jpg';
 import { Link } from 'react-router-dom';
-
-// const cottageData = [
-//   { id: 1, name: 'COTTAGE (4-5pax)', rate: '2,600' },
-//   { id: 2, name: 'COTTAGE (6-8pax)', rate: '3,650' },
-//   { id: 3, name: 'COTTAGE (9-11pax)', rate: '5,250' },
-//   { id: 4, name: 'COTTAGE (12-14pax)', rate: '6,650' },
-//   { id: 5, name: 'COTTAGE (15-18pax)', rate: '8,350' },
-// ];
+import { getFacilitiesByType } from '../../apis/facilityApi';
 
 function MainServicesCottages({ facilities, loading, searchAttempted }) {
   const [defaultCottages, setDefaultCottages] = useState([]);
   const [fetchingDefault, setFetchingDefault] = useState(false);
+  const [fetchError, setFetchError] = useState(null);
 
   useEffect(() => {
-    let ignore = false;
-     if (!searchAttempted && (!facilities || facilities.length === 0)) {
+    let cancelled = false;
+
+    async function loadDefault() {
+      if (searchAttempted) return;
+      if (facilities && facilities.length > 0) return;
+
       setFetchingDefault(true);
-      fetch('/api/facility/get-facilities-by-type/COTTAGE')
-        .then(res => res.json())
-        .then(data => {
-          if (!ignore) {
-            setDefaultCottages(data.facilities || []);
-            setFetchingDefault(false);
-          }
-        })
-        .catch(() => {
-          if (!ignore) {
-            setDefaultCottages([]);
-            setFetchingDefault(false);
-          }
-        });
-    } else {
-      setDefaultCottages([]);
-      setFetchingDefault(false);
+      setFetchError(null);
+      try {
+        const data = await getFacilitiesByType('COTTAGE');
+        if (!cancelled) {
+          setDefaultCottages(Array.isArray(data?.facilities) ? data.facilities : []);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setDefaultCottages([]);
+          setFetchError(err?.data?.error || 'Failed to load cottages.');
+        }
+      } finally {
+        if (!cancelled) setFetchingDefault(false);
+      }
     }
-    return () => { ignore = true; };
+
+    loadDefault();
+    return () => { cancelled = true; };
   }, [facilities, searchAttempted]);
 
   const isLoading = loading || fetchingDefault;
-  const displayCottages = (facilities && facilities.length > 0) ? facilities : defaultCottages;
 
-  const showNoResult = !isLoading && (displayCottages?.length ?? 0) === 0;
+  const displayCottages = searchAttempted
+    ? (facilities || [])
+    : ((facilities && facilities.length > 0) ? facilities : defaultCottages);
+
+  const showNoResult = searchAttempted && !isLoading && (facilities?.length ?? 0) === 0;
+
+  const formatPeso = (n) => {
+    const val = Number(n);
+    return Number.isFinite(val) ? val.toLocaleString() : '—';
+  };
+  const formatCapacity = (c) => {
+    if (typeof c === 'string' && /\bpax\b/i.test(c)) return c;
+    if (c == null) return '—';
+    return `${c} pax`;
+  };
+  const imgSrc = (c) => c?.image || placeholderImage;
 
   return (
     <section className={styles.cottagesSection}>
-      <h2 className={styles.sectionTitle}>COTTAGES / GUESTHOUSE</h2> {/* */}
+      <h2 className={styles.sectionTitle}>COTTAGES / GUESTHOUSE</h2>
+
       <div className={styles.cottageGrid}>
         {isLoading && <p>Loading...</p>}
+
+        {!isLoading && fetchError && (
+          <div className={styles.noFacilities}>
+            <div className={styles.softCard}>
+              <p style={{ color: 'crimson' }}>{fetchError}</p>
+            </div>
+          </div>
+        )}
+
         {showNoResult && (
           <div className={styles.noFacilities}>
             <div className={styles.softCard}>
@@ -57,15 +78,19 @@ function MainServicesCottages({ facilities, loading, searchAttempted }) {
             </div>
           </div>
         )}
-        {!isLoading && !showNoResult && displayCottages.map(cottage => (
+
+        {!isLoading && !showNoResult && displayCottages.map((cottage) => (
           <div key={cottage.id} className={styles.cottageCard}>
             <div className={styles.cottageImagePlaceholder}>
-              <img src={cottage.image ? cottage.image : placeholderImage} alt={cottage.name} />
+              <img src={imgSrc(cottage)} alt={cottage?.name || 'Cottage'} />
             </div>
             <div className={styles.cardContent}>
-              <h3 className={styles.cottageName}>{cottage.name}</h3> {/* */}
-              <p className={styles.cottageRate}>Rates per Person : ₱ {Number(cottage.ratePerPerson).toLocaleString()}</p> {/* */}
-              <Link to={`${cottage.id}`} className={styles.checkButton}>Check</Link>
+              <h3 className={styles.cottageName}>{cottage?.name || 'Unnamed Cottage'}</h3>
+              <p className={styles.cottageInfo}>Capacity: {formatCapacity(cottage?.capacity)}</p>
+              <p className={styles.cottageRate}>
+                Rates per Person : ₱ {formatPeso(cottage?.ratePerPerson ?? cottage?.rate)}
+              </p>
+              <Link to={`${cottage.id}`} relative="path" className={styles.checkButton}>Check</Link>
             </div>
           </div>
         ))}

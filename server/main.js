@@ -19,6 +19,7 @@ import facilityModule from './modules/facility.js';
 import specialServiceModule from './modules/specialService.js';
 import dashboardModule from './modules/dashboard.js';
 import notificationModule from './modules/notification.js';
+import paymentModule from './modules/payment.js';
 import { Status, } from './constants.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -150,6 +151,15 @@ const processGetAPI = async (req, res) => {
                 case 'check-availability': {
                     const params = { ...req.query, };
                     const responseData = await reservationModule.checkAvailability(dbHelper, params);
+                    return res.status(responseData.status).json(responseData);
+                }
+                default:
+                    return res.status(404).json({ error: 'Unknown action', });
+            }
+        case 'payment':
+            switch (action) {
+                case 'get-payment-intent': {
+                    const responseData = await paymentModule.getPaymentIntent(dbHelper, id);
                     return res.status(responseData.status).json(responseData);
                 }
                 default:
@@ -343,6 +353,28 @@ const processPostAPI = async (req, res) => {
                 default:
                     return res.status(404).json({ error: 'Unknown action', });
             }
+        case 'payment':
+            switch (action) {
+                case 'create-payment-intent': {
+                    const responseData = await paymentModule.createPaymentIntent(dbHelper, id, data, req.user);
+                    return res.status(responseData.status).json(responseData);
+                }
+                case 'attach-payment-method': {
+                    const responseData = await paymentModule.attachPaymentMethod(dbHelper, data);
+                    return res.status(responseData.status).json(responseData);
+                }
+                case 'create-payment-method': {
+                    const responseData = await paymentModule.createPaymentMethod(dbHelper, data);
+                    return res.status(responseData.status).json(responseData);
+                }
+                case 'webhook': {
+                    const body = req.rawBody || req.body;
+                    const responseData = await paymentModule.handleWebhook(dbHelper, req.headers, body);
+                    return res.status(responseData.status).json(responseData);
+                }
+                default:
+                    return res.status(404).json({ error: 'Unknown action', });
+            }
         case 'notification':
             switch (action) {
                 case 'mark-read': {
@@ -368,7 +400,7 @@ function authenticateJWT(req, res, next) {
         const token = authHeader.split(' ')[1];
         const user = jwtHelper.verifyAccessToken(token);
         if (!user) {
-            return res.status(403).json({ error: 'Invalid or expired token', });
+            return res.status(401).json({ error: 'Invalid or expired token', });
         }
         req.user = user;
         next();
@@ -385,6 +417,7 @@ function isProtected(module, action) {
             'get-all-reservations-by-status', 'accept-or-decline-reservation',],
         facility: ['create-facility', 'update-facility', 'delete-facility',],
         'special-service': ['create-special-service', 'update-special-service', 'delete-special-service',],
+        payment: ['create-payment-intent', 'attach-payment-method', 'create-payment-method',],
         notification: ['list', 'mark-read', 'mark-all-read', 'count-unread',],
         dashboard: ['get-todays-reservations-count', 'get-monthly-check-ins-count', 'get-monthly-check-outs-count',
             'get-confirmed-reservations-count', 'get-pending-reservations-count', 'get-cancelled-reservations-count', 'get-total-guest-users',],

@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import HeaderHome from '../HeaderHome/HeaderHome';
 import styles from './ResForm3.module.css';
 import { ArrowLeft, UploadCloud } from 'lucide-react';
@@ -10,45 +10,32 @@ function ReservationFormStep3() {
   const navigate = useNavigate();
   const location = useLocation();
 
+  const { type, id } = useParams();
   const step1 = location.state?.step1 || {};
   const step2 = location.state?.step2 || {};
-  const { type, facility } = location.state || {};
-  const facilityId =
-    typeof facility === 'string'
-      ? facility
-      : (facility && (facility._id || facility.id)) || '';
 
   const [file, setFile] = useState(location.state?.file || null);
   const [fileError, setFileError] = useState('');
   const fileInputRef = useRef();
 
   useEffect(() => {
-    if (!type || !facilityId) {
-      if (step1 && Object.keys(step1).length) {
-        navigate('/reservation-step2', {
-          replace: true,
-          state: { step1, step2, type, facility: facilityId },
-        });
-      } else {
-        navigate('/services', { replace: true });
-      }
+    if (!step1 || !Object.keys(step1).length || !step2 || !Object.keys(step2).length) {
+      navigate(`/reservation-step2/${type}/${id}`, { state: { step1, step2, file } });;
     }
-  }, [type, facilityId, step1, step2, navigate]);
+  }, [step1, step2, type, id, navigate]);
 
-  if (!type || !facilityId) return null;
-
-  useEffect(() => {
-    try {
-      sessionStorage.setItem('reservation.step3.fileName', file?.name || '');
-    } catch {}
-  }, [file]);
+    useEffect(() => {
+      try {
+        sessionStorage.setItem('reservation.step3.fileName', file?.name || '');
+      } catch {}
+    }, [file]);
 
   const handleGoBack = () => {
-    navigate('/reservation-step2', { state: { step1, step2, type, facility: facilityId, file } });
+    navigate(`/reservation-step2/${type}/${id}`, { state: { step1, step2, file } });
   };
 
   const handlePrevious = () => {
-    navigate('/reservation-step2', { state: { step1, step2, type, facility: facilityId, file } });
+    navigate(`/reservation-step2/${type}/${id}`, { state: { step1, step2, file } });
   };
 
   const handleNext = () => {
@@ -57,9 +44,7 @@ function ReservationFormStep3() {
       return;
     }
     setFileError('');
-    navigate('/reservation-step4', {
-      state: { step1, step2, file, type, facility: facilityId, id: facilityId },
-    });
+    navigate(`/reservation-step4/${type}/${id}`, { state: { step1, step2, file } });
   };
 
   const handleBoxClick = () => {

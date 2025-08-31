@@ -73,7 +73,15 @@
   font-size: 0.95em;
   color: #888;
   margin-top: 0;
-  margin-bottom: 15px;
+  margin-bottom: 10px; /* align with conference spacing */
+  padding: 0 10px;
+}
+
+.cottageInfo {
+  font-size: 0.95em;
+  color: #888;
+  margin-top: 0;
+  margin-bottom: 10px; /* align with conference spacing */
   padding: 0 10px;
 }
 

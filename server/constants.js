@@ -33,7 +33,9 @@ export const GuestType = {
 
 export const ReservationStatus = {
     PENDING: 'PENDING',
+    APPROVED: 'APPROVED',   
     CONFIRMED: 'CONFIRMED',
+    DECLINED: 'DECLINED',
     CANCELLED: 'CANCELLED',
 };
 

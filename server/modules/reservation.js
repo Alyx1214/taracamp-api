@@ -156,7 +156,7 @@ const reservationModule = {
             }
 
             const userOverlapping = await dbHelper.findOne('reservation', {
-                userId: user._id,
+                userId: user.userId,
                 facility: facility,
                 $or: [
                     {
@@ -601,7 +601,7 @@ const reservationModule = {
             }
 
             const svcType = serviceType ||
-            ((facilityDoc.type === 'DORMITORY' || facilityDoc.type === 'COTTAGE')
+            ((facilityDoc.facilityType === 'DORMITORY' || facilityDoc.facilityType === 'COTTAGE')
                 ? ServiceType.ACCOMMODATION
                 : ServiceType.MEETING);
 
@@ -800,8 +800,8 @@ function isPresent(value) {
 function computeEstimate({ facilityDoc, adults = 0, children = 0, pwds = 0, serviceType, }) {
     const isAccommodation =
     serviceType === ServiceType.ACCOMMODATION ||
-    facilityDoc?.type === 'DORMITORY' ||
-    facilityDoc?.type === 'COTTAGE';
+    facilityDoc?.facilityType === 'DORMITORY' ||
+    facilityDoc?.facilityType === 'COTTAGE';
 
     const perPersonRate = Number(facilityDoc?.ratePerPerson);
     const flatBookingPrice = Number(
@@ -823,4 +823,3 @@ function computeEstimate({ facilityDoc, adults = 0, children = 0, pwds = 0, serv
         return { amount: flatBookingPrice, model: 'flat', };
     }
 }
-

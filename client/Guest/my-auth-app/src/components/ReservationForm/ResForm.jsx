@@ -1,24 +1,31 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import HeaderHome from '../HeaderHome/HeaderHome';
 import styles from './ResForm.module.css';
 import { ArrowLeft } from 'lucide-react';
 import ErrorBanner from '../ErrorBanner/ErrorBanner';
+import { getFacilityById } from '../../apis/facilityApi';
 
 function ReservationForm() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { type, facility } = location.state || {};
+  const { type, id } = useParams();
   const prevStep2Ref = useRef(location.state?.step2 || null);
   const prevFileRef = useRef(location.state?.file || null);
 
-  useEffect(() => {
-    if (!type || !facility) {
-      navigate('/services', { replace: true });
-    }
-  }, [type, facility, navigate]);
+  const [facility, setFacility] = useState(location.state?.facility || null);
+  const [loading, setLoading] = useState(!facility);
 
-  if (!type || !facility) return null;
+  useEffect(() => {
+    let active = true;
+    if (facility) return;           
+    setLoading(true);
+    getFacilityById(id)
+      .then(res => active && setFacility(res.facility))
+      .catch(() => active && setFacility(null))
+      .finally(() => active && setLoading(false));
+    return () => { active = false; };
+  }, [id]);
 
   const [formData, setFormData] = useState({
     groupAssociation: '',
@@ -118,7 +125,7 @@ function ReservationForm() {
   const handleNext = () => {
     if (!validateStep1()) return;
     const step1 = { ...formData };
-    navigate('/reservation-step2', {
+    navigate(`/reservation-step2/${type}/${id}`, {
       state: { step1, type, facility, step2: prevStep2Ref.current, file: prevFileRef.current }
     });
   };
@@ -192,7 +199,23 @@ function ReservationForm() {
                 />
                 {errors.phoneNo && <div className={styles.fieldError}>{errors.phoneNo}</div>}
               </div>
-
+              <div className={styles.formGroup}>
+                <label className={styles.label} htmlFor="officeTelephoneNo">
+                  Office Telephone No.
+                </label>
+                <input
+                  id="officeTelephoneNo"
+                  type="tel"
+                  name="officeTelephoneNo"
+                  value={formData.officeTelephoneNo}
+                  onChange={handleInputChange}
+                  className={`${styles.input} ${errors.officeTelephoneNo ? styles.inputError : ''}`}
+                  aria-invalid={!!errors.officeTelephoneNo}
+                />
+                {errors.officeTelephoneNo && (
+                  <div className={styles.fieldError}>{errors.officeTelephoneNo}</div>
+                )}
+              </div>
               <div className={styles.checkboxGroupContainer}>
                 <div className={styles.checkboxGroup}>
                   <label className={styles.label}>Select Category</label>

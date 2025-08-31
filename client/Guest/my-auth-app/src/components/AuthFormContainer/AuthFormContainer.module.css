@@ -7,8 +7,8 @@
   justify-content: center;
   align-items: center;
   border-radius: 0 15px 15px 0;
-  width: 100%; /* ✅ ensure it never overflows */
-  box-sizing: border-box; /* ✅ padding included in width */
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .formContainer h2 {
@@ -83,10 +83,10 @@
 
 @media (max-width: 768px) {
   .formContainer {
-    flex: 1;
+    flex: unset;
     padding: 20px;
     border-radius: 15px;
-    width: 100%;  
+    width: 100%;
     max-width: 100%;
   }
   
