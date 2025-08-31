@@ -394,6 +394,25 @@
         inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 
+@media (max-width: 992px) {
+    .detailRow {
+    flex-wrap: wrap;        /* allow wrapping on smaller screens */
+    gap: 8px;               /* spacing between label, separator, and value */
+    }
+    .detailLabel {
+    flex: 0 0 200px;        /* give it some width, but not fixed */
+    max-width: 100%;        /* don’t overflow */
+    }
+    .detailSeparator {
+    margin: 0;              /* remove giant 190px margin */
+    }
+    .detailValue {
+    flex: 1 1 auto;         /* let it grow or shrink */
+    min-width: 0;           /* prevents overflow with long text */
+    }
+}
+
+
 /* Enhanced Responsive Adjustments */
 @media (max-width: 768px) {
     .reservationHistoryContainer {
@@ -438,11 +457,23 @@
         padding: 16px 12px;
     }
     .detailRow {
-        padding: 10px 12px;
+        display: flex;
+        align-items: baseline;
+        gap: 6px;
     }
     .detailLabel {
-        width: 100px;
+        width: auto !important;
+        flex: none;
+        white-space: nowrap;
         font-size: 0.85em;
+        margin-right: 0;
+    }
+    .detailSeparator {
+        margin: 0;
+        display: inline;
+    }
+    .detailValue {
+        width: 100%;
     }
 }
 
