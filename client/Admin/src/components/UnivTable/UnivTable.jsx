@@ -68,6 +68,9 @@ export default function UnivTable({ columns, data, renderActions, renderMenu }) 
                             <button className={styles["univ-decline-btn"]}>
                               Decline
                             </button>
+                            <button className={styles["univ-view-btn"]}>
+                              View
+                            </button>
                           </>
                         )}
 

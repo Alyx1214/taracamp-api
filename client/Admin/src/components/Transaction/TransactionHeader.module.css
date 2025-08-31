@@ -1,0 +1,15 @@
+.transaction-header__container {
+  display: flex;
+  align-items: center;
+  gap: 30px;
+  margin-bottom: auto;
+  font-family: "Montserrat", sans-serif;
+}
+
+.transaction-header__title {
+  margin: 0;
+  font-weight: 700;
+  font-size: 50px;
+  color: #4F3718;
+  letter-spacing: 10px;
+}

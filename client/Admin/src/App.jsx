@@ -12,6 +12,7 @@ import ReservationFormStep4 from './components/ReservationForm/ResDetails.jsx';
 import ReservationDetails from "../src/components/Reservation/ReservationDetail.jsx";
 import AddForm from "../src/components/Facility/AddForm.jsx";
 import EditForm from "../src/components/Facility/EditForm.jsx"; 
+import Transaction from "./components/Transaction/Transaction.jsx";
 import CheckInOut from "./components/CheckInOut/CheckInOuts.jsx";
 import Reports from "./components/Report/Report.jsx";
 import User from "./components/Users/Users.jsx";
@@ -84,8 +85,8 @@ return (
 <Route path="dashboard" element={<Dashboard />} />
 <Route path="reservations" element={<Reservations />} />
 <Route path="facilities" element={<Facilities />} />
-{/* <Route path="transactions" element={<Transactions />} />  */}
-<Route path="user" element={<User />} /> 
+<Route path="transactions" element={<Transaction />} />
+<Route path="user" element={<User />} />
 <Route path="checkin" element={<CheckInOut />} />
 <Route path="reports" element={<Reports />} /> 
 <Route path="/reservations/add" element={<AddReservation />} />
