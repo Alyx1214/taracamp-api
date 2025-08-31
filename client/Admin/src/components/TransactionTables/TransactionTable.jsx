@@ -28,14 +28,19 @@ export default function TransactionTable() {
 
   const renderActions = (row) => (
     <>
-      <button className={styles["univ-view-btn"]}>View</button>
+      <button
+        className={styles["univ-view-btn"]}
+        onClick={() => navigate(`/transaction/${row.id}/details`)}
+      >
+        View
+      </button>
     </>
   );
 
   const renderMenu = (row) => [
     {
       label: "View Details",
-      onClick: () => navigate(`/transaction/${row.id}/details`), 
+      onClick: () => navigate(`/transaction/${row.id}/details`),
     },
   ];
 

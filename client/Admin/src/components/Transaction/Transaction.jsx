@@ -4,8 +4,8 @@ import TransactionPagination from "./TransactionPagination";
 import styles from "./Transaction.module.css";
 import Tabs from "../SharedTabs/SharedTabs.jsx";
 import SearchFil from "../SearchFil/SearchFil";
-import TransactionTable from "../TransactionTables/TransactionTable";
-import PaymentTable from "../TransactionTables/PaymentTable";
+import TransactionTable from "../TransactionTables/TransactionTable.jsx";
+import PaymentTable from "../TransactionTables/PaymentTable.jsx";
 
 
 export default function Transaction() {
