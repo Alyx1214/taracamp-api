@@ -69,6 +69,10 @@
 }
 
 @media (max-width: 992px) {
+  .heroReserveButton {
+    margin-left: 0px;
+  }
+
   .heroContent {
     flex-direction: column;
     text-align: center;
