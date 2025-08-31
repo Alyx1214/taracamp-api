@@ -32,12 +32,23 @@ export default function Confirmed() {
     </>
   );
 
-  const renderMenu = (row) => [
-    {
-      label: "See Details",
-      onClick: () => navigate(`/reservations/${row.id}/details`), 
-    },
-  ];
+  const renderMenu = (row) => {
+    if (row.serviceType === "Lodging") {
+      return [
+        {
+          label: "See Details",
+          onClick: () => navigate(`/confirmedIndiv/${row.id}/details`),
+        },
+      ];
+    } else {
+      return [
+        {
+          label: "See Details",
+          onClick: () => navigate(`/confirmedGroup/${row.id}/details`),
+        },
+      ];
+    }
+  };
 
   return (
     <UnivTable
