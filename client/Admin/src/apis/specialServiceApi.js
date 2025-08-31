@@ -11,3 +11,19 @@ export function updateSpecialService(id, { name, price, unit }) {
   if (unit !== undefined) body.unit = unit;
   return apiPost(`/api/special-service/update-special-service/${encodeURIComponent(id)}`, body);
 }
+
+export function searchSpecialServices(params = {}) {
+  return apiGet('/api/special-service/search-special-services', params);
+}
+
+export function createSpecialService({ name, price, unit }) {
+  const body = {};
+  if (name !== undefined) body.name = name;
+  if (price !== undefined && price !== null && price !== '') body.price = Number(price);
+  if (unit !== undefined) body.unit = unit;
+  return apiPost('/api/special-service/create-special-service', body);
+}
+
+export function deleteSpecialService(id) {
+  return apiPost(`/api/special-service/delete-special-service/${encodeURIComponent(id)}`, {});
+}

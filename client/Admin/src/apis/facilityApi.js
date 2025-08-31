@@ -19,18 +19,6 @@ export function searchFacilities(params = {}) {
   return apiGet(`/api/facility/search-facilities?${q.toString()}`);
 }
 
-export function searchSpecialServices(params = {}) {
-  const q = new URLSearchParams();
-  Object.entries(params).forEach(([k, v]) => {
-    if (v !== undefined && v !== null && String(v).trim() !== '') q.append(k, v);
-  });
-  return apiGet(`/api/special-service/search-special-services?${q.toString()}`);
-}
-
-export function getAllSpecialServices() {
-  return apiGet('/api/special-service/get-all-special-services');
-}
-
 export function getFacilityById(id) {
   return apiGet(`/api/facility/get-facility-by-id/${encodeURIComponent(id)}`);
 }
@@ -43,7 +31,6 @@ export function checkAvailability(params) {
   return apiGet('/api/reservation/check-availability', params);
 }
 
-// Admin-only: create/update/delete facility
 export function createFacility(payload = {}) {
   const fd = new FormData();
   Object.entries(payload).forEach(([k, v]) => {
