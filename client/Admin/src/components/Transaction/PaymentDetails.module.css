@@ -1,0 +1,117 @@
+.payment-details-container {
+  padding: 3rem 2rem 0 2rem;
+}
+
+.payment-details-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.payment-details-back {
+  font-size: 2rem;
+  color: #233d29;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.payment-details-title {
+  color: #233d29;
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.payment-details-card {
+  background: #fff;
+  border: 1px solid #5b3a0b;
+  border-radius: 1rem;
+  padding: 2.5rem 3rem;
+  max-width: 700px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+.payment-details-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 0.5rem;
+}
+
+.payment-details-label {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: #232323;
+  padding: 0.3rem 0.5rem 0.3rem 0;
+  letter-spacing: 0.5px;
+  width: 260px;
+}
+
+.payment-details-separator {
+  width: 20px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 1.2rem;
+  color: #232323;
+}
+
+.payment-details-table td {
+  font-size: 1.1rem;
+  color: #232323;
+  padding: 0.3rem 0.5rem;
+  vertical-align: top;
+}
+
+.payment-details-divider {
+  border: none;
+  border-top: 2px solid #444;
+  margin: 1.2rem 0 1.2rem 0;
+}
+
+.payment-details-section-title {
+  font-weight: 700;
+  font-size: 1.15rem;
+  margin-bottom: 0.5rem;
+  color: #232323;
+}
+
+.payment-details-total-row {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  font-weight: 700;
+  font-size: 1.15rem;
+  margin-top: 1.2rem;
+  margin-bottom: 0.7rem;
+  gap: 1rem;
+}
+
+.payment-details-total {
+  color: #ff2222;
+  font-weight: 700;
+  font-size: 1.15rem;
+}
+
+.payment-details-status-row {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin-top: 0.5rem;
+  color: #444;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.payment-details-status-label {
+  color: #444;
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.payment-details-status-value {
+  color: #ff2222;
+  font-weight: 700;
+  font-size: 1.1rem;
+  margin-left: auto;
+}

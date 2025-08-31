@@ -13,6 +13,8 @@ import ReservationDetails from "../src/components/Reservation/ReservationDetail.
 import AddForm from "../src/components/Facility/AddForm.jsx";
 import EditForm from "../src/components/Facility/EditForm.jsx"; 
 import Transaction from "./components/Transaction/Transaction.jsx";
+import TransactionDetails from "./components/Transaction/TransactionDetails.jsx";
+import PaymentDetails from "./components/Transaction/PaymentDetails.jsx";
 import CheckInOut from "./components/CheckInOut/CheckInOuts.jsx";
 import Reports from "./components/Report/Report.jsx";
 import User from "./components/Users/Users.jsx";
@@ -97,7 +99,9 @@ return (
 <Route path="/reservations/:id" element={<ReservationDetails />} />
 
 <Route path="/add-facility" element={<AddForm />} />
-<Route path="/facilities/edit/:id" element={<EditForm />} /> 
+<Route path="/facilities/edit/:id" element={<EditForm />} />
+<Route path="/transaction/:id/details" element={<TransactionDetails />} /> 
+<Route path="/payment/:id/details" element={<PaymentDetails />} /> 
 
 <Route path="*" element={<Navigate to="/" replace />} />
 </Route>

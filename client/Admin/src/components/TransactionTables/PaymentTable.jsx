@@ -27,17 +27,22 @@ export default function TransactionTable() {
   ];
 
   const renderActions = (row) => (
-    <>
-      <button className={styles["univ-view-btn"]}>View</button>
-    </>
-  );
-
-  const renderMenu = (row) => [
-    {
-      label: "View Details",
-      onClick: () => navigate(`/transaction/${row.id}/details`), 
-    },
-  ];
+      <>
+        <button
+          className={styles["univ-view-btn"]}
+          onClick={() => navigate(`/payment/${row.id}/details`)}
+        >
+          View
+        </button>
+      </>
+    );
+  
+    const renderMenu = (row) => [
+      {
+        label: "View Details",
+        onClick: () => navigate(`/payment/${row.id}/details`),
+      },
+    ];
 
   return (
     <UnivTable
