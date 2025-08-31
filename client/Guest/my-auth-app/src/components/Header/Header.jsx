@@ -1,4 +1,4 @@
-import React, { useState } from 'react'; 
+import React, { useState, useEffect } from 'react'; 
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import styles from './Header.module.css';
 import mountainLogo from '../../assets/logo.png';
@@ -7,6 +7,7 @@ function Header({ onReserveNow }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false); 
+  const [showReserve, setShowReserve] = useState(false); // 👈 new state
 
   const handleNavLinkClick = (path, sectionId) => {
     setIsMenuOpen(false); 
@@ -29,6 +30,22 @@ function Header({ onReserveNow }) {
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
   };
+
+  // 👇 Observe the hero section
+  useEffect(() => {
+    const hero = document.getElementById('hero');
+    if (!hero) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setShowReserve(!entry.isIntersecting);
+      },
+      { threshold: 0.2 } // adjust if needed
+    );
+
+    observer.observe(hero);
+    return () => observer.disconnect();
+  }, []);
 
   return (
     <header className={styles.headerContainer}>
@@ -64,12 +81,13 @@ function Header({ onReserveNow }) {
         </ul>
       </nav>
 
-      <div className={styles.desktopActions}>
+      {/* 👇 show only after hero is scrolled past */}
+      <div className={`${styles.desktopActions} ${!showReserve ? styles.hidden : ''}`}>
         <button className={styles.reserveNowButton} onClick={onReserveNow}>
           Reserve Now!
         </button>
       </div>
-
+      
       <button className={styles.hamburgerButton} onClick={toggleMenu}>
         <svg fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
           <path
