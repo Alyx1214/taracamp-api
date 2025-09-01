@@ -135,7 +135,7 @@ const paymentModule = {
       error: 'Error attaching payment method',
     };
     try {
-      const { paymentIntentId, paymentMethodId, returnUrl, } = data || {};
+      const { paymentIntentId, paymentMethodId, returnUrl, paymentMethodType, } = data || {};
       if (!paymentIntentId || !paymentMethodId) {
         responseData.status = Status.BAD_REQUEST;
         responseData.error = 'paymentIntentId and paymentMethodId are required';
@@ -189,6 +189,8 @@ const paymentModule = {
         await dbHelper.findOneAndUpdate('payment', { piId: intent.id }, {
           $set: {
             status: intent?.attributes?.status,
+            // If client passed the channel (gcash/paymaya), store it for display
+            paymentMethodType: paymentMethodType || undefined,
             updatedAt: new Date(),
           },
         });
@@ -352,7 +354,8 @@ const paymentModule = {
           } else {
             let totalPaid = 0;
             try {
-              const paidRows = await dbHelper.findMany('payment', { reservationId, status: 'paid' }, { sort: { createdAt: 1 } });
+              const successfulStatuses = ['paid', 'succeeded'];
+              const paidRows = await dbHelper.findMany('payment', { reservationId, status: { $in: successfulStatuses } }, { sort: { createdAt: 1 } });
               totalPaid = (paidRows || []).reduce((acc, p) => acc + (Number(p.amountCentavos || 0) / 100), 0);
             } catch (_) {}
 

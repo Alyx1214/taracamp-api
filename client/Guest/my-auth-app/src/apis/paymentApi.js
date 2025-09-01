@@ -21,3 +21,9 @@ export function listPaymentsByReservation(reservationId) {
   if (!reservationId) throw new Error('reservationId is required');
   return apiGet(`/api/payment/list-by-reservation/${reservationId}`);
 }
+
+// Reconcile a Payment Intent after returning from PayMongo redirect
+export function reconcilePaymentIntent(id) {
+  if (!id) throw new Error('paymentIntentId is required');
+  return apiGet(`/api/payment/reconcile/${id}`);
+}

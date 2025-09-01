@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import styles from './Transactions.module.css';
 import HeaderHome from '../HeaderHome/HeaderHome'; 
 import { getPaymentSummary } from '../../apis/reservationApi';
-import { createPaymentIntent, createPaymentMethod, attachPaymentMethod, listPaymentsByReservation } from '../../apis/paymentApi';
+import { createPaymentIntent, createPaymentMethod, attachPaymentMethod, listPaymentsByReservation, reconcilePaymentIntent } from '../../apis/paymentApi';
 
 function Transactions() {
   const navigate = useNavigate();
@@ -120,6 +120,33 @@ function Transactions() {
     };
     run();
     return () => { active = false; };
+  }, [reservationId]);
+
+  // When PayMongo redirects back to our return_url, attempt to reconcile the PI
+  useEffect(() => {
+    let cancelled = false;
+    const sp = new URLSearchParams(window.location.search);
+    const piId = sp.get('payment_intent_id') || sp.get('payment_intent') || sp.get('pi_id') || sp.get('id');
+    if (!reservationId || !piId) return;
+
+    (async () => {
+      try {
+        await reconcilePaymentIntent(piId);
+        if (cancelled) return;
+        // Refresh the visible payment list after reconcile
+        const listRes = await listPaymentsByReservation(reservationId);
+        if (!cancelled) {
+          const rows = listRes?.data || listRes || [];
+          setPayments(Array.isArray(rows) ? rows : []);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setError(e?.data?.error || e?.message || 'Failed to reconcile payment');
+        }
+      }
+    })();
+
+    return () => { cancelled = true; };
   }, [reservationId]);
 
   return (
