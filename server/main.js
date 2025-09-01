@@ -99,7 +99,8 @@ const processGetAPI = async (req, res) => {
         case 'facility':
             switch (action) {
                 case 'get-all-facilities': {
-                    let responseData = await facilityModule.getAllFacilities(dbHelper);
+                    const params = { ...req.query };
+                    let responseData = await facilityModule.getAllFacilities(dbHelper, params);
                     return res.status(responseData.status).json(responseData);
                 }
                 case 'get-facility-by-id': {
@@ -125,7 +126,8 @@ const processGetAPI = async (req, res) => {
         case 'special-service':
             switch (action) {
                 case 'get-all-special-services': {
-                    let responseData = await specialServiceModule.getAllSpecialServices(dbHelper);
+                    const params = { ...req.query };
+                    let responseData = await specialServiceModule.getAllSpecialServices(dbHelper, params);
                     return res.status(responseData.status).json(responseData);
                 }
                 case 'get-special-service-by-id': {
@@ -151,7 +153,8 @@ const processGetAPI = async (req, res) => {
                     return res.status(responseData.status).json(responseData);
                 }
                 case 'get-all-reservations-by-status': {
-                    let responseData = await reservationModule.getAllReservationsByStatus(dbHelper, id, req.user);
+                    const params = { ...req.query };
+                    let responseData = await reservationModule.getAllReservationsByStatus(dbHelper, id, req.user, params);
                     return res.status(responseData.status).json(responseData);
                 }
                 case 'estimate-amount': {

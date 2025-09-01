@@ -284,7 +284,8 @@ const reservationModule = {
             responseData.reservation = reservationObject;
         } catch (error) {
             console.error('Error creating reservation:', error);
-            responseData.error = error.message;
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Internal server error';
         }
         return responseData;
     },
@@ -346,7 +347,8 @@ const reservationModule = {
             responseData.reservation = reservationObject;
         } catch (error) {
             console.error('Error fetching reservation by ID:', error);
-            responseData.error = error.message;
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Internal server error';
         }
         return responseData;
     },
@@ -374,7 +376,8 @@ const reservationModule = {
             responseData.reservations = reservations;
         } catch (error) {
             console.error('Error fetching reservations by user ID:', error);
-            responseData.error = error.message;
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Internal server error';
         }
         return responseData;
     },
@@ -455,6 +458,7 @@ const reservationModule = {
             };
         } catch (error) {
             console.error('Error cancelling reservation:', error);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
             responseData.error = error.message;
         }
         return responseData;
@@ -467,7 +471,7 @@ const reservationModule = {
      * @param {Object} user - The user object containing the user ID and role.
      * @returns {Object} Response data with status, error, and an array of reservations on success.
      */
-    getAllReservationsByStatus: async (dbHelper, status, user) => {
+    getAllReservationsByStatus: async (dbHelper, status, user, options = {}) => {
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
             error: 'Error fetching reservations',
@@ -497,12 +501,20 @@ const reservationModule = {
                 return responseData;
             }
 
-            const reservations = await dbHelper.find('reservation', { status: status, }, { __v: 0, createdAt: 0, });
+            const { limit, skip, sort, } = options || {};
+            const sortOption = sort ? parseSort(sort) : { createdAt: -1, };
+            const reservations = await dbHelper.findMany('reservation', { status: status, }, {
+                projection: { __v: 0, createdAt: 0, },
+                sort: sortOption,
+                limit: clampLimit(limit),
+                skip: clampSkip(skip),
+            });
             responseData.status = Status.OK;
             responseData.error = null;
             responseData.reservations = reservations;
         } catch (error) {
             console.error('Error fetching reservations by status:', error);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
             responseData.error = error.message;
         }
         return responseData;
@@ -562,7 +574,8 @@ const reservationModule = {
             };
         } catch (error) {
             console.error('Error approving or declining reservation:', error);
-            responseData.error = error.message;
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Internal server error';
         }
         return responseData;
     },
@@ -618,7 +631,9 @@ const reservationModule = {
             responseData.amount = amount;
             responseData.model = model;
         } catch (err) {
-            responseData.error = err.message;
+            console.error('Error estimating amount:', err);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Internal server error';
         }
         return responseData;
     },
@@ -695,7 +710,9 @@ const reservationModule = {
             responseData.available = true;
             return responseData;
         } catch (err) {
-            responseData.error = err.message;
+            console.error('Error checking availability:', err);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Internal server error';
             return responseData;
         }
     },
@@ -783,7 +800,9 @@ const reservationModule = {
             };
             return responseData;
         } catch (err) {
-            responseData.error = err.message;
+            console.error('Error computing payment summary:', err);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Internal server error';
             return responseData;
         }
     },

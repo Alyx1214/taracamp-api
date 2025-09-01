@@ -131,7 +131,8 @@ const facilityModule = {
             if (imageKey) responseData.imageUrl = imageUrl;
         } catch (error) {
             console.error('Error adding facility:', error);
-            responseData.error = error.message;
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Internal server error';
         }
         return responseData;
     },
@@ -141,14 +142,22 @@ const facilityModule = {
      * @param {Object} dbHelper - The database helper for database operations.
      * @returns {Object} Response data with status, error, and facilities on success.
      */
-    getAllFacilities: async (dbHelper) => {
+    getAllFacilities: async (dbHelper, options = {}) => {
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
             error: 'Error fetching facilities',
             facilities: [],
         };
         try {
-            const facilities = await dbHelper.find('facility', {}, { __v: 0, createdAt: 0, });
+            const { limit, skip, sort, } = options || {};
+            // Default sort by name asc for stable ordering
+            const sortOption = sort ? parseSort(sort) : { name: 1, };
+            const facilities = await dbHelper.findMany('facility', {}, {
+                projection: { __v: 0, createdAt: 0, },
+                sort: sortOption,
+                limit: clampLimit(limit),
+                skip: clampSkip(skip),
+            });
 
             const withSigned = await Promise.all(
                 facilities.map(async (f) => {
@@ -163,7 +172,9 @@ const facilityModule = {
             responseData.error = null;
             responseData.facilities = withSigned;
         } catch (error) {
-            responseData.error = error.message;
+            console.error('Error fetching facilities:', error);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Internal server error';
         }
         return responseData;
     },
@@ -209,7 +220,9 @@ const facilityModule = {
             responseData.error = null;
             responseData.facility = facilityObject;
         } catch (error) {
-            responseData.error = error.message;
+            console.error('Error fetching facility:', error);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Internal server error';
         }
         return responseData;
     },
@@ -367,7 +380,8 @@ const facilityModule = {
             responseData.facilityId = id;
         } catch (error) {
             console.error('Error editing facility:', error);
-            responseData.error = error.message;
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Internal server error';
         }
         return responseData;
     },
@@ -425,7 +439,8 @@ const facilityModule = {
             responseData.facilityId = id;
         } catch (error) {
             console.error('Error deleting facility:', error);
-            responseData.error = error.message;
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Internal server error';
         }
         return responseData;
     },
@@ -476,7 +491,8 @@ const facilityModule = {
             responseData.facilities = facilitiesObject;
         } catch (error) {
             console.error('Error fetching facilities by type:', error);
-            responseData.error = error.message;
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Internal server error';
         }
         return responseData;
     },
@@ -546,7 +562,8 @@ const facilityModule = {
 
         } catch (error) {
             console.error('Error fetching available dates:', error);
-            responseData.error = error.message;
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Internal server error';
         }
         return responseData;
     },
@@ -616,7 +633,8 @@ const facilityModule = {
             responseData.facilities = withSigned;
         } catch (error) {
             console.error('Error searching facilities:', error);
-            responseData.error = error.message;
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Internal server error';
         }
         return responseData;
     },
@@ -698,4 +716,33 @@ async function getSignedReadUrl(imageKey, expiresInMs = 60 * 60 * 1000) {
         expires: Date.now() + expiresInMs,
     });
     return url;
+}
+
+// Helpers for list endpoints
+function clampLimit(value, def = undefined) {
+    if (value === null || value === undefined || value === '') return def;
+    const n = Number(value);
+    if (!Number.isFinite(n)) return def;
+    return Math.max(1, Math.min(100, Math.trunc(n)));
+}
+
+function clampSkip(value, def = 0) {
+    if (value === null || value === undefined || value === '') return def;
+    const n = Number(value);
+    if (!Number.isFinite(n)) return def;
+    return Math.max(0, Math.trunc(n));
+}
+
+function parseSort(spec) {
+    if (!spec || typeof spec !== 'string') return undefined;
+    const parts = spec.split(',');
+    const sort = {};
+    for (const p of parts) {
+        const [fieldRaw, dirRaw] = p.split(':');
+        const field = (fieldRaw || '').trim();
+        if (!field) continue;
+        const dir = (dirRaw || 'asc').trim().toLowerCase();
+        sort[field] = (dir === 'desc' || dir === '-1') ? -1 : 1;
+    }
+    return Object.keys(sort).length ? sort : undefined;
 }
