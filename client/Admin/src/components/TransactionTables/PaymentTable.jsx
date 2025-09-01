@@ -1,13 +1,14 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import UnivTable from "./UnivTable";
-import styles from "./UnivTable.module.css"; 
-export default function Confirmed() {
+import UnivTable from "../UnivTable/UnivTable.jsx";
+import styles from "../UnivTable/UnivTable.module.css"; 
+
+export default function TransactionTable() {
   const navigate = useNavigate();
 
   const columns = ["ID", "Name", "Email", "Service Type", "Date", "Actions"];
 
-  const confirmedData = [
+  const paymentData = [
     { id: "0508", name: "Tom John", email: "john.tom@gmail.com", serviceType: "Lodging", date: "April 6, 2025" },
     { id: "0509", name: "Jerome Bell", email: "jeromebell@gmail.com", serviceType: "Event and Lodging", date: "April 5, 2025" },
     { id: "0510", name: "Wade Warren", email: "warren05@gmail.com", serviceType: "Event", date: "April 4, 2025" },
@@ -26,34 +27,27 @@ export default function Confirmed() {
   ];
 
   const renderActions = (row) => (
-    <>
-      <button className={styles["univ-approve-btn"]}>Edit</button>
-      <button className={styles["univ-decline-btn"]}>View</button>
-    </>
-  );
-
-  const renderMenu = (row) => {
-    if (row.serviceType === "Lodging") {
-      return [
-        {
-          label: "See Details",
-          onClick: () => navigate(`/confirmedIndiv/${row.id}/details`),
-        },
-      ];
-    } else {
-      return [
-        {
-          label: "See Details",
-          onClick: () => navigate(`/confirmedGroup/${row.id}/details`),
-        },
-      ];
-    }
-  };
+      <>
+        <button
+          className={styles["univ-view-btn"]}
+          onClick={() => navigate(`/payment/${row.id}/details`)}
+        >
+          View
+        </button>
+      </>
+    );
+  
+    const renderMenu = (row) => [
+      {
+        label: "View Details",
+        onClick: () => navigate(`/payment/${row.id}/details`),
+      },
+    ];
 
   return (
     <UnivTable
       columns={columns}
-      data={confirmedData}
+      data={paymentData}
       renderActions={renderActions}
       renderMenu={renderMenu}
     />

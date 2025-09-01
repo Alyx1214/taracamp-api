@@ -1,0 +1,124 @@
+.rsv-details-container {
+  padding: 3rem 2rem 0 2rem;
+}
+
+.rsv-details-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.rsv-details-back {
+  font-size: 2rem;
+  color: #233d29;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.rsv-details-title {
+  color: #233d29;
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.rsv-details-card {
+  background: #fff;
+  border: 1px solid #5b3a0b;
+  border-radius: 1rem;
+  padding: 2.5rem 3rem;
+  max-width: 800px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+.rsv-details-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1.2rem;
+}
+
+.rsv-details-facility {
+  font-weight: 700;
+  font-size: 1.35rem;
+  color: #232323;
+}
+
+.rsv-details-date {
+  font-weight: 700;
+  font-size: 1.25rem;
+  color: #232323;
+}
+
+.rsv-details-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 0.5rem;
+}
+
+.rsv-details-label {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: #232323;
+  padding: 0.3rem 0.5rem 0.3rem 0;
+  letter-spacing: 0.5px;
+  width: 260px;
+}
+
+.rsv-details-separator {
+  width: 20px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 1.2rem;
+  color: #232323;
+}
+
+.rsv-details-table td {
+  font-size: 1.1rem;
+  color: #232323;
+  padding: 0.3rem 0.5rem;
+  vertical-align: top;
+}
+
+.rsv-details-divider {
+  border: none;
+  border-top: 2px solid #444;
+  margin: 1.2rem 0 1.2rem 0;
+}
+
+.rsv-details-status-row {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin-top: 0.5rem;
+  color: #444;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.rsv-details-status-label {
+  color: #444;
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.rsv-details-status-value {
+  color: #ff2222;
+  font-weight: 700;
+  font-size: 1.1rem;
+  margin-left: 0.5rem;
+}
+
+.rsv-details-link {
+  margin-top: 1.2rem;
+}
+
+.rsv-details-food-link {
+  color: #232323;
+  font-weight: 700;
+  text-decoration: underline;
+  font-size: 1.05rem;
+  cursor: pointer;
+}

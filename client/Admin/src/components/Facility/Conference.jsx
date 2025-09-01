@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
 import BoxCard from "./BoxCard";
-import { getFacilitiesByType, deleteFacility } from "../../apis/facilityApi";
+import { getFacilitiesByType, deleteFacility, searchFacilities } from "../../apis/facilityApi";
 
-export default function Conference({ onEdit }) {
+export default function Conference({ onEdit, searchQuery = "" }) {
   const [conferences, setConferences] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -11,7 +11,11 @@ export default function Conference({ onEdit }) {
     let cancelled = false;
     (async () => {
       try {
-        const res = await getFacilitiesByType('CONFERENCE');
+        setLoading(true);
+        const q = String(searchQuery || '').trim();
+        const res = q
+          ? await searchFacilities({ type: 'CONFERENCE', query: q })
+          : await getFacilitiesByType('CONFERENCE');
         if (cancelled) return;
         const mapped = (res.facilities || []).map(f => ({
           id: f.id,
@@ -28,7 +32,7 @@ export default function Conference({ onEdit }) {
       }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [searchQuery]);
 
   const handleDelete = async (id) => {
     try {

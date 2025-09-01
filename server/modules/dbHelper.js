@@ -104,12 +104,29 @@ const dbHelper = {
                 reservationId: { type: mongoose.Schema.Types.ObjectId, ref: 'reservation', required: false, },
             });
 
+            const PaymentSchema = new mongoose.Schema({
+                piId: { type: String, required: false, index: true, },
+                paymentId: { type: String, required: false, index: true, },
+                reservationId: { type: mongoose.Schema.Types.ObjectId, ref: 'reservation', required: false, index: true, },
+                userId: { type: mongoose.Schema.Types.ObjectId, ref: 'user', required: false, index: true, },
+                amountCentavos: { type: Number, required: false, },
+                currency: { type: String, required: false, },
+                description: { type: String, required: false, },
+                status: { type: String, required: false, },
+                paymentMethodType: { type: String, required: false, },
+                referenceNumber: { type: String, required: false, },
+                createdAt: { type: Date, default: Date.now, },
+                updatedAt: { type: Date, required: false, },
+                paidAt: { type: Date, required: false, },
+            });
+
             mongoose.model('user', UserSchema);
             mongoose.model('profile', ProfileSchema);
             mongoose.model('reservation', ReservationSchema);
             mongoose.model('facility', FacilitySchema);
             mongoose.model('specialservice', SpecialServiceSchema);
             mongoose.model('notification', NotificationSchema);
+            mongoose.model('payment', PaymentSchema);
 
             await mongoose.connect(connectionString);
         } catch (error) {

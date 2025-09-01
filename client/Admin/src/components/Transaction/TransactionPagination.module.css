@@ -1,0 +1,37 @@
+
+.transaction-pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 1.5rem 0;
+}
+.pagination-info {
+  color: #5B3A0B;
+  font-weight: 600;
+}
+.pagination-controls {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+.pagination-btn {
+  background: #fff;
+  color: #4CA16B;
+  border: none;
+  border-radius: 0.5rem;
+  width: 2rem;
+  height: 2rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.pagination-btn.active {
+  background: #4CA16B;
+  color: #fff;
+}
+.pagination-arrow {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: #4CA16B;
+  cursor: pointer;
+}

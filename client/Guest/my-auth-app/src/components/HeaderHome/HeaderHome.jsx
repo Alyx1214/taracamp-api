@@ -99,9 +99,22 @@ function HeaderHome() {
   const notifMenuRef = useRef(null);
   const msgMenuRef = useRef(null);
 
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 992);
+
+  useEffect(() => {
+    function handleResize() {
+      setIsMobile(window.innerWidth <= 992);
+    }
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   // Close menus when clicking outside
   useEffect(() => {
     function handleClickOutside(event) {
+      // Don’t auto-close menus if hamburger menu is open
+      if (isMobile && isMenuOpen) return;
+
       if (accountMenuRef.current && !accountMenuRef.current.contains(event.target)) {
         setIsAccountMenuOpen(false);
       }
@@ -114,7 +127,7 @@ function HeaderHome() {
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, [isMobile, isMenuOpen]);
 
   // Fetch unread notifications when panel opens; refresh while open
   useEffect(() => {
@@ -240,21 +253,22 @@ function HeaderHome() {
 
   const handleProfileClick = () => {
     setIsAccountMenuOpen(prev => !prev);
-    setIsMenuOpen(false);
+    if (!isMobile) setIsMenuOpen(false);  // only close nav on desktop
     setIsNotifOpen(false);
     setIsMsgOpen(false);
   };
 
+
   const handleNotificationsClick = () => {
     setIsNotifOpen(prev => !prev);
-    setIsMenuOpen(false);
+    if (!isMobile) setIsMenuOpen(false);
     setIsAccountMenuOpen(false);
     setIsMsgOpen(false);
   };
 
   const handleMessagesClick = () => {
     setIsMsgOpen(prev => !prev);
-    setIsMenuOpen(false);
+    if (!isMobile) setIsMenuOpen(false);
     setIsAccountMenuOpen(false);
     setIsNotifOpen(false);
   };
@@ -390,6 +404,90 @@ function HeaderHome() {
             <Link to="/contacts" className={styles.navLink} onClick={() => handleNavLinkClick('/contacts', 'contacts-top')}>CONTACTS</Link>
           </li>
         </ul>
+
+        {/* Mobile-only user icons inside hamburger */}
+          <div className={styles.mobileUserIcons}>
+            {/* Notifications */}
+            <div className={styles.accountIconWrapper} ref={notifMenuRef}>
+              <button className={styles.iconButton} onClick={handleNotificationsClick}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none"
+                    stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                    className="feather feather-bell">
+                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                </svg>
+                {unreadCount > 0 && <span className={styles.badge}>{unreadCount}</span>}
+              </button>
+              {isNotifOpen && (
+                <div className={styles.accountDropdownMenu}>
+                  <Notif onMarkAllAsRead={() => setUnreadCount(0)} />
+                </div>
+              )}
+            </div>
+
+            {/* Messages */}
+            <div className={styles.accountIconWrapper} ref={msgMenuRef}>
+              <button className={styles.iconButton} onClick={handleMessagesClick}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none"
+                    stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                    className="feather feather-message-square">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 1 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                </svg>
+                {msgUnreadCount > 0 && <span className={styles.badge}>{msgUnreadCount}</span>}
+              </button>
+              {isMsgOpen && (
+                <div className={styles.accountDropdownMenu} role="dialog" aria-label="Messages">
+                  <div className={styles.msgHeaderRow}>
+                    <span className={styles.msgHeaderTitle}>Messages</span>
+                    <button
+                      className={styles.markAllBtn}
+                      onClick={() => {
+                        setMessages(arr => arr.map(m => ({ ...m, isRead: true })));
+                        setMsgUnreadCount(0);
+                        // api('/api/message/mark-all-read', { method: 'POST' }).catch(()=>{});
+                      }}
+                    >
+                      Mark all as Read
+                    </button>
+                  </div>
+
+                  <div className={styles.msgList}>
+                    {msgLoading && <div className={styles.msgEmpty}>Loading…</div>}
+                    {!msgLoading && messages.length === 0 && (
+                      <div className={styles.msgEmpty}>No messages yet.</div>
+                    )}
+                    {!msgLoading && messages.map(m => (
+                      <div key={m._id} className={m.isRead ? styles.msgItemRead : styles.msgItem}>
+                        <div className={styles.msgMetaRow}>
+                          <span className={styles.msgTime}>{m.timeLabel}</span>
+                        </div>
+                        <Message sender={m.sender} text={m.text} isUser={m.isUser} role={m.role} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Account */}
+            <div className={styles.accountIconWrapper} ref={accountMenuRef}>
+              <button className={styles.iconButton} onClick={handleProfileClick}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none"
+                    stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                    className="feather feather-user">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+              </button>
+              {isAccountMenuOpen && (
+                <div className={styles.accountDropdownMenu}>
+                  <button className={styles.dropdownItem} onClick={handleReservationClick}>Reservations</button>
+                  <button className={styles.dropdownItem} onClick={handleTransactionsClick}>Transactions</button>
+                  <button className={styles.dropdownItem} onClick={handleLogoutClick}>Log out</button>
+                </div>
+              )}
+            </div>
+          </div>
       </nav>
 
       <div className={styles.desktopActions}>

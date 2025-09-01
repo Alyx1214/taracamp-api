@@ -10,8 +10,13 @@ import ReservationFormStep2 from './components/ReservationForm/ResForm2.jsx';
 import ReservationFormStep3 from './components/ReservationForm/ResForm3.jsx';
 import ReservationFormStep4 from './components/ReservationForm/ResDetails.jsx';
 import ReservationDetails from "../src/components/Reservation/ReservationDetail.jsx";
+import ConfIndivRSVDetails from "./components/Reservation/ConfIndivRSVDetails.jsx";
+import ConfGroupRSVDetails from "./components/Reservation/ConfGroupRSVDetails.jsx";
 import AddForm from "../src/components/Facility/AddForm.jsx";
 import EditForm from "../src/components/Facility/EditForm.jsx"; 
+import Transaction from "./components/Transaction/Transaction.jsx";
+import TransactionDetails from "./components/Transaction/TransactionDetails.jsx";
+import PaymentDetails from "./components/Transaction/PaymentDetails.jsx";
 import CheckInOut from "./components/CheckInOut/CheckInOuts.jsx";
 import Reports from "./components/Report/Report.jsx";
 import User from "./components/Users/Users.jsx";
@@ -84,8 +89,8 @@ return (
 <Route path="dashboard" element={<Dashboard />} />
 <Route path="reservations" element={<Reservations />} />
 <Route path="facilities" element={<Facilities />} />
-{/* <Route path="transactions" element={<Transactions />} />  */}
-<Route path="user" element={<User />} /> 
+<Route path="transactions" element={<Transaction />} />
+<Route path="user" element={<User />} />
 <Route path="checkin" element={<CheckInOut />} />
 <Route path="reports" element={<Reports />} /> 
 <Route path="/reservations/add" element={<AddReservation />} />
@@ -96,7 +101,11 @@ return (
 <Route path="/reservations/:id" element={<ReservationDetails />} />
 
 <Route path="/add-facility" element={<AddForm />} />
-<Route path="/facilities/edit/:id" element={<EditForm />} /> 
+<Route path="/facilities/edit/:id" element={<EditForm />} />
+<Route path="/transaction/:id/details" element={<TransactionDetails />} /> 
+<Route path="/payment/:id/details" element={<PaymentDetails />} /> 
+<Route path="/confirmedIndiv/:id/details" element={<ConfIndivRSVDetails />} />
+<Route path="/confirmedGroup/:id/details" element={<ConfGroupRSVDetails />} />
 
 <Route path="*" element={<Navigate to="/" replace />} />
 </Route>

@@ -91,6 +91,21 @@
   background-color: #c42838dc;
 }
 
+.univ-view-btn {
+  background-color: #4F3718;
+  color: #fff;
+  padding: 8px 25px;
+  border: none;
+  border-radius: 20px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.univ-view-btn:hover {
+  background-color: #c42838dc;
+}
+
 .univ-three-dots-btn {
   background: none;
   border: none;

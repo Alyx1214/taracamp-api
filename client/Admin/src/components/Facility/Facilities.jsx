@@ -11,6 +11,7 @@ import styles from "./Facilities.module.css";
 
 export default function Facilities() {
   const [activeTab, setActiveTab] = useState("Dormitory");
+  const [searchQuery, setSearchQuery] = useState("");
   const navigate = useNavigate();
 
   const handleEdit = (id, type, facility) => {
@@ -25,14 +26,32 @@ export default function Facilities() {
   const renderContent = () => {
     switch (activeTab) {
       case "Dormitory":
-        return <Dormitory onEdit={(id, f) => handleEdit(id, "Dormitory", f)} />;
+        return (
+          <Dormitory
+            onEdit={(id, f) => handleEdit(id, "Dormitory", f)}
+            searchQuery={searchQuery}
+          />
+        );
       case "Cottages":
-        return <Cottages onEdit={(id, f) => handleEdit(id, "Cottages", f)} />;
+        return (
+          <Cottages
+            onEdit={(id, f) => handleEdit(id, "Cottages", f)}
+            searchQuery={searchQuery}
+          />
+        );
       case "Conference":
-        return <Conference onEdit={(id, f) => handleEdit(id, "Conference", f)} />;
+        return (
+          <Conference
+            onEdit={(id, f) => handleEdit(id, "Conference", f)}
+            searchQuery={searchQuery}
+          />
+        );
       case "Other Service":
         return (
-          <OtherService onEdit={(id, f) => handleEdit(id, "Other Service", f)} />
+          <OtherService
+            onEdit={(id, f) => handleEdit(id, "Other Service", f)}
+            searchQuery={searchQuery}
+          />
         );
       default:
         return null;
@@ -45,7 +64,7 @@ export default function Facilities() {
 
       <div className={styles.facilitiesControls}>
         <FaciTypes activeTab={activeTab} setActiveTab={setActiveTab} />
-        <SearchFil />
+        <SearchFil onSearch={(q) => setSearchQuery(String(q || "").trim())} />
       </div>
 
       <div className={styles.facilitiesContent}>{renderContent()}</div>

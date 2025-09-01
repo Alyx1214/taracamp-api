@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
 import BoxCard from "./BoxCard";
-import { getAllSpecialServices } from "../../apis/specialServiceApi";
+import { getAllSpecialServices, searchSpecialServices, deleteSpecialService } from "../../apis/specialServiceApi";
 
-export default function OtherService({ onEdit }) {
+export default function OtherService({ onEdit, searchQuery = "" }) {
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -11,7 +11,11 @@ export default function OtherService({ onEdit }) {
     let cancelled = false;
     (async () => {
       try {
-        const res = await getAllSpecialServices();
+        setLoading(true);
+        const q = String(searchQuery || '').trim();
+        const res = q
+          ? await searchSpecialServices({ query: q })
+          : await getAllSpecialServices();
         if (cancelled) return;
         const mapped = (res.specialServices || []).map((s) => ({
           id: s._id || s.id,
@@ -29,7 +33,16 @@ export default function OtherService({ onEdit }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [searchQuery]);
+
+  const handleDelete = async (id) => {
+    try {
+      await deleteSpecialService(id);
+      setServices(prev => prev.filter(s => String(s.id) !== String(id)));
+    } catch (e) {
+      setError(e?.data?.error || e.message || 'Failed to delete service');
+    }
+  };
 
   return (
     <>
@@ -41,7 +54,7 @@ export default function OtherService({ onEdit }) {
           facilities={services}
           type="Other Service"
           onEdit={onEdit}
-          onDelete={(id) => console.log("Delete Service", id)}
+          onDelete={handleDelete}
         />
       )}
     </>
