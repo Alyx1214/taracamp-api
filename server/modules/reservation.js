@@ -738,10 +738,14 @@ const reservationModule = {
             }
 
             const total = Number(reservation.totalEstimatedAmount) || 0;
-            // Sum of successful payments (status === 'paid') for this reservation
             let totalPaid = 0;
             try {
-                const paidRows = await dbHelper.findMany('payment', { reservationId, status: 'paid', }, { sort: { createdAt: 1, }, });
+                const successfulStatuses = ['paid', 'succeeded'];
+                const paidRows = await dbHelper.findMany(
+                    'payment',
+                    { reservationId, status: { $in: successfulStatuses, }, },
+                    { sort: { createdAt: 1, }, }
+                );
                 totalPaid = (paidRows || []).reduce((acc, p) => acc + (Number(p.amountCentavos || 0) / 100), 0);
             } catch (_) {}
             // Policy: 30% downpayment, due 3 days after creation,
