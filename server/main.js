@@ -43,8 +43,7 @@ app.use(cors({
     credentials: true,
 }));
 
-app.use(express.json());
-
+// Define limiter before first use
 const basicLimiter = rateLimit({
     windowMs: 60 * 1000,
     max: 40,
@@ -52,6 +51,19 @@ const basicLimiter = rateLimit({
         error: 'Too many requests, please try again after a minute.',
     },
 });
+
+// IMPORTANT: register webhook raw-body route BEFORE express.json() so signature verification can use raw payload
+app.post('/api/payment/webhook', basicLimiter, express.raw({ type: 'application/json' }), async (req, res) => {
+    try {
+        const raw = req.body instanceof Buffer ? req.body.toString('utf8') : (typeof req.body === 'string' ? req.body : JSON.stringify(req.body || {}));
+        const responseData = await paymentModule.handleWebhook(dbHelper, req.headers, raw);
+        return res.status(responseData.status).json(responseData);
+    } catch (e) {
+        return res.status(500).json({ status: 500, error: e?.message || 'Webhook handler error', });
+    }
+});
+
+app.use(express.json());
 
 const uploadImage = multer({ storage: multer.memoryStorage(), }).single('image');
 const uploadLetter = multer({ storage: multer.memoryStorage(), }).single('letterOfIntentFile');
@@ -467,15 +479,7 @@ function isProtected(module, action) {
 //     await processGetAPI(req, res);
 // });
 
-app.post('/api/payment/webhook', basicLimiter, express.raw({ type: 'application/json' }), async (req, res) => {
-    try {
-        const raw = req.body instanceof Buffer ? req.body.toString('utf8') : (typeof req.body === 'string' ? req.body : JSON.stringify(req.body || {}));
-        const responseData = await paymentModule.handleWebhook(dbHelper, req.headers, raw);
-        return res.status(responseData.status).json(responseData);
-    } catch (e) {
-        return res.status(500).json({ status: 500, error: e?.message || 'Webhook handler error', });
-    }
-});
+// (route moved above express.json())
 
 app.get('/api/:module/:action', basicLimiter, (req, res) => {
     if (isProtected(req.params.module, req.params.action)) {
