@@ -43,8 +43,7 @@ app.use(cors({
     credentials: true,
 }));
 
-app.use(express.json());
-
+// Define limiter before first use
 const basicLimiter = rateLimit({
     windowMs: 60 * 1000,
     max: 40,
@@ -52,6 +51,18 @@ const basicLimiter = rateLimit({
         error: 'Too many requests, please try again after a minute.',
     },
 });
+
+app.post('/api/payment/webhook', basicLimiter, express.raw({ type: 'application/json' }), async (req, res) => {
+    try {
+        const raw = req.body instanceof Buffer ? req.body.toString('utf8') : (typeof req.body === 'string' ? req.body : JSON.stringify(req.body || {}));
+        const responseData = await paymentModule.handleWebhook(dbHelper, req.headers, raw);
+        return res.status(responseData.status).json(responseData);
+    } catch (e) {
+        return res.status(500).json({ status: 500, error: e?.message || 'Webhook handler error', });
+    }
+});
+
+app.use(express.json());
 
 const uploadImage = multer({ storage: multer.memoryStorage(), }).single('image');
 const uploadLetter = multer({ storage: multer.memoryStorage(), }).single('letterOfIntentFile');
@@ -168,6 +179,10 @@ const processGetAPI = async (req, res) => {
                 }
                 case 'list-by-reservation': {
                     const responseData = await paymentModule.listPaymentsForReservation(dbHelper, id, req.user);
+                    return res.status(responseData.status).json(responseData);
+                }
+                case 'reconcile': {
+                    const responseData = await paymentModule.reconcilePaymentIntent(dbHelper, id, req.user);
                     return res.status(responseData.status).json(responseData);
                 }
                 default:
@@ -425,7 +440,7 @@ function isProtected(module, action) {
             'get-all-reservations-by-status', 'accept-or-decline-reservation', 'get-payment-summary',],
         facility: ['create-facility', 'update-facility', 'delete-facility',],
         'special-service': ['create-special-service', 'update-special-service', 'delete-special-service',],
-        payment: ['create-payment-intent', 'attach-payment-method', 'create-payment-method', 'list-by-reservation',],
+        payment: ['create-payment-intent', 'attach-payment-method', 'create-payment-method', 'list-by-reservation', 'reconcile',],
         notification: ['list', 'mark-read', 'mark-all-read', 'count-unread',],
         dashboard: ['get-todays-reservations-count', 'get-monthly-check-ins-count', 'get-monthly-check-outs-count',
             'get-confirmed-reservations-count', 'get-pending-reservations-count', 'get-cancelled-reservations-count', 'get-total-guest-users',],
@@ -463,15 +478,7 @@ function isProtected(module, action) {
 //     await processGetAPI(req, res);
 // });
 
-app.post('/api/payment/webhook', basicLimiter, express.raw({ type: 'application/json' }), async (req, res) => {
-    try {
-        const raw = req.body instanceof Buffer ? req.body.toString('utf8') : (typeof req.body === 'string' ? req.body : JSON.stringify(req.body || {}));
-        const responseData = await paymentModule.handleWebhook(dbHelper, req.headers, raw);
-        return res.status(responseData.status).json(responseData);
-    } catch (e) {
-        return res.status(500).json({ status: 500, error: e?.message || 'Webhook handler error', });
-    }
-});
+// (route moved above express.json())
 
 app.get('/api/:module/:action', basicLimiter, (req, res) => {
     if (isProtected(req.params.module, req.params.action)) {

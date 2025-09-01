@@ -131,6 +131,11 @@
     text-align: left;
 }
 
+/* Right-align the Amount column in header */
+.tableHeaderItem:nth-child(4) {
+    text-align: right;
+}
+
 .tableContent {
     max-height: 400px; 
     overflow-y: auto; 
@@ -161,6 +166,15 @@
 .tableDataItem {
     padding: 0 10px;
     color: #555;
+}
+
+/* Long references wrap nicely; amounts align right */
+.tableDataItem:nth-child(3) {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+.tableDataItem:nth-child(4) {
+    text-align: right;
 }
 
 .sidebarContent {

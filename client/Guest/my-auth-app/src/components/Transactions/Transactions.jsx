@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import styles from './Transactions.module.css';
 import HeaderHome from '../HeaderHome/HeaderHome'; 
 import { getPaymentSummary } from '../../apis/reservationApi';
-import { createPaymentIntent, createPaymentMethod, attachPaymentMethod, listPaymentsByReservation } from '../../apis/paymentApi';
+import { createPaymentIntent, createPaymentMethod, attachPaymentMethod, listPaymentsByReservation, reconcilePaymentIntent } from '../../apis/paymentApi';
 
 function Transactions() {
   const navigate = useNavigate();
@@ -63,6 +63,7 @@ function Transactions() {
         paymentIntentId: intent.id,
         paymentMethodId: pm.id,
         returnUrl,
+        paymentMethodType: channel,
       });
 
       const nextAction = attachRes?.paymentIntent?.nextAction || attachRes?.paymentIntent?.next_action || {};
@@ -122,6 +123,33 @@ function Transactions() {
     return () => { active = false; };
   }, [reservationId]);
 
+  // When PayMongo redirects back to our return_url, attempt to reconcile the PI
+  useEffect(() => {
+    let cancelled = false;
+    const sp = new URLSearchParams(window.location.search);
+    const piId = sp.get('payment_intent_id') || sp.get('payment_intent') || sp.get('pi_id') || sp.get('id');
+    if (!reservationId || !piId) return;
+
+    (async () => {
+      try {
+        await reconcilePaymentIntent(piId);
+        if (cancelled) return;
+        // Refresh the visible payment list after reconcile
+        const listRes = await listPaymentsByReservation(reservationId);
+        if (!cancelled) {
+          const rows = listRes?.data || listRes || [];
+          setPayments(Array.isArray(rows) ? rows : []);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setError(e?.data?.error || e?.message || 'Failed to reconcile payment');
+        }
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [reservationId]);
+
   return (
     <>
       <HeaderHome />
@@ -148,7 +176,10 @@ function Transactions() {
                 </div>
                 <div className={styles.tableContent}>
                   {(() => {
-                    const visible = (payments || []).filter(p => String(p.status).toLowerCase() === 'paid');
+                    const visible = (payments || []).filter(p => {
+                      const s = String(p.status || '').toLowerCase();
+                      return s === 'paid' || s === 'succeeded';
+                    });
                     if (visible.length === 0) {
                       return (
                         <p className={styles.noTransactions}>No transactions yet.</p>
@@ -158,8 +189,13 @@ function Transactions() {
                       const date = p.paidAt || p.createdAt;
                       const dt = date ? new Date(date) : null;
                       const dateStr = dt ? dt.toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
-                      const channel = p.paymentMethodType || '—';
-                      const ref = p.referenceNumber || p.paymentId || p.piId || '—';
+                      const channel = String(p.paymentMethodType || '—')
+                        .toLowerCase()
+                        .replace(/[_-]+/g, ' ')
+                        .split(/\s+/)
+                        .map(w => (w ? w.charAt(0).toUpperCase() + w.slice(1) : w))
+                        .join(' ');
+                      const ref = String(p.referenceNumber || p.paymentId || p._id || '—').toUpperCase();
                       const amt = Number((p.amountCentavos ?? 0) / 100);
                       const amtStr = isNaN(amt) ? '—' : `₱ ${amt.toLocaleString('en-PH', { minimumFractionDigits: 2 })}`;
                       return (

@@ -241,10 +241,10 @@ function ReservationHistory() {
                         <button
                           className={`${styles.confirmButton} ${reservation.confirmed ? styles.confirmedButton : ''}`}
                           onClick={() => handleConfirmNow(reservation._id)}
-                          disabled={reservation.confirmed}
+                          title={reservation.confirmed ? 'View your payment transactions' : undefined}
                         >
                           {reservation.confirmed
-                            ? 'Confirmed'
+                            ? 'View Payments'
                             : reservation.details.category === 'Private'
                               ? 'Pay Now!'
                               : 'Confirm Now!'}

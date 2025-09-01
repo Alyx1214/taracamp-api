@@ -35,7 +35,6 @@ export const ReservationStatus = {
     PENDING: 'PENDING',
     APPROVED: 'APPROVED',   
     CONFIRMED: 'CONFIRMED',
-    PAID: 'PAID',
     DECLINED: 'DECLINED',
     CANCELLED: 'CANCELLED',
 };
