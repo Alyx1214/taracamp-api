@@ -47,9 +47,9 @@ const paymentModule = {
           return responseData;
         }
     
-        if (reservation.status !== ReservationStatus.APPROVED) {
+        if (![ReservationStatus.APPROVED, ReservationStatus.CONFIRMED].includes(reservation.status)) {
           responseData.status = Status.FORBIDDEN;
-          responseData.error = 'Reservation must be APPROVED before payment';
+          responseData.error = 'Reservation must be APPROVED/CONFIRMED before payment';
           return responseData;
         }
         // If client provided an amount, validate it; otherwise default to total
@@ -154,9 +154,9 @@ const paymentModule = {
             responseData.error = 'Reservation not found for this payment intent';
             return responseData;
           }
-          if (reservation.status !== ReservationStatus.APPROVED) {
+          if (![ReservationStatus.APPROVED, ReservationStatus.CONFIRMED].includes(reservation.status)) {
             responseData.status = Status.FORBIDDEN;
-            responseData.error = 'Reservation must be APPROVED before payment';
+            responseData.error = 'Reservation must be APPROVED/CONFIRMED before payment';
             return responseData;
           }
         }
@@ -319,13 +319,25 @@ const paymentModule = {
       if (!reservationId && resourceType === 'payment') {
         const piId = resource?.attributes?.payment_intent_id || resource?.attributes?.payment_intent?.id;
         if (piId) {
+          // Try to recover reservationId from our DB first (created when PI was created)
           try {
-            const piJson = await paymongoRequest('GET', `/payment_intents/${piId}`);
-            const pi = piJson?.data;
-            metadata = pi?.attributes?.metadata || metadata;
-            reservationId = metadata?.reservationId || reservationId;
-          } catch (e) {
-            console.error('Failed fetching payment intent for metadata:', e);
+            const existingPI = await dbHelper.findOne('payment', { piId });
+            if (existingPI?.reservationId) {
+              reservationId = String(existingPI.reservationId);
+              metadata = { ...metadata, userId: existingPI.userId ? String(existingPI.userId) : metadata?.userId, reservationId, };
+            }
+          } catch (_) { /* noop */ }
+
+          // If still missing, fall back to PayMongo fetch (requires proper PAYMONGO_* envs)
+          if (!reservationId) {
+            try {
+              const piJson = await paymongoRequest('GET', `/payment_intents/${piId}`);
+              const pi = piJson?.data;
+              metadata = pi?.attributes?.metadata || metadata;
+              reservationId = metadata?.reservationId || reservationId;
+            } catch (e) {
+              console.error('Failed fetching payment intent for metadata:', e);
+            }
           }
         }
       }
@@ -338,7 +350,6 @@ const paymentModule = {
           if (!reservation) {
             skippedReason = 'Reservation not found';
           } else {
-            // Compute totalPaid from payments collection
             let totalPaid = 0;
             try {
               const paidRows = await dbHelper.findMany('payment', { reservationId, status: 'paid' }, { sort: { createdAt: 1 } });
@@ -346,9 +357,7 @@ const paymentModule = {
             } catch (_) {}
 
             const total = Number(reservation.totalEstimatedAmount) || 0;
-            const nextStatus = totalPaid >= total && total > 0
-              ? ReservationStatus.PAID
-              : (totalPaid > 0 ? ReservationStatus.CONFIRMED : reservation.status);
+            const nextStatus = totalPaid > 0 ? ReservationStatus.CONFIRMED : reservation.status;
 
             if (nextStatus !== reservation.status) {
               updatedReservation = await dbHelper.findOneAndUpdate(
