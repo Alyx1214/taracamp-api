@@ -106,6 +106,10 @@ const paymentModule = {
           currency: intent?.attributes?.currency,
           description: intent?.attributes?.description,
           status: intent?.attributes?.status,
+          // Persist the chosen channel early so UI can show it
+          paymentMethodType: Array.isArray(paymentMethodAllowed) && paymentMethodAllowed.length === 1
+            ? String(paymentMethodAllowed[0])
+            : undefined,
           createdAt: new Date(),
         });
       } catch (_) {
