@@ -258,17 +258,6 @@ function ReservationForm() {
 
               <div className={styles.formRow}>
                 {/* Derived, read-only total */}
-              <div className={styles.formGroup}>
-                <label className={styles.label} htmlFor="guestsTotal">Total Guests</label>
-                <input
-                  id="guestsTotal"
-                  type="number"
-                  value={totalGuests}
-                  readOnly
-                  className={styles.input}
-                />
-                {errors.guestsTotal && <div className={styles.fieldError}>{errors.guestsTotal}</div>}
-              </div>
                 <div className={styles.formGroup}>
                   <label className={styles.label} htmlFor="adult">Adult</label>
                   <input
@@ -284,7 +273,7 @@ function ReservationForm() {
                   {errors.guestsAdult && <div className={styles.fieldError}>{errors.guestsAdult}</div>}
                 </div>
                 <div className={styles.formGroup}>
-                  <label className={styles.label} htmlFor="children">Children</label>
+                  <label className={styles.label} htmlFor="children">Children (under 12)</label>
                   <input
                     id="children"
                     type="number"
@@ -311,6 +300,17 @@ function ReservationForm() {
                   />
                   {errors.guestsPwds && <div className={styles.fieldError}>{errors.guestsPwds}</div>}
                 </div>
+                <div className={styles.formGroup}>
+                  <label className={styles.label} htmlFor="guestsTotal">Total Guests</label>
+                  <input
+                    id="guestsTotal"
+                    type="number"
+                    value={totalGuests}
+                    readOnly
+                    className={styles.input}
+                  />
+                  {errors.guestsTotal && <div className={styles.fieldError}>{errors.guestsTotal}</div>}
+              </div>
               </div>
 
               <div className={styles.formGroup}>
