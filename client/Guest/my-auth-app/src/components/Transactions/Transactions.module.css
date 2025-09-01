@@ -189,7 +189,7 @@
 .dueDate {
     font-size: 1em;
     color: #111111;
-    margin-bottom: 10px;
+    margin-bottom: 4px;
     font-weight: 600;
 }
 
@@ -200,16 +200,54 @@
 }
 
 .balanceAmount {
-    font-size: 2.7em;
+    font-size: 2.4em;
     font-weight: 700;
     color: #1e3c24;
-    margin-bottom: 20px;
+    margin: 6px 0 12px 0;
+    line-height: 1.1;
 }
 
 .note {
     font-size: 0.7em;
     color: #888;
     line-height: 1.5;
+}
+
+.amountInputGroup {
+    margin: 10px 0 16px;
+}
+
+.amountInputGroup label {
+    display: block;
+    font-size: 0.9em;
+    color: #333;
+    margin-bottom: 6px;
+}
+
+.amountInput {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 1em;
+    outline: none;
+}
+
+.amountInput:focus {
+    border-color: #2d9f42;
+    box-shadow: 0 2px 8px rgba(45, 159, 66, 0.1);
+}
+
+.amountHint {
+    margin-top: 6px;
+    font-size: 0.8em;
+    color: #666;
+}
+
+.amountError {
+    margin-top: 6px;
+    font-size: 0.85em;
+    color: #b00020;
 }
 
 .paymentChannelsCard .cardTitle {

@@ -131,6 +131,7 @@ function ReservationHistory() {
       );
 
       return {
+        _id: String(r?._id || ''),
         id: rid,
         date: fmtMDY(r?.createdAt || r?.dateOfArrival || Date.now()),
         type: facType,
@@ -158,8 +159,11 @@ function ReservationHistory() {
   const handleGoBack = () => navigate(-1);
   const toggleReservation = (id) =>
     setOpenReservationId(openReservationId === id ? null : id);
-  const handleConfirmNow = (reservationId) =>
-    alert(`Reservation ${reservationId} confirmed! (placeholder)`);
+  const handleConfirmNow = (reservationId) => {
+    const rid = typeof reservationId === 'string' ? reservationId : '';
+    if (rid) navigate(`/transactions?reservationId=${encodeURIComponent(rid)}`);
+    else navigate('/transactions');
+  };
 
   return (
     <>
@@ -236,7 +240,7 @@ function ReservationHistory() {
                         <span className={styles.totalAmountValue}>{reservation.totalEstimatedAmount}</span>
                         <button
                           className={`${styles.confirmButton} ${reservation.confirmed ? styles.confirmedButton : ''}`}
-                          onClick={() => handleConfirmNow(reservation.id)}
+                          onClick={() => handleConfirmNow(reservation._id)}
                           disabled={reservation.confirmed}
                         >
                           {reservation.confirmed

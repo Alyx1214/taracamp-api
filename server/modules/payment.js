@@ -14,24 +14,25 @@ const paymentModule = {
       error: 'Error creating payment intent',
     };
     try {
+      const reservationId = id || data?.reservationId || null;
       const {
         amount: clientAmount,
         currency = 'PHP',
-        paymentMethodAllowed = ['card', 'gcash', 'grab_pay'],
+        paymentMethodAllowed = ['card', 'gcash', 'grab_pay', 'paymaya'],
         description,
         statementDescriptor,
         metadata = {},
         captureType = 'automatic',
       } = data;
 
-      if (!id) {
+      if (!reservationId) {
         responseData.status = Status.BAD_REQUEST;
         responseData.error = 'Reservation id is required';
         return responseData;
       }
 
       let amount = clientAmount;
-      if (id) {
+      if (reservationId) {
         const reservation = await dbHelper.findOne('reservation', { _id: reservationId });
         if (!reservation) {
           responseData.status = Status.NOT_FOUND;
@@ -46,12 +47,29 @@ const paymentModule = {
           return responseData;
         }
     
-        if (reservation.status !== ReservationStatus.CONFIRMED) {
+        if (reservation.status !== ReservationStatus.APPROVED) {
           responseData.status = Status.FORBIDDEN;
-          responseData.error = 'Reservation must be CONFIRMED before payment';
+          responseData.error = 'Reservation must be APPROVED before payment';
           return responseData;
         }
-        amount = reservation.totalEstimatedAmount;
+        // If client provided an amount, validate it; otherwise default to total
+        const maxAmount = Number(reservation.totalEstimatedAmount) || 0;
+        const clientNum = clientAmount != null ? Number(String(clientAmount).toString().replace(/,/g, '')) : null;
+        if (clientNum != null && Number.isFinite(clientNum)) {
+          if (clientNum <= 0) {
+            responseData.status = Status.BAD_REQUEST;
+            responseData.error = 'Amount must be greater than 0';
+            return responseData;
+          }
+          if (clientNum > maxAmount) {
+            responseData.status = Status.BAD_REQUEST;
+            responseData.error = 'Amount exceeds reservation total';
+            return responseData;
+          }
+          amount = clientNum;
+        } else {
+          amount = maxAmount;
+        }
       }
 
       const cents = toCentavos(amount);
@@ -136,9 +154,9 @@ const paymentModule = {
             responseData.error = 'Reservation not found for this payment intent';
             return responseData;
           }
-          if (reservation.status !== ReservationStatus.CONFIRMED) {
+          if (reservation.status !== ReservationStatus.APPROVED) {
             responseData.status = Status.FORBIDDEN;
-            responseData.error = 'Reservation must be CONFIRMED before payment';
+            responseData.error = 'Reservation must be APPROVED before payment';
             return responseData;
           }
         }
@@ -165,6 +183,18 @@ const paymentModule = {
         nextAction: intent?.attributes?.next_action || null,
         clientKey: intent?.attributes?.client_key,
       };
+
+      // Persist latest intent status on our payment record
+      try {
+        await dbHelper.findOneAndUpdate('payment', { piId: intent.id }, {
+          $set: {
+            status: intent?.attributes?.status,
+            updatedAt: new Date(),
+          },
+        });
+      } catch (e) {
+        console.error('Failed updating payment record after attach:', e);
+      }
     } catch (error) {
       console.error('Error attaching payment method:', error);
       responseData.error = error.message;
@@ -211,7 +241,7 @@ const paymentModule = {
     };
     try {
       const { type, details, billing, } = data || {};
-      const redirectTypes = new Set(['gcash', 'grab_pay']);
+      const redirectTypes = new Set(['gcash', 'grab_pay', 'paymaya']);
 
       if (!type) {
         responseData.status = Status.BAD_REQUEST;
@@ -307,18 +337,93 @@ const paymentModule = {
           const reservation = await dbHelper.findOne('reservation', { _id: reservationId });
           if (!reservation) {
             skippedReason = 'Reservation not found';
-          } else if (reservation.status === ReservationStatus.CONFIRMED) {
-            updatedReservation = await dbHelper.findOneAndUpdate(
-              'reservation',
-              { _id: reservationId },
-              { status: ReservationStatus.PAID }
-            );
           } else {
-            skippedReason = `Skipped update: status is ${reservation.status}, requires CONFIRMED`;
+            // Compute totalPaid from payments collection
+            let totalPaid = 0;
+            try {
+              const paidRows = await dbHelper.findMany('payment', { reservationId, status: 'paid' }, { sort: { createdAt: 1 } });
+              totalPaid = (paidRows || []).reduce((acc, p) => acc + (Number(p.amountCentavos || 0) / 100), 0);
+            } catch (_) {}
+
+            const total = Number(reservation.totalEstimatedAmount) || 0;
+            const nextStatus = totalPaid >= total && total > 0
+              ? ReservationStatus.PAID
+              : (totalPaid > 0 ? ReservationStatus.CONFIRMED : reservation.status);
+
+            if (nextStatus !== reservation.status) {
+              updatedReservation = await dbHelper.findOneAndUpdate(
+                'reservation',
+                { _id: reservationId },
+                { status: nextStatus }
+              );
+            }
           }
         } catch (updateErr) {
-          console.error('Failed updating reservation to PAID:', updateErr);
+          console.error('Failed updating reservation status based on payments:', updateErr);
         }
+      }
+
+      // Persist payment info for listing/history
+      try {
+        const now = new Date();
+        if (resourceType === 'payment_intent') {
+          const pi = resource;
+          await dbHelper.findOneAndUpdate('payment', { piId: pi.id }, {
+            $set: {
+              status: pi?.attributes?.status,
+              amountCentavos: pi?.attributes?.amount ?? undefined,
+              currency: pi?.attributes?.currency ?? undefined,
+              description: pi?.attributes?.description ?? undefined,
+              updatedAt: now,
+            },
+          });
+        } else if (resourceType === 'payment') {
+          const pay = resource;
+          const pid = pay.id;
+          const piId = pay?.attributes?.payment_intent_id || pay?.attributes?.payment_intent?.id;
+          const pmType = pay?.attributes?.payment_method?.type || pay?.attributes?.source?.type;
+          const refNo = pay?.attributes?.reference_number || pay?.attributes?.referenceNo || null;
+          const paidAtSec = pay?.attributes?.paid_at;
+          const paidAt = typeof paidAtSec === 'number' ? new Date(paidAtSec * 1000) : (pay?.attributes?.paid_at ? new Date(pay?.attributes?.paid_at) : null);
+          const amount = pay?.attributes?.amount;
+          const currency = pay?.attributes?.currency;
+          const description = pay?.attributes?.description;
+
+          const existing = piId ? await dbHelper.findOne('payment', { piId }) : null;
+          if (existing) {
+            await dbHelper.findOneAndUpdate('payment', { _id: existing._id }, {
+              $set: {
+                paymentId: pid,
+                status: pay?.attributes?.status,
+                amountCentavos: amount ?? existing.amountCentavos,
+                currency: currency ?? existing.currency,
+                description: description ?? existing.description,
+                paymentMethodType: pmType ?? existing.paymentMethodType,
+                referenceNumber: refNo ?? existing.referenceNumber,
+                paidAt: paidAt ?? existing.paidAt,
+                updatedAt: now,
+              },
+            });
+          } else {
+            await dbHelper.create('payment', {
+              piId: piId || null,
+              paymentId: pid,
+              reservationId: reservationId || null,
+              userId: metadata?.userId || null,
+              amountCentavos: amount,
+              currency,
+              description,
+              status: pay?.attributes?.status,
+              paymentMethodType: pmType,
+              referenceNumber: refNo,
+              createdAt: now,
+              updatedAt: now,
+              paidAt,
+            });
+          }
+        }
+      } catch (persistErr) {
+        console.error('Failed persisting payment from webhook:', persistErr);
       }
 
       responseData.status = Status.OK;
@@ -338,6 +443,59 @@ const paymentModule = {
     }
     return responseData;
   },
+};
+
+// List payments for a reservation (for current user)
+paymentModule.listPaymentsForReservation = async (dbHelper, reservationId, user) => {
+  const responseData = {
+    status: Status.INTERNAL_SERVER_ERROR,
+    error: 'Error fetching payments',
+  };
+  try {
+    if (!reservationId) {
+      responseData.status = Status.BAD_REQUEST;
+      responseData.error = 'Reservation ID is required';
+      return responseData;
+    }
+    if (!user || !user.userId) {
+      responseData.status = Status.UNAUTHORIZED;
+      responseData.error = 'User not logged in';
+      return responseData;
+    }
+
+    const reservation = await dbHelper.findOne('reservation', { _id: reservationId });
+    if (!reservation) {
+      responseData.status = Status.NOT_FOUND;
+      responseData.error = 'Reservation not found';
+      return responseData;
+    }
+    if (String(reservation.userId) !== String(user.userId)) {
+      responseData.status = Status.FORBIDDEN;
+      responseData.error = 'Not allowed to access this reservation';
+      return responseData;
+    }
+
+    const rows = await dbHelper.findMany('payment', { reservationId }, { sort: { createdAt: -1 } });
+    responseData.status = Status.OK;
+    responseData.error = null;
+    responseData.data = rows.map((p) => ({
+      _id: p._id,
+      piId: p.piId,
+      paymentId: p.paymentId,
+      status: p.status,
+      amountCentavos: p.amountCentavos,
+      currency: p.currency,
+      description: p.description,
+      paymentMethodType: p.paymentMethodType,
+      referenceNumber: p.referenceNumber,
+      createdAt: p.createdAt,
+      paidAt: p.paidAt,
+    }));
+    return responseData;
+  } catch (err) {
+    responseData.error = err.message;
+    return responseData;
+  }
 };
 
 export default paymentModule;

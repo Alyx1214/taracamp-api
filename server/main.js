@@ -153,6 +153,10 @@ const processGetAPI = async (req, res) => {
                     const responseData = await reservationModule.checkAvailability(dbHelper, params);
                     return res.status(responseData.status).json(responseData);
                 }
+                case 'get-payment-summary': {
+                    const responseData = await reservationModule.getPaymentSummary(dbHelper, id, req.user);
+                    return res.status(responseData.status).json(responseData);
+                }
                 default:
                     return res.status(404).json({ error: 'Unknown action', });
             }
@@ -160,6 +164,10 @@ const processGetAPI = async (req, res) => {
             switch (action) {
                 case 'get-payment-intent': {
                     const responseData = await paymentModule.getPaymentIntent(dbHelper, id);
+                    return res.status(responseData.status).json(responseData);
+                }
+                case 'list-by-reservation': {
+                    const responseData = await paymentModule.listPaymentsForReservation(dbHelper, id, req.user);
                     return res.status(responseData.status).json(responseData);
                 }
                 default:
@@ -316,6 +324,10 @@ const processPostAPI = async (req, res) => {
                     let responseData = await reservationModule.approveOrDeclineReservation(dbHelper, id, data, req.user);
                     return res.status(responseData.status).json(responseData);
                 }
+                case 'get-payment-summary': {
+                    const responseData = await reservationModule.getPaymentSummary(dbHelper, id, req.user);
+                    return res.status(responseData.status).json(responseData);
+                }
                 default:
                     return res.status(404).json({ error: 'Unknown action', });
             }
@@ -367,11 +379,7 @@ const processPostAPI = async (req, res) => {
                     const responseData = await paymentModule.createPaymentMethod(dbHelper, data);
                     return res.status(responseData.status).json(responseData);
                 }
-                case 'webhook': {
-                    const body = req.rawBody || req.body;
-                    const responseData = await paymentModule.handleWebhook(dbHelper, req.headers, body);
-                    return res.status(responseData.status).json(responseData);
-                }
+                // webhook handled by dedicated raw-body route at /api/payment/webhook
                 default:
                     return res.status(404).json({ error: 'Unknown action', });
             }
@@ -414,10 +422,10 @@ function isProtected(module, action) {
         user: ['profile', 'logout', 'change-password',],
         profile: ['update', 'uploadPicture',],
         reservation: ['create-reservation', 'get-reservation-by-user-id', 'cancel-booking',
-            'get-all-reservations-by-status', 'accept-or-decline-reservation',],
+            'get-all-reservations-by-status', 'accept-or-decline-reservation', 'get-payment-summary',],
         facility: ['create-facility', 'update-facility', 'delete-facility',],
         'special-service': ['create-special-service', 'update-special-service', 'delete-special-service',],
-        payment: ['create-payment-intent', 'attach-payment-method', 'create-payment-method',],
+        payment: ['create-payment-intent', 'attach-payment-method', 'create-payment-method', 'list-by-reservation',],
         notification: ['list', 'mark-read', 'mark-all-read', 'count-unread',],
         dashboard: ['get-todays-reservations-count', 'get-monthly-check-ins-count', 'get-monthly-check-outs-count',
             'get-confirmed-reservations-count', 'get-pending-reservations-count', 'get-cancelled-reservations-count', 'get-total-guest-users',],
@@ -454,6 +462,16 @@ function isProtected(module, action) {
 //     req.params.action = 'verify-verification-code';
 //     await processGetAPI(req, res);
 // });
+
+app.post('/api/payment/webhook', basicLimiter, express.raw({ type: 'application/json' }), async (req, res) => {
+    try {
+        const raw = req.body instanceof Buffer ? req.body.toString('utf8') : (typeof req.body === 'string' ? req.body : JSON.stringify(req.body || {}));
+        const responseData = await paymentModule.handleWebhook(dbHelper, req.headers, raw);
+        return res.status(responseData.status).json(responseData);
+    } catch (e) {
+        return res.status(500).json({ status: 500, error: e?.message || 'Webhook handler error', });
+    }
+});
 
 app.get('/api/:module/:action', basicLimiter, (req, res) => {
     if (isProtected(req.params.module, req.params.action)) {

@@ -1,24 +1,126 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import styles from './Transactions.module.css';
 import HeaderHome from '../HeaderHome/HeaderHome'; 
+import { getPaymentSummary } from '../../apis/reservationApi';
+import { createPaymentIntent, createPaymentMethod, attachPaymentMethod, listPaymentsByReservation } from '../../apis/paymentApi';
 
 function Transactions() {
   const navigate = useNavigate();
+  const { search } = useLocation();
+  const reservationId = new URLSearchParams(search).get('reservationId');
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [summary, setSummary] = useState(null);
+  const [amount, setAmount] = useState('');
+  const [amountError, setAmountError] = useState('');
+  const [payments, setPayments] = useState([]);
 
   const handleGoBack = () => {
     navigate(-1); // Go back to the previous page in history
   };
 
-  const handleBankClick = () => {
-    console.log("Philippine National Bank clicked!");
-    // TODO: Implement PNB payment integration
+  const [startingCheckout, setStartingCheckout] = useState(false);
+
+  const startPaymongoCheckout = async (channel) => {
+    if (!reservationId) { setError('No reservation selected.'); return; }
+    if (startingCheckout) return;
+    // Basic amount validation on client
+    const amtNum = Number(String(amount).replace(/,/g, ''));
+    const max = Number(summary?.totalEstimatedAmount || 0);
+    if (!Number.isFinite(amtNum) || amtNum <= 0) {
+      setAmountError('Enter a valid amount greater than 0');
+      return;
+    }
+    if (max > 0 && amtNum > max) {
+      setAmountError('Amount cannot exceed total');
+      return;
+    }
+    setAmountError('');
+    setStartingCheckout(true);
+    setError(null);
+    try {
+      // 1) Create Payment Intent for this reservation, allowing only the chosen channel
+      const intentRes = await createPaymentIntent(reservationId, {
+        paymentMethodAllowed: [channel],
+        description: `Payment for Reservation ${reservationId}`,
+        captureType: 'automatic',
+        amount: amtNum,
+      });
+      const intent = intentRes?.paymentIntent || intentRes?.data?.paymentIntent || {};
+
+      if (!intent?.id) throw new Error('Failed to create payment intent');
+
+      // 2) Create Payment Method (redirect type for gcash and paymaya)
+      const pmRes = await createPaymentMethod({ type: channel });
+      const pm = pmRes?.paymentMethod || pmRes?.data?.paymentMethod || {};
+      if (!pm?.id) throw new Error('Failed to create payment method');
+
+      // 3) Attach to intent and redirect user
+      const returnUrl = `${window.location.origin}/transactions?reservationId=${encodeURIComponent(reservationId)}`;
+      const attachRes = await attachPaymentMethod({
+        paymentIntentId: intent.id,
+        paymentMethodId: pm.id,
+        returnUrl,
+      });
+
+      const nextAction = attachRes?.paymentIntent?.nextAction || attachRes?.paymentIntent?.next_action || {};
+      const redirectUrl = nextAction?.redirect?.url || nextAction?.redirect?.redirect_url || nextAction?.url;
+      if (redirectUrl) {
+        window.location.href = redirectUrl;
+        return;
+      }
+      // If no redirect, surface status
+      const status = attachRes?.paymentIntent?.status;
+      if (status === 'succeeded') {
+        // Let webhook/process reflect success; optionally refresh summary
+        setSummary({ ...(summary || {}), lastStatus: 'paid' });
+      } else {
+        setError('Unable to start checkout. Please try again.');
+      }
+    } catch (e) {
+      setError(e?.data?.error || e?.message || 'Failed to start checkout');
+    } finally {
+      setStartingCheckout(false);
+    }
   };
 
-  const handleDragonpayClick = () => {
-    console.log("Dragonpay clicked!");
-    // TODO: Implement Dragonpay payment integration
-  };
+  useEffect(() => {
+    let active = true;
+    const run = async () => {
+      if (!reservationId) return;
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await getPaymentSummary(reservationId);
+        if (!active) return;
+        const s = res?.data || res;
+        setSummary(s);
+        // Default the amount to the suggested downpayment when available
+        if (s) {
+          const dp = typeof s.downpaymentAmount === 'number' ? s.downpaymentAmount : 0;
+          const rem = typeof s.remainingBalance === 'number' ? s.remainingBalance : dp;
+          const defaultAmt = Math.max(0, Math.min(dp || rem, rem));
+          if (defaultAmt > 0) setAmount(String(defaultAmt));
+        }
+
+        // Load any existing online transactions
+        const listRes = await listPaymentsByReservation(reservationId);
+        if (active) {
+          const rows = listRes?.data || listRes || [];
+          setPayments(Array.isArray(rows) ? rows : []);
+        }
+      } catch (e) {
+        if (!active) return;
+        setError(e?.data?.error || e?.message || 'Failed to load payment summary');
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    run();
+    return () => { active = false; };
+  }, [reservationId]);
 
   return (
     <>
@@ -35,42 +137,140 @@ function Transactions() {
             <h1 className={styles.pageTitle}>Payment Transaction</h1>
           </div>
 
-          <div className={styles.mainContent}>
-            <div className={styles.onlineTransactionCard}>
-              <h2 className={styles.cardTitle}>Online Transaction</h2>
-              <div className={styles.tableHeader}>
-                <span className={styles.tableHeaderItem}>Date</span>
-                <span className={styles.tableHeaderItem}>Channel</span>
-                <span className={styles.tableHeaderItem}>Reference</span>
-                <span className={styles.tableHeaderItem}>Amount</span>
-              </div>
-              <div className={styles.tableContent}>
-                {/* This is where transaction rows would be dynamically rendered */}
-                {/* Example row (you'd fetch this from an API) */}
-                <p className={styles.noTransactions}>No transactions yet.</p>
+            <div className={styles.mainContent}>
+              <div className={styles.onlineTransactionCard}>
+                <h2 className={styles.cardTitle}>Online Transaction</h2>
+                <div className={styles.tableHeader}>
+                  <span className={styles.tableHeaderItem}>Date</span>
+                  <span className={styles.tableHeaderItem}>Channel</span>
+                  <span className={styles.tableHeaderItem}>Reference</span>
+                  <span className={styles.tableHeaderItem}>Amount</span>
                 </div>
-            </div>
+                <div className={styles.tableContent}>
+                  {(() => {
+                    const visible = (payments || []).filter(p => String(p.status).toLowerCase() === 'paid');
+                    if (visible.length === 0) {
+                      return (
+                        <p className={styles.noTransactions}>No transactions yet.</p>
+                      );
+                    }
+                    return visible.map((p) => {
+                      const date = p.paidAt || p.createdAt;
+                      const dt = date ? new Date(date) : null;
+                      const dateStr = dt ? dt.toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
+                      const channel = p.paymentMethodType || '—';
+                      const ref = p.referenceNumber || p.paymentId || p.piId || '—';
+                      const amt = Number((p.amountCentavos ?? 0) / 100);
+                      const amtStr = isNaN(amt) ? '—' : `₱ ${amt.toLocaleString('en-PH', { minimumFractionDigits: 2 })}`;
+                      return (
+                        <div key={p._id || `${p.piId}-${p.paymentId}`} className={styles.tableRow}>
+                          <div className={styles.tableDataItem}>{dateStr}</div>
+                          <div className={styles.tableDataItem}>{channel}</div>
+                          <div className={styles.tableDataItem}>{ref}</div>
+                          <div className={styles.tableDataItem}>{amtStr}</div>
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+              </div>
 
-            <div className={styles.sidebarContent}>
+              <div className={styles.sidebarContent}>
                 <div className={styles.downpaymentBalanceCard}>
-                <h2 className={styles.cardTitle}>Downpayment Balance</h2>
-                <p className={styles.dueDate}>Due Date: <span className={styles.highlightDate}>{new Date(Date.now()).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</span></p>
-                <p className={styles.balanceAmount}>₱ {(1200.00).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</p>
-                <p className={styles.note}>Please ensure the downpayment is made before the due date to avoid cancellation of your reservation.</p>
+                  <h2 className={styles.cardTitle}>Payment Summary</h2>
+                  {!reservationId && (
+                    <>
+                      <p className={styles.note}>No reservation selected.</p>
+                      <p className={styles.note}>Return to Reservation History and choose Pay/Confirm.</p>
+                    </>
+                  )}
+                  {reservationId && (
+                    <>
+                      {(() => {
+                        const paid = Number(summary?.totalPaid || 0) > 0;
+                        const main = paid ? Number(summary?.remainingBalance || 0) : Number(summary?.downpaymentAmount || 0);
+                        return (
+                          <>
+                            <p className={styles.dueDate}>
+                              Due Date: <span className={styles.highlightDate}>
+                                {loading ? 'Loading…' : error ? '—' : new Date(summary?.dueDate || Date.now()).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                              </span>
+                            </p>
+                            <p className={styles.balanceAmount}>
+                              ₱ {loading ? '—' : main.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                            </p>
+                            {paid ? (
+                              <p className={styles.note}>
+                                Paid so far: ₱ {Number(summary?.totalPaid || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                              </p>
+                            ) : (
+                              <p className={styles.note}>
+                                Suggested downpayment
+                              </p>
+                            )}
+                          </>
+                        );
+                      })()}
+                      <div className={styles.amountInputGroup}>
+                        <label htmlFor="amountInput">Amount to pay (PHP)</label>
+                        <input
+                          id="amountInput"
+                          type="number"
+                          inputMode="decimal"
+                          min="0.01"
+                          step="0.01"
+                          value={amount}
+                          onChange={(e) => {
+                            setAmount(e.target.value);
+                            setAmountError('');
+                          }}
+                          className={styles.amountInput}
+                          placeholder="0.00"
+                        />
+                        <div className={styles.amountHint}>
+                          Max: ₱ {Number(summary?.totalEstimatedAmount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                        </div>
+                        {amountError && (
+                          <div className={styles.amountError}>{amountError}</div>
+                        )}
+                      </div>
+                      <p className={styles.note}>
+                        Please ensure the downpayment is made before the due date to avoid cancellation of your reservation.
+                      </p>
+                      {error && <p className={styles.note} style={{ color: '#b00020' }}>{error}</p>}
+                    </>
+                  )}
                 </div>
 
                 <div className={styles.paymentChannelsCard}>
-                <h2 className={styles.cardTitle}>Payment Channels</h2>
-                <div className={styles.channelButtons}>
-                    <button className={styles.channelButton} onClick={handleBankClick}>
-                    <img src="https://images.seeklogo.com/logo-png/49/1/philippine-national-bank-logo-png_seeklogo-498019.png" alt="Philippine National Bank" className={styles.channelLogo} />
+                  <h2 className={styles.cardTitle}>Payment Channels</h2>
+                  <div className={styles.channelButtons}>
+                    <button
+                      className={styles.channelButton}
+                      disabled={!reservationId || startingCheckout || !!amountError || !amount}
+                      onClick={() => startPaymongoCheckout('gcash')}
+                      title={!reservationId ? 'Select a reservation first' : 'Pay with GCash'}
+                    >
+                      <img
+                        src="https://upload.wikimedia.org/wikipedia/commons/3/39/GCash_logo.svg"
+                        alt="GCash"
+                        className={styles.channelLogo}
+                      />
                     </button>
-                    <button className={styles.channelButton} onClick={handleDragonpayClick}>
-                    <img src="https://cdn.prod.website-files.com/64199d190fc7afa82666d89c/6491bec8f19c685e9083b264_dragonpay-1.webp" alt="Dragonpay" className={styles.channelLogo} />
+                    <button
+                      className={styles.channelButton}
+                      disabled={!reservationId || startingCheckout || !!amountError || !amount}
+                      onClick={() => startPaymongoCheckout('paymaya')}
+                      title={!reservationId ? 'Select a reservation first' : 'Pay with PayMaya'}
+                    >
+                      <img
+                        src="https://seeklogo.com/images/P/paymaya-logo-6A5E3BCD61-seeklogo.com.png"
+                        alt="PayMaya"
+                        className={styles.channelLogo}
+                      />
                     </button>
-                    {/* Add more payment channels here */}
+                  </div>
                 </div>
-              </div>
             </div>
           </div>
         </div>
