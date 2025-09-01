@@ -452,6 +452,101 @@ const paymentModule = {
     }
     return responseData;
   },
+
+  // Reconcile a payment intent: trust PayMongo status, update our DB, and confirm reservation
+  reconcilePaymentIntent: async (dbHelper, id, user) => {
+    const responseData = {
+      status: Status.INTERNAL_SERVER_ERROR,
+      error: 'Error reconciling payment intent',
+    };
+    try {
+      if (!id) {
+        responseData.status = Status.BAD_REQUEST;
+        responseData.error = 'Payment intent id is required';
+        return responseData;
+      }
+
+      // Fetch latest intent state from PayMongo
+      const intentJson = await paymongoRequest('GET', `/payment_intents/${id}`);
+      const intent = intentJson?.data;
+      const intentStatus = intent?.attributes?.status;
+      const meta = intent?.attributes?.metadata || {};
+      let reservationId = meta?.reservationId || null;
+
+      // Try to recover reservationId from our DB if missing
+      if (!reservationId) {
+        try {
+          const existing = await dbHelper.findOne('payment', { piId: id });
+          if (existing?.reservationId) reservationId = String(existing.reservationId);
+        } catch (_) {}
+      }
+
+      if (!reservationId) {
+        responseData.status = Status.BAD_REQUEST;
+        responseData.error = 'Unable to determine reservation for this intent';
+        return responseData;
+      }
+
+      const reservation = await dbHelper.findOne('reservation', { _id: reservationId });
+      if (!reservation) {
+        responseData.status = Status.NOT_FOUND;
+        responseData.error = 'Reservation not found';
+        return responseData;
+      }
+
+      // Authorization: only the reservation owner can reconcile (or allow admins later)
+      const requesterUserId = user?.userId;
+      if (!requesterUserId || String(reservation.userId) !== String(requesterUserId)) {
+        responseData.status = Status.FORBIDDEN;
+        responseData.error = 'Not allowed to reconcile this reservation';
+        return responseData;
+      }
+
+      // Persist latest intent info to our payment row
+      try {
+        await dbHelper.findOneAndUpdate('payment', { piId: id }, {
+          $set: {
+            status: intentStatus,
+            amountCentavos: intent?.attributes?.amount,
+            currency: intent?.attributes?.currency,
+            description: intent?.attributes?.description,
+            updatedAt: new Date(),
+          },
+        });
+      } catch (_) {}
+
+      // If succeeded, mark reservation CONFIRMED (policy: any successful payment confirms)
+      let updatedReservation = null;
+      if (String(intentStatus).toLowerCase() === 'succeeded') {
+        try {
+          // Count successful payments (paid/succeeded)
+          const successfulStatuses = ['paid', 'succeeded'];
+          const paidRows = await dbHelper.findMany('payment', { reservationId, status: { $in: successfulStatuses } }, { sort: { createdAt: 1 } });
+          const totalPaid = (paidRows || []).reduce((acc, p) => acc + (Number(p.amountCentavos || 0) / 100), 0);
+          if (totalPaid > 0 && reservation.status !== ReservationStatus.CONFIRMED) {
+            updatedReservation = await dbHelper.findOneAndUpdate('reservation', { _id: reservationId }, { status: ReservationStatus.CONFIRMED });
+          }
+        } catch (e) {
+          console.error('Failed to confirm reservation during reconcile:', e);
+        }
+      }
+
+      responseData.status = Status.OK;
+      responseData.error = null;
+      responseData.paymentIntent = {
+        id: intent.id,
+        status: intentStatus,
+        nextAction: intent?.attributes?.next_action || null,
+      };
+      if (updatedReservation) {
+        responseData.updatedReservation = { _id: updatedReservation._id, status: updatedReservation.status };
+      }
+      return responseData;
+    } catch (error) {
+      responseData.error = error.message;
+      return responseData;
+    }
+  },
 };
 
 // List payments for a reservation (for current user)

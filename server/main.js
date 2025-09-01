@@ -27,7 +27,7 @@ const __dirname = path.dirname(__filename);
 
 dotenv.config({ path: path.resolve(__dirname, '.env'), });
 
-const port = process.env.PORT || 3000;
+const port = process.env.PORT;
 const dbConnectionString = process.env.DB_CONN;
 //const upload = multer({ storage: multer.memoryStorage(), });
 //const __clientPath = path.join(__dirname, '../client');
@@ -38,38 +38,11 @@ const app = express();
 app.set('trust proxy', 1);
 await redisClient.connect();
 
-const STABLE_ORIGINS = [
-  'http://localhost:5173',
-  'http://localhost:3000',
-  'http://localhost:5174',
-];
+app.use(cors({
+    origin: ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:5174',],
+    credentials: true,
+}));
 
-const VERCEL_PREVIEW = /^https:\/\/taracamp-[a-z0-9-]+\.vercel\.app$/i;      
-const VERCEL_API_PREVIEW = /^https:\/\/taracamp-api-[a-z0-9-]+\.vercel\.app$/i; 
-
-function isAllowed(origin) {
-  if (!origin) return true;             
-  if (STABLE_ORIGINS.includes(origin)) return true;
-  if (VERCEL_PREVIEW.test(origin)) return true;
-  if (VERCEL_API_PREVIEW.test(origin)) return true;
-  return false;
-}
-
-const corsOptionsDelegate = (req, cb) => {
-  const origin = req.header('Origin');
-  const allowed = isAllowed(origin);
-  cb(null, {
-    origin: allowed ? origin : false,  
-    credentials: true,                 
-    methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
-    allowedHeaders: ['Content-Type','Authorization','X-Requested-With'],
-    exposedHeaders: [],                
-    maxAge: 600                       
-  });
-};
-
-app.use(cors(corsOptionsDelegate));
-app.options('*', cors(corsOptionsDelegate));
 app.use(express.json());
 
 const basicLimiter = rateLimit({
@@ -195,6 +168,10 @@ const processGetAPI = async (req, res) => {
                 }
                 case 'list-by-reservation': {
                     const responseData = await paymentModule.listPaymentsForReservation(dbHelper, id, req.user);
+                    return res.status(responseData.status).json(responseData);
+                }
+                case 'reconcile': {
+                    const responseData = await paymentModule.reconcilePaymentIntent(dbHelper, id, req.user);
                     return res.status(responseData.status).json(responseData);
                 }
                 default:
@@ -452,7 +429,7 @@ function isProtected(module, action) {
             'get-all-reservations-by-status', 'accept-or-decline-reservation', 'get-payment-summary',],
         facility: ['create-facility', 'update-facility', 'delete-facility',],
         'special-service': ['create-special-service', 'update-special-service', 'delete-special-service',],
-        payment: ['create-payment-intent', 'attach-payment-method', 'create-payment-method', 'list-by-reservation',],
+        payment: ['create-payment-intent', 'attach-payment-method', 'create-payment-method', 'list-by-reservation', 'reconcile',],
         notification: ['list', 'mark-read', 'mark-all-read', 'count-unread',],
         dashboard: ['get-todays-reservations-count', 'get-monthly-check-ins-count', 'get-monthly-check-outs-count',
             'get-confirmed-reservations-count', 'get-pending-reservations-count', 'get-cancelled-reservations-count', 'get-total-guest-users',],
@@ -647,5 +624,5 @@ const interval = setInterval(() => {
 wss.on('close', () => clearInterval(interval));
 
 server.listen(port, () => {
-    console.log(`API listening at http://0.0.0.0:${port}`);
+    console.log(`API listening at http://localhost:${port}`);
 });
