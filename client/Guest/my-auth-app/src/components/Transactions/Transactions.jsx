@@ -63,6 +63,7 @@ function Transactions() {
         paymentIntentId: intent.id,
         paymentMethodId: pm.id,
         returnUrl,
+        paymentMethodType: channel,
       });
 
       const nextAction = attachRes?.paymentIntent?.nextAction || attachRes?.paymentIntent?.next_action || {};
@@ -175,7 +176,10 @@ function Transactions() {
                 </div>
                 <div className={styles.tableContent}>
                   {(() => {
-                    const visible = (payments || []).filter(p => String(p.status).toLowerCase() === 'paid');
+                    const visible = (payments || []).filter(p => {
+                      const s = String(p.status || '').toLowerCase();
+                      return s === 'paid' || s === 'succeeded';
+                    });
                     if (visible.length === 0) {
                       return (
                         <p className={styles.noTransactions}>No transactions yet.</p>
@@ -185,8 +189,13 @@ function Transactions() {
                       const date = p.paidAt || p.createdAt;
                       const dt = date ? new Date(date) : null;
                       const dateStr = dt ? dt.toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
-                      const channel = p.paymentMethodType || '—';
-                      const ref = p.referenceNumber || p.paymentId || p.piId || '—';
+                      const channel = String(p.paymentMethodType || '—')
+                        .toLowerCase()
+                        .replace(/[_-]+/g, ' ')
+                        .split(/\s+/)
+                        .map(w => (w ? w.charAt(0).toUpperCase() + w.slice(1) : w))
+                        .join(' ');
+                      const ref = String(p.referenceNumber || p.paymentId || p._id || '—').toUpperCase();
                       const amt = Number((p.amountCentavos ?? 0) / 100);
                       const amtStr = isNaN(amt) ? '—' : `₱ ${amt.toLocaleString('en-PH', { minimumFractionDigits: 2 })}`;
                       return (

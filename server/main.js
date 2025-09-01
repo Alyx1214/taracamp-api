@@ -52,7 +52,6 @@ const basicLimiter = rateLimit({
     },
 });
 
-// IMPORTANT: register webhook raw-body route BEFORE express.json() so signature verification can use raw payload
 app.post('/api/payment/webhook', basicLimiter, express.raw({ type: 'application/json' }), async (req, res) => {
     try {
         const raw = req.body instanceof Buffer ? req.body.toString('utf8') : (typeof req.body === 'string' ? req.body : JSON.stringify(req.body || {}));
