@@ -303,7 +303,7 @@ function ReservationFormStep2() {
             <form onSubmit={e => e.preventDefault()}>
               <div className={styles.formRow}>
                 <div className={styles.formGroup}>
-                  <label className={styles.label}>Date of Arrival</label>
+                  <label className={styles.label}>Date of Arrival <span className={styles.required}>*</span></label>
                   <input
                     type="date"
                     name="dateArrival"
@@ -318,10 +318,11 @@ function ReservationFormStep2() {
                 </div>
 
                 <div className={styles.formGroup}>
-                  <label className={styles.label}>Date of Departure</label>
+                  <label className={styles.label}>Date of Departure <span className={styles.required}>*</span></label>
                   <input
                     type="date"
                     name="dateDeparture"
+                    min={formData.dateArrival || minArrival}
                     value={formData.dateDeparture}
                     onChange={handleInputChange}
                     className={`${styles.input} ${fieldErrors.dateDeparture ? styles.inputError : ''}`}
@@ -330,9 +331,11 @@ function ReservationFormStep2() {
                     <div className={styles.fieldError}>{fieldErrors.dateDeparture}</div>
                   )}
                 </div>
+              </div>
 
+              <div className={styles.formRow}>
                 <div className={styles.formGroup}>
-                  <label className={styles.label}>Type of Facility</label>
+                  <label className={styles.label}>Type of Facility <span className={styles.required}>*</span></label>
                   <select
                     name="typeFacilities"
                     value={formData.typeFacilities}
@@ -340,32 +343,31 @@ function ReservationFormStep2() {
                     className={`${styles.input} ${fieldErrors.typeFacilities ? styles.inputError : ''}`}
                   >
                     <option value="">Select a facility type</option>
-                    <option value="CONFERENCE">Conference</option>
+                    <option value="CONFERENCE">Conference Hall</option>
                     <option value="DORMITORY">Dormitory</option>
-                    <option value="COTTAGE">Cottage</option>
+                    <option value="COTTAGE">Cottage/Guest House</option>
                   </select>
                   {fieldErrors.typeFacilities && (
                     <div className={styles.fieldError}>{fieldErrors.typeFacilities}</div>
                   )}
                 </div>
-              </div>
 
-              <div className={styles.formRow}>
                 <div className={styles.formGroup}>
-                  <label className={styles.label}>Facility Name</label>
+                  <label className={styles.label}>Facility Name <span className={styles.required}>*</span></label>
                   <select
                     name="facilityName"
                     value={formData.facilityName}
                     onChange={handleInputChange}
                     className={`${styles.input} ${fieldErrors.facilityName ? styles.inputError : ''}`}
-                    disabled={!formData.typeFacilities}
+                    disabled={!formData.typeFacilities || loadingFacilities}
                   >
                     <option value="">{loadingFacilities ? 'Loading facilities…' : 'Select a facility'}</option>
                     {facilityOptions.map(o => {
                       const cap = Number.isFinite(o.capacity) ? o.capacity : 0;
+                      const tooSmall = cap < totalGuests;
                       const label = `${o.label} (${cap} pax)`;
                       return (
-                        <option key={o.__k} value={o._id}>{label}</option>
+                        <option key={o.__k} value={o._id} disabled={tooSmall}>{label}</option>
                       );
                     })}
                   </select>
@@ -395,7 +397,7 @@ function ReservationFormStep2() {
 
               <div className={styles.formRow}>
                 <div className={styles.formGroup}>
-                  <label className={styles.label}>Type of Service</label>
+                  <label className={styles.label}>Type of Service <span className={styles.required}>*</span></label>
                   <select
                     name="typeService"
                     value={formData.typeService}
@@ -429,7 +431,7 @@ function ReservationFormStep2() {
                 </div>
 
                 <div className={styles.formGroup}>
-                  <label className={styles.label}>Time of Arrival</label>
+                  <label className={styles.label}>Time of Arrival <span className={styles.required}>*</span></label>
                   <div className={styles.timeInput}>
                     <input
                       type="number"
