@@ -147,7 +147,7 @@ function ReservationForm() {
 
             <form onSubmit={(e) => e.preventDefault()}>
               <div className={styles.formGroup}>
-                <label className={styles.label} htmlFor="groupAssociation">Name of Guest/Group/Association</label>
+                <label className={styles.label} htmlFor="groupAssociation">Name of Guest/Group/Association<span className={styles.requiredAsterisk}>*</span></label>
                 <input
                   id="groupAssociation"
                   type="text"
@@ -161,7 +161,7 @@ function ReservationForm() {
               </div>
 
               <div className={styles.formGroup}>
-                <label className={styles.label} htmlFor="homeAddress">Complete Home Address</label>
+                <label className={styles.label} htmlFor="homeAddress">Complete Home Address<span className={styles.requiredAsterisk}>*</span></label>
                 <input
                   id="homeAddress"
                   type="text"
@@ -187,7 +187,7 @@ function ReservationForm() {
               </div>
               
               <div className={styles.formGroup}>
-                <label className={styles.label} htmlFor="phoneNo">Phone No.</label>
+                <label className={styles.label} htmlFor="phoneNo">Phone No.<span className={styles.requiredAsterisk}>*</span></label>
                 <input
                   id="phoneNo"
                   type="tel"
@@ -218,7 +218,7 @@ function ReservationForm() {
               </div>
               <div className={styles.checkboxGroupContainer}>
                 <div className={styles.checkboxGroup}>
-                  <label className={styles.label}>Select Category</label>
+                  <label className={styles.label}>Select Category<span className={styles.requiredAsterisk}>*</span></label>
                   <div className={styles.checkboxRow}>
                     {['deped','government','pwds','private'].map(k => (
                       <label className={styles.checkboxLabel} key={k}>
@@ -237,7 +237,7 @@ function ReservationForm() {
                 </div>
 
                 <div className={styles.checkboxGroup}>
-                  <label className={styles.label}>Type</label>
+                  <label className={styles.label}>Type<span className={styles.requiredAsterisk}>*</span></label>
                   <div className={styles.checkboxRow}>
                     {['groups','individual'].map(k => (
                       <label className={styles.checkboxLabel} key={k}>
@@ -301,7 +301,7 @@ function ReservationForm() {
                   {errors.guestsPwds && <div className={styles.fieldError}>{errors.guestsPwds}</div>}
                 </div>
                 <div className={styles.formGroup}>
-                  <label className={styles.label} htmlFor="guestsTotal">Total Guests</label>
+                  <label className={styles.label} htmlFor="guestsTotal">Total Guests<span className={styles.requiredAsterisk}>*</span></label>
                   <input
                     id="guestsTotal"
                     type="number"
@@ -314,7 +314,7 @@ function ReservationForm() {
               </div>
 
               <div className={styles.formGroup}>
-                <label className={styles.label} htmlFor="emergencyContact">Person/s to be notified in case of emergency</label>
+                <label className={styles.label} htmlFor="emergencyContact">Person/s to be notified in case of emergency<span className={styles.requiredAsterisk}>*</span></label>
                 <input
                   id="emergencyContact"
                   type="tel"
