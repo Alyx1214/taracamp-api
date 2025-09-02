@@ -144,7 +144,7 @@ const paymentModule = {
         } catch (error) {
             console.error('Error creating payment intent:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
-            responseData.error = 'Internal server error';
+            responseData.error = 'Error creating payment intent';
         }
         return responseData;
     },
@@ -226,7 +226,7 @@ const paymentModule = {
         } catch (error) {
             console.error('Error attaching payment method:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
-            responseData.error = 'Internal server error';
+            responseData.error = 'Error attaching payment method';
         }
         return responseData;
     },
@@ -265,7 +265,7 @@ const paymentModule = {
         } catch (error) {
             console.error('Error fetching payment intent:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
-            responseData.error = 'Internal server error';
+            responseData.error = 'Error fetching payment intent';
         }
         return responseData;
     },
@@ -318,7 +318,7 @@ const paymentModule = {
         } catch (error) {
             console.error('Error creating payment method:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
-            responseData.error = 'Internal server error';
+            responseData.error = 'Error creating payment method';
         }
         return responseData;
     },
@@ -608,7 +608,7 @@ const paymentModule = {
         } catch (error) {
             console.error('Error reconciling payment intent:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
-            responseData.error = 'Internal server error';
+            responseData.error = 'Error reconciling payment intent';
             return responseData;
         }
     },
@@ -669,7 +669,7 @@ const paymentModule = {
         } catch (error) {
             console.error('Error fetching payments:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
-            responseData.error = 'Internal server error';
+            responseData.error = 'Error fetching payments';
             return responseData;
         }
     },

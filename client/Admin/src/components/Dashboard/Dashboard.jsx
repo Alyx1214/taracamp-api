@@ -1,8 +1,10 @@
+import { useEffect, useState } from 'react';
 import styles from './Dashboard.module.css';
 import StatsCard from './StatsCard';
 import MonthlyChart from './MonthlyChart';
 import ReservationsCalendar from './ReservationsCalendar';
 import { Icon } from '@iconify/react';
+import { getDashboardStats } from '../../apis/dashboardApi';
 
 const CalendarIcon = () => <Icon icon="mdi:calendar" style={{ width: '50px', height: '50px' }} />;
 const CheckInIcon = () => <Icon icon="mdi:hotel" style={{ width: '50px', height: '50px' }}/>;
@@ -12,51 +14,82 @@ const PendingIcon = () => <Icon icon="mdi:clock-outline" style={{ width: '50px',
 const CancelledIcon = () => <Icon icon="mdi:close-circle" style={{ width: '50px', height: '50px' }}/>;
 
 const Dashboard = () => {
+  const [loading, setLoading] = useState(true);
+  const [todaysReservations, setTodaysReservations] = useState(0);
+  const [monthlyCheckIns, setMonthlyCheckIns] = useState(0);
+  const [confirmedReservations, setConfirmedReservations] = useState(0);
+  const [totalGuestUsers, setTotalGuestUsers] = useState(0);
+  const [pendingReservations, setPendingReservations] = useState(0);
+  const [cancelledReservations, setCancelledReservations] = useState(0);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const payload = await getDashboardStats();
+        if (payload && payload.stats) {
+          const s = payload.stats;
+          setTodaysReservations(s.todaysReservations ?? 0);
+          setMonthlyCheckIns(s.monthlyCheckIns ?? 0);
+          setConfirmedReservations(s.confirmedReservations ?? 0);
+          setTotalGuestUsers(s.totalGuestUsers ?? 0);
+          setPendingReservations(s.pendingReservations ?? 0);
+          setCancelledReservations(s.cancelledReservations ?? 0);
+        } else {
+          console.error("Unexpected dashboard stats payload:", payload);
+          setError("Unexpected dashboard stats payload");
+        }
+      } catch (e) {
+        console.error(e);
+        setError(e?.message || "Failed to load dashboard stats");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
   return (
     <div className={styles.dashboard}>
       <div className={styles.welcomeSection}>
         <h1 className={styles.welcomeTitle}>Mabuhay, Admin!</h1>
       </div>
-      
-      <div className={styles.statsGrid}>
+
+      {error && <div className={styles.errorBox}>{error}</div>}
+
+      <div className={styles.statsGrid} aria-busy={loading}>
         <StatsCard 
           icon={<CalendarIcon />}
-          value="10"
+          value={todaysReservations}
           label="Today's Reservations"
           iconColor="green"
         />
-        
         <StatsCard 
           icon={<CheckInIcon />}
-          value="100"
+          value={monthlyCheckIns}
           label="Monthly Check-ins"
           iconColor="brown"
         />
-        
         <StatsCard 
           icon={<ConfirmedIcon />}
-          value="50"
+          value={confirmedReservations}
           label="Confirmed Reservations"
           iconColor="green"
         />
-        
         <StatsCard 
           icon={<UsersIcon />}
-          value="150"
+          value={totalGuestUsers}
           label="Total Users"
           iconColor="gray"
         />
-        
         <StatsCard 
           icon={<PendingIcon />}
-          value="40"
+          value={pendingReservations}
           label="Pending Reservations"
           iconColor="brown"
         />
-        
         <StatsCard 
           icon={<CancelledIcon />}
-          value="10"
+          value={cancelledReservations}
           label="Cancelled Reservations"
           iconColor="green"
         />

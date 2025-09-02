@@ -132,7 +132,7 @@ const facilityModule = {
         } catch (error) {
             console.error('Error adding facility:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
-            responseData.error = 'Internal server error';
+            responseData.error = 'Error adding facility';
         }
         return responseData;
     },
@@ -174,7 +174,7 @@ const facilityModule = {
         } catch (error) {
             console.error('Error fetching facilities:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
-            responseData.error = 'Internal server error';
+            responseData.error = 'Error fetching facilities';
         }
         return responseData;
     },
@@ -222,7 +222,7 @@ const facilityModule = {
         } catch (error) {
             console.error('Error fetching facility:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
-            responseData.error = 'Internal server error';
+            responseData.error = 'Error fetching facility';
         }
         return responseData;
     },
@@ -381,7 +381,7 @@ const facilityModule = {
         } catch (error) {
             console.error('Error editing facility:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
-            responseData.error = 'Internal server error';
+            responseData.error = 'Error editing facility';
         }
         return responseData;
     },
@@ -440,7 +440,7 @@ const facilityModule = {
         } catch (error) {
             console.error('Error deleting facility:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
-            responseData.error = 'Internal server error';
+            responseData.error = 'Error deleting facility';
         }
         return responseData;
     },
@@ -492,7 +492,7 @@ const facilityModule = {
         } catch (error) {
             console.error('Error fetching facilities by type:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
-            responseData.error = 'Internal server error';
+            responseData.error = 'Error fetching facilities by type';
         }
         return responseData;
     },
@@ -563,7 +563,7 @@ const facilityModule = {
         } catch (error) {
             console.error('Error fetching available dates:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
-            responseData.error = 'Internal server error';
+            responseData.error = 'Error fetching available dates';
         }
         return responseData;
     },
@@ -634,7 +634,7 @@ const facilityModule = {
         } catch (error) {
             console.error('Error searching facilities:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
-            responseData.error = 'Internal server error';
+            responseData.error = 'Error searching facilities';
         }
         return responseData;
     },

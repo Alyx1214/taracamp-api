@@ -5,7 +5,7 @@ const MAX_ATTEMPTS = 5;
 const WAIT_TIME = 10 * 60 * 1000; // 10 minutes in milliseconds
 
 const captchaHelper = {
-    generateCaptcha: async () => {
+    generateCaptcha: () => {
         // Generate SVG captcha
         const captcha = svgCaptcha.create({
             size: 4,
@@ -14,15 +14,9 @@ const captchaHelper = {
             background: '#ffffff'
         });
 
-        // // Convert SVG to PNG buffer using sharp
-        // const svgBuffer = Buffer.from(captcha.data);
-        // const pngBuffer = await sharp(svgBuffer)
-        //     .png()
-        //     .toBuffer();
-
         return {
             digits: captcha.text,
-            buffer: pngBuffer
+            buffer: Buffer.from(captcha.data)
         };
     },
     isBlocked: (session) => {
@@ -74,36 +68,42 @@ const captchaHelper = {
 
         return responseData;
     },
-    handleCaptcha: async (session) => {
+    handleCaptcha: (session) => {
         let responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
             error: 'Error on getting captcha'
         };
-        if (captchaHelper.isBlocked(session)) {
-            const waitTime = Math.ceil((session.blockUntil - Date.now()) / 1000);
-            responseData.status = Status.TOO_MANY_ATTEMPTS;
-            responseData.error = 'Too many attempts. Please try again after ' + waitTime + ' seconds.';
-            return responseData;
-        }
-    
-        if (!session.attempts) {
-            session.attempts = 0;
-        }
-    
-        session.attempts += 1;
-    
-        if (session.attempts > MAX_ATTEMPTS) {
-            session.blockUntil = Date.now() + WAIT_TIME;
-            responseData.status = Status.TOO_MANY_ATTEMPTS;
-            responseData.error = 'Too many attempts. Please try again later.';
-            return responseData;
-        }
+        try {
+            if (captchaHelper.isBlocked(session)) {
+                const waitTime = Math.ceil((session.blockUntil - Date.now()) / 1000);
+                responseData.status = Status.TOO_MANY_ATTEMPTS;
+                responseData.error = 'Too many attempts. Please try again after ' + waitTime + ' seconds.';
+                return responseData;
+            }
+        
+            if (!session.attempts) {
+                session.attempts = 0;
+            }
+        
+            session.attempts += 1;
+        
+            if (session.attempts > MAX_ATTEMPTS) {
+                session.blockUntil = Date.now() + WAIT_TIME;
+                responseData.status = Status.TOO_MANY_ATTEMPTS;
+                responseData.error = 'Too many attempts. Please try again later.';
+                return responseData;
+            }
 
-        const { digits, buffer } = await captchaHelper.generateCaptcha();
-        responseData.status = Status.OK;
-        responseData.error = null;
-        session.captcha = digits;
-        responseData.captcha = buffer.toString('base64');
+            const { digits, buffer } = captchaHelper.generateCaptcha();
+            responseData.status = Status.OK;
+            responseData.error = null;
+            session.captcha = digits;
+            responseData.captcha = buffer.toString('base64');
+        } catch (error) {
+            console.error('Error on getting captcha:', error);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Error on getting captcha';
+        }
         return responseData;
     },
     resetCaptcha: (session) => {

@@ -70,7 +70,7 @@ const specialServiceModule = {
         } catch (error) {
             console.error('Error adding special service:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
-            responseData.error = 'Internal server error';
+            responseData.error = 'Error adding special service';
         }
         return responseData;
     },
@@ -103,7 +103,7 @@ const specialServiceModule = {
         } catch (error) {
             console.error('Error fetching special services:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
-            responseData.error = 'Internal server error';
+            responseData.error = 'Error fetching special services';
         }
         return responseData;
     },
@@ -113,7 +113,7 @@ const specialServiceModule = {
      * @param {string} id - The ID of the special service.
      * @returns {Object} Response data with status, error, and specialService on success.
      */
-    getSpecialServiceById: async (id) => {
+    getSpecialServiceById: async (dbHelper, id) => {
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
             error: 'Error fetching special service',
@@ -144,7 +144,7 @@ const specialServiceModule = {
         } catch (error) {
             console.error('Error fetching special service:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
-            responseData.error = 'Internal server error';
+            responseData.error = 'Error fetching special service';
         }
         return responseData;
     },
@@ -224,7 +224,7 @@ const specialServiceModule = {
         } catch (error) {
             console.error('Error editing special service:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
-            responseData.error = 'Internal server error';
+            responseData.error = 'Error editing special service';
         }
         return responseData;
     },
@@ -277,7 +277,7 @@ const specialServiceModule = {
         } catch (error) {
             console.error('Error deleting special service:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
-            responseData.error = 'Internal server error';
+            responseData.error = 'Error deleting special service';
         }
         return responseData;
     },
@@ -291,7 +291,7 @@ const specialServiceModule = {
     searchSpecialServices: async (dbHelper, options = {}) => {
         const { query, minPrice, maxPrice, unit, } = options;
         const responseData = {
-            status: 500,
+            status: Status.INTERNAL_SERVER_ERROR,
             error: 'Error searching special services',
             specialServices: [],
         };
@@ -309,13 +309,13 @@ const specialServiceModule = {
 
             const specialServices = await dbHelper.find('specialservice', filter, { __v: 0, createdAt: 0, });
 
-            responseData.status = 200;
+            responseData.status = Status.OK;
             responseData.error = null;
             responseData.specialServices = specialServices;
         } catch (error) {
             console.error('Error searching special services:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
-            responseData.error = 'Internal server error';
+            responseData.error = 'Error searching special services';
         }
         return responseData;
     },

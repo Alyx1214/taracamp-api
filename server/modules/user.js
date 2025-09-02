@@ -97,7 +97,7 @@ const userModule = {
                 responseData.error = 'Email already exists';
             } else {
                 responseData.status = Status.INTERNAL_SERVER_ERROR;
-                responseData.error = 'Internal server error';
+                responseData.error = 'Error on registering user';
             }
         }
         return responseData;
@@ -181,7 +181,7 @@ const userModule = {
         } catch (error) {
             console.error('Error logging in user:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
-            responseData.error = 'Internal server error';
+            responseData.error = 'Error on logging in user';
         }
 
         return responseData;
@@ -305,7 +305,7 @@ const userModule = {
         } catch (error) {
             console.error('Error logging in with Google:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
-            responseData.error = 'Internal server error';
+            responseData.error = 'Error on logging in with Google';
             return responseData;
         }
     },
@@ -407,7 +407,7 @@ const userModule = {
         } catch (error) {
             console.error('Error logging in with Facebook:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
-            responseData.error = 'Internal server error';
+            responseData.error = 'Error on logging in with Facebook';
             return responseData;
         }
     },
@@ -430,7 +430,7 @@ const userModule = {
         } catch (error) {
             console.error('Error logging out user:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
-            responseData.error = 'Internal server error';
+            responseData.error = 'Error on logging out user';
         }
         return responseData;
     },
@@ -502,6 +502,8 @@ const userModule = {
 
         } catch (error) {
             console.error('Error on resetting password:', error);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Error on resetting password';
         }
         return responseData;
     },
@@ -549,6 +551,8 @@ const userModule = {
             responseData.message = 'If your email is in our system, a verification code has been sent.';
         } catch (error) {
             console.error('Error on sending password reset verification code:', error);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Error on sending password reset verification code';
         }
         return responseData;
     },
@@ -614,6 +618,8 @@ const userModule = {
             responseData.resetToken = resetToken;
         } catch (error) {
             console.error('Error on verifying password reset code:', error);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Error on verifying password reset code';
         }
         return responseData;
     },
@@ -701,7 +707,7 @@ const userModule = {
         } catch (error) {
             console.error('Error refreshing token:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
-            responseData.error = 'Internal server error';
+            responseData.error = 'Error on refreshing token';
         }
 
         return responseData;

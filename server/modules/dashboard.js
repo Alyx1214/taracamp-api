@@ -2,15 +2,23 @@ import { Status, UserRole, ReservationStatus, } from '../constants.js';
 
 const dashboardModule = {
     /**
-     * Retrieves the count of reservations for the current day.
-     * @param {object} user - The user object containing userId and role.
-     * @returns {object} Response data with status, error, message, and count on success.
+     * Fetches dashboard statistics.
+     * @param {Object} dbHelper - The database helper for database operations.
+     * @param {Object} user - The user object containing the user ID and role.
+     * @returns {Object} Response data with status, error, and stats on success.
+     * @property {number} todaysReservations - Count of reservations for today.
+     * @property {number} monthlyCheckIns - Count of checkins for the month.
+     * @property {number} confirmedReservations - Count of confirmed reservations.
+     * @property {number} totalGuestUsers - Count of guest users.
+     * @property {number} pendingReservations - Count of pending reservations.
+     * @property {number} cancelledReservations - Count of cancelled reservations.
      */
-    getTodaysReservationCount: async (dbHelper, user) => {
+    getDashboardStats: async (dbHelper, user) => {
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
-            error: 'Error fetching today\'s reservation count',
+            error: 'Error fetching dashboard stats',
         };
+
         try {
             if (!user || !user.userId) {
                 responseData.status = Status.UNAUTHORIZED;
@@ -29,81 +37,72 @@ const dashboardModule = {
             const tomorrow = new Date(today);
             tomorrow.setDate(today.getDate() + 1);
 
-            const reservations = await dbHelper.find('reservation', {
-                dateOfArrival: {
-                    $gte: today,
-                    $lt: tomorrow,
-                },
-            });
-
-            responseData.status = Status.OK;
-            responseData.error = null;
-            responseData.message = 'Successfully fetched today\'s reservation count';
-            responseData.count = reservations.length;
-        } catch (error) {
-            console.error('Error fetching today\'s reservation count:', error);
-            responseData.error = error.message;
-        }
-        return responseData;
-    },
-
-    /**
-     * Retrieves the count of check-ins for the current month.
-     * @param {object} dbHelper - The database helper for database operations.
-     * @param {object} user - The user object containing userId and role.
-     * @returns {object} Response data with status, error, message, and count on success.
-     */
-    getMonthlyCheckInsCount: async (dbHelper, user) => {
-        const responseData = {
-            status: Status.INTERNAL_SERVER_ERROR,
-            error: 'Error fetching monthly check-ins count',
-        };
-
-        try {
-            if (!user || !user.userId) {
-                responseData.status = Status.UNAUTHORIZED;
-                responseData.error = 'User not logged in.';
-                return responseData;
-            }
-
-            if (user.role === UserRole.GUEST) {
-                responseData.status = Status.FORBIDDEN;
-                responseData.error = 'You are not authorized to perform this action.';
-                return responseData;
-            }
-
-            const today = new Date();
             const firstDayOfCurrentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-            const firstDayOfNextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
 
-            const checkIns = await dbHelper.find('reservation', {
-                dateOfArrival: {
-                    $gte: firstDayOfCurrentMonth,
-                    $lt: firstDayOfNextMonth,
-                },
-            }, { _id: 1, });
+            const [
+                todaysReservations,
+                monthlyCheckIns,
+                confirmedReservations,
+                totalGuestUsers,
+                pendingReservations,
+                cancelledReservations,
+            ] = await Promise.all([
+                dbHelper.count('reservation', {
+                    dateOfArrival: {
+                        $gte: today,
+                        $lt: tomorrow,
+                    },
+                }),
+                dbHelper.count('reservation', {
+                    dateOfArrival: {
+                        $gte: firstDayOfCurrentMonth,
+                        $lte: today,
+                    },
+                    status: ReservationStatus.CHECKIN,
+                }),
+                dbHelper.count('reservation', {
+                    status: ReservationStatus.CONFIRMED,
+                }),
+                dbHelper.count('user', {
+                    role: UserRole.GUEST,
+                }),
+                dbHelper.count('reservation', {
+                    status: ReservationStatus.PENDING,
+                }),
+                dbHelper.count('reservation', {
+                    status: ReservationStatus.CANCELLED,
+                }),
+            ]);
 
             responseData.status = Status.OK;
             responseData.error = null;
-            responseData.message = 'Successfully fetched monthly check-ins count';
-            responseData.count = checkIns.length;
+            responseData.stats = {
+                todaysReservations,
+                monthlyCheckIns,
+                confirmedReservations,
+                totalGuestUsers,
+                pendingReservations,
+                cancelledReservations,
+            };
         } catch (error) {
-            console.error('Error fetching monthly check-ins count:', error);
-            responseData.error = error.message;
+            console.error('Error fetching dashboard stats:', error);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Error fetching dashboard stats';
         }
         return responseData;
     },
 
     /**
-     * Retrieves the count of confirmed reservations.
-     * @param {object} dbHelper - The database helper for database operations.
-     * @param {object} user - The user object containing userId and role.
-     * @returns {object} Response data with status, error, message, and count on success.
+     * Fetches the count of confirmed and cancelled reservations for each month of a given year.
+     * @param {Object} dbHelper - The database helper for database operations.
+     * @param {Object} user - The user object containing the user ID and role.
+     * @param {number} year - The year for which to fetch the reservations (defaults to the current year).
+     * @returns {Object} Response data with status, error, message, and the counts of confirmed and cancelled reservations for each month.
      */
-    getConfirmedReservationsCount: async (dbHelper, user) => {
+    getMonthlyReservations: async (dbHelper, user, year) => {
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
-            error: 'Error fetching confirmed reservations count',
+            error: 'Error fetching monthly reservations',
         };
 
         try {
@@ -119,140 +118,107 @@ const dashboardModule = {
                 return responseData;
             }
 
-            const confirmedReservations = await dbHelper.find('reservation', {
-                status: ReservationStatus.CONFIRMED,
-            });
+            const confirmed = new Array(12).fill(0);
+            const cancelled = new Array(12).fill(0);
+            const currentYear = year || new Date().getFullYear();
+
+            for (let month = 0; month < 12; month++) {
+                const startDate = new Date(currentYear, month, 1);
+                const endDate = new Date(currentYear, month + 1, 1);
+
+                const confirmedCount = await dbHelper.count('reservation', {
+                    status: { $in: [ReservationStatus.CHECKOUT, ReservationStatus.CONFIRMED] },
+                    dateOfArrival: {
+                        $gte: startDate,
+                        $lt: endDate,
+                    },
+                });
+
+                const cancelledCount = await dbHelper.count('reservation', {
+                    status: ReservationStatus.CANCELLED,
+                    dateOfArrival: {
+                        $gte: startDate,
+                        $lt: endDate,
+                    },
+                });
+
+                confirmed[month] = confirmedCount;
+                cancelled[month] = cancelledCount;
+            }
 
             responseData.status = Status.OK;
             responseData.error = null;
-            responseData.message = 'Successfully fetched confirmed reservations count';
-            responseData.count = confirmedReservations.length;
+            responseData.message = 'Successfully fetched monthly reservations';
+            responseData.data = { confirmed, cancelled };
+
         } catch (error) {
-            console.error('Error fetching confirmed reservations count:', error);
-            responseData.error = error.message;
+            console.error('Error fetching monthly reservations:', error);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Error fetching monthly reservations';
         }
+
         return responseData;
     },
 
     /**
-     * Retrieves the count of pending reservations.
-     * @param {object} dbHelper - The database helper for database operations.
-     * @param {object} user - The user object containing userId and role.
-     * @returns {object} Response data with status, error, message, and count on success.
+     * Retrieves all reservations for a given month.
+     * @param {Object} dbHelper - The database helper for database operations.
+     * @param {Object} user - The user object containing the user ID and role.
+     * @param {number} year - The year for which to fetch the reservations.
+     * @param {number} month - The month for which to fetch the reservations (1-indexed).
+     * @returns {Object} Response data with status, error, message, and an array of reservations with their date of arrival and status.
      */
-    getPendingReservationsCount: async (dbHelper, user) => {
-        const responseData = {
-            status: Status.INTERNAL_SERVER_ERROR,
-            error: 'Error fetching pending reservations count',
-        };
+    // modules/dashboard.js -> in dashboardModule.getReservationsForCalendar
+    getReservationsForCalendar: async (dbHelper, user, year, month) => {
+    const responseData = { status: Status.INTERNAL_SERVER_ERROR, error: 'Error fetching reservations for calendar' };
 
-        try {
-            if (!user || !user.userId) {
-                responseData.status = Status.UNAUTHORIZED;
-                responseData.error = 'User not logged in.';
-                return responseData;
-            }
-
-            if (user.role === UserRole.GUEST) {
-                responseData.status = Status.FORBIDDEN;
-                responseData.error = 'You are not authorized to perform this action.';
-                return responseData;
-            }
-
-            const pendingReservations = await dbHelper.find('reservation', {
-                status: ReservationStatus.PENDING,
-            });
-
-            responseData.status = Status.OK;
-            responseData.error = null;
-            responseData.message = 'Successfully fetched pending reservations count';
-            responseData.count = pendingReservations.length;
-        } catch (error) {
-            console.error('Error fetching pending reservations count:', error);
-            responseData.error = error.message;
-        }
+    try {
+        if (!user?.userId) {
+        responseData.status = Status.UNAUTHORIZED;
+        responseData.error = 'User not logged in.';
         return responseData;
+        }
+
+        if (user.role === UserRole.GUEST) {
+        responseData.status = Status.FORBIDDEN;
+        responseData.error = 'You are not authorized to perform this action.';
+        return responseData;
+        }
+
+        if (!year || !month) {
+        responseData.status = Status.BAD_REQUEST;
+        responseData.error = 'Year and month are required.';
+        return responseData;
+        }
+
+        const startDate = new Date(year, month - 1, 1);
+        const endDate = new Date(year, month, 1);
+
+        const rows = await dbHelper.find(
+        'reservation',
+        { dateOfArrival: { $gte: startDate, $lt: endDate } }
+        );
+
+        const reservations = (rows || [])
+        .filter(r => r?.dateOfArrival)
+        .map(r => ({
+            dateOfArrival: new Date(r.dateOfArrival).toISOString(),
+            status: r.status || null
+        }));
+
+        responseData.status = Status.OK;
+        responseData.error = null;
+        responseData.message = 'Successfully fetched reservations for calendar';
+        responseData.reservations = reservations;
+        return responseData;
+    } catch (error) {
+        console.error('Error fetching reservations for calendar:', error);
+        responseData.status = Status.INTERNAL_SERVER_ERROR;
+        responseData.error = 'Error fetching reservations for calendar';
+        return responseData;
+    }
     },
 
-    /**
-     * Retrieves the count of cancelled reservations.
-     * @param {object} dbHelper - The database helper for database operations.
-     * @param {object} user - The user object containing userId and role.
-     * @returns {object} Response data with status, error, message, and count on success.
-     */
-    getCancelledReservationsCount: async (dbHelper, user) => {
-        const responseData = {
-            status: Status.INTERNAL_SERVER_ERROR,
-            error: 'Error fetching cancelled reservations count',
-        };
-
-        try {
-            if (!user || !user.userId) {
-                responseData.status = Status.UNAUTHORIZED;
-                responseData.error = 'User not logged in.';
-                return responseData;
-            }
-
-            if (user.role === UserRole.GUEST) {
-                responseData.status = Status.FORBIDDEN;
-                responseData.error = 'You are not authorized to perform this action.';
-                return responseData;
-            }
-
-            const cancelledReservations = await dbHelper.find('reservation', {
-                status: ReservationStatus.CANCELLED,
-            });
-
-            responseData.status = Status.OK;
-            responseData.error = null;
-            responseData.message = 'Successfully fetched cancelled reservations count';
-            responseData.count = cancelledReservations.length;
-        } catch (error) {
-            console.error('Error fetching cancelled reservations count:', error);
-            responseData.error = error.message;
-        }
-        return responseData;
-    },
-
-    /**
-     * Retrieves the count of total guest users.
-     * @param {object} dbHelper - The database helper for database operations.
-     * @param {object} user - The user object containing userId and role.
-     * @returns {object} Response data with status, error, message, and count on success.
-     */
-    getTotalGuestUsers: async (dbHelper, user) => {
-        const responseData = {
-            status: Status.INTERNAL_SERVER_ERROR,
-            error: 'Error fetching total guest users count',
-        };
-
-        try {
-            if (!user || !user.userId) {
-                responseData.status = Status.UNAUTHORIZED;
-                responseData.error = 'User not logged in.';
-                return responseData;
-            }
-
-            if (user.role === UserRole.GUEST) {
-                responseData.status = Status.FORBIDDEN;
-                responseData.error = 'You are not authorized to perform this action.';
-                return responseData;
-            }
-
-            const guestUsers = await dbHelper.find('user', {
-                role: UserRole.GUEST,
-            });
-
-            responseData.status = Status.OK;
-            responseData.error = null;
-            responseData.message = 'Successfully fetched total guest users count';
-            responseData.count = guestUsers.length;
-        } catch (error) {
-            console.error('Error fetching total guest users count:', error);
-            responseData.error = error.message;
-        }
-        return responseData;
-    },
 };
 
 export default dashboardModule;

@@ -24,18 +24,16 @@ const emailModule = {
                 html: `<p>Your verification code for password reset is: <strong>${verificationCode}</strong>.</p><p>This code is valid for 10 minutes.</p>`,
             };
 
-            try {
-                await transporter.sendMail(mailOptions);
+            await transporter.sendMail(mailOptions);
 
-                responseData.status = Status.OK;
-                responseData.error = null;
-                responseData.message = 'Verification code sent successfully';
+            responseData.status = Status.OK;
+            responseData.error = null;
+            responseData.message = 'Verification code sent successfully';
 
-            } catch (error) {
-                console.error('Error on sending verification code:', error);
-            }
         } catch (error) {
             console.error('Error on sending verification code:', error);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Error on sending verification code';
         }
         return responseData;
     },

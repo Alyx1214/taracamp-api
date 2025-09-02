@@ -207,32 +207,18 @@ const processGetAPI = async (req, res) => {
             }
         case 'dashboard':
             switch (action) {
-                case 'get-todays-reservations-count': {
-                    let responseData = await dashboardModule.getTodaysReservationCount(dbHelper, req.user);
+                case 'get-monthly-reservations': {
+                    const { year, } = req.query;
+                    let responseData = await dashboardModule.getMonthlyReservations(dbHelper, req.user, year);
                     return res.status(responseData.status).json(responseData);
                 }
-                case 'get-monthly-check-ins-count': {
-                    let responseData = await dashboardModule.getMonthlyCheckInsCount(dbHelper, req.user);
+                case 'get-dashboard-stats': {
+                    let responseData = await dashboardModule.getDashboardStats(dbHelper, req.user);
                     return res.status(responseData.status).json(responseData);
                 }
-                case 'get-confirmed-reservations-count': {
-                    let responseData = await dashboardModule.getConfirmedReservationsCount(dbHelper, req.user);
-                    return res.status(responseData.status).json(responseData);
-                }
-                case 'get-pending-reservations-count': {
-                    let responseData = await dashboardModule.getPendingReservationsCount(dbHelper, req.user);
-                    return res.status(responseData.status).json(responseData);
-                }
-                case 'get-cancelled-reservations-count': {
-                    let responseData = await dashboardModule.getCancelledReservationsCount(dbHelper, req.user);
-                    return res.status(responseData.status).json(responseData);
-                }
-                case 'get-monthly-check-outs-count': {
-                    let responseData = await dashboardModule.getMonthlyCheckOutsCount(dbHelper, req.user);
-                    return res.status(responseData.status).json(responseData);
-                }
-                case 'get-total-guest-users': {
-                    let responseData = await dashboardModule.getTotalGuestUsers(dbHelper, req.user);
+                case 'get-reservations-for-calendar': {
+                    const { year, month } = req.query;
+                    let responseData = await dashboardModule.getReservationsForCalendar(dbHelper, req.user, year, month);
                     return res.status(responseData.status).json(responseData);
                 }
                 default:
@@ -445,10 +431,10 @@ function isProtected(module, action) {
         'special-service': ['create-special-service', 'update-special-service', 'delete-special-service',],
         payment: ['create-payment-intent', 'attach-payment-method', 'create-payment-method', 'list-by-reservation', 'reconcile',],
         notification: ['list', 'mark-read', 'mark-all-read', 'count-unread',],
-        dashboard: ['get-todays-reservations-count', 'get-monthly-check-ins-count', 'get-monthly-check-outs-count',
-            'get-confirmed-reservations-count', 'get-pending-reservations-count', 'get-cancelled-reservations-count', 'get-total-guest-users',],
+        dashboard: ['get-monthly-reservations', 'get-dashboard-stats', 'get-reservations-for-calendar',],
     };
     return protectedEndpoints[module] && protectedEndpoints[module].includes(action);
+
 }
 
 // const sessionParser = session({

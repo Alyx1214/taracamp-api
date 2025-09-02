@@ -43,7 +43,7 @@ const jwtHelper = {
         try {
             return jwt.verify(token, process.env.JWT_SECRET);
         } catch (err) {
-            console.error('WS JWT verify failed:', err.message);
+            console.error('WS JWT verify failed: Invalid token', err);
             return null;
         }
     },
@@ -56,7 +56,8 @@ const jwtHelper = {
     verifyRefreshToken: (token) => {
         try {
             return jwt.verify(token, process.env.JWT_REFRESH_SECRET);
-        } catch {
+        } catch (err) {
+            console.error('WS JWT refresh verify failed: Invalid token', err);
             return null;
         }
     },

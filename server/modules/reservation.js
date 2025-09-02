@@ -285,7 +285,7 @@ const reservationModule = {
         } catch (error) {
             console.error('Error creating reservation:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
-            responseData.error = 'Internal server error';
+            responseData.error = 'Error on booking reservation';
         }
         return responseData;
     },
@@ -348,7 +348,7 @@ const reservationModule = {
         } catch (error) {
             console.error('Error fetching reservation by ID:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
-            responseData.error = 'Internal server error';
+            responseData.error = 'Error fetching reservation';
         }
         return responseData;
     },
@@ -377,7 +377,7 @@ const reservationModule = {
         } catch (error) {
             console.error('Error fetching reservations by user ID:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
-            responseData.error = 'Internal server error';
+            responseData.error = 'Error fetching reservations';
         }
         return responseData;
     },
@@ -459,7 +459,7 @@ const reservationModule = {
         } catch (error) {
             console.error('Error cancelling reservation:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
-            responseData.error = error.message;
+            responseData.error = 'Error cancelling reservation';
         }
         return responseData;
     },
@@ -515,7 +515,7 @@ const reservationModule = {
         } catch (error) {
             console.error('Error fetching reservations by status:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
-            responseData.error = error.message;
+            responseData.error = 'Error fetching reservations';
         }
         return responseData;
     },
@@ -575,7 +575,7 @@ const reservationModule = {
         } catch (error) {
             console.error('Error approving or declining reservation:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
-            responseData.error = 'Internal server error';
+            responseData.error = 'Error approving or declining reservation';
         }
         return responseData;
     },
@@ -633,7 +633,7 @@ const reservationModule = {
         } catch (err) {
             console.error('Error estimating amount:', err);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
-            responseData.error = 'Internal server error';
+            responseData.error = 'Error estimating amount';
         }
         return responseData;
     },
@@ -712,7 +712,7 @@ const reservationModule = {
         } catch (err) {
             console.error('Error checking availability:', err);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
-            responseData.error = 'Internal server error';
+            responseData.error = 'Error checking availability';
             return responseData;
         }
     },
@@ -802,7 +802,7 @@ const reservationModule = {
         } catch (err) {
             console.error('Error computing payment summary:', err);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
-            responseData.error = 'Internal server error';
+            responseData.error = 'Error computing payment summary';
             return responseData;
         }
     },
