@@ -66,6 +66,7 @@ app.use(express.json());
 
 const uploadImage = multer({ storage: multer.memoryStorage(), }).single('image');
 const uploadLetter = multer({ storage: multer.memoryStorage(), }).single('letterOfIntentFile');
+const uploadApprovalDocument = multer({ storage: multer.memoryStorage(), }).single('approvalDocumentFile');
 
 // const verificationLimiter = rateLimit({
 //     windowMs: 60 * 60 * 1000, // 1 hour
@@ -186,6 +187,10 @@ const processGetAPI = async (req, res) => {
                 }
                 case 'reconcile': {
                     const responseData = await paymentModule.reconcilePaymentIntent(dbHelper, id, req.user);
+                    return res.status(responseData.status).json(responseData);
+                }
+                case 'get-payment-summary': {
+                    const responseData = await paymentModule.getPaymentSummary(dbHelper, id, req.user);
                     return res.status(responseData.status).json(responseData);
                 }
                 default:
@@ -325,11 +330,11 @@ const processPostAPI = async (req, res) => {
                     return res.status(responseData.status).json(responseData);
                 }
                 case 'accept-or-decline-reservation': {
-                    let responseData = await reservationModule.approveOrDeclineReservation(dbHelper, id, data, req.user);
+                    let responseData = await reservationModule.approveOrDeclineReservation(dbHelper, id, data.status, req.user);
                     return res.status(responseData.status).json(responseData);
                 }
-                case 'get-payment-summary': {
-                    const responseData = await reservationModule.getPaymentSummary(dbHelper, id, req.user);
+                case 'upload-approval-document': {
+                    let responseData = await reservationModule.uploadApprovalDocument(dbHelper, id, req.file, req.user);
                     return res.status(responseData.status).json(responseData);
                 }
                 default:
@@ -426,7 +431,7 @@ function isProtected(module, action) {
         user: ['profile', 'logout', 'change-password',],
         profile: ['update', 'uploadPicture',],
         reservation: ['create-reservation', 'get-reservation-by-user-id', 'cancel-booking',
-            'get-all-reservations-by-status', 'accept-or-decline-reservation', 'get-payment-summary',],
+            'get-all-reservations-by-status', 'accept-or-decline-reservation', 'upload-approval-document','get-payment-summary',],
         facility: ['create-facility', 'update-facility', 'delete-facility',],
         'special-service': ['create-special-service', 'update-special-service', 'delete-special-service',],
         payment: ['create-payment-intent', 'attach-payment-method', 'create-payment-method', 'list-by-reservation', 'reconcile',],
@@ -515,33 +520,59 @@ app.get('/api/:module/:action/:id', basicLimiter, (req, res) => {
 });
 
 app.post('/api/:module/:action/:id', basicLimiter, (req, res) => {
-    const { module, action, } = req.params;
+  const { module, action } = req.params;
+  if (module === 'reservation' && action === 'update-reservation') {
+    uploadLetter(req, res, (err) => {
+      if (err) {
+        return res.status(400).json({
+          error: 'File upload error',
+          details: err.message,
+        });
+      }
+      if (isProtected(module, action)) {
+        authenticateJWT(req, res, () => processPostAPI(req, res));
+      } else {
+        processPostAPI(req, res);
+      }
+    });
 
-    if (module === 'reservation' && action === 'update-reservation') {
-        uploadLetter(req, res, (err) => {
-            if (err) return res.status(400).json({ error: 'File upload error', details: err.message, });
-            if (isProtected(module, action)) {
-                authenticateJWT(req, res, () => processPostAPI(req, res));
-            } else {
-                processPostAPI(req, res);
-            }
+  } else if (module === 'reservation' && action === 'upload-approval-document') {
+    uploadApprovalDocument(req, res, (err) => {
+      if (err) {
+        return res.status(400).json({
+          error: 'File upload error',
+          details: err.message,
         });
-    } else if (module === 'facility' && (action === 'update-facility' || action === 'create-facility')) {
-        uploadImage(req, res, (err) => {
-            if (err) return res.status(400).json({ error: 'File upload error', details: err.message, });
-            if (isProtected(module, action)) {
-                authenticateJWT(req, res, () => processPostAPI(req, res));
-            } else {
-                processPostAPI(req, res);
-            }
+      }
+      if (isProtected(module, action)) {
+        authenticateJWT(req, res, () => processPostAPI(req, res));
+      } else {
+        processPostAPI(req, res);
+      }
+    });
+
+  } else if (module === 'facility' && (action === 'update-facility' || action === 'create-facility')) {
+    uploadImage(req, res, (err) => {
+      if (err) {
+        return res.status(400).json({
+          error: 'File upload error',
+          details: err.message,
         });
+      }
+      if (isProtected(module, action)) {
+        authenticateJWT(req, res, () => processPostAPI(req, res));
+      } else {
+        processPostAPI(req, res);
+      }
+    });
+
+  } else {
+    if (isProtected(module, action)) {
+      authenticateJWT(req, res, () => processPostAPI(req, res));
     } else {
-        if (isProtected(module, action)) {
-            authenticateJWT(req, res, () => processPostAPI(req, res));
-        } else {
-            processPostAPI(req, res);
-        }
+      processPostAPI(req, res);
     }
+  }
 });
 
 app.use((req, res) => {

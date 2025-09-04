@@ -673,6 +673,96 @@ const paymentModule = {
             return responseData;
         }
     },
+
+    /**
+     * Computes the payment summary for a given reservation.
+     * @param {Object} dbHelper - a mongoDB client
+     * @param {string} reservationId - the ID of the reservation
+     * @param {Object} user - the user object containing the user ID and role
+     * @returns {Object} { status, error, data }
+     */
+    getPaymentSummary: async (dbHelper, reservationId, user) => {
+        const responseData = {
+            status: Status.INTERNAL_SERVER_ERROR,
+            error: 'Error computing payment summary',
+        };
+
+        try {
+            if (!reservationId) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Reservation ID is required';
+                return responseData;
+            }
+            if (!user || !user.userId) {
+                responseData.status = Status.UNAUTHORIZED;
+                responseData.error = 'User not logged in';
+                return responseData;
+            }
+
+            const reservation = await dbHelper.findOne('reservation', { _id: reservationId, });
+            if (!reservation) {
+                responseData.status = Status.NOT_FOUND;
+                responseData.error = 'Reservation not found';
+                return responseData;
+            }
+            if (String(reservation.userId) !== String(user.userId)) {
+                responseData.status = Status.FORBIDDEN;
+                responseData.error = 'Not allowed to access this reservation';
+                return responseData;
+            }
+
+            const total = Number(reservation.totalEstimatedAmount) || 0;
+            let totalPaid = 0;
+            try {
+                const successfulStatuses = ['paid', 'succeeded',];
+                const paidRows = await dbHelper.findMany(
+                    'payment',
+                    { reservationId, status: { $in: successfulStatuses, }, },
+                    { sort: { createdAt: 1, }, }
+                );
+                totalPaid = (paidRows || []).reduce((acc, p) => acc + (Number(p.amountCentavos || 0) / 100), 0);
+            } catch (_) {}
+            // Policy: 30% downpayment, due 3 days after creation,
+            // but never later than 1 day before arrival.
+            const DOWNPAYMENT_PERCENT = 0.30;
+            const DUE_IN_DAYS = 3;
+
+            const createdAt = reservation.createdAt ? new Date(reservation.createdAt) : new Date();
+            const arrival = reservation.dateOfArrival ? new Date(reservation.dateOfArrival) : null;
+
+            const due = new Date(createdAt);
+            due.setDate(due.getDate() + DUE_IN_DAYS);
+
+            if (arrival && !Number.isNaN(arrival.getTime())) {
+                const lastDayBeforeArrival = new Date(arrival);
+                lastDayBeforeArrival.setDate(arrival.getDate() - 1);
+                if (due > lastDayBeforeArrival) {
+                    due.setTime(lastDayBeforeArrival.getTime());
+                }
+            }
+
+            const downpaymentAmount = Math.max(0, Math.round(total * DOWNPAYMENT_PERCENT * 100) / 100);
+            const remainingBalance = Math.max(0, Math.round((total - totalPaid) * 100) / 100);
+
+            responseData.status = Status.OK;
+            responseData.error = null;
+            responseData.data = {
+                reservationId: String(reservation._id),
+                totalEstimatedAmount: total,
+                downpaymentPercent: DOWNPAYMENT_PERCENT,
+                downpaymentAmount,
+                totalPaid: Math.round(totalPaid * 100) / 100,
+                remainingBalance,
+                dueDate: due.toISOString(),
+            };
+            return responseData;
+        } catch (err) {
+            console.error('Error computing payment summary:', err);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Error computing payment summary';
+            return responseData;
+        }
+    },
 };
 
 export default paymentModule;

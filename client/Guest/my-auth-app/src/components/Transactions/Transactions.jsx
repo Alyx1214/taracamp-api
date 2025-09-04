@@ -2,8 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import styles from './Transactions.module.css';
 import HeaderHome from '../HeaderHome/HeaderHome'; 
-import { getPaymentSummary } from '../../apis/reservationApi';
-import { createPaymentIntent, createPaymentMethod, attachPaymentMethod, listPaymentsByReservation, reconcilePaymentIntent } from '../../apis/paymentApi';
+import { createPaymentIntent, createPaymentMethod, attachPaymentMethod, listPaymentsByReservation, reconcilePaymentIntent, getPaymentSummary } from '../../apis/paymentApi';
 
 function Transactions() {
   const navigate = useNavigate();

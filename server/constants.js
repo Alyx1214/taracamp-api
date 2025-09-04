@@ -19,6 +19,11 @@ export const UserRole = {
     SUPERINTENDENT: 'SUPERINTENDENT',
 };
 
+export const FileKind = {
+    LETTER_OF_INTENT: 'LETTER OF INTENT',
+    APPROVAL_DOCUMENT: 'APPROVAL DOCUMENT',
+}
+
 export const Category = {
     DEPED: 'DEPED',
     GOVERNMENT: 'GOVERNMENT',

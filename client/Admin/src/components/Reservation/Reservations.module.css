@@ -5,9 +5,14 @@
   padding: 20px 40px;
   border-radius: 0;
   margin-top: -1px;
-  display: flex;
-  flex-direction: column;
-  gap: 40px;
+  display: grid;
+  grid-template-rows:
+    auto  
+    auto  
+    1fr   
+    auto; 
+  align-content: start;
+  gap: 16px;
 }
 
 .reservations-header__container {
@@ -29,14 +34,21 @@
   margin-bottom: 0;
 }
 
+.reservations-list {
+  display: grid;
+  align-content: start; 
+  min-height: 0;        
+}
+
 table {
   width: 100%;
   border-radius: 12px;
   overflow: hidden;
   border: 1px solid #ddd;
+  margin: 0; 
 }
 
 .pagination {
   margin-top: 10px;
-  align-self: flex-end;
+  justify-self: end;
 }

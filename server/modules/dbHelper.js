@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 import sanitizeHtml from 'sanitize-html';
-import { UserRole, Category, GuestType, ReservationStatus, FacilityType, FacilityStatus, ServiceType, } from '../constants.js';
+import { UserRole, Category, GuestType, ReservationStatus, FacilityType, FacilityStatus, ServiceType, FileKind } from '../constants.js';
 
 function sanitizeObject(obj) {
     if (typeof obj === 'string') {
@@ -9,7 +9,7 @@ function sanitizeObject(obj) {
     if (Array.isArray(obj)) return obj.map(sanitizeObject);
     if (typeof obj === 'object' && obj !== null) {
         for (const key of Object.keys(obj)) {
-            if (['password', 'verificationCode', 'letterOfIntentFile',].includes(key)) continue;
+            if (['password', 'verificationCode', 'letterOfIntentFile', 'approvalDocumentFile'].includes(key)) continue;
             obj[key] = sanitizeObject(obj[key]);
         }
         return obj;
@@ -49,6 +49,17 @@ const dbHelper = {
                 userId: { type: mongoose.Schema.Types.ObjectId, ref: 'user', required: true, },
             });
 
+            const FileSchema = new mongoose.Schema({
+                path: { type: String, required: true },
+                mimetype: { type: String, required: false },
+                size: { type: Number, required: false },
+                kind: { type: String, enum: Object.values(FileKind), required: false }, 
+                reservationId: { type: mongoose.Schema.Types.ObjectId, ref: 'reservation', required: false },
+                userId: { type: mongoose.Schema.Types.ObjectId, ref: 'user', required: false },
+                createdAt: { type: Date, default: Date.now },
+                updatedAt: { type: Date, required: false },
+            });
+
             const ReservationSchema = new mongoose.Schema({
                 guestName: { type: String, required: true, },
                 homeAddress: { type: String, required: true, },
@@ -69,7 +80,9 @@ const dbHelper = {
                 timeOfArrival: { type: String, required: true, },
                 facility: { type: mongoose.Schema.Types.ObjectId, ref: 'facility', required: true, },
                 serviceType: { type: String, enum: Object.values(ServiceType), required: true, },
-                letterOfIntentFile: { type: String, required: true, },
+                letterOfIntentFileId: { type: mongoose.Schema.Types.ObjectId, ref: 'file', required: false },
+                approvalDocumentFileId: { type: mongoose.Schema.Types.ObjectId, ref: 'file', required: false },
+                approvalDocumentUploadedAt: { type: Date, required: false, },
                 status: { type: String, enum: Object.values(ReservationStatus), default: ReservationStatus.PENDING, required: true, },
                 totalEstimatedAmount: { type: Number, required: true, },
                 otherRequests: { type: String, required: false, },
@@ -123,6 +136,7 @@ const dbHelper = {
             mongoose.model('user', UserSchema);
             mongoose.model('profile', ProfileSchema);
             mongoose.model('reservation', ReservationSchema);
+            mongoose.model('file', FileSchema);
             mongoose.model('facility', FacilitySchema);
             mongoose.model('specialservice', SpecialServiceSchema);
             mongoose.model('notification', NotificationSchema);

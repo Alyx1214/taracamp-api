@@ -26,3 +26,8 @@ export function reconcilePaymentIntent(id) {
   if (!id) throw new Error('paymentIntentId is required');
   return apiGet(`/api/payment/reconcile/${id}`);
 }
+
+export function getPaymentSummary(id) {
+  return apiGet(`/api/payment/get-payment-summary/${id}`);
+}
+
