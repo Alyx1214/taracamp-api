@@ -1,7 +1,7 @@
 .messageRow {
   display: flex;
-  align-items: flex-end;
-  margin-bottom: 18px;
+  align-items: flex-start;
+  margin-bottom: 16px;
 }
 
 .bot {
@@ -13,74 +13,119 @@
 }
 
 .avatar {
-  width: 38px;
-  height: 38px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
-  background: #fff;
-  border: 2px solid #4e6e5d;
-  margin: 0 12px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+  margin-right: 12px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
 .bubbleContainer {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  max-width: 75%;
 }
 
 .senderRow {
   display: flex;
   align-items: center;
-  margin-bottom: 2px;
+  margin-bottom: 8px;
 }
 
 .sender {
-  font-weight: 600;
-  color: #3a4a3f;
-  font-size: 1.05em;
+  font-weight: bold;
+  color: #1f2937;
+  font-size: 1.1em;
   margin-right: 8px;
 }
 
 .roleTag {
-  background: #e6f4ea;
-  color: #4e6e5d;
-  border-radius: 16px;
+  background: #dbeafe;
+  color: #2563eb;
+  border-radius: 12px;
   font-size: 0.85em;
-  padding: 2px 12px;
-  margin-left: 2px;
-  font-weight: 500;
-  border: 1px solid #b7d7c2;
+  padding: 4px 12px;
+  margin-left: 6px;
+  font-weight: 600;
 }
 
 .bubble {
-  background: linear-gradient(120deg, #e6f4ea 80%, #f7f7f7 100%);
-  color: #2d3a2e;
-  border-radius: 18px 18px 18px 4px;
-  padding: 12px 18px;
-  font-size: 1.08em;
-  box-shadow: 0 2px 8px rgba(78,110,93,0.07);
-  max-width: 340px;
+  background: linear-gradient(135deg, #e0f7fa, #e3f2fd);
+  color: #374151;
+  border-radius: 24px;
+  padding: 16px 20px;
+  font-size: 1em;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
   word-break: break-word;
-  border: 1.5px solid #b7d7c2;
-  margin-bottom: 2px;
-  transition: background 0.2s;
 }
 
-.user .bubble {
-  background: linear-gradient(120deg, #dbeafe 80%, #f7f7f7 100%);
-  color: #1e293b;
-  border-radius: 18px 18px 4px 18px;
-  border: 1.5px solid #93c5fd;
-  align-self: flex-end;
+.chatContainer {
+  display: flex;
+  flex-direction: column;
+  height: 100vh; /* Full viewport height */
+  background: #f3f4f6;
+  border-radius: 20px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+  font-family: 'Inter', Arial, sans-serif;
+  position: relative;
+}
+
+.messagesContainer {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+.typingContainer {
+  display: flex;
+  align-items: center;
+  padding: 14px;
+  border-top: 1px solid #e5e7eb;
+  position: fixed;
+  bottom: 0;
+  width: 100%;
+  background: #ffffff;
+  box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.input {
+  flex: 1;
+  padding: 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 28px;
+  font-size: 1em;
+  outline: none;
+  background: #ffffff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.iconContainer {
+  display: flex;
+  gap: 14px;
+}
+
+.icon {
+  font-size: 22px;
+  color: #6b7280;
+  cursor: pointer;
+  transition: color 0.3s;
+}
+
+.icon:hover {
+  color: #374151;
+}
+
+.input::placeholder {
+  color: #9ca3af;
 }
 
 @media (max-width: 600px) {
   .bubble {
     max-width: 90vw;
-    font-size: 1em;
+    font-size: 0.95em;
   }
   .avatar {
-    width: 32px;
-    height: 32px;
+    width: 40px;
+    height: 40px;
   }
 }
