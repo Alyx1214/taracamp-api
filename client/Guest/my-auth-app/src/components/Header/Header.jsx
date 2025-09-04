@@ -7,7 +7,7 @@ function Header({ onReserveNow }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false); 
-  const [showReserve, setShowReserve] = useState(false); // 👈 new state
+  const [showReserve, setShowReserve] = useState(false); 
 
   const handleNavLinkClick = (path, sectionId) => {
     setIsMenuOpen(false); 
@@ -31,7 +31,7 @@ function Header({ onReserveNow }) {
     setIsMenuOpen(!isMenuOpen);
   };
 
-  // 👇 Observe the hero section
+  // Observe the hero section
   useEffect(() => {
     const hero = document.getElementById('hero');
     if (!hero) return;
@@ -52,7 +52,7 @@ function Header({ onReserveNow }) {
       <div className={styles.logoGroup}>
         <a onClick={() => handleNavLinkClick('/', 'hero')} className={styles.headerLogoLink}>
           <img src={mountainLogo} alt="Baguio Teachers Camp Logo" className={styles.headerLogo} />
-          <p className={styles.headerLogoText}>BTC</p>
+          <p className={styles.headerLogoText}>Baguio Teachers' Camp</p>
         </a>
       </div>
 
@@ -81,7 +81,7 @@ function Header({ onReserveNow }) {
         </ul>
       </nav>
 
-      {/* 👇 show only after hero is scrolled past */}
+      {/*show only after hero is scrolled past */}
       <div className={`${styles.desktopActions} ${!showReserve ? styles.hidden : ''}`}>
         <button className={styles.reserveNowButton} onClick={onReserveNow}>
           Reserve Now!
