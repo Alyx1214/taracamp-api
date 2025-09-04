@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import TransactionHeader from "./TransactionHeader";
-import TransactionPagination from "./TransactionPagination";
+import Pagination from "../Pagination/Pagination.jsx";
 import styles from "./Transaction.module.css";
 import Tabs from "../SharedTabs/SharedTabs.jsx";
 import SearchFil from "../SearchFil/SearchFil";
@@ -38,8 +38,8 @@ export default function Transaction() {
       </div>
 
       {renderActiveTab()}
-      
-      <TransactionPagination />
+
+      <Pagination />
     </div>
   );
 
