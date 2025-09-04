@@ -284,24 +284,36 @@ function Transactions() {
                     <button
                       className={styles.channelButton}
                       disabled={!reservationId || startingCheckout || !!amountError || !amount}
-                      onClick={() => startPaymongoCheckout('gcash')}
-                      title={!reservationId ? 'Select a reservation first' : 'Pay with GCash'}
+                      onClick={() => startPaymongoCheckout('dbp')}
+                      title={!reservationId ? 'Select a reservation first' : 'Pay with DBP'}
                     >
                       <img
-                        src="https://upload.wikimedia.org/wikipedia/commons/3/39/GCash_logo.svg"
-                        alt="GCash"
+                        src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSUZx-rJ-5BaZmYJoyDscoKJoq45Zlk_HC0N2MNzOeBc07SjwxqtSePzUQUG3HcldGvAQ&usqp=CAU"
+                        alt="DBP"
                         className={styles.channelLogo}
                       />
                     </button>
                     <button
                       className={styles.channelButton}
                       disabled={!reservationId || startingCheckout || !!amountError || !amount}
-                      onClick={() => startPaymongoCheckout('paymaya')}
-                      title={!reservationId ? 'Select a reservation first' : 'Pay with PayMaya'}
+                      onClick={() => startPaymongoCheckout('landbank')}
+                      title={!reservationId ? 'Select a reservation first' : 'Pay with Landbank'}
                     >
                       <img
-                        src="https://seeklogo.com/images/P/paymaya-logo-6A5E3BCD61-seeklogo.com.png"
-                        alt="PayMaya"
+                        src="https://upload.wikimedia.org/wikipedia/en/0/03/Landbank_New.svg"
+                        alt="Landbank"
+                        className={styles.channelLogo}
+                      />
+                    </button>
+                    <button
+                      className={styles.channelButton}
+                      disabled={!reservationId || startingCheckout || !!amountError || !amount}
+                      onClick={() => startPaymongoCheckout('gcash')}
+                      title={!reservationId ? 'Select a reservation first' : 'Pay with GCash'}
+                    >
+                      <img
+                        src="https://www.bworldonline.com/wp-content/uploads/2021/09/GCash_Horizontal-Full-Blue-Transparent.png"
+                        alt="GCash"
                         className={styles.channelLogo}
                       />
                     </button>
