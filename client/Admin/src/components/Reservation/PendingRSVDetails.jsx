@@ -1,29 +1,31 @@
 import React, { useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import styles from "./PendingRSVDetails.module.css";
 import { FaCheck, FaTimes, FaUpload } from "react-icons/fa";
 
 // Sample data
-  const reservations = {
-    id: "0508",
-    facilityType: "Cottage",
-    date: "08/17/2025",
-    group: "DepEd Ilocos Sur",
-    address: "Bantay, Ilocos Sur",
-    officeAddress: "Quirino Boulevard, Zone V, Bantay, Ilocos Sur",
-    category: "DepEd",
-    phone: "0915 403 2025",
-    officeTel: "(077) 1536 9851",
-    guests: "120",
-    emergencyContact: "0941 256 4578",
-    arrival: "September 17, 2025",
-    departure: "September 20, 2025",
-    typeOfFacility: "Cottage",
-    facilityName: "Quirino Conf Hall",
-    serviceType: "Lodging",
-    letterOfIntent: "#", // link to document
-    status: "Pending",
-  };
+const reservations = [
+  {
+  id: "0508",
+  facilityType: "Cottage",
+  date: "08/17/2025",
+  group: "DepEd Ilocos Sur",
+  address: "Bantay, Ilocos Sur",
+  officeAddress: "Quirino Boulevard, Zone V, Bantay, Ilocos Sur",
+  category: "DepEd",
+  phone: "0915 403 2025",
+  officeTel: "(077) 1536 9851",
+  guests: "120",
+  emergencyContact: "0941 256 4578",
+  arrival: "September 17, 2025",
+  departure: "September 20, 2025",
+  typeOfFacility: "Cottage",
+  facilityName: "Quirino Conf Hall",
+  serviceType: "Lodging",
+  letterOfIntent: "#", // link to document
+  status: "Pending",
+  },
+];
 
 export default function PendingRSVDetails() {
   const { id } = useParams();

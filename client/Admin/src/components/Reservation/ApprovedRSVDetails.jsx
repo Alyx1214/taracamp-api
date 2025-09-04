@@ -2,7 +2,9 @@ import React from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import styles from "./ApprovedRSVDetails.module.css";
 
-const reservations = {
+// Sample data
+const reservations = [
+  {
     id: "0508",
     facilityType: "Cottage",
     date: "08/17/2025",
@@ -21,7 +23,8 @@ const reservations = {
     serviceType: "Events",
     letterOfIntent: "#", // link to document
     status: "Approved",
-  };
+  },
+];
 
 export default function ApprovedRSVDetails() {
   const { id } = useParams();
