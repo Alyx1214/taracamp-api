@@ -36,7 +36,7 @@ export default function Approved() {
   const renderMenu = (row) => [
     {
       label: "See Details",
-      onClick: () => navigate(`/approvedRSV/${row.id}/details`)
+      onClick: () => navigate(`/approvedRSV/${row.id}/details`),
     },
   ];
 

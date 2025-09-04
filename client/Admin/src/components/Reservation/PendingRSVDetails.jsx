@@ -4,7 +4,7 @@ import styles from "./PendingRSVDetails.module.css";
 import { FaCheck, FaTimes, FaUpload } from "react-icons/fa";
 
 // Sample data
-  const reservation = {
+  const reservations = {
     id: "0508",
     facilityType: "Cottage",
     date: "08/17/2025",
@@ -25,11 +25,22 @@ import { FaCheck, FaTimes, FaUpload } from "react-icons/fa";
     status: "Pending",
   };
 
-export default function ReservationDetail() {
+export default function PendingRSVDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
   const fileInputRef = useRef();
   const reservation = reservations.find((r) => r.id === id);
+
+  // File upload state (optional, for UI feedback)
+  const [fileName, setFileName] = React.useState("");
+
+  const handleFileChange = (e) => {
+    if (e.target.files.length > 0) {
+      setFileName(e.target.files[0].name);
+    } else {
+      setFileName("");
+    }
+  };
 
   if (!reservation) {
       return (
@@ -49,17 +60,6 @@ export default function ReservationDetail() {
         </div>
       );
     }
-
-  // File upload state (optional, for UI feedback)
-  const [fileName, setFileName] = React.useState("");
-
-  const handleFileChange = (e) => {
-    if (e.target.files.length > 0) {
-      setFileName(e.target.files[0].name);
-    } else {
-      setFileName("");
-    }
-  };
 
   return (
     <div className={styles["reservation-details-container"]}>

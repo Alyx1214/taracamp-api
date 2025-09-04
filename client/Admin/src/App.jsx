@@ -99,7 +99,7 @@ return (
 <Route path="/reservation-step2" element={<ReservationFormStep2 />} />
 <Route path="/reservation-step3" element={<ReservationFormStep3 />} />
 <Route path="/reservation-step4" element={<ReservationFormStep4 />} />
-<Route path="/reservations/:id" element={<ReservationDetails />} />
+{/* <Route path="/reservations/:id" element={<ReservationDetails />} /> */}
 
 <Route path="/add-facility" element={<AddForm />} />
 <Route path="/facilities/edit/:id" element={<EditForm />} />

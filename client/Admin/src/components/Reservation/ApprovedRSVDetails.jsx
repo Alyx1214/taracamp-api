@@ -1,8 +1,8 @@
 import React from "react";
-import { useNavigate } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import styles from "./ApprovedRSVDetails.module.css";
 
-const reservation = {
+const reservations = {
     id: "0508",
     facilityType: "Cottage",
     date: "08/17/2025",
