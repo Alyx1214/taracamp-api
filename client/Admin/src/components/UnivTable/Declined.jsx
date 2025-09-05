@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import UnivTable from "./UnivTable";
 import styles from "./UnivTable.module.css";
-import { getAllReservationsByStatus, deleteReservation } from "../../apis/reservationApi"; 
+import { getAllReservationsByStatus, deleteReservation, searchReservations } from "../../apis/reservationApi"; 
 
 function formatDateLong(dateStr) {
   if (!dateStr) return "N/A";
@@ -21,7 +21,7 @@ function prettifyServiceType(svc) {
     .join("");
 }
 
-export default function Declined() {
+export default function Declined({ searchQuery = "" }) {
   const navigate = useNavigate();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -34,7 +34,14 @@ export default function Declined() {
     async function fetchDeclined() {
       try {
         setLoading(true);
-        const res = await getAllReservationsByStatus("DECLINED");
+        let res;
+        if (String(searchQuery || '').trim()) {
+          const s = String(searchQuery || '').trim();
+          res = await searchReservations({ search: s });
+          res.reservations = (res?.reservations || []).filter(r => r.status === 'DECLINED');
+        } else {
+          res = await getAllReservationsByStatus("DECLINED");
+        }
         const list = (res?.reservations || []).map(r => ({
           id: r._id || "N/A",
           name: r.guestName || "N/A",
@@ -52,7 +59,7 @@ export default function Declined() {
     }
     fetchDeclined();
     return () => { cancelled = true; };
-  }, []);
+  }, [searchQuery]);
 
   const handleDelete = async (row) => {
     if (!window.confirm(`Are you sure you want to delete reservation for ${row.name}?`)) return;

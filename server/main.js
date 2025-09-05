@@ -157,6 +157,11 @@ const processGetAPI = async (req, res) => {
                     let responseData = await reservationModule.getAllReservationsByStatus(dbHelper, id, req.user, params);
                     return res.status(responseData.status).json(responseData);
                 }
+                case 'search-reservations': {
+                    const params = { ...req.query, };
+                    let responseData = await reservationModule.searchReservations(dbHelper, params, req.user);
+                    return res.status(responseData.status).json(responseData);
+                }
                 case 'estimate-amount': {
                     const params = { ...req.query, };
                     let responseData = await reservationModule.estimate(dbHelper, params);
@@ -391,7 +396,6 @@ const processPostAPI = async (req, res) => {
                     const responseData = await paymentModule.createPaymentMethod(dbHelper, data);
                     return res.status(responseData.status).json(responseData);
                 }
-                // webhook handled by dedicated raw-body route at /api/payment/webhook
                 default:
                     return res.status(404).json({ error: 'Unknown action', });
             }
@@ -434,8 +438,8 @@ function isProtected(module, action) {
         user: ['profile', 'logout', 'change-password',],
         profile: ['update', 'uploadPicture',],
         reservation: ['create-reservation', 'get-reservation-by-user-id', 'cancel-booking',
-            'get-all-reservations-by-status', 'accept-or-decline-reservation', 'delete-reservation',
-            'upload-nonavailability-certificate','get-payment-summary',],
+            'get-all-reservations-by-status', 'search-reservations', 'accept-or-decline-reservation', 
+            'delete-reservation', 'upload-nonavailability-certificate','get-payment-summary',],
         facility: ['create-facility', 'update-facility', 'delete-facility',],
         'special-service': ['create-special-service', 'update-special-service', 'delete-special-service',],
         payment: ['create-payment-intent', 'attach-payment-method', 'create-payment-method', 'list-by-reservation', 'reconcile',],

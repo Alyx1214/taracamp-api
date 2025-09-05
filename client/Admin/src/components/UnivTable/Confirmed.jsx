@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import UnivTable from "./UnivTable";
 import styles from "./UnivTable.module.css";
-import { getAllReservationsByStatus } from "../../apis/reservationApi"; 
+import { getAllReservationsByStatus, searchReservations } from "../../apis/reservationApi"; 
 
 function formatDateLong(dateStr) {
   if (!dateStr) return "N/A";
@@ -21,7 +21,7 @@ function prettifyServiceType(svc) {
     .join("");
 }
 
-export default function Confirmed() {
+export default function Confirmed({ searchQuery = "" }) {
   const navigate = useNavigate();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -34,7 +34,15 @@ export default function Confirmed() {
     async function fetchConfirmed() {
       try {
         setLoading(true);
-        const res = await getAllReservationsByStatus("CONFIRMED"); 
+        let res;
+        if (String(searchQuery || '').trim()) {
+          // Use search API then filter for status on client
+          const s = String(searchQuery || '').trim();
+          res = await searchReservations({ search: s });
+          res.reservations = (res?.reservations || []).filter(r => r.status === 'CONFIRMED');
+        } else {
+          res = await getAllReservationsByStatus("CONFIRMED");
+        }
         const list = (res?.reservations || []).map(r => ({
           id: r._id || "N/A",
           name: r.guestName || "N/A",
@@ -53,7 +61,7 @@ export default function Confirmed() {
     }
     fetchConfirmed();
     return () => { cancelled = true; };
-  }, []);
+  }, [searchQuery]);
 
   const renderActions = (row) => (
     <>

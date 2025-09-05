@@ -600,6 +600,70 @@ const reservationModule = {
     },
 
     /**
+     * Searches for reservations based on the provided query object.
+     * @param {Object} dbHelper - The database helper for database operations.
+     * @param {Object} query - The search and filter object.
+     * @param {Object} user - The user object containing the user ID and role.
+     * @returns {Object} Response data with status, error, and an array of reservations on success.
+     */
+    searchReservations: async (dbHelper, query, user) => {
+        const responseData = {
+            status: Status.INTERNAL_SERVER_ERROR,
+            error: "Error searching reservations",
+        };
+
+        try {
+            if (!user) {
+            responseData.status = Status.UNAUTHORIZED;
+            responseData.error = "User not logged in";
+            return responseData;
+            }
+
+            if (user.role === UserRole.GUEST) {
+            responseData.status = Status.FORBIDDEN;
+            responseData.error = "You are not authorized to perform this action";
+            return responseData;
+            }
+
+            const dbQuery = buildReservationSearchQuery(query || {});
+
+            const raw = await dbHelper.findMany(
+            "reservation",
+            dbQuery,
+            { projection: { __v: 0, createdAt: 0 } }
+            );
+
+            const list = (raw || []).map((r) => (typeof r.toObject === "function" ? r.toObject() : r));
+            const userIds = [...new Set(list.map((r) => String(r.userId)).filter(Boolean))];
+
+            let emailById = new Map();
+            if (userIds.length) {
+            const users = await dbHelper.findMany(
+                "user",
+                { _id: { $in: userIds } },
+                { projection: { _id: 1, email: 1 } }
+            );
+            emailById = new Map((users || []).map((u) => [String(u._id), u.email]));
+            }
+
+            const withEmails = list.map((r) => ({
+            ...r,
+            guestEmail: r.guestEmail ?? emailById.get(String(r.userId)) ?? null,
+            }));
+
+            responseData.status = Status.OK;
+            responseData.error = null;
+            responseData.reservations = withEmails;
+            return responseData;
+        } catch (error) {
+            console.error("Error searching reservations:", error);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = "Error searching reservations";
+            return responseData;
+        }
+    },
+
+    /**
      * Approves or declines a reservation by its ID.
      * @param {Object} dbHelper - The database helper for database operations.
      * @param {string} reservationId - The ID of the reservation to update.
@@ -1078,6 +1142,38 @@ function isPresent(value) {
         return !Number.isNaN(value);
     }
     return true;
+}
+
+function buildReservationSearchQuery(query = {}) {
+  const andConds = [];
+  if (query.guestName) andConds.push({ guestName: { $regex: String(query.guestName), $options: 'i' } });
+  if (query.dateOfArrival) andConds.push({ dateOfArrival: query.dateOfArrival });
+  if (query.id) {
+    const idStr = String(query.id).trim();
+    if (/^[0-9a-fA-F]{24}$/.test(idStr)) {
+      andConds.push({ _id: idStr });
+    }
+  }
+  if (query.serviceType) andConds.push({ serviceType: query.serviceType });
+  if (query.status) andConds.push({ status: query.status });
+  if (query.search) {
+    const s = String(query.search).trim();
+    if (s) {
+      const orConds = [
+        { guestName: { $regex: s, $options: 'i' } },
+        { referenceNumber: { $regex: s, $options: 'i' } },
+        { telephone: { $regex: s, $options: 'i' } },
+        { serviceType: { $regex: s, $options: 'i' } },
+        { status: { $regex: s, $options: 'i' } },
+      ];
+      if (/^[0-9a-fA-F]{24}$/.test(s)) {
+        orConds.push({ _id: s });
+      }
+      andConds.push({ $or: orConds });
+    }
+  }
+
+  return andConds.length ? { $and: andConds } : {};
 }
 
 function computeEstimate({ facilityDoc, adults = 0, children = 0, pwds = 0, serviceType, }) {

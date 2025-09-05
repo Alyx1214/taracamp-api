@@ -8,6 +8,10 @@ export function getAllReservationsByStatus(status) {
   return apiGet(`/api/reservation/get-all-reservations-by-status/${encodeURIComponent(status)}`);
 }
 
+export function searchReservations(params = {}) {
+  return apiGet('/api/reservation/search-reservations', params);
+}
+
 export function estimateAmount({ facility, adults, children, pwds, serviceType }) {
   return apiGet('/api/reservation/estimate-amount', { facility, adults, children, pwds, serviceType });
 }

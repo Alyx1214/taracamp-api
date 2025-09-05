@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import UnivTable from "./UnivTable";
 import styles from "./UnivTable.module.css";
-import { getAllReservationsByStatus, cancelReservation } from "../../apis/reservationApi"; // ← fix path if different
+import { getAllReservationsByStatus, cancelReservation, searchReservations } from "../../apis/reservationApi"; // ← fix path if different
 
 function formatDateYMDToLong(dateStr) {
   if (!dateStr) return "N/A";
@@ -21,7 +21,7 @@ function prettifyServiceType(svc) {
     .join("");
 }
 
-export default function Approved() {
+export default function Approved({ searchQuery = "" }) {
   const navigate = useNavigate();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -36,7 +36,14 @@ export default function Approved() {
     async function fetchApproved() {
       try {
         setLoading(true);
-        const res = await getAllReservationsByStatus("APPROVED"); 
+        let res;
+        if (String(searchQuery || '').trim()) {
+          const s = String(searchQuery || '').trim();
+          res = await searchReservations({ search: s });
+          res.reservations = (res?.reservations || []).filter(r => r.status === 'APPROVED');
+        } else {
+          res = await getAllReservationsByStatus("APPROVED"); 
+        }
         const list = (res?.reservations || []).map(r => ({
           id: r._id || "N/A",
           name: r.guestName || "N/A",
@@ -57,7 +64,7 @@ export default function Approved() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [searchQuery]);
 
   const handleCancel = async (row) => {
     if (!window.confirm("Are you sure you want to cancel this reservation?")) return;

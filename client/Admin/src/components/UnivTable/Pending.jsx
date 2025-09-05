@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import UnivTable from "./UnivTable";
 import styles from "./UnivTable.module.css";
-import { getAllReservationsByStatus, decideReservation } from "../../apis/reservationApi";
+import { getAllReservationsByStatus, decideReservation, searchReservations } from "../../apis/reservationApi";
 import ConfirmModal from "../Shared/ConfirmModal";
 
 function formatDateYMDToLong(dateStr) {
@@ -22,7 +22,7 @@ function prettifyServiceType(svc) {
     .join("");
 }
 
-export default function Pending() {
+export default function Pending({ searchQuery = "" }) {
   const navigate = useNavigate();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -38,7 +38,14 @@ export default function Pending() {
     async function fetchPending() {
       try {
         setLoading(true);
-        const res = await getAllReservationsByStatus("PENDING");
+        let res;
+        if (String(searchQuery || '').trim()) {
+          const s = String(searchQuery || '').trim();
+          res = await searchReservations({ search: s });
+          res.reservations = (res?.reservations || []).filter(r => r.status === 'PENDING');
+        } else {
+          res = await getAllReservationsByStatus("PENDING");
+        }
         const list = (res?.reservations || []).map((r) => ({
           id: r._id || "N/A",
           name: r.guestName || "N/A",
@@ -56,7 +63,7 @@ export default function Pending() {
     }
     fetchPending();
     return () => { cancelled = true; };
-  }, []);
+  }, [searchQuery]);
 
   async function onApprove(row) {
     try {
