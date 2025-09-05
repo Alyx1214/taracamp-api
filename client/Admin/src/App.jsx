@@ -21,6 +21,7 @@ import PaymentDetails from "./components/Transaction/PaymentDetails.jsx";
 import CheckInOut from "./components/CheckInOut/CheckInOuts.jsx";
 import Reports from "./components/Report/Report.jsx";
 import User from "./components/Users/Users.jsx";
+import AddUserForm from "./components/Users/AddUsersForm.jsx";
 
 // Auth views (copied structure)
 import AuthFormContainer from './components/AuthFormContainer/AuthFormContainer.jsx';
@@ -92,6 +93,7 @@ return (
 <Route path="facilities" element={<Facilities />} />
 <Route path="transactions" element={<Transaction />} />
 <Route path="user" element={<User />} />
+<Route path="users/add" element={<AddUserForm />} />
 <Route path="checkin" element={<CheckInOut />} />
 <Route path="reports" element={<Reports />} /> 
 <Route path="/reservations/add" element={<AddReservation />} />
