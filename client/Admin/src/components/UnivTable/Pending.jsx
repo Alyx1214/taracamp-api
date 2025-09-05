@@ -93,7 +93,7 @@ export default function Pending() {
   const renderMenu = (row) => [
     {
       label: "See Details",
-      onClick: () => navigate(`/reservations/${row.id}`),
+      onClick: () => navigate(`/pendingRSV/${row.id}/details`),
     },
   ];
 

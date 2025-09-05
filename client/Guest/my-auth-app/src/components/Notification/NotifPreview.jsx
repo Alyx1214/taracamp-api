@@ -97,8 +97,7 @@ export default function NotifPreview({
         </div>
 
         <div className={styles.previewNotice}>
-          Please ensure the confirmation is made before the due date to avoid
-          cancellation of your reservation.
+          Please ensure the confirmation is made before the due date to avoid cancellation of your reservation.
         </div>
 
         <button

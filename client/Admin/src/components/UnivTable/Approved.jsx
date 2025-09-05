@@ -66,8 +66,8 @@ export default function Approved() {
 
   const renderMenu = (row) => [
     {
-      label: "Print",
-      onClick: () => navigate(`/reservations/${row.id}/print`),
+      label: "See Details",
+      onClick: () => navigate(`/approvedRSV/${row.id}/details`),
     },
   ];
 

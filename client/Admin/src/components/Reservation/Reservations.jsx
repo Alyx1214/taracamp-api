@@ -1,8 +1,7 @@
 import React, { useState } from "react";
 import ReservationsHeader from "./ReservationsHeader";
-import ReservationsPagination from "./ReservationsPagination";
-import styles from "./Reservations.module.css";
-
+import Pagination from "../Pagination/Pagination.jsx";
+import styles from "./Reservations.module.css"; 
 import Tabs from "../SharedTabs/SharedTabs.jsx";
 import SearchFil from "../SearchFil/SearchFil.jsx";
 
@@ -57,9 +56,7 @@ export default function Reservations() {
         {renderActiveTab()}
       </div>
 
-      <div className={styles["pagination"]}>
-        <ReservationsPagination />
-      </div>
+      <Pagination />
     </div>
   );
 }

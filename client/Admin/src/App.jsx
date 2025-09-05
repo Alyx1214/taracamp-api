@@ -9,9 +9,10 @@ import ReservationForm from './components/ReservationForm/ResForm.jsx';
 import ReservationFormStep2 from './components/ReservationForm/ResForm2.jsx';
 import ReservationFormStep3 from './components/ReservationForm/ResForm3.jsx';
 import ReservationFormStep4 from './components/ReservationForm/ResDetails.jsx';
-import ReservationDetails from "../src/components/Reservation/ReservationDetail.jsx";
-import ConfIndivRSVDetails from "./components/Reservation/ConfIndivRSVDetails.jsx";
-import ConfGroupRSVDetails from "./components/Reservation/ConfGroupRSVDetails.jsx";
+import PendingRSVDetails from "./components/ReservationDetails/PendingRSVDetails.jsx";
+import ApprovedRSVDetails from "./components/ReservationDetails/ApprovedRSVDetails.jsx";
+import ConfIndivRSVDetails from "./components/ReservationDetails/ConfIndivRSVDetails.jsx";
+import ConfGroupRSVDetails from "./components/ReservationDetails/ConfGroupRSVDetails.jsx";
 import AddForm from "../src/components/Facility/AddForm.jsx";
 import EditForm from "../src/components/Facility/EditForm.jsx"; 
 import Transaction from "./components/Transaction/Transaction.jsx";
@@ -98,12 +99,16 @@ return (
 <Route path="/reservation-step2" element={<ReservationFormStep2 />} />
 <Route path="/reservation-step3" element={<ReservationFormStep3 />} />
 <Route path="/reservation-step4" element={<ReservationFormStep4 />} />
-<Route path="/reservations/:id" element={<ReservationDetails />} />
 
 <Route path="/add-facility" element={<AddForm />} />
 <Route path="/facilities/edit/:id" element={<EditForm />} />
+
 <Route path="/transaction/:id/details" element={<TransactionDetails />} /> 
+
 <Route path="/payment/:id/details" element={<PaymentDetails />} /> 
+
+<Route path="/pendingRSV/:id/details" element={<PendingRSVDetails />} />
+<Route path="/approvedRSV/:id/details" element={<ApprovedRSVDetails />} />
 <Route path="/confirmedIndiv/:id/details" element={<ConfIndivRSVDetails />} />
 <Route path="/confirmedGroup/:id/details" element={<ConfGroupRSVDetails />} />
 

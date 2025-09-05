@@ -71,6 +71,12 @@ export default function UnivTable({ columns, data, renderActions, renderMenu }) 
                             <button className={styles["univ-view-btn"]}>
                               View
                             </button>
+                            <button className={styles["univ-delete-btn"]}>
+                              Delete
+                            </button>
+                            <button className={styles["univ-edit-btn"]}>
+                              Edit
+                            </button>
                           </>
                         )}
 
