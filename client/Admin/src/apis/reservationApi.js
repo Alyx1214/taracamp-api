@@ -1,8 +1,5 @@
 import { apiGet, apiPost } from './api';
 
-export function getMyReservations() {
-  return apiGet('/api/reservation/get-reservation-by-user-id');
-}
 export function getReservationById(id) {
   return apiGet(`/api/reservation/get-reservation-by-id/${id}`);
 }
@@ -36,7 +33,16 @@ export function updateReservation(id, payload = {}, letterOfIntentFile) {
 export function cancelReservation(id) {
   return apiPost(`/api/reservation/cancel-booking/${id}`, {});
 }
-export function decideReservation(id, { decision, reason } = {}) {
-  return apiPost(`/api/reservation/accept-or-decline-reservation/${id}`, { decision, reason });
+
+export function uploadApprovalDocument(id, file) {
+  const fd = new FormData();
+  fd.append('approvalDocumentFile', file); 
+  return apiPost(`/api/reservation/upload-approval-document/${id}`, fd);
 }
 
+export function decideReservation(id, decisionOrPayload = {}) {
+  const body = typeof decisionOrPayload === 'string'
+    ? { status: decisionOrPayload }
+    : decisionOrPayload;
+  return apiPost(`/api/reservation/accept-or-decline-reservation/${id}`, body);
+}

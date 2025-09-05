@@ -1,5 +1,5 @@
 
-.transaction-pagination {
+.univ-pagination {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -18,7 +18,7 @@
   background: #fff;
   color: #4CA16B;
   border: none;
-  border-radius: 0.5rem;
+  border-radius: 1rem;
   width: 2rem;
   height: 2rem;
   font-weight: 600;

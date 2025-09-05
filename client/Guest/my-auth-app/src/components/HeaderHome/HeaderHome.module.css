@@ -58,7 +58,7 @@
   color: #F5F5F5;
   text-decoration: none;
   font-size: 1em;
-  font-weight: 500;
+  font-weight: 540;
   padding: 5px 0;
   transition: color 0.3s ease, border-bottom 0.3s ease;
 }
@@ -146,22 +146,31 @@
 .msgHeaderRow {
   display:flex;
   align-items:center;
-  justify-content:
-  space-between;
-  margin-bottom:8px
+  justify-content: space-between;
+  background: #1E3C24;
+  padding: 16px 20px;
 }
 
 .msgHeaderTitle {
-  font-weight:600
+  font-size: 1.1rem;
+	font-weight: 600;
+	color: white;
 }
 
 .markAllBtn {
-  font-size:12px;
-  background:transparent;
-  border:1px solid #ddd;
-  padding:4px 8px;
-  border-radius:6px;
-  cursor:pointer
+	background: none;
+	border: none;
+	color: rgba(255, 255, 255, 0.9);
+	font-weight: 500;
+	cursor: pointer;
+	font-size: 0.85rem;
+	transition: color 0.2s ease;
+	text-decoration: none;
+}
+
+.markAllBtn:hover {
+	color: white;
+	text-decoration: underline;
 }
 
 .msgList {

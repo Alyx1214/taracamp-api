@@ -156,3 +156,33 @@
   border-radius: 6px;
   cursor: pointer;
 }
+
+.reservation-upload-error {
+  color: #d93025;
+  margin-top: 8px;
+}
+.reservation-upload-warning {
+  color: #b06d00;
+  margin-top: 8px;
+}
+.reservation-upload-success {
+  color: #1b5e20;
+  margin-top: 8px;
+}
+
+.reservation-status-approved {
+  background: #c8e6c9;
+  color: #256029;
+}
+.reservation-status-declined {
+  background: #ffcdd2;
+  color: #b71c1c;
+}
+.reservation-status-pending {
+  background: #fff8e1;
+  color: #8d6e63;
+}
+.reservation-status-generic {
+  background: #e0e0e0;
+  color: #424242;
+}

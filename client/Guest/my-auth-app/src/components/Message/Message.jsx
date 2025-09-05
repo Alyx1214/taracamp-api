@@ -1,6 +1,7 @@
 import React from 'react';
 import styles from './Message.module.css';
 import weblogo from '../../assets/logo.png';
+import { FaPaperclip, FaSmile, FaPaperPlane } from 'react-icons/fa';
 
 /**
  * Message component 
@@ -17,14 +18,40 @@ const Message = ({ sender, text, isUser, role }) => {
         <img src={weblogo} alt="Teachers Camp" className={styles.avatar} />
       )}
       <div className={styles.bubbleContainer}>
-        <div className={styles.senderRow}>
-          <span className={styles.sender}>{sender}</span>
-          {role && <span className={styles.roleTag}>{role}</span>}
+        <div className={styles.messages}>
+          <div className={styles.senderRow}>
+            <span className={styles.sender}>{sender}</span>
+            {role && <span className={styles.roleTag}>{role}</span>}
+          </div>
+          <div className={styles.bubble}>{text}</div>
         </div>
-        <div className={styles.bubble}>{text}</div>
       </div>
     </div>
   );
 };
 
-export default Message;
+const ChatContainer = ({ messages }) => {
+  return (
+    <div className={styles.chatContainer}>
+      <div className={styles.messagesContainer}>
+        {messages.map((message, index) => (
+          <Message key={index} {...message} />
+        ))}
+      </div>
+      <div className={styles.typingContainer}>
+        <input
+          type="text"
+          placeholder="Enter your message..."
+          className={styles.inputBox}
+        />
+        <div className={styles.iconContainer}>
+          <FaPaperclip className={styles.icon} />
+          <FaSmile className={styles.icon} />
+          <FaPaperPlane className={styles.icon} />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default ChatContainer;

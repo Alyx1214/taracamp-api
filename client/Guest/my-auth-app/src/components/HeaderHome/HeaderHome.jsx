@@ -382,7 +382,7 @@ function HeaderHome() {
       <div className={styles.logoGroup}>
         <a onClick={() => handleNavLinkClick('/', 'hero')} className={styles.headerLogoLink}>
           <img src={mountainLogo} alt="Baguio Teachers Camp Logo" className={styles.headerLogo} />
-          <p className={styles.headerLogoText}>BTC</p>
+          <p className={styles.headerLogoText}>Baguio Teachers' Camp</p>
         </a>
       </div>
 

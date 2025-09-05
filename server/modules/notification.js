@@ -1,3 +1,5 @@
+import { Status } from '../constants.js';
+
 const notificationModule = {
     /**
    * Creates a new notification for a user and sends it via WebSocket if the user is online.
@@ -7,35 +9,48 @@ const notificationModule = {
    * @returns {Object} The newly created notification.
    */
     createAndNotifyUser: async (dbHelper, data, userSocketMap) => {
-        const { title, message, userId, reservationId, } = data;
-
-        const doc = {
-            title,
-            message,
-            isRead: false,
-            userId,
-            reservationId,
-            createdAt: new Date(),
+        const responseData = {
+            status: Status.INTERNAL_SERVER_ERROR,
+            error: 'Error creating notification',
         };
+        try {
+            const { title, message, userId, reservationId, } = data;
 
-        const saved = await dbHelper.create('notification', doc);
+            const doc = {
+                title,
+                message,
+                isRead: false,
+                userId,
+                reservationId,
+                createdAt: new Date(),
+            };
 
-        const userWs = userSocketMap?.get(userId);
-        if (userWs && userWs.readyState === 1) {
-            userWs.send(JSON.stringify({
-                type: 'notification',
-                notification: {
-                    id: saved.id || saved._id?.toString?.() || saved._id,
-                    title,
-                    message,
-                    createdAt: doc.createdAt,
-                    isRead: false,
-                    source: "Teachers' Camp",
-                    time: 'now',
-                },
-            }));
+            const saved = await dbHelper.create('notification', doc);
+
+            const userWs = userSocketMap?.get(userId);
+            if (userWs && userWs.readyState === 1) {
+                userWs.send(JSON.stringify({
+                    type: 'notification',
+                    notification: {
+                        id: saved.id || saved._id?.toString?.() || saved._id,
+                        title,
+                        message,
+                        createdAt: doc.createdAt,
+                        isRead: false,
+                        source: "Teachers' Camp",
+                        time: 'now',
+                    },
+                }));
+            }
+            responseData.status = Status.OK;
+            responseData.error = null;
+            responseData.data = saved;
+        } catch (error) {
+            console.error('Error creating notification:', error);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Error creating notification';
         }
-        return saved;
+        return responseData;
     },
 
     /**
@@ -48,14 +63,27 @@ const notificationModule = {
    * @returns {Object[]} The list of notifications.
    */
     listForUser: async (dbHelper, userId, { limit = 20, before, } = {}) => {
-        const query = { userId, };
-        if (before) query.createdAt = { $lt: new Date(before), };
+        const responseData = {
+            status: Status.INTERNAL_SERVER_ERROR,
+            error: 'Error listing notifications',
+        };
+        try {
+            const query = { userId, };
+            if (before) query.createdAt = { $lt: new Date(before), };
 
-        const rows = await dbHelper.findMany('notification', query, {
-            sort: { createdAt: -1, },
-            limit: Math.min(Number(limit) || 20, 100),
-        });
-        return rows;
+            const rows = await dbHelper.findMany('notification', query, {
+                sort: { createdAt: -1, },
+                limit: Math.min(Number(limit) || 20, 100),
+            });
+            responseData.status = Status.OK;
+            responseData.error = null;
+            responseData.data = rows;
+        } catch (error) {
+            console.error('Error listing notifications:', error);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Error listing notifications';
+        }
+        return responseData;
     },
 
     /**
@@ -66,7 +94,21 @@ const notificationModule = {
    * @returns {Object} The modified notification.
    */
     markRead: async (dbHelper, notifId, userId) => {
-        return dbHelper.updateOne('notification', { _id: notifId, userId, }, { $set: { isRead: true, }, });
+        const responseData = {
+            status: Status.INTERNAL_SERVER_ERROR,
+            error: 'Error marking notification as read',
+        };
+        try {
+            const result = await dbHelper.updateOne('notification', { _id: notifId, userId, }, { $set: { isRead: true, }, });
+            responseData.status = Status.OK;
+            responseData.error = null;
+            responseData.data = result;
+        } catch (error) {
+            console.error('Error marking notification as read:', error);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Error marking notification as read';
+        }
+        return responseData;
     },
 
     /**
@@ -76,7 +118,21 @@ const notificationModule = {
    * @returns {Object} The modified notifications.
    */
     markAllRead: async (dbHelper, userId) => {
-        return dbHelper.updateMany('notification', { userId, isRead: { $ne: true, }, }, { $set: { isRead: true, }, });
+        const responseData = {
+            status: Status.INTERNAL_SERVER_ERROR,
+            error: 'Error marking all notifications as read',
+        };
+        try {
+            const result = await dbHelper.updateMany('notification', { userId, isRead: { $ne: true, }, }, { $set: { isRead: true, }, });
+            responseData.status = Status.OK;
+            responseData.error = null;
+            responseData.data = result;
+        } catch (error) {
+            console.error('Error marking all notifications as read:', error);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Error marking all notifications as read';
+        }
+        return responseData;
     },
 
     /**
@@ -86,7 +142,21 @@ const notificationModule = {
    * @returns {number} The number of unread notifications.
    */
     countUnread: async (dbHelper, userId) => {
-        return dbHelper.count('notification', { userId, isRead: { $ne: true, }, });
+        const responseData = {
+            status: Status.INTERNAL_SERVER_ERROR,
+            error: 'Error counting unread notifications',
+        };
+        try {
+            const count = await dbHelper.count('notification', { userId, isRead: { $ne: true, }, });
+            responseData.status = Status.OK;
+            responseData.error = null;
+            responseData.data = { count };
+        } catch (error) {
+            console.error('Error counting unread notifications:', error);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Error counting unread notifications';
+        }
+        return responseData;
     },
 };
 

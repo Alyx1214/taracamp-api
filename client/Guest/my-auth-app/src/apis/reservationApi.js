@@ -40,6 +40,3 @@ export function decideReservation(id, { decision, reason } = {}) {
   return apiPost(`/api/reservation/accept-or-decline-reservation/${id}`, { decision, reason });
 }
 
-export function getPaymentSummary(id) {
-  return apiGet(`/api/reservation/get-payment-summary/${id}`);
-}

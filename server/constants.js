@@ -19,6 +19,11 @@ export const UserRole = {
     SUPERINTENDENT: 'SUPERINTENDENT',
 };
 
+export const FileKind = {
+    LETTER_OF_INTENT: 'LETTER OF INTENT',
+    APPROVAL_DOCUMENT: 'APPROVAL DOCUMENT',
+}
+
 export const Category = {
     DEPED: 'DEPED',
     GOVERNMENT: 'GOVERNMENT',
@@ -37,6 +42,8 @@ export const ReservationStatus = {
     CONFIRMED: 'CONFIRMED',
     DECLINED: 'DECLINED',
     CANCELLED: 'CANCELLED',
+    CHECKIN: 'CHECK-IN',
+    CHECKOUT: 'CHECK-OUT',
 };
 
 export const FacilityType = {

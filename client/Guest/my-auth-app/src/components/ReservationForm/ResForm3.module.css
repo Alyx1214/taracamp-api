@@ -160,3 +160,7 @@
   font-size: 0.95rem;
   margin-top: 8px;
 }
+.requiredAsterisk {
+  color: #d32f2f;
+  margin-left: 4px;
+}

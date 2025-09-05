@@ -189,3 +189,7 @@
   border-color: #d32f2f;
   outline: none;
 }
+.requiredAsterisk {
+  color: #d32f2f;
+  margin-left: 4px;
+}

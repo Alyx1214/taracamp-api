@@ -88,7 +88,7 @@ function ReservationFormStep3() {
             <h1 className={styles.pageTitle}>RESERVATION FORM</h1>
           </div>
           <div className={styles.formCard}>
-            <div className={styles.formTitle}>Upload Letter of Intent</div>
+            <div className={styles.formTitle}>Upload Letter of Intent<span className={styles.requiredAsterisk}>*</span></div>
             <div className={styles.formSubtitle}>
               → Download this{' '}
               <a href={LETTER_TEMPLATE_URL} target="_blank" rel="noopener noreferrer" className={styles.letterLink}>

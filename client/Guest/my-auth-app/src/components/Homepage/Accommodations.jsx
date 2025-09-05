@@ -89,9 +89,7 @@ export default function AccommodationsSection({ limit = 6 }) {
                   aria-label={`${item.name} image`}
                 />
                 <h3 className={styles.cardTitle}>{item.name}</h3>
-                <p className={styles.cardPrice}>
-                  {item.type === 'CONFERENCE' ? 'Price' : 'Rate per person'}: ₱ {item.value}
-                </p>
+                <p className={styles.cardCapacity}>Capacity: {item.capacity}</p>
               </Link>
             );
           })}

@@ -1,9 +1,10 @@
 import React, { useState } from "react";
 import ReservationsHeader from "./ReservationsHeader";
-import ReservationsPagination from "./ReservationsPagination";
+import Pagination from "../Pagination/Pagination.jsx";
 import styles from "./Reservations.module.css"; 
 import Tabs from "../SharedTabs/SharedTabs.jsx";
 import SearchFil from "../SearchFil/SearchFil.jsx";
+
 import Pending from "../UnivTable/Pending";
 import Approved from "../UnivTable/Approved";
 import Declined from "../UnivTable/Declined";
@@ -13,8 +14,13 @@ import Confirmed from "../UnivTable/Confirmed";
 export default function Reservations() {
   const [activeTab, setActiveTab] = useState("Pending");
 
-  const handleSearch = (value) => console.log("Searching for:", value);
-  const handleFilter = () => console.log("Filter clicked");
+  const handleSearch = (value) => {
+    console.log("Searching for:", value);
+  };
+
+  const handleFilter = () => {
+    console.log("Filter clicked");
+  };
 
   const renderActiveTab = () => {
     switch (activeTab) {
@@ -46,9 +52,11 @@ export default function Reservations() {
         <SearchFil onSearch={handleSearch} onFilter={handleFilter} />
       </div>
 
-      {renderActiveTab()}
+      <div className={styles["reservations-list"]}>
+        {renderActiveTab()}
+      </div>
 
-      <ReservationsPagination />
+      <Pagination />
     </div>
   );
 }

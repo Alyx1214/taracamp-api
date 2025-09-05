@@ -36,3 +36,6 @@
 .availabilityOk { color: #2e7d32; }
 .availabilityBad { color: #d32f2f; }
 .input:disabled { color: #000 !important; -webkit-text-fill-color: #000; opacity: 1; }
+.required {
+  color: red;
+}

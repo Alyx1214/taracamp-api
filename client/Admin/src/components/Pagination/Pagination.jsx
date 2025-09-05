@@ -1,8 +1,8 @@
 import React from "react";
-import styles from "./TransactionPagination.module.css";
+import styles from "./Pagination.module.css";
 
-const TransactionPagination = () => (
-  <div className={styles["transaction-pagination"]}>
+const Pagination = () => (
+  <div className={styles["univ-pagination"]}>
     <span className={styles["pagination-info"]}>Showing 1 to 15 items</span>
     <div className={styles["pagination-controls"]}>
       <button className={styles["pagination-arrow"]}>&lt;</button>
@@ -19,4 +19,4 @@ const TransactionPagination = () => (
   </div>
 );
 
-export default TransactionPagination;
+export default Pagination;

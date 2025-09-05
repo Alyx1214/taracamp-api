@@ -316,7 +316,7 @@ function ReservationFormStep2() {
             <form onSubmit={e => e.preventDefault()}>
               <div className={styles.formRow}>
                 <div className={styles.formGroup}>
-                  <label className={styles.label}>Date of Arrival</label>
+                  <label className={styles.label}>Date of Arrival<span className={styles.requiredAsterisk}>*</span></label>
                   <input
                     type="date"
                     name="dateArrival"
@@ -331,7 +331,7 @@ function ReservationFormStep2() {
                 </div>
 
                 <div className={styles.formGroup}>
-                  <label className={styles.label}>Date of Departure</label>
+                  <label className={styles.label}>Date of Departure<span className={styles.requiredAsterisk}>*</span></label>
                   <input
                     type="date"
                     name="dateDeparture"
@@ -348,7 +348,7 @@ function ReservationFormStep2() {
 
               <div className={styles.formRow}>
                 <div className={styles.formGroup}>
-                  <label className={styles.label}>Type of Facilities</label>
+                  <label className={styles.label}>Type of Facilities<span className={styles.requiredAsterisk}>*</span></label>
                   <select
                     name="typeFacilities"
                     value={formData.typeFacilities}
@@ -372,7 +372,7 @@ function ReservationFormStep2() {
                 </div>
 
                 <div className={styles.formGroup}>
-                  <label className={styles.label}>Facility Name</label>
+                  <label className={styles.label}>Facility Name<span className={styles.requiredAsterisk}>*</span></label>
                   <select
                     name="facilityName"
                     value={formData.facilityName}
@@ -422,7 +422,7 @@ function ReservationFormStep2() {
 
               <div className={styles.formRow}>
                 <div className={styles.formGroup}>
-                  <label className={styles.label}>Type of Service</label>
+                  <label className={styles.label}>Type of Service<span className={styles.requiredAsterisk}>*</span></label>
                   <select
                     name="typeService"
                     value={formData.typeService}
@@ -456,7 +456,7 @@ function ReservationFormStep2() {
                 </div>
 
                 <div className={styles.formGroup}>
-                  <label className={styles.label}>Time of Arrival</label>
+                  <label className={styles.label}>Time of Arrival<span className={styles.requiredAsterisk}>*</span></label>
                   <div className={styles.timeInput}>
                     <input
                       type="number"

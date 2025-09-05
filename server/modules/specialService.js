@@ -69,7 +69,8 @@ const specialServiceModule = {
 
         } catch (error) {
             console.error('Error adding special service:', error);
-            responseData.error = error.message;
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Error adding special service';
         }
         return responseData;
     },
@@ -79,7 +80,7 @@ const specialServiceModule = {
      * @param {Object} dbHelper - The database helper for database operations.
      * @returns {Object} Response data with status, error, and specialServices on success.
      */
-    getAllSpecialServices: async (dbHelper) => {
+    getAllSpecialServices: async (dbHelper, options = {}) => {
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
             error: 'Error fetching special services',
@@ -87,13 +88,22 @@ const specialServiceModule = {
         };
 
         try {
-            const specialServices = await dbHelper.find('specialservice', {}, { __v: 0, createdAt: 0, });
+            const { limit, skip, sort, } = options || {};
+            const sortOption = sort ? parseSort(sort) : { name: 1, };
+            const specialServices = await dbHelper.findMany('specialservice', {}, {
+                projection: { __v: 0, createdAt: 0, },
+                sort: sortOption,
+                limit: clampLimit(limit),
+                skip: clampSkip(skip),
+            });
 
             responseData.status = Status.OK;
             responseData.error = null;
             responseData.specialServices = specialServices;
         } catch (error) {
-            responseData.error = error.message;
+            console.error('Error fetching special services:', error);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Error fetching special services';
         }
         return responseData;
     },
@@ -103,7 +113,7 @@ const specialServiceModule = {
      * @param {string} id - The ID of the special service.
      * @returns {Object} Response data with status, error, and specialService on success.
      */
-    getSpecialServiceById: async (id) => {
+    getSpecialServiceById: async (dbHelper, id) => {
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
             error: 'Error fetching special service',
@@ -132,7 +142,9 @@ const specialServiceModule = {
             responseData.error = null;
             responseData.specialService = specialServiceObject;
         } catch (error) {
-            responseData.error = error.message;
+            console.error('Error fetching special service:', error);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Error fetching special service';
         }
         return responseData;
     },
@@ -211,7 +223,8 @@ const specialServiceModule = {
             responseData.specialServiceId = id;
         } catch (error) {
             console.error('Error editing special service:', error);
-            responseData.error = error.message;
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Error editing special service';
         }
         return responseData;
     },
@@ -263,7 +276,8 @@ const specialServiceModule = {
             responseData.specialServiceId = id;
         } catch (error) {
             console.error('Error deleting special service:', error);
-            responseData.error = error.message;
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Error deleting special service';
         }
         return responseData;
     },
@@ -277,7 +291,7 @@ const specialServiceModule = {
     searchSpecialServices: async (dbHelper, options = {}) => {
         const { query, minPrice, maxPrice, unit, } = options;
         const responseData = {
-            status: 500,
+            status: Status.INTERNAL_SERVER_ERROR,
             error: 'Error searching special services',
             specialServices: [],
         };
@@ -295,11 +309,13 @@ const specialServiceModule = {
 
             const specialServices = await dbHelper.find('specialservice', filter, { __v: 0, createdAt: 0, });
 
-            responseData.status = 200;
+            responseData.status = Status.OK;
             responseData.error = null;
             responseData.specialServices = specialServices;
         } catch (error) {
-            responseData.error = error.message;
+            console.error('Error searching special services:', error);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Error searching special services';
         }
         return responseData;
     },
@@ -332,3 +348,16 @@ function isValidPrice(price) {
     return true;
 }
 
+function clampLimit(value, def = undefined) {
+    if (value === null || value === undefined || value === '') return def;
+    const n = Number(value);
+    if (!Number.isFinite(n)) return def;
+    return Math.max(1, Math.min(100, Math.trunc(n)));
+}
+
+function clampSkip(value, def = 0) {
+    if (value === null || value === undefined || value === '') return def;
+    const n = Number(value);
+    if (!Number.isFinite(n)) return def;
+    return Math.max(0, Math.trunc(n));
+}

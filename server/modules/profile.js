@@ -8,26 +8,24 @@ const profileModule = {
             error: 'Error on creating profile'
         };
         try {
-            try {
-                await dbHelper.create('profile', {
-                    about: '',
-                    address: '',
-                    xProfile: '',
-                    fbProfile: '',
-                    instagramProfile: '',
-                    linkedInProfile: '',
-                    profilePic: ProfilePic,
-                    createdProfileAt: new Date().valueOf(),
-                    updatedProfileAt: null,
-                    userId
-                });
-                responseData.status = Status.OK;
-                responseData.error = null;
-            } catch (error) {
-                console.error('Error creating profile:', error);
-            }
+            await dbHelper.create('profile', {
+                about: '',
+                address: '',
+                xProfile: '',
+                fbProfile: '',
+                instagramProfile: '',
+                linkedInProfile: '',
+                profilePic: ProfilePic,
+                createdProfileAt: new Date().valueOf(),
+                updatedProfileAt: null,
+                userId
+            });
+            responseData.status = Status.OK;
+            responseData.error = null;
         } catch (error) {
             console.error('Error creating profile:', error);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Error on creating profile';
         }
         return responseData;
     },
@@ -58,6 +56,8 @@ const profileModule = {
 
         } catch (error) {
             console.error('Error on getting user profile:', error);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Error on getting user profile';
         }
         return responseData;
     },
@@ -89,6 +89,8 @@ const profileModule = {
             responseData.error = null;
         } catch (error) {
             console.error('Error on updating user profile:', error);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Error on updating user profile';
         }
         return responseData;
     },
@@ -116,15 +118,17 @@ const profileModule = {
                 return responseData;
             }
 
-            const base64Data = profilePic.replace(/^data:image\/\w+;base64,/, '');
-            const croppedImageBuffer = await resizeImage(Buffer.from(base64Data, 'base64'), 60, 60);
-            const croppedImageBase64 = toBase64Image(croppedImageBuffer);
-            await dbHelper.updateOne('profile', { userId: session.userId }, { profilePic: croppedImageBase64, updatedProfileAt: new Date().valueOf() });
+            // const base64Data = profilePic.replace(/^data:image\/\w+;base64,/, '');
+            // const croppedImageBuffer = await resizeImage(Buffer.from(base64Data, 'base64'), 60, 60);
+            // const croppedImageBase64 = toBase64Image(croppedImageBuffer);
+            await dbHelper.updateOne('profile', { userId: session.userId }, { profilePic: profilePic, updatedProfileAt: new Date().valueOf() });
 
             responseData.status = Status.OK;
             responseData.error = null;
         } catch (error) {
             console.error('Error on updating user profile picture:', error);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Error on updating user profile picture';
         }
         return responseData;
     }
