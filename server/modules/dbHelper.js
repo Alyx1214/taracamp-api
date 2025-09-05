@@ -81,8 +81,8 @@ const dbHelper = {
                 facility: { type: mongoose.Schema.Types.ObjectId, ref: 'facility', required: true, },
                 serviceType: { type: String, enum: Object.values(ServiceType), required: true, },
                 letterOfIntentFileId: { type: mongoose.Schema.Types.ObjectId, ref: 'file', required: false },
-                approvalDocumentFileId: { type: mongoose.Schema.Types.ObjectId, ref: 'file', required: false },
-                approvalDocumentUploadedAt: { type: Date, required: false, },
+                nonAvailabilityCertFileId: { type: mongoose.Schema.Types.ObjectId, ref: 'file', required: false },
+                nonAvailabilityCertFileUploadedAt: { type: Date, required: false, },
                 status: { type: String, enum: Object.values(ReservationStatus), default: ReservationStatus.PENDING, required: true, },
                 totalEstimatedAmount: { type: Number, required: true, },
                 otherRequests: { type: String, required: false, },
@@ -201,6 +201,10 @@ const dbHelper = {
 
     deleteOne: async (collectionName, query) => {
         return await mongoose.model(collectionName).deleteOne(query);
+    },
+
+    deleteMany: async (collectionName, query) => {
+        return await mongoose.model(collectionName).deleteMany(query);
     },
 };
 

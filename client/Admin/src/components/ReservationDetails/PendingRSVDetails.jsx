@@ -1,48 +1,130 @@
-import React, { useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import styles from "./PendingRSVDetails.module.css";
 import { FaCheck, FaTimes, FaUpload } from "react-icons/fa";
+import { getReservationById, uploadNonavailabilityCertificate, decideReservation } from "../../apis/reservationApi";
 
-// Sample data
-const reservations = [
-  {
-  id: "0508",
-  facilityType: "Cottage",
-  date: "08/17/2025",
-  group: "DepEd Ilocos Sur",
-  address: "Bantay, Ilocos Sur",
-  officeAddress: "Quirino Boulevard, Zone V, Bantay, Ilocos Sur",
-  category: "DepEd",
-  phone: "0915 403 2025",
-  officeTel: "(077) 1536 9851",
-  guests: "120",
-  emergencyContact: "0941 256 4578",
-  arrival: "September 17, 2025",
-  departure: "September 20, 2025",
-  typeOfFacility: "Cottage",
-  facilityName: "Quirino Conf Hall",
-  serviceType: "Lodging",
-  letterOfIntent: "#", // link to document
-  status: "Pending",
-  },
-];
+function formatDateLong(dateStr) {
+  if (!dateStr) return "N/A";
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return "N/A";
+  return d.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+}
 
 export default function PendingRSVDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
   const fileInputRef = useRef();
-  const reservation = reservations.find((r) => r.id === id);
+  const [reservation, setReservation] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
-  // File upload state (optional, for UI feedback)
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        setLoading(true);
+        const res = await getReservationById(id);
+        if (cancelled) return;
+        if (res?.reservation) {
+          setReservation(res.reservation);
+          setError("");
+        } else {
+          setReservation(null);
+          setError("Reservation not found.");
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setError(e?.message || "Failed to fetch reservation");
+          setReservation(null);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [id]);
+
   const [fileName, setFileName] = React.useState("");
 
   const handleFileChange = (e) => {
-    if (e.target.files.length > 0) {
-      setFileName(e.target.files[0].name);
-    } else {
-      setFileName("");
-    }
+    const file = e.target.files && e.target.files[0] ? e.target.files[0] : null;
+    setSelectedFile(file);
+    setFileName(file ? file.name : "");
   };
+
+  async function onSend() {
+    if (!id) return;
+    if (!selectedFile) {
+      alert("Please choose a file to upload.");
+      return;
+    }
+    try {
+      setUploading(true);
+      await uploadNonavailabilityCertificate(id, selectedFile);
+      alert("Non-Availability Certificate uploaded.");
+      // refresh reservation to reflect latest state
+      const res = await getReservationById(id);
+      if (res?.reservation) setReservation(res.reservation);
+      // reset chooser
+      try { if (fileInputRef.current) fileInputRef.current.value = ""; } catch {}
+      setSelectedFile(null);
+      setFileName("");
+    } catch (e) {
+      alert(e?.message || "Failed to upload Non-Availability Certificate");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function onApprove() {
+    if (!id) return;
+    try {
+      setSubmitting(true);
+      await decideReservation(id, "APPROVED");
+      alert("Reservation approved.");
+      navigate(-1);
+    } catch (e) {
+      alert(e?.message || "Failed to approve reservation");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function onDecline() {
+    if (!id) return;
+    try {
+      setSubmitting(true);
+      await decideReservation(id, "DECLINED");
+      alert("Reservation declined.");
+      navigate(-1);
+    } catch (e) {
+      alert(e?.message || "Failed to decline reservation");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  const hasNonAvailability = !!reservation?.hasNonAvailabilityCert || !!reservation?.nonAvailabilityCertFile;
+
+  if (loading) {
+    return (
+      <div className={styles["rsv-details-container"]}>
+        <div className={styles["rsv-details-header"]}>
+          <span className={styles["rsv-details-back"]} onClick={() => navigate(-1)}>
+            &larr;
+          </span>
+          <h1 className={styles["rsv-details-title"]}>Reservation Details</h1>
+        </div>
+        <div className={styles["rsv-details-card"]}>
+          <p>Loading…</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!reservation) {
       return (
@@ -57,7 +139,7 @@ export default function PendingRSVDetails() {
             <h1 className={styles["rsv-details-title"]}>Reservation Details</h1>
           </div>
           <div className={styles["rsv-details-card"]}>
-            <p>Reservation not found.</p>
+            <p>{error || "Reservation not found."}</p>
           </div>
         </div>
       );
@@ -77,10 +159,10 @@ export default function PendingRSVDetails() {
       <div className={styles["reservation-details-card"]}>
         <div className={styles["reservation-details-row"]}>
           <span className={styles["reservation-details-facility"]}>
-            {reservation.facilityType}
+            {reservation.facilityType || "N/A"}
           </span>
           <span className={styles["reservation-details-date"]}>
-            {reservation.date}
+            {formatDateLong(reservation.dateOfArrival)}
           </span>
         </div>
         <table className={styles["reservation-details-table"]}>
@@ -88,74 +170,74 @@ export default function PendingRSVDetails() {
             <tr>
               <td className={styles["reservation-details-label"]}>Group/Association</td>
               <td className={styles["reservation-details-separator"]}>:</td>
-              <td>{reservation.group}</td>
+              <td>{reservation.guestName || "N/A"}</td>
             </tr>
             <tr>
               <td className={styles["reservation-details-label"]}>Address</td>
               <td className={styles["reservation-details-separator"]}>:</td>
-              <td>{reservation.address}</td>
+              <td>{reservation.homeAddress || "N/A"}</td>
             </tr>
             <tr>
               <td className={styles["reservation-details-label"]}>Office Address</td>
               <td className={styles["reservation-details-separator"]}>:</td>
-              <td>{reservation.officeAddress}</td>
+              <td>{reservation.officeAddress || "N/A"}</td>
             </tr>
             <tr>
               <td className={styles["reservation-details-label"]}>Category</td>
               <td className={styles["reservation-details-separator"]}>:</td>
-              <td>{reservation.category}</td>
+              <td>{reservation.category || "N/A"}</td>
             </tr>
             <tr>
               <td className={styles["reservation-details-label"]}>Phone No.</td>
               <td className={styles["reservation-details-separator"]}>:</td>
-              <td>{reservation.phone}</td>
+              <td>{reservation.telephone || "N/A"}</td>
             </tr>
             <tr>
               <td className={styles["reservation-details-label"]}>Office Telephone No.</td>
               <td className={styles["reservation-details-separator"]}>:</td>
-              <td>{reservation.officeTel}</td>
+              <td>{reservation.officeTelephone || "N/A"}</td>
             </tr>
             <tr>
               <td className={styles["reservation-details-label"]}>Number of Guests</td>
               <td className={styles["reservation-details-separator"]}>:</td>
-              <td>{reservation.guests}</td>
+              <td>{reservation?.numberOfGuests?.total ?? "N/A"}</td>
             </tr>
             <tr>
               <td className={styles["reservation-details-label"]}>Emergency Contact</td>
               <td className={styles["reservation-details-separator"]}>:</td>
-              <td>{reservation.emergencyContact}</td>
+              <td>{reservation.emergencyContact || "N/A"}</td>
             </tr>
             <tr>
               <td className={styles["reservation-details-label"]}>Date of Arrival</td>
               <td className={styles["reservation-details-separator"]}>:</td>
-              <td>{reservation.arrival}</td>
+              <td>{formatDateLong(reservation.dateOfArrival)}</td>
             </tr>
             <tr>
               <td className={styles["reservation-details-label"]}>Date of Departure</td>
               <td className={styles["reservation-details-separator"]}>:</td>
-              <td>{reservation.departure}</td>
+              <td>{formatDateLong(reservation.dateOfDeparture)}</td>
             </tr>
             <tr>
               <td className={styles["reservation-details-label"]}>Type of Facility</td>
               <td className={styles["reservation-details-separator"]}>:</td>
-              <td>{reservation.typeOfFacility}</td>
+              <td>{reservation.facilityType || "N/A"}</td>
             </tr>
             <tr>
               <td className={styles["reservation-details-label"]}>Facility Name</td>
               <td className={styles["reservation-details-separator"]}>:</td>
-              <td>{reservation.facilityName}</td>
+              <td>{reservation.facilityName || reservation.facilityType || "N/A"}</td>
             </tr>
             <tr>
               <td className={styles["reservation-details-label"]}>Type of Service</td>
               <td className={styles["reservation-details-separator"]}>:</td>
-              <td>{reservation.serviceType}</td>
+              <td>{reservation.serviceType || "N/A"}</td>
             </tr>
             <tr>
               <td className={styles["reservation-details-label"]}>Letter of Intent</td>
               <td className={styles["reservation-details-separator"]}>:</td>
               <td>
                 <a
-                  href={reservation.letterOfIntent}
+                  href={reservation.letterOfIntentFile || "#"}
                   className={styles["reservation-details-link"]}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -164,57 +246,93 @@ export default function PendingRSVDetails() {
                 </a>
               </td>
             </tr>
+            <tr>
+              <td className={styles["reservation-details-label"]}>Non-Availability Certificate</td>
+              <td className={styles["reservation-details-separator"]}>:</td>
+              <td>
+                {reservation.nonAvailabilityCertFile ? (
+                  <a
+                    href={reservation.nonAvailabilityCertFile}
+                    className={styles["reservation-details-link"]}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Click to open
+                  </a>
+                ) : hasNonAvailability ? (
+                  "On file"
+                ) : (
+                  "N/A"
+                )}
+              </td>
+            </tr>
           </tbody>
         </table>
         <div className={styles["reservation-details-foot"]}>
           <div className={styles["reservation-details-status-row"]}>
             <span className={styles["reservation-details-status-label"]}>Status:</span>
             <span className={styles["reservation-details-status-value-pending"]}>
-              {reservation.status}
+              {reservation.status || "N/A"}
             </span>
           </div>
           <div className={styles["reservation-details-action-row"]}>
-            <button className={styles["reservation-details-decline-btn"]}>
+            <button
+              className={styles["reservation-details-decline-btn"]}
+              onClick={onDecline}
+              disabled={submitting}
+            >
               <FaTimes className={styles["reservation-details-action-icon"]} />
               DECLINE
             </button>
-            <button className={styles["reservation-details-approve-btn"]}>
-              <FaCheck className={styles["reservation-details-action-icon"]} />
-              APPROVE
-            </button>
+            {!hasNonAvailability && (
+              <button
+                className={styles["reservation-details-approve-btn"]}
+                onClick={onApprove}
+                disabled={submitting}
+              >
+                <FaCheck className={styles["reservation-details-action-icon"]} />
+                {submitting ? "PROCESSING…" : "APPROVE"}
+              </button>
+            )}
           </div>
         </div>
-        <div className={styles["reservation-details-upload-section"]}>
-            <div className={styles["reservation-details-upload-label"]}>
-              Upload Certificate Of Non-Availability
+        {!hasNonAvailability && (
+          <div className={styles["reservation-details-upload-section"]}>
+              <div className={styles["reservation-details-upload-label"]}>
+                Upload Certificate Of Non-Availability
+              </div>
+              <div className={styles["reservation-details-upload-desc"]}>
+                Applicable Only For Declining A Reservation
+              </div>
+              <div className={styles["reservation-details-upload-row"]}>
+                <input
+                  type="file"
+                  id="upload"
+                  ref={fileInputRef}
+                  style={{ display: "none" }}
+                  onChange={handleFileChange}
+                />
+                <label
+                  htmlFor="upload"
+                  className={styles["reservation-details-upload-btn"]}
+                  tabIndex={0}
+                  onKeyPress={e => {
+                    if (e.key === "Enter" || e.key === " ") fileInputRef.current.click();
+                  }}
+                >
+                  {fileName ? fileName : "Click to upload"}
+                  <FaUpload className={styles["reservation-details-upload-icon"]} />
+                </label>
+                <button
+                  className={styles["reservation-details-send-btn"]}
+                  onClick={onSend}
+                  disabled={uploading || !selectedFile}
+                >
+                  {uploading ? "Uploading…" : "Send"}
+                </button>
+              </div>
             </div>
-            <div className={styles["reservation-details-upload-desc"]}>
-              Applicable Only For Declining A Reservation
-            </div>
-            <div className={styles["reservation-details-upload-row"]}>
-              <input
-                type="file"
-                id="upload"
-                ref={fileInputRef}
-                style={{ display: "none" }}
-                onChange={handleFileChange}
-              />
-              <label
-                htmlFor="upload"
-                className={styles["reservation-details-upload-btn"]}
-                tabIndex={0}
-                onKeyPress={e => {
-                  if (e.key === "Enter" || e.key === " ") fileInputRef.current.click();
-                }}
-              >
-                {fileName ? fileName : "Click to upload"}
-                <FaUpload className={styles["reservation-details-upload-icon"]} />
-              </label>
-              <button className={styles["reservation-details-send-btn"]}>
-                Send
-              </button>
-            </div>
-          </div>
+        )}
       </div>
     </div>
   );

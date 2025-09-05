@@ -1,3 +1,4 @@
+import { response } from 'express';
 import { Category, GuestType, Status, UserRole, FacilityStatus, ServiceType, ReservationStatus, FileKind, } from '../constants.js';
 import notificationModule from './notification.js';
 import { Storage, } from '@google-cloud/storage';
@@ -194,7 +195,6 @@ const reservationModule = {
                 return responseData;
             }
 
-            let letterOfIntentUrl = null;
             let loiFileDoc = null;
             if (file) {
                 try {
@@ -221,6 +221,7 @@ const reservationModule = {
                         });
                     } catch (createFileErr) {
                         console.error('Error creating file record for LOI:', createFileErr);
+                        responseData.status = Status.INTERNAL_SERVER_ERROR;
                     }
                 } catch (err) {
                     responseData.status = Status.INTERNAL_SERVER_ERROR;
@@ -356,27 +357,31 @@ const reservationModule = {
                 }
             } catch (urlError) {
                 console.error('Error generating signed URL for LOI:', urlError);
+                responseData.status = Status.INTERNAL_SERVER_ERROR;
+                responseData.error = 'Error generating signed URL for LOI';
             }
 
-            let approvalUrl = null;
+            let nonAvailabilityUrl = null;
+            let hasNonAvailabilityCert = false;
             try {
                 let apprPath = null;
-                if (reservation.approvalDocumentFileId) {
-                    const f = await dbHelper.findOne('file', { _id: reservation.approvalDocumentFileId, });
+                if (reservation.nonAvailabilityCertFileId) {
+                    const f = await dbHelper.findOne('file', { _id: reservation.nonAvailabilityCertFileId, });
                     apprPath = f?.path ?? null;
                 } else {
-                    const f = await dbHelper.findOne('file', { reservationId: reservationId, kind: FileKind.APPROVAL_DOCUMENT, });
+                    const f = await dbHelper.findOne('file', { reservationId: reservationId, kind: FileKind.NONAVAILABILITY_CERTIFICATE, });
                     apprPath = f?.path ?? null;
                 }
+                hasNonAvailabilityCert = !!apprPath;
                 if (apprPath) {
-                    [approvalUrl,] = await bucket.file(apprPath).getSignedUrl({
+                    [nonAvailabilityUrl,] = await bucket.file(apprPath).getSignedUrl({
                         version: 'v4',
                         expires: Date.now() + 1000 * 60 * 60,
                         action: 'read',
                     });
                 }
             } catch (urlError) {
-                console.error('Error generating signed URL for approval document:', urlError);
+                console.error('Error generating signed URL for Non-Availability Certificate:', urlError);
             }
 
             const reservationObject = reservation.toObject();
@@ -387,7 +392,8 @@ const reservationModule = {
             }
 
             reservationObject.letterOfIntentFile = url;
-            reservationObject.approvalDocumentFile = approvalUrl;
+            reservationObject.nonAvailabilityCertFile = nonAvailabilityUrl;
+            reservationObject.hasNonAvailabilityCert = hasNonAvailabilityCert || !!reservation.nonAvailabilityCertFileId;
             reservationObject.facilityType = facilityDoc?.facilityType ?? null;
 
             responseData.status = Status.OK;
@@ -462,7 +468,7 @@ const reservationModule = {
                 return responseData;
             }
 
-            if (reservation.userId.toString() !== user.userId.toString()) {
+            if (reservation.userId.toString() !== user.userId.toString() && user.role !== UserRole.SUPERINTENDENT) {
                 responseData.status = Status.FORBIDDEN;
                 responseData.error = 'You are not authorized to cancel this reservation';
                 return responseData;
@@ -472,11 +478,11 @@ const reservationModule = {
             const now = new Date();
             const twentyFourHoursInMs = 24 * 60 * 60 * 1000;
 
-            if (arrivalDate.getTime() - now.getTime() < twentyFourHoursInMs) {
-                responseData.status = Status.BAD_REQUEST;
-                responseData.error = 'Cannot cancel reservation within 24 hours of arrival.';
-                return responseData;
-            }
+            // if (arrivalDate.getTime() - now.getTime() < twentyFourHoursInMs) {
+            //     responseData.status = Status.BAD_REQUEST;
+            //     responseData.error = 'Cannot cancel reservation within 24 hours of arrival.';
+            //     return responseData;
+            // }
 
             if (reservation.status === ReservationStatus.CANCELLED) {
                 responseData.status = Status.BAD_REQUEST;
@@ -638,12 +644,10 @@ const reservationModule = {
                 return responseData;
             }
 
-            if (status === ReservationStatus.APPROVED) {
-                if (!reservation.approvalDocumentFileId && !reservation.approvalDocumentFile) {
-                    responseData.status = Status.BAD_REQUEST;
-                    responseData.error = 'Upload an approval document before approving this reservation.';
-                    return responseData;
-                }
+            if (status === ReservationStatus.APPROVED && reservation.nonAvailabilityCertFileId) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Cannot approve reservation: Non-Availability Certificate on file';
+                return responseData;
             }
 
             if (reservation.status === ReservationStatus.APPROVED || reservation.status === ReservationStatus.DECLINED) {
@@ -675,17 +679,83 @@ const reservationModule = {
     },
 
     /**
-     * Uploads an approval document for a given reservation.
+     * Deletes a reservation by its ID.
+     * @param {Object} dbHelper - The database helper for database operations.
+     * @param {string} reservationId - The ID of the reservation to delete.
+     * @param {Object} user - The user object containing the user ID and role.
+     * @returns {Object} Response data with status, error, message, and deleted reservation on success.
+     */
+    deleteReservation: async (dbHelper, reservationId, user) => {
+        const responseData = {
+            status: Status.INTERNAL_SERVER_ERROR,
+            error: 'Error deleting reservation',
+        };
+
+        try {
+            if (!user || !user.userId) {
+                responseData.status = Status.UNAUTHORIZED;
+                responseData.error = 'User not logged in';
+                return responseData;
+            }
+
+            if (user.role !== UserRole.SUPERINTENDENT) {
+                responseData.status = Status.FORBIDDEN;
+                responseData.error = 'You are not authorized to perform this action';
+                return responseData;
+            }
+
+            if (!reservationId) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Reservation ID is required';
+                return responseData;
+            }
+
+            const reservation = await dbHelper.findOne('reservation', { _id: reservationId, });
+            if (!reservation) {
+                responseData.status = Status.NOT_FOUND;
+                responseData.error = 'Reservation not found';
+                return responseData;
+            }
+
+            const files = await dbHelper.find('file', { reservationId: reservationId });
+            for (const file of files) {
+                try {
+                    await bucket.file(file.path).delete(); 
+                } catch (err) {
+                    console.warn('Failed to delete file in bucket:', file.path, err.message);
+                }
+            }
+            await dbHelper.deleteMany('file', { reservationId: reservationId }); 
+
+            const deletedReservation = await dbHelper.deleteOne('reservation', { _id: reservationId, });
+
+            responseData.status = Status.OK;
+            responseData.error = null;
+            responseData.message = 'Reservation deleted successfully';
+            responseData.reservation = {
+                _id: deletedReservation._id,
+                status: deletedReservation.status,
+            };
+        } catch (error) {
+            console.error('Error deleting reservation:', error);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Error deleting reservation';
+        }
+        return responseData;
+    },
+
+    /**
+     * Uploads a Non-Availability Certificate for a given reservation.
      * @param {Object} dbHelper - The MongoDB client
      * @param {string} reservationId - The ID of the reservation
-     * @param {Object} file - The approval document file object
+     * @param {Object} file - The Non-Availability Certificate file object
      * @param {Object} user - The user object containing the user ID and role
      * @returns {Object} Response data with status, error, message, and updated reservation on success
      */
-    uploadApprovalDocument: async (dbHelper, reservationId, file, user) => {
+    uploadNonAvailabilityCertificate: async (dbHelper, reservationId, file, user) => {
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
-            error: 'Error uploading approval document',
+            error: 'Error uploading Non-Availability Certificate',
         };
 
         try {
@@ -716,7 +786,7 @@ const reservationModule = {
 
             if (!file) {
                 responseData.status = Status.BAD_REQUEST;
-                responseData.error = 'Missing approval document file';
+                responseData.error = 'Missing Non-Availability Certificate file';
                 return responseData;
             }
 
@@ -726,7 +796,7 @@ const reservationModule = {
                 return responseData;
             }
 
-            const filename = `approval_document/${Date.now()}_${file.originalname.replace(/\s/g, '_')}`;
+            const filename = `non_availability_certificate/${Date.now()}_${file.originalname.replace(/\s/g, '_')}`;
             const blob = bucket.file(filename);
             await new Promise((resolve, reject) => {
                 const stream = blob.createWriteStream({
@@ -739,8 +809,8 @@ const reservationModule = {
             });
 
             let fileDoc = null;
-            if (reservation.approvalDocumentFileId) {
-                fileDoc = await dbHelper.findOneAndUpdate('file', { _id: reservation.approvalDocumentFileId, }, {
+            if (reservation.nonAvailabilityCertFileId) {
+                fileDoc = await dbHelper.findOneAndUpdate('file', { _id: reservation.nonAvailabilityCertFileId, }, {
                     path: filename,
                     mimetype: file.mimetype,
                     size: file.size,
@@ -751,28 +821,28 @@ const reservationModule = {
                     path: filename,
                     mimetype: file.mimetype,
                     size: file.size,
-                    kind: 'APPROVAL_DOCUMENT',
+                    kind: FileKind.NONAVAILABILITY_CERTIFICATE,
                     reservationId: reservation._id,
                     userId: user.userId,
                     createdAt: new Date(),
                 });
-                await dbHelper.findOneAndUpdate('reservation', { _id: reservationId, }, { approvalDocumentFileId: fileDoc._id, approvalDocumentUploadedAt: new Date(), });
+                await dbHelper.findOneAndUpdate('reservation', { _id: reservationId, }, { nonAvailabilityCertFileId: fileDoc._id, nonAvailabilityCertFileUploadedAt: new Date(), });
             }
 
             const updated = await dbHelper.findOne('reservation', { _id: reservationId, });
 
             responseData.status = Status.OK;
             responseData.error = null;
-            responseData.message = 'Approval document uploaded successfully';
+            responseData.message = 'Non-Availability Certificate uploaded successfully';
             responseData.reservation = {
                 _id: updated._id,
-                approvalDocumentFile: fileDoc?.path ?? null,
+                nonAvailabilityCertFile: fileDoc?.path ?? null,
             };
             return responseData;
         } catch (err) {
-            console.error('Error uploading approval document:', err);
+            console.error('Error uploading Non-Availability Certificate:', err);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
-            responseData.error = 'Error uploading approval document';
+            responseData.error = 'Error uploading Non-Availability Certificate';
             return responseData;
         }
     },

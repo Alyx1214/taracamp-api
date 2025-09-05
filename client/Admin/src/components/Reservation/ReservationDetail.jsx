@@ -100,7 +100,7 @@ export default function ReservationDetails() {
   async function onApprove() {
     if (!id) return;
     if (!hasApprovalDoc) {
-      setApproveError("Please upload the approval document before approving.");
+      setApproveError("Please upload the Non-Availability Certificate before approving.");
       try {
         uploadRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
       } catch {}
@@ -128,9 +128,9 @@ export default function ReservationDetails() {
       await uploadApprovalDocument(id, file);
       setHasApprovalDoc(true);
       setApproveError("");
-      alert("Approval document uploaded.");
+      alert("Non-Availability Certificate uploaded.");
     } catch (e) {
-      alert(e?.message || "Failed to upload approval document");
+      alert(e?.message || "Failed to upload Non-Availability Certificate");
     } finally {
       setUploading(false);
     }
@@ -232,7 +232,7 @@ export default function ReservationDetails() {
           )}
         </div>
 
-        <div className={styles["reservation-label"]}>Approval Document</div>
+        <div className={styles["reservation-label"]}>Non-Availability Certificate</div>
         <div className={styles["reservation-colon"]}>:</div>
         <div className={styles["reservation-value"]}>
           {resv.approvalDocumentFile ? (
@@ -284,7 +284,7 @@ export default function ReservationDetails() {
 
       {/* Upload approval doc */}
       <div className={styles["reservation-upload-wrap"]} ref={uploadRef}>
-        <div className={styles["reservation-upload-title"]}>Upload Approval Document</div>
+        <div className={styles["reservation-upload-title"]}>Upload Non-Availability Certificate</div>
         <div className={styles["reservation-upload-note"]}>PDF, DOC, DOCX (max 5MB)</div>
         <div className={styles["reservation-upload-row"]}>
           <input
@@ -311,11 +311,11 @@ export default function ReservationDetails() {
         ) : null}
         {hasApprovalDoc ? (
           <div className={styles["reservation-upload-success"]}>
-            ✅ Approval document on file.
+            ✅ Non-Availability Certificate on file.
           </div>
         ) : (
           <div className={styles["reservation-upload-warning"]}>
-            ⚠️ Approval document required before approval.
+            ⚠️ Non-Availability Certificate required before approval.
           </div>
         )}
       </div>

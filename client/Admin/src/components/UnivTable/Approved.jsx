@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import UnivTable from "./UnivTable";
 import styles from "./UnivTable.module.css";
-import { getAllReservationsByStatus } from "../../apis/reservationApi"; // ← fix path if different
+import { getAllReservationsByStatus, cancelReservation } from "../../apis/reservationApi"; // ← fix path if different
 
 function formatDateYMDToLong(dateStr) {
   if (!dateStr) return "N/A";
@@ -11,11 +11,14 @@ function formatDateYMDToLong(dateStr) {
   return d.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
 }
 
-function formatServiceType(svc) {
+function prettifyServiceType(svc) {
   if (!svc) return "N/A";
-  if (svc === "ACCOMMODATION") return "Lodging";
-  if (svc === "MEETING") return "Event";
-  return svc;
+  return String(svc)
+    .split(/([\/\s])/)
+    .map((w) =>
+      w.match(/[a-z]/i) ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : w
+    )
+    .join("");
 }
 
 export default function Approved() {
@@ -23,6 +26,7 @@ export default function Approved() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState(null);
+  const [cancellingId, setCancellingId] = useState(null);
 
   const columns = useMemo(() => ["ID", "Name", "Email", "Service Type", "Date", "Actions"], []);
 
@@ -37,7 +41,7 @@ export default function Approved() {
           id: r._id || "N/A",
           name: r.guestName || "N/A",
           email: r.guestEmail || "N/A",
-          serviceType: formatServiceType(r.serviceType),
+          serviceType: prettifyServiceType(r.serviceType) || "N/A",
           date: formatDateYMDToLong(r.dateOfArrival || r.createdAt),
           _raw: r,
         }));
@@ -55,12 +59,30 @@ export default function Approved() {
     };
   }, []);
 
+  const handleCancel = async (row) => {
+    if (!window.confirm("Are you sure you want to cancel this reservation?")) return;
+    try {
+      setCancellingId(row.id); 
+      await cancelReservation(row.id);
+      setRows((prev) => prev.filter((r) => r.id !== row.id));
+    } catch (e) {
+      alert(e?.message || "Failed to cancel reservation.");
+    } finally {
+      setCancellingId(null);
+    }
+  };
   const renderActions = (row) => (
     <>
       <button className={styles["univ-approve-btn"]} onClick={() => navigate(`/reservations/${row.id}/edit`)}>
         Edit
       </button>
-      <button className={styles["univ-decline-btn"]}>Delete</button>
+      <button
+      className={styles["univ-decline-btn"]}
+      disabled={cancellingId === row.id}
+      onClick={() => handleCancel(row)}
+    >
+      {cancellingId === row.id ? "Cancelling..." : "Cancel"}
+    </button>
     </>
   );
 

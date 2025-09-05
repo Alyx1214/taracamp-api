@@ -12,10 +12,14 @@ function formatDateYMDToLong(dateStr) {
   return d.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
 }
 
-function formatServiceType(svc) {
+function prettifyServiceType(svc) {
   if (!svc) return "N/A";
-  if (String(svc).toUpperCase().includes("ACCOMMODATION")) return "Lodging";
-  return "Event";
+  return String(svc)
+    .split(/([\/\s])/)
+    .map((w) =>
+      w.match(/[a-z]/i) ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : w
+    )
+    .join("");
 }
 
 export default function Pending() {
@@ -39,7 +43,7 @@ export default function Pending() {
           id: r._id || "N/A",
           name: r.guestName || "N/A",
           email: r.guestEmail || "N/A",
-          serviceType: formatServiceType(r.serviceType),
+          serviceType: prettifyServiceType(r.serviceType) || "N/A",
           date: formatDateYMDToLong(r.dateOfArrival || r.createdAt),
           _raw: r,
         }));

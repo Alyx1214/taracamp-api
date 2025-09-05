@@ -21,7 +21,7 @@ export const UserRole = {
 
 export const FileKind = {
     LETTER_OF_INTENT: 'LETTER OF INTENT',
-    APPROVAL_DOCUMENT: 'APPROVAL DOCUMENT',
+    NONAVAILABILITY_CERTIFICATE: 'NON-AVAILABILITY CERTIFICATE',
 }
 
 export const Category = {
