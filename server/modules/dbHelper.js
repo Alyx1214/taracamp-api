@@ -68,6 +68,7 @@ const dbHelper = {
                 guestType: { type: String, enum: Object.values(GuestType), required: true, },
                 telephone: { type: String, required: true, },
                 officeTelephone: { type: String, required: false, },
+                guestEmail: { type: String, required: false, index: true },
                 numberOfGuests: {
                     total: { type: Number, required: true, },
                     adult: { type: Number, required: true, },
@@ -87,7 +88,7 @@ const dbHelper = {
                 totalEstimatedAmount: { type: Number, required: true, },
                 otherRequests: { type: String, required: false, },
                 createdAt: { type: Date, default: Date.now, },
-                userId: { type: mongoose.Schema.Types.ObjectId, ref: 'user', required: true, },
+                userId: { type: mongoose.Schema.Types.ObjectId, ref: 'user', required: false, index: true },
             });
 
             const FacilitySchema = new mongoose.Schema({
@@ -154,11 +155,19 @@ const dbHelper = {
     },
 
     find: async (collectionName, query = {}, projection = {}) => {
-        return await mongoose.model(collectionName).find(query, projection);
+        return await mongoose.model(collectionName).find(query, projection).lean();
     },
 
     findOne: async (collectionName, query) => {
-        return await mongoose.model(collectionName).findOne(query);
+        return await mongoose.model(collectionName).findOne(query).lean();
+    },
+
+    findMany: async (collectionName, query = {}, options = {}) => {
+        const { projection = null, sort = null, limit = null, skip = null, } = options;
+        return await mongoose
+            .model(collectionName)
+            .find(query, projection, { sort, limit, skip, })
+            .lean();
     },
 
     updateOne: async (collectionName, query, update) => {
@@ -177,13 +186,6 @@ const dbHelper = {
             update = sanitizeObject({ ...update, });
         }
         return await mongoose.model(collectionName).findOneAndUpdate(query, update, { new: true, runValidators: true, });
-    },
-
-    findMany: async (collectionName, query = {}, options = {}) => {
-        const { projection = null, sort = null, limit = null, skip = null, } = options;
-        return await mongoose
-            .model(collectionName)
-            .find(query, projection, { sort, limit, skip, });
     },
 
     count: async (collectionName, query = {}) => {

@@ -45,6 +45,7 @@ export function buildReservationPayload(step1 = {}, step2 = {}, facilityId) {
     guestType: pickGuestType(step1.type),
     telephone: step1.phoneNo?.trim(),
     officeTelephone: step1.officeTelephoneNo?.trim(),
+    guestEmail: (step1.guestEmail || '').trim() || undefined,
     numberOfAdults: adults,
     numberOfChildren: children,
     numberOfPwds: pwds,

@@ -1,4 +1,3 @@
-import { response } from 'express';
 import { Category, GuestType, Status, UserRole, FacilityStatus, ServiceType, ReservationStatus, FileKind, } from '../constants.js';
 import notificationModule from './notification.js';
 import { Storage, } from '@google-cloud/storage';
@@ -29,7 +28,7 @@ const reservationModule = {
                 guestName, homeAddress, officeAddress, category, guestType,
                 telephone, officeTelephone, numberOfAdults, numberOfChildren, numberOfPwds,
                 emergencyContact, dateOfArrival, dateOfDeparture, facility,
-                serviceType, timeOfArrival, otherRequests,
+                serviceType, timeOfArrival, otherRequests, guestEmail,
             } = data;
 
             if (
@@ -54,6 +53,28 @@ const reservationModule = {
                 responseData.status = Status.UNAUTHORIZED;
                 responseData.error = 'User not logged in';
                 return responseData;
+            }
+
+            const creatingForGuest = typeof guestEmail === 'string' && guestEmail.trim().length > 0;
+            if (creatingForGuest) {
+                if (user.role === UserRole.GUEST) {
+                    responseData.status = Status.FORBIDDEN;
+                    responseData.error = 'Only admins/staff can create reservations with guestEmail';
+                    return responseData;
+                }
+
+                if (!isValidEmail(guestEmail)) {
+                    responseData.status = Status.BAD_REQUEST;
+                    responseData.error = 'Invalid guest email';
+                    return responseData;
+                }
+
+                const existingUser = await dbHelper.findOne('user', { email: guestEmail.trim(), });
+                if (existingUser) {
+                    responseData.status = Status.BAD_REQUEST;
+                    responseData.error = 'Guest email belongs to an existing account';
+                    return responseData;
+                }
             }
 
             if (!file) {
@@ -156,7 +177,16 @@ const reservationModule = {
                 return responseData;
             }
 
-            const userOverlapping = await dbHelper.findOne('reservation', {
+            const userOverlapping = await dbHelper.findOne('reservation', creatingForGuest ? {
+                guestEmail: guestEmail.trim(),
+                facility: facility,
+                $or: [
+                    {
+                        dateOfArrival: { $lte: new Date(dateOfDeparture), },
+                        dateOfDeparture: { $gte: new Date(dateOfArrival), },
+                    },
+                ],
+            } : {
                 userId: user.userId,
                 facility: facility,
                 $or: [
@@ -209,7 +239,7 @@ const reservationModule = {
                         stream.on('finish', resolve);
                         stream.end(file.buffer);
                     });
-                    letterOfIntentUrl = filename;
+
                     try {
                         loiFileDoc = await dbHelper.create('file', {
                             path: filename,
@@ -267,7 +297,8 @@ const reservationModule = {
                 otherRequests,
                 letterOfIntentFileId: loiFileDoc?._id ?? undefined,
                 totalEstimatedAmount,
-                userId: user.userId,
+                userId: creatingForGuest ? undefined : user.userId,
+                guestEmail: creatingForGuest ? guestEmail.trim() : undefined,
                 createdAt: new Date(),
             };
 
@@ -330,7 +361,7 @@ const reservationModule = {
                 return responseData;
             }
 
-            const reservation = await dbHelper.findOne('reservation', { _id: reservationId, }); 
+            const reservation = await dbHelper.findOne('reservation', { _id: reservationId, });
             const facilityDoc = reservation?.facility ? await dbHelper.findOne('facility', { _id: reservation.facility, }) : null;
             if (!reservation) {
                 responseData.status = Status.NOT_FOUND;
@@ -351,7 +382,7 @@ const reservationModule = {
                 if (loiPath) {
                     [url,] = await bucket.file(loiPath).getSignedUrl({
                         version: 'v4',
-                        expires: Date.now() + 1000 * 60 * 60, 
+                        expires: Date.now() + 1000 * 60 * 60,
                         action: 'read',
                     });
                 }
@@ -468,15 +499,16 @@ const reservationModule = {
                 return responseData;
             }
 
-            if (reservation.userId.toString() !== user.userId.toString() && user.role !== UserRole.SUPERINTENDENT) {
+            const isOwner = reservation.userId && String(reservation.userId) === String(user.userId);
+            if (!isOwner && user.role !== UserRole.SUPERINTENDENT) {
                 responseData.status = Status.FORBIDDEN;
                 responseData.error = 'You are not authorized to cancel this reservation';
                 return responseData;
             }
 
-            const arrivalDate = new Date(reservation.dateOfArrival);
-            const now = new Date();
-            const twentyFourHoursInMs = 24 * 60 * 60 * 1000;
+            // const arrivalDate = new Date(reservation.dateOfArrival);
+            // const now = new Date();
+            // const twentyFourHoursInMs = 24 * 60 * 60 * 1000;
 
             // if (arrivalDate.getTime() - now.getTime() < twentyFourHoursInMs) {
             //     responseData.status = Status.BAD_REQUEST;
@@ -537,7 +569,7 @@ const reservationModule = {
                 return responseData;
             }
 
-            if (user.role == UserRole.GUEST) {
+            if (user.role === UserRole.GUEST) {
                 responseData.status = Status.FORBIDDEN;
                 responseData.error = 'You are not authorized to perform this action';
                 return responseData;
@@ -569,6 +601,52 @@ const reservationModule = {
                 }
             );
 
+            responseData.status = Status.OK;
+            responseData.error = null;
+            responseData.reservations = raw;
+            return responseData;
+        } catch (error) {
+            console.error('Error fetching reservations by status:', error);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Error fetching reservations';
+            return responseData;
+        }
+    },
+
+    /**
+     * Searches for reservations based on the provided query object.
+     * @param {Object} dbHelper - The database helper for database operations.
+     * @param {Object} query - The search and filter object.
+     * @param {Object} user - The user object containing the user ID and role.
+     * @returns {Object} Response data with status, error, and an array of reservations on success.
+     */
+    searchReservations: async (dbHelper, query, user) => {
+        const responseData = {
+            status: Status.INTERNAL_SERVER_ERROR,
+            error: 'Error searching reservations',
+        };
+
+        try {
+            if (!user) {
+                responseData.status = Status.UNAUTHORIZED;
+                responseData.error = 'User not logged in';
+                return responseData;
+            }
+
+            if (user.role === UserRole.GUEST) {
+                responseData.status = Status.FORBIDDEN;
+                responseData.error = 'You are not authorized to perform this action';
+                return responseData;
+            }
+
+            const dbQuery = buildReservationSearchQuery(query || {});
+
+            const raw = await dbHelper.findMany(
+                'reservation',
+                dbQuery,
+                { projection: { __v: 0, createdAt: 0, }, }
+            );
+
             const list = (raw || []).map((r) => (typeof r.toObject === 'function' ? r.toObject() : r));
             const userIds = [...new Set(list.map((r) => String(r.userId)).filter(Boolean)),];
 
@@ -592,73 +670,9 @@ const reservationModule = {
             responseData.reservations = withEmails;
             return responseData;
         } catch (error) {
-            console.error('Error fetching reservations by status:', error);
+            console.error('Error searching reservations:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
-            responseData.error = 'Error fetching reservations';
-            return responseData;
-        }
-    },
-
-    /**
-     * Searches for reservations based on the provided query object.
-     * @param {Object} dbHelper - The database helper for database operations.
-     * @param {Object} query - The search and filter object.
-     * @param {Object} user - The user object containing the user ID and role.
-     * @returns {Object} Response data with status, error, and an array of reservations on success.
-     */
-    searchReservations: async (dbHelper, query, user) => {
-        const responseData = {
-            status: Status.INTERNAL_SERVER_ERROR,
-            error: "Error searching reservations",
-        };
-
-        try {
-            if (!user) {
-            responseData.status = Status.UNAUTHORIZED;
-            responseData.error = "User not logged in";
-            return responseData;
-            }
-
-            if (user.role === UserRole.GUEST) {
-            responseData.status = Status.FORBIDDEN;
-            responseData.error = "You are not authorized to perform this action";
-            return responseData;
-            }
-
-            const dbQuery = buildReservationSearchQuery(query || {});
-
-            const raw = await dbHelper.findMany(
-            "reservation",
-            dbQuery,
-            { projection: { __v: 0, createdAt: 0 } }
-            );
-
-            const list = (raw || []).map((r) => (typeof r.toObject === "function" ? r.toObject() : r));
-            const userIds = [...new Set(list.map((r) => String(r.userId)).filter(Boolean))];
-
-            let emailById = new Map();
-            if (userIds.length) {
-            const users = await dbHelper.findMany(
-                "user",
-                { _id: { $in: userIds } },
-                { projection: { _id: 1, email: 1 } }
-            );
-            emailById = new Map((users || []).map((u) => [String(u._id), u.email]));
-            }
-
-            const withEmails = list.map((r) => ({
-            ...r,
-            guestEmail: r.guestEmail ?? emailById.get(String(r.userId)) ?? null,
-            }));
-
-            responseData.status = Status.OK;
-            responseData.error = null;
-            responseData.reservations = withEmails;
-            return responseData;
-        } catch (error) {
-            console.error("Error searching reservations:", error);
-            responseData.status = Status.INTERNAL_SERVER_ERROR;
-            responseData.error = "Error searching reservations";
+            responseData.error = 'Error searching reservations';
             return responseData;
         }
     },
@@ -781,15 +795,15 @@ const reservationModule = {
                 return responseData;
             }
 
-            const files = await dbHelper.find('file', { reservationId: reservationId });
+            const files = await dbHelper.find('file', { reservationId: reservationId, });
             for (const file of files) {
                 try {
-                    await bucket.file(file.path).delete(); 
+                    await bucket.file(file.path).delete();
                 } catch (err) {
                     console.warn('Failed to delete file in bucket:', file.path, err.message);
                 }
             }
-            await dbHelper.deleteMany('file', { reservationId: reservationId }); 
+            await dbHelper.deleteMany('file', { reservationId: reservationId, });
 
             const deletedReservation = await dbHelper.deleteOne('reservation', { _id: reservationId, });
 
@@ -1055,6 +1069,10 @@ function isValidPhone(number) {
     return /^(\+63|0)9\d{9}$/.test(number);
 }
 
+function isValidObjectId(id) {
+    return typeof id === 'string' && /^[0-9a-fA-F]{24}$/.test(id);
+}
+
 function isValidCategory(category) {
     return Object.values(Category).includes(category);
 }
@@ -1112,6 +1130,11 @@ function normalizeDateOnly(dateStr) {
     return isNaN(normalized.getTime()) ? null : normalized;
 }
 
+function isValidEmail(email) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+}
+
 function isValidTime(timeStr) {
     const timeFormatRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
     return timeFormatRegex.test(timeStr);
@@ -1129,7 +1152,7 @@ function isValidLength(value, maxLength) {
 function isValidFile(file) {
     if (!file) return false;
     const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',];
-    const maxFileSize = 5 * 1024 * 1024; 
+    const maxFileSize = 5 * 1024 * 1024;
     return allowedTypes.includes(file.mimetype) && file.size <= maxFileSize;
 }
 
@@ -1145,35 +1168,36 @@ function isPresent(value) {
 }
 
 function buildReservationSearchQuery(query = {}) {
-  const andConds = [];
-  if (query.guestName) andConds.push({ guestName: { $regex: String(query.guestName), $options: 'i' } });
-  if (query.dateOfArrival) andConds.push({ dateOfArrival: query.dateOfArrival });
-  if (query.id) {
-    const idStr = String(query.id).trim();
-    if (/^[0-9a-fA-F]{24}$/.test(idStr)) {
-      andConds.push({ _id: idStr });
+    const andConds = [];
+    if (query.guestName) andConds.push({ guestName: { $regex: String(query.guestName), $options: 'i', }, });
+    if (query.guestEmail) andConds.push({ guestEmail: { $regex: String(query.guestEmail), $options: 'i', }, });
+    if (query.dateOfArrival) andConds.push({ dateOfArrival: query.dateOfArrival, });
+    if (query.id) {
+        const idStr = String(query.id).trim();
+        if (/^[0-9a-fA-F]{24}$/.test(idStr)) {
+            andConds.push({ _id: idStr, });
+        }
     }
-  }
-  if (query.serviceType) andConds.push({ serviceType: query.serviceType });
-  if (query.status) andConds.push({ status: query.status });
-  if (query.search) {
-    const s = String(query.search).trim();
-    if (s) {
-      const orConds = [
-        { guestName: { $regex: s, $options: 'i' } },
-        { referenceNumber: { $regex: s, $options: 'i' } },
-        { telephone: { $regex: s, $options: 'i' } },
-        { serviceType: { $regex: s, $options: 'i' } },
-        { status: { $regex: s, $options: 'i' } },
-      ];
-      if (/^[0-9a-fA-F]{24}$/.test(s)) {
-        orConds.push({ _id: s });
-      }
-      andConds.push({ $or: orConds });
+    if (query.serviceType) andConds.push({ serviceType: query.serviceType, });
+    if (query.status) andConds.push({ status: query.status, });
+    if (query.search) {
+        const s = String(query.search).trim();
+        if (s) {
+            const orConds = [
+                { guestName: { $regex: s, $options: 'i', }, },
+                { referenceNumber: { $regex: s, $options: 'i', }, },
+                { telephone: { $regex: s, $options: 'i', }, },
+                { serviceType: { $regex: s, $options: 'i', }, },
+                { status: { $regex: s, $options: 'i', }, },
+            ];
+            if (/^[0-9a-fA-F]{24}$/.test(s)) {
+                orConds.push({ _id: s, });
+            }
+            andConds.push({ $or: orConds, });
+        }
     }
-  }
 
-  return andConds.length ? { $and: andConds } : {};
+    return andConds.length ? { $and: andConds, } : {};
 }
 
 function computeEstimate({ facilityDoc, adults = 0, children = 0, pwds = 0, serviceType, }) {
