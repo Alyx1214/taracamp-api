@@ -4,7 +4,6 @@ import SearchFil from "../SearchFil/SearchFil.jsx";
 import UsersHeader from "./UsersHeader.jsx";
 import styles from "./Users.module.css";
 
-
 export default function Users() {
   const [activeTab, setActiveTab] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
@@ -16,7 +15,6 @@ export default function Users() {
     { id: "U004", name: "Kevin Tan", email: "kevin.t@gmail.com", lastloggedin: "Aug 10, 2025", role: "Staff" },
     { id: "U005", name: "Maria Santos", email: "maria.s@gmail.com", lastloggedin: "Jul 30, 2025", role: "Front Desk" },
   ]);
-
 
   const filteredData = users.filter((u) => {
     if (activeTab !== "All" && u.role !== activeTab) return false;
@@ -33,16 +31,12 @@ export default function Users() {
     return true;
   });
 
-
   const columns = ["ID", "Name", "Email", "Last Logged In", "Role", "Actions"];
 
-
-  return (
-    <div className="p-6 font-sans text-[#1f2a1f]">
-      <UsersHeader />
-
-
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between md:gap-6 mb-6">
+  return(
+    <div className={styles["users-container"]}>
+      <UsersHeader/>
+      <div className={styles["controlsContainer"]}>
         <div className={styles.roleTabsContainer}>
           {["All", "Admin", "Front Desk", "Staff", "Superintendent"].map((tab) => (
             <button
@@ -54,34 +48,36 @@ export default function Users() {
             </button>
           ))}
         </div>
-
-
-        <div className="w-full md:w-auto md:flex-shrink-0">
-          <SearchFil
+        <SearchFil
             placeholder="Search users..."
             onSearch={(query) => setSearchQuery(query)}
             onApplyFilters={(applied) => setFilters(applied)}
             filterFields={[
               { name: "role", label: "Role", type: "text", placeholder: "e.g. Admin" },
             ]}
-          />
-        </div>
+        />
       </div>
-
-
+    <div className={styles.tableShiftRight}>
       <UnivTable
-        columns={columns}
-        data={filteredData}
-        renderActions={() => (
-          <button className="bg-[#183c2d] text-white px-3 py-1 rounded-md text-sm hover:opacity-90">
-            Edit
-          </button>
-        )}
-        renderMenu={(row) => [
-          { label: "Delete", onClick: () => alert(`Deleting ${row.name}`) },
-          { label: "View", onClick: () => alert(`Viewing ${row.name}`) },
-        ]}
-      />
+         columns={columns}
+         data={filteredData}
+         renderActions={() => (
+           <button className="bg-[#183c2d] text-white px-3 py-1 rounded-md text-sm hover:opacity-90">
+             Edit
+           </button>
+         )}
+         renderMenu={(row) => [
+           { label: "Delete", onClick: () => alert(`Deleting ${row.name}`) },
+           { label: "View", onClick: () => alert(`Viewing ${row.name}`) },
+         ]}
+       />
+       </div>
     </div>
+
+
+      
+      
+
+      
   );
 }
