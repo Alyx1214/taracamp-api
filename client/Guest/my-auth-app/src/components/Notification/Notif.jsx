@@ -2,22 +2,26 @@ import React, { useEffect, useState } from 'react';
 import styles from './Notif.module.css';
 import NotifPreview from './NotifPreview';
 import NotifUpload from './NotifUpload';
+import NotifIndiv from './NotifIndiv';
 
 const dummyNotifications = [
   {
     _id: 'n1',
-    title: "Congratulations, Camper! Confirmation Successful — your reservation is now confirmed. We can't wait to welcome you!",
+    title:
+      "Congratulations, Camper! Payment Successful — your reservation is now confirmed. We can't wait to welcome you!",
     isRead: false,
-    source: "Teachers Camp",
-    timeLabel: "5mins",
+    source: "Teachers' Camp",
+    timeLabel: "30mins",
+    kind: 'payment_success',
   },
   {
     _id: 'n2',
-    title: "Congratulations, Camper!  You have successfully booked a reservation!",
+    title:
+      "Congratulations, Camper!  You have successfully booked a reservation!",
     isRead: false,
-    source: "Teachers Camp",
-    timeLabel: "30mins",
-    kind: "booking_success",   // add marker for detail screen
+    source: "Teachers' Camp",
+    timeLabel: "5mins",
+    kind: "booking_success", 
   },
   {
     _id: 'n3',
@@ -34,7 +38,7 @@ export default function Notif() {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState(null);
-  const [stage, setStage] = useState('list'); // list | preview | upload
+  const [stage, setStage] = useState('list'); // list | preview | upload | indiv
 
   useEffect(() => {
     setLoading(true);
@@ -49,12 +53,19 @@ export default function Notif() {
   }
 
   function handleClick(notif) {
-    if (notif.kind === "booking_success") {
-      setSelected(notif);     // open detail for second UI
-      setStage('preview');
-    } else {
-      setNotifications(n => n.map(x => x._id === notif._id ? { ...x, isRead: true } : x));
+    // Route to different detail screens depending on kind
+    if (notif.kind === 'payment_success') {
+      setSelected(notif);
+      setStage('indiv'); // show Food Preference + Cancel Booking UI
+      return;
     }
+    if (notif.kind === 'booking_success') {
+      setSelected(notif);
+      setStage('preview');
+      return;
+    }
+    // default: just mark as read
+    setNotifications(n => n.map(x => x._id === notif._id ? { ...x, isRead: true } : x));
   }
 
   if (selected && stage === 'preview') {
@@ -68,6 +79,23 @@ export default function Notif() {
           setStage('upload');
         }}
         onCancel={() => { console.log("Cancel clicked"); setSelected(null); }}
+      />
+    );
+  }
+
+  if (selected && stage === 'indiv') {
+    return (
+      <NotifIndiv
+        notif={selected}
+        onBack={() => { setSelected(null); setStage('list'); }}
+        onFoodPref={() => {
+          // In a real app, navigate to food preference form
+          alert('Open Food Preference form (placeholder)');
+        }}
+        onCancel={() => {
+          // In a real app, navigate to cancellation flow
+          alert('Open Cancel Booking flow (placeholder)');
+        }}
       />
     );
   }
