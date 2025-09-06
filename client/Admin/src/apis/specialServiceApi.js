@@ -1,7 +1,7 @@
 import { apiGet, apiPost } from './api';
 
 export function getAllSpecialServices() {
-  return apiGet('/api/special-service/get-all-special-services');
+  return apiGet('/special-service/get-all-special-services');
 }
 
 export function updateSpecialService(id, { name, price, unit }) {
@@ -9,11 +9,11 @@ export function updateSpecialService(id, { name, price, unit }) {
   if (name !== undefined) body.name = name;
   if (price !== undefined && price !== null && price !== '') body.price = Number(price);
   if (unit !== undefined) body.unit = unit;
-  return apiPost(`/api/special-service/update-special-service/${encodeURIComponent(id)}`, body);
+  return apiPost(`/special-service/update-special-service/${encodeURIComponent(id)}`, body);
 }
 
 export function searchSpecialServices(params = {}) {
-  return apiGet('/api/special-service/search-special-services', params);
+  return apiGet('/special-service/search-special-services', params);
 }
 
 export function createSpecialService({ name, price, unit }) {
@@ -21,9 +21,9 @@ export function createSpecialService({ name, price, unit }) {
   if (name !== undefined) body.name = name;
   if (price !== undefined && price !== null && price !== '') body.price = Number(price);
   if (unit !== undefined) body.unit = unit;
-  return apiPost('/api/special-service/create-special-service', body);
+  return apiPost('/special-service/create-special-service', body);
 }
 
 export function deleteSpecialService(id) {
-  return apiPost(`/api/special-service/delete-special-service/${encodeURIComponent(id)}`, {});
+  return apiPost(`/special-service/delete-special-service/${encodeURIComponent(id)}`, {});
 }

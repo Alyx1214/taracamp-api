@@ -1,56 +1,82 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import styles from "./ApprovedRSVDetails.module.css";
+import { getReservationById } from "../../apis/reservationApi";
 
-// Sample data
-const reservations = [
-  {
-    id: "0508",
-    facilityType: "Cottage",
-    date: "08/17/2025",
-    group: "DepEd Ilocos Sur",
-    address: "Bantay, Ilocos Sur",
-    officeAddress: "Quirino Boulevard, Zone V, Bantay, Ilocos Sur",
-    category: "DepEd",
-    phone: "0915 403 2025",
-    officeTel: "(077) 1536 9851",
-    guests: "120",
-    emergencyContact: "0941 256 4578",
-    arrival: "June 24, 2025",
-    departure: "June 25, 2025",
-    typeOfFacility: "Conference Hall",
-    facilityName: "Quirino Conf Hall",
-    serviceType: "Events",
-    letterOfIntent: "#", // link to document
-    status: "Approved",
-  },
-];
+function formatDateLong(dateStr) {
+  if (!dateStr) return "N/A";
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return "N/A";
+  return d.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+}
 
 export default function ApprovedRSVDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const reservation = reservations.find((r) => r.id === id);
-  
-    if (!reservation) {
-        return (
-          <div className={styles["rsv-details-container"]}>
-            <div className={styles["rsv-details-header"]}>
-              <span
-                className={styles["rsv-details-back"]}
-                onClick={() => navigate(-1)}
-              >
-                &larr;
-              </span>
-              <h1 className={styles["rsv-details-title"]}>Reservation Details</h1>
-            </div>
-            <div className={styles["rsv-details-card"]}>
-              <p>Reservation not found.</p>
-            </div>
-          </div>
-        );
-      }
+  const [reservation, setReservation] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-   
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        setLoading(true);
+        const res = await getReservationById(id);
+        if (cancelled) return;
+        if (res?.reservation) {
+          setReservation(res.reservation);
+          setError("");
+        } else {
+          setReservation(null);
+          setError("Reservation not found.");
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setError(e?.message || "Failed to fetch reservation");
+          setReservation(null);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className={styles["rsv-details-container"]}>
+        <div className={styles["rsv-details-header"]}>
+          <span className={styles["rsv-details-back"]} onClick={() => navigate(-1)}>
+            &larr;
+          </span>
+          <h1 className={styles["rsv-details-title"]}>Reservation Details</h1>
+        </div>
+        <div className={styles["rsv-details-card"]}>
+          <p>Loading…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!reservation) {
+    return (
+      <div className={styles["rsv-details-container"]}>
+        <div className={styles["rsv-details-header"]}>
+          <span
+            className={styles["rsv-details-back"]}
+            onClick={() => navigate('pendingRSV')}
+          >
+            &larr;
+          </span>
+          <h1 className={styles["rsv-details-title"]}>Reservation Details</h1>
+        </div>
+        <div className={styles["rsv-details-card"]}>
+          <p>{error || "Reservation not found."}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={styles["reservation-details-container"]}>
@@ -66,10 +92,10 @@ export default function ApprovedRSVDetails() {
       <div className={styles["reservation-details-card"]}>
         <div className={styles["reservation-details-row"]}>
           <span className={styles["reservation-details-facility"]}>
-            {reservation.facilityType}
+            {reservation.facilityType || "N/A"}
           </span>
           <span className={styles["reservation-details-date"]}>
-            {reservation.date}
+            {formatDateLong(reservation.dateOfArrival)}
           </span>
         </div>
         <table className={styles["reservation-details-table"]}>
@@ -77,74 +103,74 @@ export default function ApprovedRSVDetails() {
             <tr>
               <td className={styles["reservation-details-label"]}>Group/Association</td>
               <td className={styles["reservation-details-separator"]}>:</td>
-              <td>{reservation.group}</td>
+              <td>{reservation.guestName || "N/A"}</td>
             </tr>
             <tr>
               <td className={styles["reservation-details-label"]}>Address</td>
               <td className={styles["reservation-details-separator"]}>:</td>
-              <td>{reservation.address}</td>
+              <td>{reservation.homeAddress || "N/A"}</td>
             </tr>
             <tr>
               <td className={styles["reservation-details-label"]}>Office Address</td>
               <td className={styles["reservation-details-separator"]}>:</td>
-              <td>{reservation.officeAddress}</td>
+              <td>{reservation.officeAddress || "N/A"}</td>
             </tr>
             <tr>
               <td className={styles["reservation-details-label"]}>Category</td>
               <td className={styles["reservation-details-separator"]}>:</td>
-              <td>{reservation.category}</td>
+              <td>{reservation.category || "N/A"}</td>
             </tr>
             <tr>
               <td className={styles["reservation-details-label"]}>Phone No.</td>
               <td className={styles["reservation-details-separator"]}>:</td>
-              <td>{reservation.phone}</td>
+              <td>{reservation.telephone || "N/A"}</td>
             </tr>
             <tr>
               <td className={styles["reservation-details-label"]}>Office Telephone No.</td>
               <td className={styles["reservation-details-separator"]}>:</td>
-              <td>{reservation.officeTel}</td>
+              <td>{reservation.officeTelephone || "N/A"}</td>
             </tr>
             <tr>
               <td className={styles["reservation-details-label"]}>Number of Guests</td>
               <td className={styles["reservation-details-separator"]}>:</td>
-              <td>{reservation.guests}</td>
+              <td>{reservation?.numberOfGuests?.total ?? "N/A"}</td>
             </tr>
             <tr>
               <td className={styles["reservation-details-label"]}>Emergency Contact</td>
               <td className={styles["reservation-details-separator"]}>:</td>
-              <td>{reservation.emergencyContact}</td>
+              <td>{reservation.emergencyContact || "N/A"}</td>
             </tr>
             <tr>
               <td className={styles["reservation-details-label"]}>Date of Arrival</td>
               <td className={styles["reservation-details-separator"]}>:</td>
-              <td>{reservation.arrival}</td>
+              <td>{formatDateLong(reservation.dateOfArrival)}</td>
             </tr>
             <tr>
               <td className={styles["reservation-details-label"]}>Date of Departure</td>
               <td className={styles["reservation-details-separator"]}>:</td>
-              <td>{reservation.departure}</td>
+              <td>{formatDateLong(reservation.dateOfDeparture)}</td>
             </tr>
             <tr>
               <td className={styles["reservation-details-label"]}>Type of Facility</td>
               <td className={styles["reservation-details-separator"]}>:</td>
-              <td>{reservation.typeOfFacility}</td>
+              <td>{reservation.facilityType || "N/A"}</td>
             </tr>
             <tr>
               <td className={styles["reservation-details-label"]}>Facility Name</td>
               <td className={styles["reservation-details-separator"]}>:</td>
-              <td>{reservation.facilityName}</td>
+              <td>{reservation.facilityName || reservation.facilityType || "N/A"}</td>
             </tr>
             <tr>
               <td className={styles["reservation-details-label"]}>Type of Service</td>
               <td className={styles["reservation-details-separator"]}>:</td>
-              <td>{reservation.serviceType}</td>
+              <td>{reservation.serviceType || "N/A"}</td>
             </tr>
             <tr>
               <td className={styles["reservation-details-label"]}>Letter of Intent</td>
               <td className={styles["reservation-details-separator"]}>:</td>
               <td>
                 <a
-                  href={reservation.letterOfIntent}
+                  href={reservation.letterOfIntentFile || "#"}
                   className={styles["reservation-details-link"]}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -159,11 +185,20 @@ export default function ApprovedRSVDetails() {
           <div className={styles["reservation-details-status-row"]}>
           <span className={styles["reservation-details-status-label"]}>Status:</span>
           <span className={styles["reservation-details-status-value"]}>
-            {reservation.status}
+            {reservation.status || "N/A"}
           </span>
         </div>
-        <button className={styles["reservation-details-print-btn"]}>
-          <span className={styles["reservation-details-print-icon"]}>🖨️</span> PRINT
+        <button
+          className={styles["reservation-details-print-btn"]}
+          onClick={() => {
+            if (!reservation.letterOfIntentFile) {
+              alert("No Letter of Intent uploaded.");
+              return;
+            }
+            window.open(reservation.letterOfIntentFile, "_blank");
+          }}
+        >
+          <span className={styles["reservation-details-print-icon"]}>🖨️</span> PRINT LETTER OF INTENT
         </button>
         </div>
       </div>

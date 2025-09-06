@@ -34,7 +34,7 @@
 }
 
 .headerLogoText {
-  font-size: 1.3em;
+  font-size: 1em;
   font-weight: 530;
   color: #F5F5F5;
   white-space: nowrap;
@@ -58,7 +58,7 @@
   color: #F5F5F5;
   text-decoration: none;
   font-size: 1em;
-  font-weight: 540;
+  font-weight: 50 0;
   padding: 5px 0;
   transition: color 0.3s ease, border-bottom 0.3s ease;
 }

@@ -1,0 +1,33 @@
+.roleTabsContainer {
+  background-color: #183c2d;
+  padding: 6px 12px;
+  border-radius: 30px;
+  display: flex;
+  gap: 10px;
+  width: fit-content;
+  font-family: "Montserrat", sans-serif;
+}
+
+
+.roleTabBtn {
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 14px;
+  padding: 8px 18px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+
+.roleTabBtn:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+
+.active {
+  background-color: #ffffff;
+  color: #183c2d;
+  font-weight: bold;
+}

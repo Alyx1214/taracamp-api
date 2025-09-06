@@ -1,20 +1,25 @@
 import { apiGet, apiPost } from './api';
 
 export function getMyReservations() {
-  return apiGet('/api/reservation/get-reservation-by-user-id');
+  return apiGet('/reservation/get-reservation-by-user-id');
 }
+
 export function getReservationById(id) {
-  return apiGet(`/api/reservation/get-reservation-by-id/${id}`);
+  return apiGet(`/reservation/get-reservation-by-id/${encodeURIComponent(id)}`);
 }
+
 export function getAllReservationsByStatus(status) {
-  return apiGet(`/api/reservation/get-all-reservations-by-status/${encodeURIComponent(status)}`);
+  return apiGet(`/reservation/get-all-reservations-by-status/${encodeURIComponent(status)}`);
 }
+
 export function estimateAmount({ facility, adults, children, pwds, serviceType }) {
-  return apiGet('/api/reservation/estimate-amount', { facility, adults, children, pwds, serviceType });
+  return apiGet('/reservation/estimate-amount', { facility, adults, children, pwds, serviceType });
 }
+
 export function checkAvailability(params) {
-  return apiGet('/api/reservation/check-availability', params);
+  return apiGet('/reservation/check-availability', params);
 }
+
 export function createReservation(payload = {}, letterOfIntentFile) {
   const fd = new FormData();
   Object.entries(payload).forEach(([k, v]) => {
@@ -22,8 +27,9 @@ export function createReservation(payload = {}, letterOfIntentFile) {
     fd.append(k, typeof v === 'object' ? JSON.stringify(v) : String(v));
   });
   if (letterOfIntentFile) fd.append('letterOfIntentFile', letterOfIntentFile);
-  return apiPost('/api/reservation/create-reservation', fd);
+  return apiPost('/reservation/create-reservation', fd);
 }
+
 export function updateReservation(id, payload = {}, letterOfIntentFile) {
   const fd = new FormData();
   Object.entries(payload).forEach(([k, v]) => {
@@ -31,12 +37,14 @@ export function updateReservation(id, payload = {}, letterOfIntentFile) {
     fd.append(k, typeof v === 'object' ? JSON.stringify(v) : String(v));
   });
   if (letterOfIntentFile) fd.append('letterOfIntentFile', letterOfIntentFile);
-  return apiPost(`/api/reservation/update-reservation/${id}`, fd);
+  return apiPost(`/reservation/update-reservation/${encodeURIComponent(id)}`, fd);
 }
+
 export function cancelReservation(id) {
-  return apiPost(`/api/reservation/cancel-booking/${id}`, {});
+  return apiPost(`/reservation/cancel-booking/${encodeURIComponent(id)}`, {});
 }
+
 export function decideReservation(id, { decision, reason } = {}) {
-  return apiPost(`/api/reservation/accept-or-decline-reservation/${id}`, { decision, reason });
+  return apiPost(`/reservation/accept-or-decline-reservation/${encodeURIComponent(id)}`, { decision, reason });
 }
 

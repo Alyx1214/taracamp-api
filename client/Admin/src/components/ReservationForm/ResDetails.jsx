@@ -16,8 +16,6 @@ function ResDetails({ onClose }) {
   const [quote, setQuote] = useState(null);
   const { step1 = {}, step2 = {}, file } = location.state || {};
 
-  // No URL params; keep user here and rely on state
-
   useEffect(() => {
     const a = parseInt(step1?.guests?.adult || 0, 10) || 0;
     const c = parseInt(step1?.guests?.children || 0, 10) || 0;
@@ -56,6 +54,7 @@ function ResDetails({ onClose }) {
 
     return {
       group: step1.groupAssociation || 'N/A',
+      guestEmail: step1.guestEmail || 'N/A',
       address: step1.homeAddress || 'N/A',
       officeAddress: step1.officeAddress || 'N/A',
       category: catKey ? catKey.toUpperCase() : 'N/A',
@@ -104,6 +103,7 @@ function ResDetails({ onClose }) {
       if (server.details?.length) {
         const step1Map = {
           guestName: 'groupAssociation',
+          guestEmail: 'guestEmail',
           homeAddress: 'homeAddress',
           officeAddress: 'officeAddress',
           category: 'category',
@@ -187,6 +187,7 @@ function ResDetails({ onClose }) {
             <table className={styles.detailsTable}>
               <tbody>
                 <tr><td>Group/Association</td><td>:</td><td>{data.group}</td></tr>
+                <tr><td>Guest Email</td><td>:</td><td>{data.guestEmail}</td></tr>
                 <tr><td>Address</td><td>:</td><td>{data.address}</td></tr>
                 <tr><td>Office Address</td><td>:</td><td>{data.officeAddress}</td></tr>
                 <tr><td>Category</td><td>:</td><td>{data.category}</td></tr>

@@ -13,9 +13,10 @@ import Confirmed from "../UnivTable/Confirmed";
 
 export default function Reservations() {
   const [activeTab, setActiveTab] = useState("Pending");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const handleSearch = (value) => {
-    console.log("Searching for:", value);
+    setSearchQuery(String(value || "").trim());
   };
 
   const handleFilter = () => {
@@ -25,15 +26,15 @@ export default function Reservations() {
   const renderActiveTab = () => {
     switch (activeTab) {
       case "Pending":
-        return <Pending />;
+        return <Pending searchQuery={searchQuery} />;
       case "Approved":
-        return <Approved />;
+        return <Approved searchQuery={searchQuery} />;
       case "Declined":
-        return <Declined />;
+        return <Declined searchQuery={searchQuery} />;
       case "Cancelled":
-        return <Cancelled />;
+        return <Cancelled searchQuery={searchQuery} />;
       case "Confirmed":
-        return <Confirmed />;
+        return <Confirmed searchQuery={searchQuery} />;
       default:
         return null;
     }

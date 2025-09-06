@@ -1,13 +1,13 @@
 import { apiGet } from "./api";
 
 export const getDashboardStats = async () => {
-  return await apiGet("/api/dashboard/get-dashboard-stats");
+  return await apiGet("/dashboard/get-dashboard-stats");
 };
 
 export const getReservationsForCalendar = async (year, month) => {
-  return await apiGet("/api/dashboard/get-reservations-for-calendar", { year, month });
+  return await apiGet("/dashboard/get-reservations-for-calendar", { year, month });
 };
 
 export const getMonthlyReservations = async (year) => {
-  return await apiGet("/api/dashboard/get-monthly-reservations", { year });
+  return await apiGet("/dashboard/get-monthly-reservations", { year });
 };

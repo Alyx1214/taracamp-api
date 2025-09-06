@@ -206,11 +206,9 @@ const facilityModule = {
                 return responseData;
             }
 
-            const facilityObject = facility.toObject();
+            const facilityObject = normalizeDoc(facility);
             delete facilityObject.__v;
             delete facilityObject.createdAt;
-
-            // Ensure name is Title Case when returned
             facilityObject.name = toTitleCase(String(facilityObject.name || ''));
             facilityObject.image = facilityObject.image
                 ? await getSignedReadUrl(facilityObject.image)
@@ -657,6 +655,10 @@ function isPresent(value) {
 function toTitleCase(str = '') {
     const lower = String(str).toLowerCase();
     return lower.replace(/\b([a-z])(\w*)/g, (_, a, b) => a.toUpperCase() + b);
+}
+
+function normalizeDoc(doc) {
+  return doc && typeof doc.toObject === 'function' ? doc.toObject() : { ...doc };
 }
 
 function isValidFacilityType(type) {

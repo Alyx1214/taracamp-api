@@ -1,30 +1,79 @@
-import React from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import UnivTable from "./UnivTable";
-import styles from "./UnivTable.module.css"; 
+import styles from "./UnivTable.module.css";
+import { getAllReservationsByStatus, deleteReservation, searchReservations } from "../../apis/reservationApi";
 
-export default function Cancelled() {
-  const columns = ["ID", "Name", "Email", "Service Type", "Date", "Actions"];
+function formatDateLong(dateStr) {
+  if (!dateStr) return "N/A";
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return "N/A";
+  return d.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+}
 
-  const cancelledData = [
-    { id: "0508", name: "Tom John", email: "john.tom@gmail.com", serviceType: "Lodging", date: "April 6, 2025" },
-    { id: "0509", name: "Jerome Bell", email: "jeromebell@gmail.com", serviceType: "Event and Lodging", date: "April 5, 2025" },
-    { id: "0510", name: "Wade Warren", email: "warren05@gmail.com", serviceType: "Event", date: "April 4, 2025" },
-    { id: "0511", name: "Eleanor Pena", email: "eleanorpena@gmail.com", serviceType: "Lodging", date: "April 3, 2025" },
-    { id: "0512", name: "Michelle Smith", email: "smith_mt@gmail.com", serviceType: "Lodging", date: "April 2, 2025" },
-    { id: "0513", name: "Leona Richards", email: "leanor.r01@gmail.com", serviceType: "Lodging", date: "April 1, 2025" },
-    { id: "0514", name: "Patricia Rivera", email: "patrivera@gmail.com", serviceType: "Event and Lodging", date: "March 28, 2025" },
-    { id: "0515", name: "Gabriela Bolton", email: "hsmgabbby@gmail.com", serviceType: "Event", date: "March 19, 2025" },
-    { id: "0516", name: "Carlito Pardilla", email: "par_carlitsr@gmail.com", serviceType: "Event", date: "March 10, 2025" },
-    { id: "0517", name: "Shan Camero", email: "shan01camt@gmail.com", serviceType: "Event and Lodging", date: "Feb 20, 2025" },
-    { id: "0518", name: "Sharpay Evans", email: "evans_shay@gmail.com", serviceType: "Lodging", date: "Feb 15, 2025" },
-    { id: "0519", name: "Skye Borromeo", email: "skyeb1004@gmail.com", serviceType: "Event and Lodging", date: "Feb 1, 2025" },
-    { id: "0520", name: "Diana Mendiola", email: "mend_diana@gmail.com", serviceType: "Lodging", date: "Jan 20, 2025" },
-    { id: "0521", name: "Jerome Bell", email: "jerbell@gmail.com", serviceType: "Event", date: "Jan 18, 2025" },
-    { id: "0522", name: "Luna Ereno", email: "jerbell@gmail.com", serviceType: "Lodging", date: "Jan 10, 2025" },
-  ];
+function prettifyServiceType(svc) {
+  if (!svc) return "N/A";
+  return String(svc)
+    .split(/([\/\s])/)
+    .map((w) =>
+      w.match(/[a-z]/i) ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : w
+    )
+    .join("");
+}
+
+export default function Cancelled({ searchQuery = "" }) {
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState(null);
+
+  const columns = useMemo(() => ["ID", "Name", "Email", "Service Type", "Date", "Actions"], []);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchCancelled() {
+      try {
+        setLoading(true);
+        let res;
+        if (String(searchQuery || '').trim()) {
+          const s = String(searchQuery || '').trim();
+          res = await searchReservations({ search: s });
+          res.reservations = (res?.reservations || []).filter(r => r.status === 'CANCELLED');
+        } else {
+          res = await getAllReservationsByStatus("CANCELLED");
+        }
+        const list = (res?.reservations || []).map(r => ({
+          id: r._id || "N/A",
+          name: r.guestName || "N/A",
+          email: r.guestEmail || "N/A",
+          serviceType: prettifyServiceType(r.serviceType) || "N/A",
+          date: formatDateLong(r.dateOfArrival || r.createdAt),
+          _raw: r,
+        }));
+        if (!cancelled) setRows(list);
+      } catch (e) {
+        if (!cancelled) setErr(e?.message || "Failed to load");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    fetchCancelled();
+    return () => { cancelled = true; };
+  }, [searchQuery]);
+
+  const handleDelete = async (row) => {
+    if (!window.confirm(`Are you sure you want to delete reservation for ${row.name}?`)) return;
+    try {
+      await deleteReservation(row.id);
+      setRows(prev => prev.filter(r => r.id !== row.id));
+      alert("Reservation deleted!");
+    } catch (e) {
+      alert(e?.message || "Failed to delete reservation.");
+    }
+  };
 
   const renderActions = (row) => (
-    <button className={styles["univ-decline-btn"]}>Delete</button>
+    <button className={styles["univ-decline-btn"]} onClick={() => handleDelete(row)}>
+      Delete
+    </button>
   );
 
   const renderMenu = (row) => [
@@ -34,10 +83,15 @@ export default function Cancelled() {
     },
   ];
 
+  if (err) {
+    return <div style={{ padding: 16 }}>Couldn’t load cancelled reservations: {err}</div>;
+  }
+
   return (
     <UnivTable
       columns={columns}
-      data={cancelledData}
+      data={loading ? [] : rows}
+      loading={loading}
       renderActions={renderActions}
       renderMenu={renderMenu}
     />

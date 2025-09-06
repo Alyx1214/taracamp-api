@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import styles from './Notif.module.css';
 import NotifPreview from './NotifPreview';
+import NotifUpload from './NotifUpload';
 
 const dummyNotifications = [
   {
@@ -33,6 +34,7 @@ export default function Notif() {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState(null);
+  const [stage, setStage] = useState('list'); // list | preview | upload
 
   useEffect(() => {
     setLoading(true);
@@ -49,19 +51,40 @@ export default function Notif() {
   function handleClick(notif) {
     if (notif.kind === "booking_success") {
       setSelected(notif);     // open detail for second UI
+      setStage('preview');
     } else {
       setNotifications(n => n.map(x => x._id === notif._id ? { ...x, isRead: true } : x));
     }
   }
 
-  if (selected) {
+  if (selected && stage === 'preview') {
     return (
       <NotifPreview
         notif={selected}
         clientType="individual"
-        onBack={() => setSelected(null)}
-        onConfirm={() => { console.log("Pay Now clicked"); setSelected(null); }}
+        onBack={() => { setSelected(null); setStage('list'); }}
+        onConfirm={() => {
+          // Move to upload screen with dummy data
+          setStage('upload');
+        }}
         onCancel={() => { console.log("Cancel clicked"); setSelected(null); }}
+      />
+    );
+  }
+
+  if (selected && stage === 'upload') {
+    return (
+      <NotifUpload
+        clientType="deped"
+        onBack={() => setStage('preview')}
+        onSubmit={(files) => {
+          console.log('Dummy submit files:', files);
+          // Mark notification as read and return to list
+          setNotifications(n => n.map(x => x._id === selected._id ? { ...x, isRead: true } : x));
+          setSelected(null);
+          setStage('list');
+          alert('Documents submitted (dummy). Thank you!');
+        }}
       />
     );
   }

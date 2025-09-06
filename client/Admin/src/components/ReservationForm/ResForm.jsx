@@ -17,6 +17,7 @@ function ReservationForm() {
     category: { deped: false, government: false, pwds: false, private: false },
     type: { groups: false, individual: false },
     phoneNo: '',
+    guestEmail: '',
     officeTelephoneNo: '',
     guests: { adult: '', children: '', pwds: '' }, 
     emergencyContact: '',
@@ -79,6 +80,7 @@ function ReservationForm() {
   };
 
   const phoneOk = /^(\+63|0)9\d{9}$/.test(formData.phoneNo || '');
+  const emailOk = !formData.guestEmail || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.guestEmail);
   const emerOk  = /^(\+63|0)9\d{9}$/.test(formData.emergencyContact || '');
 
   function validateStep1() {
@@ -87,6 +89,7 @@ function ReservationForm() {
     if (!formData.homeAddress?.trim()) e.homeAddress = 'Required';
     if (!phoneOk) e.phoneNo = 'Enter a valid PH mobile (e.g., 09XXXXXXXXX or +639XXXXXXXXX).';
     if (!emerOk) e.emergencyContact = 'Enter a valid PH mobile for emergency contact.';
+    if (!emailOk) e.guestEmail = 'Enter a valid email address.';
     if (!hasCategory) e.category = 'Please select a category.';
     if (!hasType) e.type = 'Please select a type.';
 
@@ -168,19 +171,33 @@ function ReservationForm() {
                 />
               </div>
               
-              <div className={styles.formGroup}>
-                <label className={styles.label} htmlFor="phoneNo">Phone No. <span className={styles.required}>*</span></label>
-                <input
-                  id="phoneNo"
-                  type="tel"
-                  name="phoneNo"
-                  value={formData.phoneNo}
-                  onChange={handleInputChange}
-                  className={`${styles.input} ${errors.phoneNo ? styles.inputError : ''}`}
-                  aria-invalid={!!errors.phoneNo}
-                />
-                {errors.phoneNo && <div className={styles.fieldError}>{errors.phoneNo}</div>}
-              </div>
+          <div className={styles.formGroup}>
+            <label className={styles.label} htmlFor="phoneNo">Phone No. <span className={styles.required}>*</span></label>
+            <input
+              id="phoneNo"
+              type="tel"
+              name="phoneNo"
+              value={formData.phoneNo}
+              onChange={handleInputChange}
+              className={`${styles.input} ${errors.phoneNo ? styles.inputError : ''}`}
+              aria-invalid={!!errors.phoneNo}
+            />
+            {errors.phoneNo && <div className={styles.fieldError}>{errors.phoneNo}</div>}
+          </div>
+
+          <div className={styles.formGroup}>
+            <label className={styles.label} htmlFor="guestEmail">Guest Email</label>
+            <input
+              id="guestEmail"
+              type="email"
+              name="guestEmail"
+              value={formData.guestEmail}
+              onChange={handleInputChange}
+              className={`${styles.input} ${errors.guestEmail ? styles.inputError : ''}`}
+              aria-invalid={!!errors.guestEmail}
+            />
+            {errors.guestEmail && <div className={styles.fieldError}>{errors.guestEmail}</div>}
+          </div>
               <div className={styles.formGroup}>
                 <label className={styles.label} htmlFor="officeTelephoneNo">
                   Office Telephone No.

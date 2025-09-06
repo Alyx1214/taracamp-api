@@ -1,0 +1,102 @@
+
+.add-user-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem;
+  background: #fdfdfd;
+  border-radius: 16px;
+  font-family: "Poppins", sans-serif;
+  color: #1f2a1f;
+}
+
+
+.add-user-header {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #183c2d;
+  margin-bottom: 2rem;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+
+.add-user-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+
+.add-user-label {
+  font-weight: 500;
+  margin-bottom: 0.3rem;
+  display: block;
+  color: #183c2d;
+}
+
+
+.add-user-input,
+.add-user-select,
+.add-user-textarea {
+  width: 100%;
+  padding: 0.8rem 1rem;
+  border: 1.5px solid #ccc;
+  border-radius: 12px;
+  font-size: 1rem;
+  transition: border 0.2s ease-in-out;
+}
+
+
+.add-user-input:focus,
+.add-user-select:focus,
+.add-user-textarea:focus {
+  border-color: #183c2d;
+  outline: none;
+}
+
+
+.add-user-row {
+  display: flex;
+  gap: 1rem;
+}
+
+
+.add-user-row > * {
+  flex: 1;
+}
+
+
+.add-user-options {
+  display: flex;
+  gap: 1.2rem;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+
+
+.add-user-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+  color: #1f2a1f;
+}
+
+
+.add-user-submit {
+  margin-top: 2rem;
+  padding: 0.9rem 2rem;
+  background-color: #183c2d;
+  color: #fff;
+  font-size: 1.1rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: background 0.2s ease-in-out;
+}
+
+
+.add-user-submit:hover {
+  background-color: #285d40;
+}

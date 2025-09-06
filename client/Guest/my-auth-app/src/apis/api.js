@@ -1,9 +1,11 @@
+// api.js — minimal fixes to match main.js
+
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://taracamp-api.onrender.com';
+const API_V1_PREFIX = '/api/v1';
 const ACCESS_KEY = 'accessToken';
 const REFRESH_KEY = 'refreshToken';
 
-const isFormData = v =>
-  typeof FormData !== 'undefined' && v instanceof FormData;
+const isFormData = v => typeof FormData !== 'undefined' && v instanceof FormData;
 
 function getAccessToken() { return localStorage.getItem(ACCESS_KEY); }
 function setAccessToken(token) { if (token) localStorage.setItem(ACCESS_KEY, token); }
@@ -11,44 +13,52 @@ function getRefreshToken() { return localStorage.getItem(REFRESH_KEY); }
 function setRefreshToken(token) { if (token) localStorage.setItem(REFRESH_KEY, token); }
 export function clearTokens() { localStorage.removeItem(ACCESS_KEY); localStorage.removeItem(REFRESH_KEY); }
 
-async function rawFetch(path, options = {}) {
-  const url = `${API_BASE}${path}`;
-  const headers = new Headers(options.headers || {});
+function buildUrl(path) {
+  if (!path.startsWith('/')) path = '/' + path;
+  if (path.startsWith('/api/')) return `${API_BASE}${path}`;         
+  return `${API_BASE}${API_V1_PREFIX}${path}`;                      
+}
 
+async function rawFetch(path, options = {}) {
+  const url = buildUrl(path);
+  const headers = new Headers(options.headers || {});
   if (!headers.has('Content-Type') && options.body && !isFormData(options.body)) {
     headers.set('Content-Type', 'application/json');
   }
-
   const access = getAccessToken();
   if (access) headers.set('Authorization', `Bearer ${access}`);
 
-  const res = await fetch(url, { ...options, headers });
+  const res = await fetch(url, { ...options, headers, credentials: 'include' });
   if (res.status !== 401) return res;
 
   const newAccess = await tryRefresh();
-  if (!newAccess) return res;
-
+  if (!newAccess) {
+    try { clearTokens(); } catch {}
+    if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/auth')) {
+      window.location.href = '/auth/login';
+    }
+    return res;
+  }
   const retryHeaders = new Headers(options.headers || {});
   if (!retryHeaders.has('Content-Type') && options.body && !isFormData(options.body)) {
     retryHeaders.set('Content-Type', 'application/json');
   }
   retryHeaders.set('Authorization', `Bearer ${newAccess}`);
-  return fetch(url, { ...options, headers: retryHeaders });
+  return fetch(url, { ...options, headers: retryHeaders, credentials: 'include' });
 }
 
-async function tryRefresh() {
+export async function tryRefresh() {
   const refresh = getRefreshToken();
   if (!refresh) return null;
   try {
-    const res = await fetch(`${API_BASE}/api/user/refresh-token`, {
+    // refresh endpoint lives under /api/v1/user/refresh-token per main.js
+    const res = await fetch(`${API_BASE}${API_V1_PREFIX}/user/refresh-token`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refreshToken: refresh }),
+      credentials: 'include',
     });
-    if (!res.ok) {
-      clearTokens();
-      return null;
-    }
+    if (!res.ok) { clearTokens(); return null; }
     const data = await res.json().catch(() => ({}));
     if (data?.accessToken) setAccessToken(data.accessToken);
     if (data?.refreshToken) setRefreshToken(data.refreshToken);
@@ -69,9 +79,7 @@ function withQuery(path, query) {
   return s ? `${path}${path.includes('?') ? '&' : '?'}${s}` : path;
 }
 
-async function safeJson(res) {
-  try { return await res.json(); } catch { return null; }
-}
+async function safeJson(res) { try { return await res.json(); } catch { return null; } }
 function handle(res, data) {
   if (res.ok) return data;
   const err = new Error(data?.error || data?.message || `HTTP ${res.status}`);
@@ -89,6 +97,15 @@ export async function apiPost(path, body, extraOptions = {}) {
     ? { method: 'POST', body, ...extraOptions }
     : { method: 'POST', body: body ? JSON.stringify(body) : undefined, ...extraOptions };
   const res = await rawFetch(path, opts);
+  const data = await safeJson(res);
+  return handle(res, data);
+}
+
+export async function postPaymentWebhook(payload) {
+  const res = await rawFetch('/api/payment/webhook', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
   const data = await safeJson(res);
   return handle(res, data);
 }

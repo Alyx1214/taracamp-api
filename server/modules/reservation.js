@@ -28,7 +28,7 @@ const reservationModule = {
                 guestName, homeAddress, officeAddress, category, guestType,
                 telephone, officeTelephone, numberOfAdults, numberOfChildren, numberOfPwds,
                 emergencyContact, dateOfArrival, dateOfDeparture, facility,
-                serviceType, timeOfArrival, otherRequests,
+                serviceType, timeOfArrival, otherRequests, guestEmail,
             } = data;
 
             if (
@@ -53,6 +53,28 @@ const reservationModule = {
                 responseData.status = Status.UNAUTHORIZED;
                 responseData.error = 'User not logged in';
                 return responseData;
+            }
+
+            const creatingForGuest = typeof guestEmail === 'string' && guestEmail.trim().length > 0;
+            if (creatingForGuest) {
+                if (user.role === UserRole.GUEST) {
+                    responseData.status = Status.FORBIDDEN;
+                    responseData.error = 'Only admins/staff can create reservations with guestEmail';
+                    return responseData;
+                }
+
+                if (!isValidEmail(guestEmail)) {
+                    responseData.status = Status.BAD_REQUEST;
+                    responseData.error = 'Invalid guest email';
+                    return responseData;
+                }
+
+                const existingUser = await dbHelper.findOne('user', { email: guestEmail.trim(), });
+                if (existingUser) {
+                    responseData.status = Status.BAD_REQUEST;
+                    responseData.error = 'Guest email belongs to an existing account';
+                    return responseData;
+                }
             }
 
             if (!file) {
@@ -155,7 +177,16 @@ const reservationModule = {
                 return responseData;
             }
 
-            const userOverlapping = await dbHelper.findOne('reservation', {
+            const userOverlapping = await dbHelper.findOne('reservation', creatingForGuest ? {
+                guestEmail: guestEmail.trim(),
+                facility: facility,
+                $or: [
+                    {
+                        dateOfArrival: { $lte: new Date(dateOfDeparture), },
+                        dateOfDeparture: { $gte: new Date(dateOfArrival), },
+                    },
+                ],
+            } : {
                 userId: user.userId,
                 facility: facility,
                 $or: [
@@ -194,7 +225,6 @@ const reservationModule = {
                 return responseData;
             }
 
-            let letterOfIntentUrl = null;
             let loiFileDoc = null;
             if (file) {
                 try {
@@ -209,7 +239,7 @@ const reservationModule = {
                         stream.on('finish', resolve);
                         stream.end(file.buffer);
                     });
-                    letterOfIntentUrl = filename;
+
                     try {
                         loiFileDoc = await dbHelper.create('file', {
                             path: filename,
@@ -221,6 +251,7 @@ const reservationModule = {
                         });
                     } catch (createFileErr) {
                         console.error('Error creating file record for LOI:', createFileErr);
+                        responseData.status = Status.INTERNAL_SERVER_ERROR;
                     }
                 } catch (err) {
                     responseData.status = Status.INTERNAL_SERVER_ERROR;
@@ -266,7 +297,8 @@ const reservationModule = {
                 otherRequests,
                 letterOfIntentFileId: loiFileDoc?._id ?? undefined,
                 totalEstimatedAmount,
-                userId: user.userId,
+                userId: creatingForGuest ? undefined : user.userId,
+                guestEmail: creatingForGuest ? guestEmail.trim() : undefined,
                 createdAt: new Date(),
             };
 
@@ -329,7 +361,7 @@ const reservationModule = {
                 return responseData;
             }
 
-            const reservation = await dbHelper.findOne('reservation', { _id: reservationId, }); 
+            const reservation = await dbHelper.findOne('reservation', { _id: reservationId, });
             const facilityDoc = reservation?.facility ? await dbHelper.findOne('facility', { _id: reservation.facility, }) : null;
             if (!reservation) {
                 responseData.status = Status.NOT_FOUND;
@@ -350,33 +382,37 @@ const reservationModule = {
                 if (loiPath) {
                     [url,] = await bucket.file(loiPath).getSignedUrl({
                         version: 'v4',
-                        expires: Date.now() + 1000 * 60 * 60, 
+                        expires: Date.now() + 1000 * 60 * 60,
                         action: 'read',
                     });
                 }
             } catch (urlError) {
                 console.error('Error generating signed URL for LOI:', urlError);
+                responseData.status = Status.INTERNAL_SERVER_ERROR;
+                responseData.error = 'Error generating signed URL for LOI';
             }
 
-            let approvalUrl = null;
+            let nonAvailabilityUrl = null;
+            let hasNonAvailabilityCert = false;
             try {
                 let apprPath = null;
-                if (reservation.approvalDocumentFileId) {
-                    const f = await dbHelper.findOne('file', { _id: reservation.approvalDocumentFileId, });
+                if (reservation.nonAvailabilityCertFileId) {
+                    const f = await dbHelper.findOne('file', { _id: reservation.nonAvailabilityCertFileId, });
                     apprPath = f?.path ?? null;
                 } else {
-                    const f = await dbHelper.findOne('file', { reservationId: reservationId, kind: FileKind.APPROVAL_DOCUMENT, });
+                    const f = await dbHelper.findOne('file', { reservationId: reservationId, kind: FileKind.NONAVAILABILITY_CERTIFICATE, });
                     apprPath = f?.path ?? null;
                 }
+                hasNonAvailabilityCert = !!apprPath;
                 if (apprPath) {
-                    [approvalUrl,] = await bucket.file(apprPath).getSignedUrl({
+                    [nonAvailabilityUrl,] = await bucket.file(apprPath).getSignedUrl({
                         version: 'v4',
                         expires: Date.now() + 1000 * 60 * 60,
                         action: 'read',
                     });
                 }
             } catch (urlError) {
-                console.error('Error generating signed URL for approval document:', urlError);
+                console.error('Error generating signed URL for Non-Availability Certificate:', urlError);
             }
 
             const reservationObject = reservation.toObject();
@@ -387,7 +423,8 @@ const reservationModule = {
             }
 
             reservationObject.letterOfIntentFile = url;
-            reservationObject.approvalDocumentFile = approvalUrl;
+            reservationObject.nonAvailabilityCertFile = nonAvailabilityUrl;
+            reservationObject.hasNonAvailabilityCert = hasNonAvailabilityCert || !!reservation.nonAvailabilityCertFileId;
             reservationObject.facilityType = facilityDoc?.facilityType ?? null;
 
             responseData.status = Status.OK;
@@ -462,21 +499,22 @@ const reservationModule = {
                 return responseData;
             }
 
-            if (reservation.userId.toString() !== user.userId.toString()) {
+            const isOwner = reservation.userId && String(reservation.userId) === String(user.userId);
+            if (!isOwner && user.role !== UserRole.SUPERINTENDENT) {
                 responseData.status = Status.FORBIDDEN;
                 responseData.error = 'You are not authorized to cancel this reservation';
                 return responseData;
             }
 
-            const arrivalDate = new Date(reservation.dateOfArrival);
-            const now = new Date();
-            const twentyFourHoursInMs = 24 * 60 * 60 * 1000;
+            // const arrivalDate = new Date(reservation.dateOfArrival);
+            // const now = new Date();
+            // const twentyFourHoursInMs = 24 * 60 * 60 * 1000;
 
-            if (arrivalDate.getTime() - now.getTime() < twentyFourHoursInMs) {
-                responseData.status = Status.BAD_REQUEST;
-                responseData.error = 'Cannot cancel reservation within 24 hours of arrival.';
-                return responseData;
-            }
+            // if (arrivalDate.getTime() - now.getTime() < twentyFourHoursInMs) {
+            //     responseData.status = Status.BAD_REQUEST;
+            //     responseData.error = 'Cannot cancel reservation within 24 hours of arrival.';
+            //     return responseData;
+            // }
 
             if (reservation.status === ReservationStatus.CANCELLED) {
                 responseData.status = Status.BAD_REQUEST;
@@ -531,7 +569,7 @@ const reservationModule = {
                 return responseData;
             }
 
-            if (user.role == UserRole.GUEST) {
+            if (user.role === UserRole.GUEST) {
                 responseData.status = Status.FORBIDDEN;
                 responseData.error = 'You are not authorized to perform this action';
                 return responseData;
@@ -563,6 +601,52 @@ const reservationModule = {
                 }
             );
 
+            responseData.status = Status.OK;
+            responseData.error = null;
+            responseData.reservations = raw;
+            return responseData;
+        } catch (error) {
+            console.error('Error fetching reservations by status:', error);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Error fetching reservations';
+            return responseData;
+        }
+    },
+
+    /**
+     * Searches for reservations based on the provided query object.
+     * @param {Object} dbHelper - The database helper for database operations.
+     * @param {Object} query - The search and filter object.
+     * @param {Object} user - The user object containing the user ID and role.
+     * @returns {Object} Response data with status, error, and an array of reservations on success.
+     */
+    searchReservations: async (dbHelper, query, user) => {
+        const responseData = {
+            status: Status.INTERNAL_SERVER_ERROR,
+            error: 'Error searching reservations',
+        };
+
+        try {
+            if (!user) {
+                responseData.status = Status.UNAUTHORIZED;
+                responseData.error = 'User not logged in';
+                return responseData;
+            }
+
+            if (user.role === UserRole.GUEST) {
+                responseData.status = Status.FORBIDDEN;
+                responseData.error = 'You are not authorized to perform this action';
+                return responseData;
+            }
+
+            const dbQuery = buildReservationSearchQuery(query || {});
+
+            const raw = await dbHelper.findMany(
+                'reservation',
+                dbQuery,
+                { projection: { __v: 0, createdAt: 0, }, }
+            );
+
             const list = (raw || []).map((r) => (typeof r.toObject === 'function' ? r.toObject() : r));
             const userIds = [...new Set(list.map((r) => String(r.userId)).filter(Boolean)),];
 
@@ -586,9 +670,9 @@ const reservationModule = {
             responseData.reservations = withEmails;
             return responseData;
         } catch (error) {
-            console.error('Error fetching reservations by status:', error);
+            console.error('Error searching reservations:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
-            responseData.error = 'Error fetching reservations';
+            responseData.error = 'Error searching reservations';
             return responseData;
         }
     },
@@ -638,12 +722,10 @@ const reservationModule = {
                 return responseData;
             }
 
-            if (status === ReservationStatus.APPROVED) {
-                if (!reservation.approvalDocumentFileId && !reservation.approvalDocumentFile) {
-                    responseData.status = Status.BAD_REQUEST;
-                    responseData.error = 'Upload an approval document before approving this reservation.';
-                    return responseData;
-                }
+            if (status === ReservationStatus.APPROVED && reservation.nonAvailabilityCertFileId) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Cannot approve reservation: Non-Availability Certificate on file';
+                return responseData;
             }
 
             if (reservation.status === ReservationStatus.APPROVED || reservation.status === ReservationStatus.DECLINED) {
@@ -675,17 +757,83 @@ const reservationModule = {
     },
 
     /**
-     * Uploads an approval document for a given reservation.
+     * Deletes a reservation by its ID.
+     * @param {Object} dbHelper - The database helper for database operations.
+     * @param {string} reservationId - The ID of the reservation to delete.
+     * @param {Object} user - The user object containing the user ID and role.
+     * @returns {Object} Response data with status, error, message, and deleted reservation on success.
+     */
+    deleteReservation: async (dbHelper, reservationId, user) => {
+        const responseData = {
+            status: Status.INTERNAL_SERVER_ERROR,
+            error: 'Error deleting reservation',
+        };
+
+        try {
+            if (!user || !user.userId) {
+                responseData.status = Status.UNAUTHORIZED;
+                responseData.error = 'User not logged in';
+                return responseData;
+            }
+
+            if (user.role !== UserRole.SUPERINTENDENT) {
+                responseData.status = Status.FORBIDDEN;
+                responseData.error = 'You are not authorized to perform this action';
+                return responseData;
+            }
+
+            if (!reservationId) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Reservation ID is required';
+                return responseData;
+            }
+
+            const reservation = await dbHelper.findOne('reservation', { _id: reservationId, });
+            if (!reservation) {
+                responseData.status = Status.NOT_FOUND;
+                responseData.error = 'Reservation not found';
+                return responseData;
+            }
+
+            const files = await dbHelper.find('file', { reservationId: reservationId, });
+            for (const file of files) {
+                try {
+                    await bucket.file(file.path).delete();
+                } catch (err) {
+                    console.warn('Failed to delete file in bucket:', file.path, err.message);
+                }
+            }
+            await dbHelper.deleteMany('file', { reservationId: reservationId, });
+
+            const deletedReservation = await dbHelper.deleteOne('reservation', { _id: reservationId, });
+
+            responseData.status = Status.OK;
+            responseData.error = null;
+            responseData.message = 'Reservation deleted successfully';
+            responseData.reservation = {
+                _id: deletedReservation._id,
+                status: deletedReservation.status,
+            };
+        } catch (error) {
+            console.error('Error deleting reservation:', error);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Error deleting reservation';
+        }
+        return responseData;
+    },
+
+    /**
+     * Uploads a Non-Availability Certificate for a given reservation.
      * @param {Object} dbHelper - The MongoDB client
      * @param {string} reservationId - The ID of the reservation
-     * @param {Object} file - The approval document file object
+     * @param {Object} file - The Non-Availability Certificate file object
      * @param {Object} user - The user object containing the user ID and role
      * @returns {Object} Response data with status, error, message, and updated reservation on success
      */
-    uploadApprovalDocument: async (dbHelper, reservationId, file, user) => {
+    uploadNonAvailabilityCertificate: async (dbHelper, reservationId, file, user) => {
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
-            error: 'Error uploading approval document',
+            error: 'Error uploading Non-Availability Certificate',
         };
 
         try {
@@ -716,7 +864,7 @@ const reservationModule = {
 
             if (!file) {
                 responseData.status = Status.BAD_REQUEST;
-                responseData.error = 'Missing approval document file';
+                responseData.error = 'Missing Non-Availability Certificate file';
                 return responseData;
             }
 
@@ -726,7 +874,7 @@ const reservationModule = {
                 return responseData;
             }
 
-            const filename = `approval_document/${Date.now()}_${file.originalname.replace(/\s/g, '_')}`;
+            const filename = `non_availability_certificate/${Date.now()}_${file.originalname.replace(/\s/g, '_')}`;
             const blob = bucket.file(filename);
             await new Promise((resolve, reject) => {
                 const stream = blob.createWriteStream({
@@ -739,8 +887,8 @@ const reservationModule = {
             });
 
             let fileDoc = null;
-            if (reservation.approvalDocumentFileId) {
-                fileDoc = await dbHelper.findOneAndUpdate('file', { _id: reservation.approvalDocumentFileId, }, {
+            if (reservation.nonAvailabilityCertFileId) {
+                fileDoc = await dbHelper.findOneAndUpdate('file', { _id: reservation.nonAvailabilityCertFileId, }, {
                     path: filename,
                     mimetype: file.mimetype,
                     size: file.size,
@@ -751,28 +899,28 @@ const reservationModule = {
                     path: filename,
                     mimetype: file.mimetype,
                     size: file.size,
-                    kind: 'APPROVAL_DOCUMENT',
+                    kind: FileKind.NONAVAILABILITY_CERTIFICATE,
                     reservationId: reservation._id,
                     userId: user.userId,
                     createdAt: new Date(),
                 });
-                await dbHelper.findOneAndUpdate('reservation', { _id: reservationId, }, { approvalDocumentFileId: fileDoc._id, approvalDocumentUploadedAt: new Date(), });
+                await dbHelper.findOneAndUpdate('reservation', { _id: reservationId, }, { nonAvailabilityCertFileId: fileDoc._id, nonAvailabilityCertFileUploadedAt: new Date(), });
             }
 
             const updated = await dbHelper.findOne('reservation', { _id: reservationId, });
 
             responseData.status = Status.OK;
             responseData.error = null;
-            responseData.message = 'Approval document uploaded successfully';
+            responseData.message = 'Non-Availability Certificate uploaded successfully';
             responseData.reservation = {
                 _id: updated._id,
-                approvalDocumentFile: fileDoc?.path ?? null,
+                nonAvailabilityCertFile: fileDoc?.path ?? null,
             };
             return responseData;
         } catch (err) {
-            console.error('Error uploading approval document:', err);
+            console.error('Error uploading Non-Availability Certificate:', err);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
-            responseData.error = 'Error uploading approval document';
+            responseData.error = 'Error uploading Non-Availability Certificate';
             return responseData;
         }
     },
@@ -921,6 +1069,10 @@ function isValidPhone(number) {
     return /^(\+63|0)9\d{9}$/.test(number);
 }
 
+function isValidObjectId(id) {
+    return typeof id === 'string' && /^[0-9a-fA-F]{24}$/.test(id);
+}
+
 function isValidCategory(category) {
     return Object.values(Category).includes(category);
 }
@@ -978,6 +1130,11 @@ function normalizeDateOnly(dateStr) {
     return isNaN(normalized.getTime()) ? null : normalized;
 }
 
+function isValidEmail(email) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+}
+
 function isValidTime(timeStr) {
     const timeFormatRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
     return timeFormatRegex.test(timeStr);
@@ -995,7 +1152,7 @@ function isValidLength(value, maxLength) {
 function isValidFile(file) {
     if (!file) return false;
     const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',];
-    const maxFileSize = 5 * 1024 * 1024; 
+    const maxFileSize = 5 * 1024 * 1024;
     return allowedTypes.includes(file.mimetype) && file.size <= maxFileSize;
 }
 
@@ -1008,6 +1165,39 @@ function isPresent(value) {
         return !Number.isNaN(value);
     }
     return true;
+}
+
+function buildReservationSearchQuery(query = {}) {
+    const andConds = [];
+    if (query.guestName) andConds.push({ guestName: { $regex: String(query.guestName), $options: 'i', }, });
+    if (query.guestEmail) andConds.push({ guestEmail: { $regex: String(query.guestEmail), $options: 'i', }, });
+    if (query.dateOfArrival) andConds.push({ dateOfArrival: query.dateOfArrival, });
+    if (query.id) {
+        const idStr = String(query.id).trim();
+        if (/^[0-9a-fA-F]{24}$/.test(idStr)) {
+            andConds.push({ _id: idStr, });
+        }
+    }
+    if (query.serviceType) andConds.push({ serviceType: query.serviceType, });
+    if (query.status) andConds.push({ status: query.status, });
+    if (query.search) {
+        const s = String(query.search).trim();
+        if (s) {
+            const orConds = [
+                { guestName: { $regex: s, $options: 'i', }, },
+                { referenceNumber: { $regex: s, $options: 'i', }, },
+                { telephone: { $regex: s, $options: 'i', }, },
+                { serviceType: { $regex: s, $options: 'i', }, },
+                { status: { $regex: s, $options: 'i', }, },
+            ];
+            if (/^[0-9a-fA-F]{24}$/.test(s)) {
+                orConds.push({ _id: s, });
+            }
+            andConds.push({ $or: orConds, });
+        }
+    }
+
+    return andConds.length ? { $and: andConds, } : {};
 }
 
 function computeEstimate({ facilityDoc, adults = 0, children = 0, pwds = 0, serviceType, }) {

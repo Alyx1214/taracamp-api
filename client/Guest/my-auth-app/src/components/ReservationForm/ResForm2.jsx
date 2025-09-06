@@ -5,7 +5,9 @@ import styles from './ResForm2.module.css';
 import { ArrowLeft } from 'lucide-react';
 import ErrorBanner from '../ErrorBanner/ErrorBanner';
 
-import { getFacilitiesByType, searchFacilities, getAllSpecialServices, checkAvailability as apiCheckAvailability, } from '../../apis/facilityApi';
+import { searchFacilities } from '../../apis/facilityApi';
+import { checkAvailability as apiCheckAvailability } from '../../apis/reservationApi';
+import { getAllSpecialServices } from '../../apis/specialServicesApi';
 
 function ReservationFormStep2() {
   const navigate = useNavigate();
