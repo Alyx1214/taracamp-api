@@ -3,8 +3,8 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import styles from './ResForm2.module.css';
 import { ArrowLeft } from 'lucide-react';
 import ErrorBanner from '../ErrorBanner/ErrorBanner';
-
-import { getFacilitiesByType, searchFacilities, checkAvailability as apiCheckAvailability, } from '../../apis/facilityApi';
+import { searchFacilities } from '../../apis/facilityApi';
+import { checkAvailability as apiCheckAvailability } from '../../apis/reservationApi';
 import { getAllSpecialServices } from '../../apis/specialServiceApi';
 
 function ReservationFormStep2() {

@@ -11,7 +11,8 @@ import MainServicesRates from './ServicesRates';
 import MainServicesConference from './Conference';
 import MainServicesOtherService from './OtherService';
 import MainServicesServiceDetail from './ServiceDetail';
-import { searchFacilities, searchSpecialServices } from '../../apis/facilityApi';
+import { searchFacilities } from '../../apis/facilityApi';
+import { searchSpecialServices } from '../../apis/specialServicesApi';
 
 function MainServices() {
   const [facilities, setFacilities] = useState([]);

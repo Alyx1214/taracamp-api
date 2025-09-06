@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import styles from './OtherService.module.css';
-import { getAllSpecialServices } from '../../apis/facilityApi';
+import { getAllSpecialServices } from '../../apis/specialServicesApi';
 
 function MainServicesOtherService({ facilities, loading, searchAttempted }) {
   const [defaultServices, setDefaultServices] = useState([]);
