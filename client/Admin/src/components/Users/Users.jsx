@@ -3,6 +3,8 @@ import UnivTable from "../UnivTable/UnivTable.jsx";
 import SearchFil from "../SearchFil/SearchFil.jsx";
 import UsersHeader from "./UsersHeader.jsx";
 import styles from "./Users.module.css";
+import Pagination from "../Pagination/Pagination.jsx";
+
 
 export default function Users() {
   const [activeTab, setActiveTab] = useState("All");
@@ -62,7 +64,7 @@ export default function Users() {
          columns={columns}
          data={filteredData}
          renderActions={() => (
-           <button className="bg-[#183c2d] text-white px-3 py-1 rounded-md text-sm hover:opacity-90">
+           <button className={styles.editBtn}>
              Edit
            </button>
          )}
@@ -71,7 +73,10 @@ export default function Users() {
            { label: "View", onClick: () => alert(`Viewing ${row.name}`) },
          ]}
        />
+       <Pagination />
        </div>
+
+       
     </div>
 
 
