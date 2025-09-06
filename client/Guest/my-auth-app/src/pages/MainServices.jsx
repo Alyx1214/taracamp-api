@@ -1,17 +1,17 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import Navbar from '../Header/Header';
-import Footer from '../Footer/Footer';
+import Navbar from '../components/Header/Header';
+import Footer from '../components/Footer/Footer';
 import styles from './MainServices.module.css';
-import MainServicesHeader from './Header';
-import MainServicesNavSearch from './NavSearch';
-import MainServicesDormitories from './Dormitories';
-import MainServicesCottages from './Cottages';
-import MainServicesRates from './ServicesRates';
-import MainServicesConference from './Conference';
-import MainServicesOtherService from './OtherService';
-import MainServicesServiceDetail from './ServiceDetail';
-import { searchFacilities, searchSpecialServices } from '../../apis/facilityApi';
+import MainServicesHeader from '../components/MainServices/Header';
+import MainServicesNavSearch from '../components/MainServices/NavSearch';
+import MainServicesDormitories from '../components/MainServices/Dormitories';
+import MainServicesCottages from '../components/MainServices/Cottages';
+import MainServicesRates from '../components/MainServices/ServicesRates';
+import MainServicesConference from '../components/MainServices/Conference';
+import MainServicesOtherService from '../components/MainServices/OtherService';
+import MainServicesServiceDetail from '../components/MainServices/ServiceDetail';
+import { searchFacilities, searchSpecialServices } from '../apis/facilityApi';
 
 function MainServices() {
   const [facilities, setFacilities] = useState([]);

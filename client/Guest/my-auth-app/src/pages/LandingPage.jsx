@@ -1,13 +1,13 @@
 import React from 'react';
-import Header from '../Header/Header';
-import LandingHero from '../LandingHero/LandingHero';
-import Footer from '../Footer/Footer';
+import Header from '../components/Header/Header';
+import LandingHero from '../components/LandingHero/LandingHero';
+import Footer from '../components/Footer/Footer';
 import styles from './LandingPage.module.css';
-import HistorySection from './HistorySection'; 
-import ServicesSection from './ServicesSection';  
-import BoardLodgingSection from './BoardLodgingSection';
-import FAQSection from './FAQSection';
-import ResSection from './ResSection';
+import HistorySection from '../components/LandingPage/HistorySection'; 
+import ServicesSection from '../components/LandingPage/ServicesSection';  
+import BoardLodgingSection from '../components/LandingPage/BoardLodgingSection';
+import FAQSection from '../components/LandingPage/FAQSection';
+import ResSection from '../components/LandingPage/ResSection';
 
 
 function LandingPage({ onReserveNow }) {
