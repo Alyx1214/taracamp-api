@@ -86,33 +86,35 @@ export default function NotifUpload({ clientType = 'deped', onSubmit, onBack = (
           Please ensure to download and upload the necessary documents before your arrival to avoid conflict on your reservation.
         </div>
         <form onSubmit={handleSubmit}>
-          {fields.map((f) => (
-            <div className={styles.uploadField} key={f.key}>
-              <div className={styles.uploadLabel}>{f.label}</div>
-              {f.description && <div className={styles.uploadDesc}>{f.description}</div>}
-              <div className={styles.uploadInputRow}>
-                <input
-                  type="file"
-                  accept={f.accept}
-                  ref={el => (fileRefs.current[f.key] = el)}
-                  style={{ display: 'none' }}
-                />
-                <div
-                  className={styles.uploadInput}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => handleFileClick(f.key)}
-                  onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && handleFileClick(f.key)}
-                  aria-label={`Upload ${f.label}`}
-                >
-                  Click to upload
+          <div className={styles.uploadsContainer}>
+            {fields.map((f) => (
+              <div className={styles.uploadField} key={f.key}>
+                <div className={styles.uploadLabel}>{f.label}</div>
+                {f.description && <div className={styles.uploadDesc}>{f.description}</div>}
+                <div className={styles.uploadInputRow}>
+                  <input
+                    type="file"
+                    accept={f.accept}
+                    ref={el => (fileRefs.current[f.key] = el)}
+                    style={{ display: 'none' }}
+                  />
+                  <div
+                    className={styles.uploadInput}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => handleFileClick(f.key)}
+                    onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && handleFileClick(f.key)}
+                    aria-label={`Upload ${f.label}`}
+                  >
+                    Click to upload
+                  </div>
+                  <button type="button" className={styles.uploadIconBtn} onClick={() => handleFileClick(f.key)} aria-label="Browse">
+                    <span className={styles.uploadIcon}>&#8682;</span>
+                  </button>
                 </div>
-                <button type="button" className={styles.uploadIconBtn} onClick={() => handleFileClick(f.key)} aria-label="Browse">
-                  <span className={styles.uploadIcon}>&#8682;</span>
-                </button>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
           <button type="submit" className={styles.submitBtn}>Submit</button>
         </form>
         <div className={styles.footerText}>Looking forward to seeing you soon!</div>

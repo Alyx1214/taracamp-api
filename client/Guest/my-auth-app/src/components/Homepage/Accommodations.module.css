@@ -69,7 +69,7 @@
 }
 
 .bottomText p {
-  font-size: 1.2em;
+  font-size: 1.5em;
   color: #1e3c24;
   margin: 0;
   text-align: left;
@@ -84,7 +84,7 @@
   color: #F5F5F5;
   border: none;
   border-radius: 25px;
-  padding: 20px 40px;
+  padding: 15px 35px;
   font-size: 1.4em;
   font-weight: bold;
   cursor: pointer;

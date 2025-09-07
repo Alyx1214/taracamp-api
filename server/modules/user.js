@@ -413,6 +413,93 @@ const userModule = {
     },
 
     /**
+     * Get all users by role.
+     * @param {Object} dbHelper - The database helper for database operations.
+     * @param {string} role - The role of the users to retrieve.
+     * @param {Object} user - The user object.
+     * @returns {Object} Response data with status, error, and an array of users on success.
+     */
+    getAllUsersByRole: async (dbHelper, role, user) => {
+        const responseData = {
+            status: Status.INTERNAL_SERVER_ERROR,
+            error: 'Error fetching users by role',
+        };
+        try {
+            if (user.role !== UserRole.SUPERINTENDENT) {
+                responseData.status = Status.UNAUTHORIZED;
+                responseData.error = 'You are not authorized to perform this action';
+                return responseData;
+            }
+
+            if (!role) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Missing role';
+                return responseData;
+            }
+
+            if (!isValidRole(role)) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Invalid role';
+                return responseData;
+            }
+
+            const users = await dbHelper.find('user', { role, });
+            responseData.status = Status.OK;
+            responseData.error = null;
+            responseData.users = users;
+        } catch (error) {
+            console.error('Error fetching users by role:', error);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Error fetching users by role';
+        }
+        return responseData;
+    },
+
+    /**
+     * Search users based on the provided query object.
+     * @param {Object} dbHelper - The database helper for database operations.
+     * @param {Object} query - The search and filter object.
+     * @param {Object} user - The user object containing the user ID and role.
+     * @returns {Object} Response data with status, error, and an array of users on success.
+     */
+    searchUsers: async (dbHelper, query, user) => {
+        const responseData = {
+            status: Status.INTERNAL_SERVER_ERROR,
+            error: 'Error searching users',
+        };
+
+        try {
+            if (!user) {
+                responseData.status = Status.UNAUTHORIZED;
+                responseData.error = 'User not logged in';
+                return responseData;
+            }
+            if (user.role !== UserRole.SUPERINTENDENT) {
+                responseData.status = Status.UNAUTHORIZED;
+                responseData.error = 'You are not authorized to perform this action';
+                return responseData;
+            }
+
+            const dbQuery = buildUserSearchQuery(query || {});
+            const limit = clampLimit(query?.limit, 20);
+            const skip  = clampSkip(query?.skip, 0);
+            const sort  = parseSort(query?.sort) || { createdAt: -1, };
+
+            const projection = { password: 0, resetTokenHash: 0, verificationCodeHash: 0, };
+
+            const users = await dbHelper.findMany('user', dbQuery, { projection, sort, limit, skip, });
+            responseData.status = Status.OK;
+            responseData.error = null;
+            responseData.users = users;
+        } catch (error) {
+            console.error('Error searching users:', error);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Error searching users';
+        }
+        return responseData;
+    },
+
+    /**
      * Logs out a user and revokes their refresh token.
      * @param {string} userId - The ID of the user to log out.
      * @returns {Object} Response data with status, error, message.
@@ -733,8 +820,185 @@ function isValidPassword(pwd) {
     return len >= 8 && len <= 128;
 }
 
+function escapeRegex(s) {
+    return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function clampLimit(value, def = 20) {
+    if (value == null || value === '') return def;
+    const n = Number(value);
+    if (!Number.isFinite(n)) return def;
+    return Math.max(1, Math.min(100, Math.trunc(n)));
+}
+
+function clampSkip(value, def = 0) {
+    if (value == null || value === '') return def;
+    const n = Number(value);
+    if (!Number.isFinite(n)) return def;
+    return Math.max(0, Math.trunc(n));
+}
+
+function parseSort(s) {
+    if (typeof s !== 'string') return null;
+    const out = {};
+    for (const part of s.split(',').map((t) => t.trim()).filter(Boolean)) {
+        const [f, dir,] = part.split(':').map((t) => t.trim());
+        if (!f) continue;
+        out[f] = String(dir || 'asc').toLowerCase() === 'desc' ? -1 : 1;
+    }
+    return Object.keys(out).length ? out : null;
+}
+
+function parseIsoYmdUTC(s) {
+    const m = String(s).trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!m) return null;
+    const y = +m[1], mo = +m[2] - 1, d = +m[3];
+    const start = new Date(Date.UTC(y, mo, d, 0, 0, 0));
+    const end   = new Date(Date.UTC(y, mo, d + 1, 0, 0, 0));
+    return [start, end,];
+}
+
+function parseLooseDateUTC(s) {
+    const d = new Date(s);
+    if (Number.isNaN(d.getTime())) return null;
+    const y = d.getUTCFullYear(), mo = d.getUTCMonth(), day = d.getUTCDate();
+    const start = new Date(Date.UTC(y, mo, day, 0, 0, 0));
+    const end   = new Date(Date.UTC(y, mo, day + 1, 0, 0, 0));
+    return [start, end,];
+}
+
+function parseRangeUTC(s) {
+    const m = String(s).trim().match(/^(\d{4}-\d{2}-\d{2})\s*(?:to|-)\s*(\d{4}-\d{2}-\d{2})$/i);
+    if (!m) return null;
+    const a = parseIsoYmdUTC(m[1]), b = parseIsoYmdUTC(m[2]);
+    if (!a || !b) return null;
+    return [a[0], b[1],]; 
+}
+
+const MONTHS = {
+    january: 1, february: 2, march: 3, april: 4, may: 5, june: 6,
+    july: 7, august: 8, september: 9, sept: 9, october: 10, november: 11, december: 12,
+};
+
+function buildUserSearchQuery(query = {}) {
+    const andConds = [];
+    const normRole = normalizeRole(query.role);
+    if (normRole) {
+        andConds.push({ role: normRole, });
+    } else {
+        andConds.push({ role: { $nin: [UserRole.GUEST, UserRole.CRMSTEAM], }, });
+    }
+
+    if (query.email) {
+        const e = String(query.email).trim();
+        if (e) andConds.push({ email: { $regex: escapeRegex(e), $options: 'i', }, });
+    }
+
+    if (query.name) {
+        const n = String(query.name).trim();
+        if (n) andConds.push({ name: { $regex: escapeRegex(n), $options: 'i', }, });
+    }
+
+    if (query.id) {
+        const idStr = String(query.id).trim();
+        const isHex = /^[0-9a-fA-F]+$/.test(idStr);
+        if (idStr.length === 24 && isHex) {
+            andConds.push({ _id: idStr, });
+        } else if (isHex && idStr.length >= 3) {
+            andConds.push({
+                $expr: { $regexMatch: { input: { $toString: '$_id', }, regex: idStr, options: 'i', }, },
+            });
+        }
+    }
+
+    if (query.createdFrom || query.createdTo) {
+        const gte = query.createdFrom ? new Date(query.createdFrom) : null;
+        const lt  = query.createdTo   ? new Date(query.createdTo)   : null;
+        const cond = {};
+        if (!Number.isNaN(gte?.getTime())) cond.$gte = gte;
+        if (!Number.isNaN(lt?.getTime()))  cond.$lt  = lt;
+        if (Object.keys(cond).length) andConds.push({ createdAt: cond, });
+    }
+
+    if (query.lastLoggedFrom || query.lastLoggedTo) {
+        const gte = query.lastLoggedFrom ? new Date(query.lastLoggedFrom) : null;
+        const lt  = query.lastLoggedTo   ? new Date(query.lastLoggedTo)   : null;
+        const cond = {};
+        if (!Number.isNaN(gte?.getTime())) cond.$gte = gte;
+        if (!Number.isNaN(lt?.getTime()))  cond.$lt  = lt;
+        if (Object.keys(cond).length) andConds.push({ lastLoggedIn: cond, });
+    }
+
+    if (query.search) {
+        const s = String(query.search).trim();
+        if (s) {
+            const orConds = [
+                { name: { $regex: escapeRegex(s), $options: 'i', }, },
+                { email: { $regex: escapeRegex(s), $options: 'i', }, },
+                { role: { $regex: escapeRegex(s), $options: 'i', }, },
+            ];
+
+            if (/^[0-9a-fA-F]{24}$/.test(s)) {
+                orConds.push({ _id: s, });
+            } else if (/^[0-9a-fA-F]{3,}$/.test(s)) {
+                orConds.push({
+                    $expr: { $regexMatch: { input: { $toString: '$_id', }, regex: s, options: 'i', }, },
+                });
+            }
+
+            const range = parseRangeUTC(s);
+            if (range) {
+                const [start, end,] = range;
+                orConds.push(
+                    { createdAt: { $gte: start, $lt: end, }, },
+                    { lastLoggedIn: { $gte: start, $lt: end, }, }
+                );
+            } else {
+                const day = parseIsoYmdUTC(s) || parseLooseDateUTC(s);
+                if (day) {
+                    const [start, end,] = day;
+                    orConds.push(
+                        { createdAt: { $gte: start, $lt: end, }, },
+                        { lastLoggedIn: { $gte: start, $lt: end, }, }
+                    );
+                }
+            }
+
+            const m = MONTHS[s.toLowerCase()];
+            if (m) {
+                orConds.push(
+                    { $expr: { $eq: [{ $month: '$createdAt', }, m,], }, },
+                    { $expr: { $eq: [{ $month: '$lastLoggedIn', }, m,], }, }
+                );
+            }
+
+            if (/^\d{4}$/.test(s)) {
+                const y = Number(s);
+                orConds.push(
+                    { $expr: { $eq: [{ $year: '$createdAt', }, y,], }, },
+                    { $expr: { $eq: [{ $year: '$lastLoggedIn', }, y,], }, }
+                );
+            }
+
+            andConds.push({ $or: orConds, });
+        }
+    }
+
+    return andConds.length ? { $and: andConds, } : {};
+}
+
 function isValidRole(role) {
     return Object.values(UserRole).includes(role);
+}
+
+function normalizeRole(role) {
+    if (!role) return null;
+    const r = String(role).trim().toUpperCase();
+    if (r === 'CRMSTEAM' || r === 'CRMS TEAM' || r === 'CRMS_TEAM') return UserRole.CRMSTEAM;
+    for (const v of Object.values(UserRole)) {
+        if (String(v).toUpperCase() === r) return v;
+    }
+    return null;
 }
 
 function isPresent(value) {
@@ -780,4 +1044,3 @@ function hashString(s) {
 function generate6DigitCode() {
     return crypto.randomInt(0, 1_000_000).toString().padStart(6, '0');
 }
-

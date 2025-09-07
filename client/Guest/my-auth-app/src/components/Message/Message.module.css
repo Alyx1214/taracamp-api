@@ -62,12 +62,11 @@
 .chatContainer {
   display: flex;
   flex-direction: column;
-  height: 100vh; /* Full viewport height */
+  height: 100%;
   background: #f3f4f6;
   border-radius: 20px;
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
   font-family: 'Inter', Arial, sans-serif;
-  position: relative;
 }
 
 .messagesContainer {
@@ -81,11 +80,6 @@
   align-items: center;
   padding: 14px;
   border-top: 1px solid #e5e7eb;
-  position: fixed;
-  bottom: 0;
-  width: 100%;
-  background: #ffffff;
-  box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.1);
 }
 
 .input {

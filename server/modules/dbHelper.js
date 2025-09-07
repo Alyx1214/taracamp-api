@@ -155,19 +155,18 @@ const dbHelper = {
     },
 
     find: async (collectionName, query = {}, projection = {}) => {
-        return await mongoose.model(collectionName).find(query, projection).lean();
+        return await mongoose.model(collectionName).find(query, projection);
     },
 
     findOne: async (collectionName, query) => {
-        return await mongoose.model(collectionName).findOne(query).lean();
+        return await mongoose.model(collectionName).findOne(query);
     },
 
     findMany: async (collectionName, query = {}, options = {}) => {
         const { projection = null, sort = null, limit = null, skip = null, } = options;
         return await mongoose
             .model(collectionName)
-            .find(query, projection, { sort, limit, skip, })
-            .lean();
+            .find(query, projection, { sort, limit, skip, });
     },
 
     updateOne: async (collectionName, query, update) => {
