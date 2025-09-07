@@ -601,9 +601,27 @@ const reservationModule = {
                 }
             );
 
+            const list = (raw || []).map((r) => (typeof r.toObject === 'function' ? r.toObject() : r));
+            const userIds = toValidObjectIdStrings(list.map(r => r.userId));
+
+            let emailById = new Map();
+            if (userIds.length) {
+                const users = await dbHelper.findMany(
+                    'user',
+                    { _id: { $in: userIds, }, },
+                    { projection: { _id: 1, email: 1, }, }
+                );
+                emailById = new Map((users || []).map((u) => [String(u._id), u.email,]));
+            }
+
+            const withEmails = list.map((r) => ({
+                ...r,
+                guestEmail: r.guestEmail ?? emailById.get(String(r.userId)) ?? null,
+            }));
+
             responseData.status = Status.OK;
             responseData.error = null;
-            responseData.reservations = raw;
+            responseData.reservations = withEmails;
             return responseData;
         } catch (error) {
             console.error('Error fetching reservations by status:', error);
@@ -648,7 +666,7 @@ const reservationModule = {
             );
 
             const list = (raw || []).map((r) => (typeof r.toObject === 'function' ? r.toObject() : r));
-            const userIds = [...new Set(list.map((r) => String(r.userId)).filter(Boolean)),];
+            const userIds = toValidObjectIdStrings(list.map(r => r.userId));
 
             let emailById = new Map();
             if (userIds.length) {
@@ -1069,8 +1087,17 @@ function isValidPhone(number) {
     return /^(\+63|0)9\d{9}$/.test(number);
 }
 
-function isValidObjectId(id) {
-    return typeof id === 'string' && /^[0-9a-fA-F]{24}$/.test(id);
+function isValidObjectId(v) {
+  return v && /^[0-9a-fA-F]{24}$/.test(String(v));
+}
+
+function toValidObjectIdStrings(values) {
+  return Array.from(new Set(
+    (values || [])
+      .map(v => v && (v._id ?? v))           
+      .filter(isValidObjectId)
+      .map(v => String(v))
+  ));
 }
 
 function isValidCategory(category) {
@@ -1167,37 +1194,132 @@ function isPresent(value) {
     return true;
 }
 
-function buildReservationSearchQuery(query = {}) {
-    const andConds = [];
-    if (query.guestName) andConds.push({ guestName: { $regex: String(query.guestName), $options: 'i', }, });
-    if (query.guestEmail) andConds.push({ guestEmail: { $regex: String(query.guestEmail), $options: 'i', }, });
-    if (query.dateOfArrival) andConds.push({ dateOfArrival: query.dateOfArrival, });
-    if (query.id) {
-        const idStr = String(query.id).trim();
-        if (/^[0-9a-fA-F]{24}$/.test(idStr)) {
-            andConds.push({ _id: idStr, });
-        }
-    }
-    if (query.serviceType) andConds.push({ serviceType: query.serviceType, });
-    if (query.status) andConds.push({ status: query.status, });
-    if (query.search) {
-        const s = String(query.search).trim();
-        if (s) {
-            const orConds = [
-                { guestName: { $regex: s, $options: 'i', }, },
-                { referenceNumber: { $regex: s, $options: 'i', }, },
-                { telephone: { $regex: s, $options: 'i', }, },
-                { serviceType: { $regex: s, $options: 'i', }, },
-                { status: { $regex: s, $options: 'i', }, },
-            ];
-            if (/^[0-9a-fA-F]{24}$/.test(s)) {
-                orConds.push({ _id: s, });
-            }
-            andConds.push({ $or: orConds, });
-        }
-    }
+function parseIsoYmdUTC(s) {
+  const m = String(s).trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return null;
+  const y = +m[1], mo = +m[2] - 1, d = +m[3];
+  const start = new Date(Date.UTC(y, mo, d, 0, 0, 0));
+  const end   = new Date(Date.UTC(y, mo, d + 1, 0, 0, 0));
+  return [start, end];
+}
 
-    return andConds.length ? { $and: andConds, } : {};
+function parseLooseDateUTC(s) {
+  const d = new Date(s);
+  if (Number.isNaN(d.getTime())) return null;
+  const y = d.getUTCFullYear(), mo = d.getUTCMonth(), day = d.getUTCDate();
+  const start = new Date(Date.UTC(y, mo, day, 0, 0, 0));
+  const end   = new Date(Date.UTC(y, mo, day + 1, 0, 0, 0));
+  return [start, end];
+}
+
+function parseRangeUTC(s) {
+  const m = String(s).trim().match(/^(\d{4}-\d{2}-\d{2})\s*(?:to|-)\s*(\d{4}-\d{2}-\d{2})$/i);
+  if (!m) return null;
+  const a = parseIsoYmdUTC(m[1]), b = parseIsoYmdUTC(m[2]);
+  if (!a || !b) return null;
+  return [a[0], b[1]]; 
+}
+
+const MONTHS = {
+  january: 1, february: 2, march: 3, april: 4,
+  may: 5, june: 6, july: 7, august: 8,
+  september: 9, sept: 9, october: 10, november: 11, december: 12
+};
+
+function buildReservationSearchQuery(query = {}) {
+  const andConds = [];
+
+  if (query.guestName) andConds.push({ guestName: { $regex: String(query.guestName), $options: 'i' } });
+  if (query.guestEmail) andConds.push({ guestEmail: { $regex: String(query.guestEmail), $options: 'i' } });
+  if (query.createdAt) andConds.push({ createdAt: query.createdAt });
+  if (query.serviceType) andConds.push({ serviceType: query.serviceType });
+  if (query.status) andConds.push({ status: query.status });
+  if (query.id) {
+    const idStr = String(query.id).trim();
+    const isHex = /^[0-9a-fA-F]+$/.test(idStr);
+    if (idStr.length === 24 && isHex) {
+      andConds.push({ _id: idStr });
+    } else if (isHex && idStr.length >= 3) {
+      andConds.push({
+        $expr: { $regexMatch: { input: { $toString: '$_id' }, regex: idStr, options: 'i' } }
+      });
+    }
+  }
+
+  if (query.search) {
+    const s = String(query.search).trim();
+    if (s) {
+      const orConds = [
+        { guestName:      { $regex: s, $options: 'i' } },
+        { guestEmail:     { $regex: s, $options: 'i' } },
+        { referenceNumber:{ $regex: s, $options: 'i' } },
+        { telephone:      { $regex: s, $options: 'i' } },
+        { serviceType:    { $regex: s, $options: 'i' } },
+        { status:         { $regex: s, $options: 'i' } },
+      ];
+
+      if (/^[0-9a-fA-F]{24}$/.test(s)) {
+        orConds.push({ _id: s });
+      } else if (/^[0-9a-fA-F]{3,}$/.test(s)) {
+        orConds.push({
+          $expr: { $regexMatch: { input: { $toString: '$_id' }, regex: s, options: 'i' } }
+        });
+      }
+
+      const range = parseRangeUTC(s);
+      if (range) {
+        const [start, end] = range;
+        orConds.push(
+          { dateOfArrival:   { $gte: start, $lt: end } },
+          { dateOfDeparture: { $gte: start, $lt: end } },
+          { createdAt:       { $gte: start, $lt: end } },
+        );
+      } else {
+        const day = parseIsoYmdUTC(s) || parseLooseDateUTC(s);
+        if (day) {
+          const [dayStart, dayEnd] = day;
+          orConds.push(
+            { dateOfArrival:   { $gte: dayStart, $lt: dayEnd } },
+            { dateOfDeparture: { $gte: dayStart, $lt: dayEnd } },
+            { createdAt:       { $gte: dayStart, $lt: dayEnd } },
+          );
+        }
+      }
+
+      const monthNum = MONTHS[s.toLowerCase()];
+      if (monthNum) {
+        orConds.push(
+          { $expr: { $eq: [ { $month: "$dateOfArrival"   }, monthNum ] } },
+          { $expr: { $eq: [ { $month: "$dateOfDeparture" }, monthNum ] } },
+          { $expr: { $eq: [ { $month: "$createdAt"       }, monthNum ] } },
+        );
+      }
+
+      if (/^\d{1,2}$/.test(s)) {
+        const dayNum = Number(s);
+        if (dayNum >= 1 && dayNum <= 31) {
+          orConds.push(
+            { $expr: { $eq: [ { $dayOfMonth: "$dateOfArrival"   }, dayNum ] } },
+            { $expr: { $eq: [ { $dayOfMonth: "$dateOfDeparture" }, dayNum ] } },
+            { $expr: { $eq: [ { $dayOfMonth: "$createdAt"       }, dayNum ] } },
+          );
+        }
+      }
+
+      if (/^\d{4}$/.test(s)) {
+        const yearNum = Number(s);
+        orConds.push(
+          { $expr: { $eq: [ { $year: "$dateOfArrival"   }, yearNum ] } },
+          { $expr: { $eq: [ { $year: "$dateOfDeparture" }, yearNum ] } },
+          { $expr: { $eq: [ { $year: "$createdAt"       }, yearNum ] } },
+        );
+      }
+
+      andConds.push({ $or: orConds });
+    }
+  }
+
+  return andConds.length ? { $and: andConds } : {};
 }
 
 function computeEstimate({ facilityDoc, adults = 0, children = 0, pwds = 0, serviceType, }) {

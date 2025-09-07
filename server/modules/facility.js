@@ -206,7 +206,7 @@ const facilityModule = {
                 return responseData;
             }
 
-            const facilityObject = normalizeDoc(facility);
+            const facilityObject = facility.toObject;
             delete facilityObject.__v;
             delete facilityObject.createdAt;
             facilityObject.name = toTitleCase(String(facilityObject.name || ''));
@@ -651,14 +651,9 @@ function isPresent(value) {
   return true; 
 }
 
-// Convert a string to Title Case (first letter uppercase per word)
 function toTitleCase(str = '') {
     const lower = String(str).toLowerCase();
     return lower.replace(/\b([a-z])(\w*)/g, (_, a, b) => a.toUpperCase() + b);
-}
-
-function normalizeDoc(doc) {
-  return doc && typeof doc.toObject === 'function' ? doc.toObject() : { ...doc };
 }
 
 function isValidFacilityType(type) {
