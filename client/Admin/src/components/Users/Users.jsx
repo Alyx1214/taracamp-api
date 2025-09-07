@@ -1,88 +1,130 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import UnivTable from "../UnivTable/UnivTable.jsx";
 import SearchFil from "../SearchFil/SearchFil.jsx";
 import UsersHeader from "./UsersHeader.jsx";
 import styles from "./Users.module.css";
 import Pagination from "../Pagination/Pagination.jsx";
+import { searchUsers } from "../../apis/userApi";
 
 
 export default function Users() {
-  const [activeTab, setActiveTab] = useState("All");
+  const roleTabs = useMemo(
+    () => [
+      { label: "All", value: "ALL" },
+      { label: "Front Desk", value: "FRONTDESK" },
+      { label: "Staff", value: "STAFF" },
+      { label: "Accounting", value: "ACCOUNTING" },
+      { label: "Superintendent", value: "SUPERINTENDENT" },
+    ],
+    []
+  );
+
+  const [activeTab, setActiveTab] = useState("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [filters, setFilters] = useState({});
-  const [users] = useState([
-    { id: "U001", name: "Alice Johnson", email: "alice.j@gmail.com", lastloggedin: "Aug 25, 2025", role: "Admin" },
-    { id: "U002", name: "Mark Reyes", email: "mark.r@gmail.com", lastloggedin: "Aug 20, 2025", role: "Front Desk" },
-    { id: "U003", name: "Sofia Cruz", email: "sofia.c@gmail.com", lastloggedin: "Aug 18, 2025", role: "Superintendent" },
-    { id: "U004", name: "Kevin Tan", email: "kevin.t@gmail.com", lastloggedin: "Aug 10, 2025", role: "Staff" },
-    { id: "U005", name: "Maria Santos", email: "maria.s@gmail.com", lastloggedin: "Jul 30, 2025", role: "Front Desk" },
-  ]);
+  const [rawUsers, setRawUsers] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const filteredData = users.filter((u) => {
-    if (activeTab !== "All" && u.role !== activeTab) return false;
-    if (
-      searchQuery &&
-      !u.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
-      !u.email.toLowerCase().includes(searchQuery.toLowerCase())
-    ) {
-      return false;
+  function formatDate(dt) {
+    if (!dt) return "-";
+    try {
+      const d = new Date(dt);
+      if (Number.isNaN(d.getTime())) return "-";
+      return d.toLocaleString();
+    } catch {
+      return "-";
     }
-    if (filters.role && u.role.toLowerCase() !== filters.role.toLowerCase()) {
-      return false;
+  }
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      setError("");
+      try {
+        const query = { ...filters };
+        if (searchQuery) query.search = searchQuery;
+        if (activeTab && activeTab !== "ALL" && !query.role) query.role = activeTab;
+        query.limit = query.limit ?? 100;
+        query.sort = query.sort ?? "createdAt:desc";
+
+        const res = await searchUsers(query);
+        const arr = Array.isArray(res?.users) ? res.users : [];
+        if (!cancelled) setRawUsers(arr);
+      } catch (e) {
+        if (!cancelled) setError(e?.message || 'Failed to load users');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     }
-    return true;
-  });
+    load();
+    return () => { cancelled = true; };
+  }, [activeTab, searchQuery, filters]);
+
+  const mappedUsers = useMemo(() => {
+    return (rawUsers || []).map(u => ({
+      id: u?._id || "",
+      name: u?.name || "",
+      email: u?.email || "",
+      lastloggedin: formatDate(u?.lastLoggedIn),
+      role: u?.role || "",
+    }));
+  }, [rawUsers]);
+
+  const filteredData = useMemo(() => {
+    const EXCLUDED = new Set(["GUEST", "CRMS TEAM"]);
+    return mappedUsers.filter(u => !EXCLUDED.has(String(u.role || "")));
+  }, [mappedUsers]);
 
   const columns = ["ID", "Name", "Email", "Last Logged In", "Role", "Actions"];
 
-  return(
+  return (
     <div className={styles["users-container"]}>
-      <UsersHeader/>
+      <UsersHeader />
       <div className={styles["controlsContainer"]}>
         <div className={styles.roleTabsContainer}>
-          {["All", "Admin", "Front Desk", "Staff", "Superintendent"].map((tab) => (
+          {roleTabs.map((tab) => (
             <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`${styles.roleTabBtn} ${activeTab === tab ? styles.active : ""}`}
+              key={tab.value}
+              onClick={() => setActiveTab(tab.value)}
+              className={`${styles.roleTabBtn} ${activeTab === tab.value ? styles.active : ""}`}
             >
-              {tab}
+              {tab.label}
             </button>
           ))}
         </div>
         <SearchFil
-            placeholder="Search users..."
-            onSearch={(query) => setSearchQuery(query)}
-            onApplyFilters={(applied) => setFilters(applied)}
-            filterFields={[
-              { name: "role", label: "Role", type: "text", placeholder: "e.g. Admin" },
-            ]}
+          placeholder="Search users..."
+          onSearch={(query) => setSearchQuery(query)}
+          onApplyFilters={(applied) => setFilters(applied)}
+          filterFields={[{ name: "role", label: "Role", type: "text", placeholder: "e.g. SUPERINTENDENT" }]}
         />
       </div>
-    <div className={styles.tableShiftRight}>
-      <UnivTable
-         columns={columns}
-         data={filteredData}
-         renderActions={() => (
-           <button className={styles.editBtn}>
-             Edit
-           </button>
-         )}
-         renderMenu={(row) => [
-           { label: "Delete", onClick: () => alert(`Deleting ${row.name}`) },
-           { label: "View", onClick: () => alert(`Viewing ${row.name}`) },
-         ]}
-       />
-       <Pagination />
-       </div>
 
-       
+      <div className={styles.tableShiftRight}>
+        {error && (
+          <div role="alert" style={{ color: '#b00020', marginBottom: '8px' }}>{error}</div>
+        )}
+        {loading ? (
+          <div style={{ padding: '16px' }}>Loading users…</div>
+        ) : (
+          <>
+            <UnivTable
+              columns={columns}
+              data={filteredData}
+              renderActions={() => (
+                <button className={styles.editBtn}>Edit</button>
+              )}
+              renderMenu={(row) => [
+                { label: "Delete", onClick: () => alert(`Deleting ${row.name}`) },
+                { label: "View", onClick: () => alert(`Viewing ${row.name}`) },
+              ]}
+            />
+            <Pagination />
+          </>
+        )}
+      </div>
     </div>
-
-
-      
-      
-
-      
   );
 }

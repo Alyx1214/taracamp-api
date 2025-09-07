@@ -56,6 +56,16 @@ r.get('/profile', asyncHandler(async (req, res) => {
   res.status(profileResp.status).json(merged);
 }));
 
+r.get('/get-all-users-by-role/:role', asyncHandler(async (req, res) => {
+  const response = await userModule.getAllUsersByRole(dbHelper, req.params.role, req.user);
+  res.status(response.status).json(response);
+}));
+
+r.get('/search-users', asyncHandler(async (req, res) => {
+  const response = await userModule.searchUsers(dbHelper, req.query, req.user);
+  res.status(response.status).json(response);
+}));
+
 r.post('/logout', asyncHandler(async (req, res) => {
   const { userId, jti } = req.user || {};
   const response = await userModule.logout(userId, jti);
