@@ -413,6 +413,87 @@ const userModule = {
     },
 
     /**
+     * Adds a new user 
+     * @param {Object} dbHelper - The database helper for database operations.
+     * @param {Object} data - The data object containing the user details.
+     * @param {Object} user - The user object containing the user ID and role.
+     * @returns {Object} Response data with status, error, and a message on success.
+     */
+    addUser: async (dbHelper, data, user) => {
+        const responseData = {
+            status: Status.INTERNAL_SERVER_ERROR,
+            error: 'Error adding user',
+        };
+        try {
+            const { name, email, role, password } = data;
+            if (!isPresent(name) || !isPresent(email) || !isPresent(role) || !isPresent(password)) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Missing required fields';
+                return responseData;
+            }
+
+            if (user.role !== UserRole.SUPERINTENDENT) {
+                responseData.status = Status.FORBIDDEN;
+                responseData.error = 'Only superintendent can add a user';
+                return responseData;
+            }
+
+            if (!isValidName(name)) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Invalid name';
+                return responseData;
+            }
+
+            if (!isValidEmail(email.toLowerCase())) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Invalid email address';
+                return responseData;
+            }
+
+            const emailOwner = await dbHelper.findOne('user', { email, });
+            if (emailOwner) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Email already exists';
+                return responseData;
+            }
+
+            if (!isValidRole(role)) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Invalid role';
+                return responseData;
+            }
+
+            if (!isValidPassword(password)) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Invalid password';
+                return responseData;
+            }
+
+            const hashedPassword = await bcrypt.hash(password, 10);
+            data.password = hashedPassword;
+
+            await dbHelper.create('user', {
+                    name,
+                    email,
+                    role,
+                    password: hashedPassword,
+                    createdAt: Date.now(),
+                    lastLoggedIn: Date.now(),
+                }
+            );
+            responseData.status = Status.OK;
+            responseData.error = null;
+            responseData.message = 'User added successfully';
+            return responseData;
+        } catch (error) {
+            console.error('Error adding user:', error);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Error adding user';
+            return responseData;
+        }
+    },
+
+    /**
      * Get all users by role.
      * @param {Object} dbHelper - The database helper for database operations.
      * @param {string} role - The role of the users to retrieve.

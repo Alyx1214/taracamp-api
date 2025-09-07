@@ -1,6 +1,6 @@
 // api.js — minimal fixes to match main.js
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://taracamp-api.onrender.com';
+const API_BASE ='https://taracamp-api.onrender.com';
 const API_V1_PREFIX = '/api/v1';
 const ACCESS_KEY = 'accessToken';
 const REFRESH_KEY = 'refreshToken';
