@@ -75,6 +75,12 @@
   padding: 24px;
 }
 
+.emptyState {
+  padding: 16px;
+  color: #6b7280;
+  text-align: center;
+}
+
 .typingContainer {
   display: flex;
   align-items: center;

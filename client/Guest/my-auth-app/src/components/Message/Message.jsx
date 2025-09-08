@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useState } from 'react';
 import PropTypes from 'prop-types';
 import styles from './Message.module.css';
 import weblogo from '../../assets/logo.png';
@@ -41,9 +41,35 @@ const dummyMessages = [
   { sender: 'Alice', text: 'How can I help you today?', isUser: false, role: 'Support' }
 ];
 
-/** Chat container */
-const ChatContainer = ({ messages = dummyMessages }) => {
+/** Chat container with typing input */
+const ChatContainer = ({
+  messages = dummyMessages,
+  onSend,
+  onAttach,
+  onEmoji,
+  placeholder = 'Enter your message…',
+  disabled = false,
+}) => {
   const safeMessages = Array.isArray(messages) ? messages : [];
+  const [draft, setDraft] = useState('');
+
+  const send = useCallback(() => {
+    const text = draft.trim();
+    if (!text || disabled) return;
+    const payload = { sender: 'You', text, isUser: true };
+    if (typeof onSend === 'function') onSend(payload);
+    setDraft('');
+  }, [draft, onSend, disabled]);
+
+  const handleKeyDown = useCallback(
+    (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        send();
+      }
+    },
+    [send]
+  );
 
   return (
     <div className={styles.chatContainer}>
@@ -56,11 +82,38 @@ const ChatContainer = ({ messages = dummyMessages }) => {
       </div>
 
       <div className={styles.typingContainer}>
-        <input type="text" placeholder="Enter your message..." className={styles.inputBox} />
+        <input
+          type="text"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder={placeholder}
+          aria-label="Message input"
+          className={styles.input}
+          disabled={disabled}
+        />
         <div className={styles.iconContainer}>
-          <FaPaperclip className={styles.icon} />
-          <FaSmile className={styles.icon} />
-          <FaPaperPlane className={styles.icon} />
+          <FaPaperclip
+            className={styles.icon}
+            role="button"
+            tabIndex={0}
+            aria-label="Attach file"
+            onClick={() => typeof onAttach === 'function' && onAttach()}
+          />
+          <FaSmile
+            className={styles.icon}
+            role="button"
+            tabIndex={0}
+            aria-label="Insert emoji"
+            onClick={() => typeof onEmoji === 'function' && onEmoji(setDraft)}
+          />
+          <FaPaperPlane
+            className={styles.icon}
+            role="button"
+            tabIndex={0}
+            aria-label="Send message"
+            onClick={send}
+          />
         </div>
       </div>
     </div>
@@ -75,7 +128,12 @@ ChatContainer.propTypes = {
       isUser: PropTypes.bool,
       role: PropTypes.string
     })
-  )
+  ),
+  onSend: PropTypes.func,
+  onAttach: PropTypes.func,
+  onEmoji: PropTypes.func,
+  placeholder: PropTypes.string,
+  disabled: PropTypes.bool,
 };
 
 export { ChatContainer };

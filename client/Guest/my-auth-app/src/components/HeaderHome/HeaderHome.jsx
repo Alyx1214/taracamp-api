@@ -93,6 +93,8 @@ function HeaderHome() {
   const [msgUnreadCount, setMsgUnreadCount] = useState(0);
   const [messages, setMessages] = useState([]);
   const [msgLoading, setMsgLoading] = useState(false);
+  const [msgDraft, setMsgDraft] = useState('');
+  const [msgSending, setMsgSending] = useState(false);
 
   const accountMenuRef = useRef(null);
   const notifMenuRef = useRef(null);
@@ -270,6 +272,32 @@ function HeaderHome() {
     if (!isMobile) setIsMenuOpen(false);
     setIsAccountMenuOpen(false);
     setIsNotifOpen(false);
+  };
+
+  const handleSendMessage = async () => {
+    const text = msgDraft.trim();
+    if (!text || msgSending) return;
+    setMsgSending(true);
+    const optimistic = {
+      _id: `tmp-${Date.now()}`,
+      sender: 'You',
+      text,
+      isUser: true,
+      isRead: true,
+      timeLabel: 'now',
+    };
+    setMessages((prev) => [optimistic, ...prev]);
+    setMsgDraft('');
+    try {
+      // Replace with your API call
+      // await api('/api/message/send', { method: 'POST', body: JSON.stringify({ text }) });
+    } catch (e) {
+      // revert optimistic add on error
+      setMessages((prev) => prev.filter((m) => m._id !== optimistic._id));
+      setMsgDraft(text);
+    } finally {
+      setMsgSending(false);
+    }
   };
 
   const handleReservationClick = () => {
@@ -474,6 +502,30 @@ function HeaderHome() {
                       <Message sender={m.sender} text={m.text} isUser={m.isUser} role={m.role} />
                     </div>
                   ))}
+                </div>
+                <div className={styles.msgTypingRow}>
+                  <input
+                    type="text"
+                    className={styles.msgInput}
+                    placeholder="Type a message…"
+                    value={msgDraft}
+                    onChange={(e) => setMsgDraft(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSendMessage(); } }}
+                    disabled={msgSending}
+                    aria-label="Message input"
+                  />
+                  <button
+                    className={styles.msgSendBtn}
+                    onClick={handleSendMessage}
+                    disabled={msgSending || !msgDraft.trim()}
+                    aria-label="Send message"
+                    title="Send"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="22" y1="2" x2="11" y2="13"></line>
+                      <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                    </svg>
+                  </button>
                 </div>
               </div>
             )}
