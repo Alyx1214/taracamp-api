@@ -72,6 +72,11 @@ r.post('/add-user', asyncHandler(async (req, res) => {
   res.status(response.status).json(response);
 }));
 
+r.post('/delete-user/:id', asyncHandler(async (req, res) => {
+  const response = await userModule.deleteUser(dbHelper, req.params.id, req.user);
+  res.status(response.status).json(response);
+}));
+
 r.post('/logout', asyncHandler(async (req, res) => {
   const { userId, jti } = req.user || {};
   const response = await userModule.logout(userId, jti);

@@ -16,3 +16,12 @@ export function getUsersByRole(role) {
 export function searchUsers(query = {}) {
   return apiGet('/user/search-users', query);
 }
+
+export function addUser({ name, email, role, password }) {
+  return apiPost('/user/add-user', { name, email, role, password });
+}
+
+export function deleteUser(userId) {
+  if (!userId) throw new Error('userId is required');
+  return apiPost(`/user/delete-user/${encodeURIComponent(userId)}`);
+}

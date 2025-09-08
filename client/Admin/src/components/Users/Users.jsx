@@ -4,7 +4,7 @@ import SearchFil from "../SearchFil/SearchFil.jsx";
 import UsersHeader from "./UsersHeader.jsx";
 import styles from "./Users.module.css";
 import Pagination from "../Pagination/Pagination.jsx";
-import { searchUsers } from "../../apis/userApi";
+import { searchUsers, deleteUser } from "../../apis/userApi";
 
 
 export default function Users() {
@@ -79,6 +79,18 @@ export default function Users() {
 
   const columns = ["ID", "Name", "Email", "Last Logged In", "Role", "Actions"];
 
+  async function handleDelete(row) {
+    if (!row?.id) return;
+    const confirmed = window.confirm(`Delete user ${row.name || row.id}?`);
+    if (!confirmed) return;
+    try {
+      await deleteUser(row.id);
+      setRawUsers(prev => Array.isArray(prev) ? prev.filter(u => (u?._id || u?.id) !== row.id) : prev);
+    } catch (e) {
+      alert(e?.data?.error || e?.message || 'Failed to delete user');
+    }
+  }
+
   return (
     <div className={styles["users-container"]}>
       <UsersHeader />
@@ -117,7 +129,7 @@ export default function Users() {
                 <button className={styles.editBtn}>Edit</button>
               )}
               renderMenu={(row) => [
-                { label: "Delete", onClick: () => alert(`Deleting ${row.name}`) },
+                { label: "Delete", onClick: () => handleDelete(row) },
                 { label: "View", onClick: () => alert(`Viewing ${row.name}`) },
               ]}
             />

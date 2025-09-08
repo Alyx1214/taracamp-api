@@ -1,5 +1,3 @@
-// api.js — minimal fixes to match main.js
-
 const API_BASE ='https://taracamp-api.onrender.com';
 const API_V1_PREFIX = '/api/v1';
 const ACCESS_KEY = 'accessToken';

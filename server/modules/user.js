@@ -413,7 +413,7 @@ const userModule = {
     },
 
     /**
-     * Adds a new user 
+     * Adds a new user
      * @param {Object} dbHelper - The database helper for database operations.
      * @param {Object} data - The data object containing the user details.
      * @param {Object} user - The user object containing the user ID and role.
@@ -425,7 +425,7 @@ const userModule = {
             error: 'Error adding user',
         };
         try {
-            const { name, email, role, password } = data;
+            const { name, email, role, password, } = data;
             if (!isPresent(name) || !isPresent(email) || !isPresent(role) || !isPresent(password)) {
                 responseData.status = Status.BAD_REQUEST;
                 responseData.error = 'Missing required fields';
@@ -473,13 +473,13 @@ const userModule = {
             data.password = hashedPassword;
 
             await dbHelper.create('user', {
-                    name,
-                    email,
-                    role,
-                    password: hashedPassword,
-                    createdAt: Date.now(),
-                    lastLoggedIn: Date.now(),
-                }
+                name,
+                email,
+                role,
+                password: hashedPassword,
+                createdAt: Date.now(),
+                lastLoggedIn: Date.now(),
+            }
             );
             responseData.status = Status.OK;
             responseData.error = null;
@@ -561,6 +561,8 @@ const userModule = {
                 return responseData;
             }
 
+            7;
+
             const dbQuery = buildUserSearchQuery(query || {});
             const limit = clampLimit(query?.limit, 20);
             const skip  = clampSkip(query?.skip, 0);
@@ -576,6 +578,48 @@ const userModule = {
             console.error('Error searching users:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
             responseData.error = 'Error searching users';
+        }
+        return responseData;
+    },
+
+    /**
+     * Delete a user
+     * @param {Object} dbHelper - The database helper for database operations.
+     * @param {string} userId - The ID of the user to delete.
+     * @param {Object} user - The user object containing the user ID and role.
+     * @returns {Object} Response data with status, error, and an array of users on success.
+     */
+    deleteUser: async (dbHelper, userId, user) => {
+        const responseData = {
+            status: Status.INTERNAL_SERVER_ERROR,
+            error: 'Error deleting user',
+        };
+        try {
+            if (!user) {
+                responseData.status = Status.UNAUTHORIZED;
+                responseData.error = 'User not logged in';
+                return responseData;
+            }
+            if (user.role !== UserRole.SUPERINTENDENT) {
+                responseData.status = Status.UNAUTHORIZED;
+                responseData.error = 'You are not authorized to perform this action';
+                return responseData;
+            }
+
+            if (!userId) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Missing user ID';
+                return responseData;
+            }
+
+            await dbHelper.deleteOne('user', { _id: userId, });
+            responseData.status = Status.OK;
+            responseData.error = null;
+            responseData.message = 'User deleted successfully';
+        } catch (error) {
+            console.error('Error deleting user:', error);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Error deleting user';
         }
         return responseData;
     },
@@ -953,7 +997,7 @@ function parseRangeUTC(s) {
     if (!m) return null;
     const a = parseIsoYmdUTC(m[1]), b = parseIsoYmdUTC(m[2]);
     if (!a || !b) return null;
-    return [a[0], b[1],]; 
+    return [a[0], b[1],];
 }
 
 const MONTHS = {
@@ -964,10 +1008,16 @@ const MONTHS = {
 function buildUserSearchQuery(query = {}) {
     const andConds = [];
     const normRole = normalizeRole(query.role);
-    if (normRole) {
-        andConds.push({ role: normRole, });
+    const hasRoleParam = Object.prototype.hasOwnProperty.call(query, 'role');
+
+    if (hasRoleParam) {
+        if (normRole) {
+            andConds.push({ role: normRole, });
+        } else {
+            return { role: '__NO_MATCH__', };
+        }
     } else {
-        andConds.push({ role: { $nin: [UserRole.GUEST, UserRole.CRMSTEAM], }, });
+        andConds.push({ role: { $nin: [UserRole.GUEST, UserRole.CRMSTEAM,], }, });
     }
 
     if (query.email) {
