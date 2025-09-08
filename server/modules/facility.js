@@ -206,7 +206,7 @@ const facilityModule = {
                 return responseData;
             }
 
-            const facilityObject = facility.toObject;
+            const facilityObject = facility.toObject();
             delete facilityObject.__v;
             delete facilityObject.createdAt;
             facilityObject.name = toTitleCase(String(facilityObject.name || ''));
