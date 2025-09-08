@@ -49,6 +49,15 @@ export default function Users() {
         query.limit = query.limit ?? 100;
         query.sort = query.sort ?? "createdAt:desc";
 
+        // Compatibility: older API returns [] when no filters are provided.
+        // Ensure we include a minimal filter in the All tab to fetch records.
+        const hasAnyFilter = [
+          'email','name','role','id','createdFrom','createdTo','lastLoggedFrom','lastLoggedTo','search'
+        ].some((k) => Boolean(query[k]));
+        if (activeTab === 'ALL' && !hasAnyFilter) {
+          query.createdFrom = '1970-01-01';
+        }
+
         const res = await searchUsers(query);
         const arr = Array.isArray(res?.users) ? res.users : [];
         if (!cancelled) setRawUsers(arr);
@@ -73,8 +82,10 @@ export default function Users() {
   }, [rawUsers]);
 
   const filteredData = useMemo(() => {
-    const EXCLUDED = new Set(["GUEST", "CRMS TEAM"]);
-    return mappedUsers.filter(u => !EXCLUDED.has(String(u.role || "")));
+    // Exclude GUEST and CRMS/CRMSTEAM roles globally from All/results
+    const role = (u) => String(u.role || "").toUpperCase();
+    const EXCLUDED = new Set(["GUEST", "CRMS TEAM", "CRMSTEAM"]);
+    return mappedUsers.filter(u => !EXCLUDED.has(role(u)));
   }, [mappedUsers]);
 
   const columns = ["ID", "Name", "Email", "Last Logged In", "Role", "Actions"];

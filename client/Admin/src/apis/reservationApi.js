@@ -9,7 +9,12 @@ export function getAllReservationsByStatus(status) {
 }
 
 export function searchReservations(params = {}) {
-  return apiGet('/reservation/search-reservations', params);
+  const p = { ...params };
+  if (p.search && !p.query) {
+    p.query = p.search;
+    delete p.search;
+  }
+  return apiGet('/reservation/search-reservations', p);
 }
 
 export function estimateAmount({ facility, adults, children, pwds, serviceType }) {
@@ -59,4 +64,8 @@ export function decideReservation(id, decisionOrPayload = {}) {
     ? { status: decisionOrPayload }
     : decisionOrPayload;
   return apiPost(`/reservation/accept-or-decline-reservation/${id}`, body);
+}
+
+export function checkInOrCheckOutReservation(id, status) {
+  return apiPost(`/reservation/checkin-or-checkout-reservation/${id}`, { status });
 }

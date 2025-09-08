@@ -77,6 +77,12 @@ export default function buildReservationRouter(userSocketMap) {
     res.status(response.status).json(response);
   }));
 
+  r.post('/checkin-or-checkout-reservation/:id', asyncHandler(async (req, res) => {
+    const { status } = req.body;
+    const response = await reservationModule.checkInOrCheckOutReservation(dbHelper, req.params.id, status, req.user);
+    res.status(response.status).json(response);
+  }));
+
   r.post('/delete-reservation/:id', asyncHandler(async (req, res) => {
     const response = await reservationModule.deleteReservation(dbHelper, req.params.id, req.user);
     res.status(response.status).json(response);

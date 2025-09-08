@@ -43,8 +43,8 @@ export const ReservationStatus = {
     CONFIRMED: 'CONFIRMED',
     DECLINED: 'DECLINED',
     CANCELLED: 'CANCELLED',
-    CHECKIN: 'CHECK-IN',
-    CHECKOUT: 'CHECK-OUT',
+    CHECKED_IN: 'CHECK-IN',
+    CHECKED_OUT: 'CHECK-OUT',
 };
 
 export const FacilityType = {
