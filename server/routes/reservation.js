@@ -50,16 +50,30 @@ export default function buildReservationRouter(userSocketMap) {
     res.status(response.status).json(response);
   }));
 
-  r.post('/create-reservation', uploadLetter, asyncHandler(async (req, res) => {
-    const response = await reservationModule.addReservation(
-      dbHelper,
-      { ...req.body, ...req.query },
-      req.file,
-      req.user,
-      userSocketMap
-    );
+r.post('/reservations', asyncHandler(async (req, res) => {
+    const data = { ...req.body, ...req.query };
+    const file = req.file;           
+    const response = await reservationModule.addReservation(dbHelper, data, file, req.user);
     res.status(response.status).json(response);
-  }));
+
+    if (response.status === 201 && response.reservationId) {
+      const userSocketMap = req.app.get('userSocketMap'); 
+      notificationModule
+        .createAndNotifyUser(
+          dbHelper,
+          {
+            title: 'Reservation submitted',
+            message:
+              "We received your reservation. You'll get another update once it’s reviewed.",
+            userId: req.user.userId,                
+            reservationId: response.reservationId,
+          },
+          userSocketMap
+        )
+        .catch(err => console.warn('Notify failed:', err?.message));
+    }
+  })
+);
 
   r.post('/cancel-booking/:id', asyncHandler(async (req, res) => {
     const response = await reservationModule.cancelBooking(dbHelper, req.params.id, req.user);

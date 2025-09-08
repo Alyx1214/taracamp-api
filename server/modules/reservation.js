@@ -19,7 +19,7 @@ const reservationModule = {
      * @param {Object} userSocketMap - The map of user sockets.
      * @return {Promise<Object>} A promise that resolves to an object with the status, error, message, reservationId, and reservation properties.
      */
-    addReservation: async (dbHelper, data, file, user, userSocketMap) => {
+    addReservation: async (dbHelper, data, file, user) => {
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
             error: 'Error on booking reservation',
@@ -313,13 +313,6 @@ const reservationModule = {
                     console.warn('Failed to backfill reservationId on LOI file:', e?.message);
                 }
             }
-
-            await notificationModule.createAndNotifyUser(dbHelper, {
-                title: 'Congratulations, Camper! Confirmation Successful — your reservation is now confirmed. We can\'t wait to welcome you!',
-                message: 'Thank you for choosing Teachers\' Camp! Your reservation has been confirmed. We\'re excited to welcome you and ensure you have a comfortable and memorable stay.',
-                userId: user.userId,
-                reservationId: reservation._id,
-            }, userSocketMap);
 
             const reservationObject = reservation.toObject();
             delete reservationObject.letterOfIntentUrl;
