@@ -38,7 +38,7 @@ export default function Confirmed({ searchQuery = "" }) {
         if (String(searchQuery || '').trim()) {
           // Use search API then filter for status on client
           const s = String(searchQuery || '').trim();
-          res = await searchReservations({ search: s });
+          res = await searchReservations({ query: s });
           res.reservations = (res?.reservations || []).filter(r => r.status === 'CONFIRMED');
         } else {
           res = await getAllReservationsByStatus("CONFIRMED");

@@ -89,6 +89,7 @@ const dbHelper = {
                 otherRequests: { type: String, required: false, },
                 createdAt: { type: Date, default: Date.now, },
                 userId: { type: mongoose.Schema.Types.ObjectId, ref: 'user', required: false, index: true },
+                reservationCode: { type: String, required: true, unique: true, index: true },
             });
 
             const FacilitySchema = new mongoose.Schema({

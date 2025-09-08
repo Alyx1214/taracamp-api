@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { addUser } from "../../apis/userApi";
 import styles from "./AddUsersForm.module.css";
 
 
@@ -8,7 +9,7 @@ export default function AddUserForm({ onAddUser }) {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
-    role: "Staff",
+    role: "STAFF", 
     password: "",
   });
 
@@ -22,16 +23,26 @@ export default function AddUserForm({ onAddUser }) {
   };
 
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.name || !formData.email || !formData.password) {
       alert("Please fill out all required fields.");
       return;
     }
 
-
-    onAddUser?.(formData);
-    navigate("/users");
+    try {
+      await addUser({
+        name: formData.name,
+        email: formData.email,
+        role: formData.role, 
+        password: formData.password,
+      });
+      alert("User added successfully.");
+      navigate("/user");
+    } catch (err) {
+      const msg = err?.data?.error || err?.message || "Failed to add user";
+      alert(msg);
+    }
   };
 
 
@@ -80,10 +91,10 @@ export default function AddUserForm({ onAddUser }) {
             onChange={handleChange}
             className={styles["add-user-select"]}
           >
-            <option value="Admin">Admin</option>
-            <option value="Front Desk">Front Desk</option>
-            <option value="Superintendent">Superintendent</option>
-            <option value="Staff">Staff</option>
+            <option value="SUPERINTENDENT">Superintendent</option>
+            <option value="FRONTDESK">Front Desk</option>
+            <option value="ACCOUNTING">Accounting</option>
+            <option value="STAFF">Staff</option>
           </select>
         </div>
 

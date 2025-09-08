@@ -413,6 +413,87 @@ const userModule = {
     },
 
     /**
+     * Adds a new user
+     * @param {Object} dbHelper - The database helper for database operations.
+     * @param {Object} data - The data object containing the user details.
+     * @param {Object} user - The user object containing the user ID and role.
+     * @returns {Object} Response data with status, error, and a message on success.
+     */
+    addUser: async (dbHelper, data, user) => {
+        const responseData = {
+            status: Status.INTERNAL_SERVER_ERROR,
+            error: 'Error adding user',
+        };
+        try {
+            const { name, email, role, password, } = data;
+            if (!isPresent(name) || !isPresent(email) || !isPresent(role) || !isPresent(password)) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Missing required fields';
+                return responseData;
+            }
+
+            if (user.role !== UserRole.SUPERINTENDENT) {
+                responseData.status = Status.FORBIDDEN;
+                responseData.error = 'Only superintendent can add a user';
+                return responseData;
+            }
+
+            if (!isValidName(name)) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Invalid name';
+                return responseData;
+            }
+
+            if (!isValidEmail(email.toLowerCase())) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Invalid email address';
+                return responseData;
+            }
+
+            const emailOwner = await dbHelper.findOne('user', { email, });
+            if (emailOwner) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Email already exists';
+                return responseData;
+            }
+
+            if (!isValidRole(role)) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Invalid role';
+                return responseData;
+            }
+
+            if (!isValidPassword(password)) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Invalid password';
+                return responseData;
+            }
+
+            const hashedPassword = await bcrypt.hash(password, 10);
+            data.password = hashedPassword;
+
+            await dbHelper.create('user', {
+                name,
+                email,
+                role,
+                password: hashedPassword,
+                createdAt: Date.now(),
+                lastLoggedIn: Date.now(),
+            }
+            );
+            responseData.status = Status.OK;
+            responseData.error = null;
+            responseData.message = 'User added successfully';
+            return responseData;
+        } catch (error) {
+            console.error('Error adding user:', error);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Error adding user';
+            return responseData;
+        }
+    },
+
+    /**
      * Get all users by role.
      * @param {Object} dbHelper - The database helper for database operations.
      * @param {string} role - The role of the users to retrieve.
@@ -462,12 +543,171 @@ const userModule = {
      * @param {Object} user - The user object containing the user ID and role.
      * @returns {Object} Response data with status, error, and an array of users on success.
      */
-    searchUsers: async (dbHelper, query, user) => {
+    searchUsers: async (dbHelper, query = {}, user) => {
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
             error: 'Error searching users',
+            users: [],
         };
 
+        try {
+            if (!user) {
+                responseData.status = Status.UNAUTHORIZED;
+                responseData.error = 'User not logged in';
+                return responseData;
+            }
+            if (user.role !== UserRole.SUPERINTENDENT) {
+                responseData.status = Status.UNAUTHORIZED; 
+                responseData.error = 'You are not authorized to perform this action';
+                return responseData;
+            }
+
+            const {
+                email,
+                name,
+                role,
+                id,
+                search,               
+                createdFrom,
+                createdTo,
+                lastLoggedFrom,
+                lastLoggedTo,
+                limit,
+                skip,
+                sort,
+            } = query || {};
+
+            const filter = {};
+            const andConds = [];
+
+            if (typeof email === 'string' && email.trim()) {
+                filter.email = new RegExp(escapeRegex(email.trim()), 'i');
+            }
+            if (typeof name === 'string' && name.trim()) {
+                filter.name = new RegExp(escapeRegex(name.trim()), 'i');
+            }
+            if (typeof role === 'string' && role.trim()) {
+                const norm = normalizeRole(role);
+                if (!norm) {
+                    responseData.status = Status.OK;
+                    responseData.error = null;
+                    responseData.users = [];
+                    return responseData;
+                }
+                filter.role = norm;
+            }
+
+            if (typeof id === 'string' && id.trim()) {
+                const idStr = id.trim();
+                if (/^[0-9a-fA-F]{24}$/.test(idStr)) {
+                    filter._id = idStr;
+                } else if (/^[0-9a-fA-F]{3,}$/.test(idStr)) {
+                    andConds.push({
+                        $expr: { $regexMatch: { input: { $toString: '$_id', }, regex: idStr, options: 'i', }, },
+                    });
+                } else {
+                    responseData.status = Status.OK;
+                    responseData.error = null;
+                    responseData.users = [];
+                    return responseData;
+                }
+            }
+
+            const createdCond = {};
+            if (typeof createdFrom === 'string' && createdFrom.trim()) {
+                const d = new Date(createdFrom);
+                if (!Number.isNaN(d.getTime())) createdCond.$gte = d;
+            }
+            if (typeof createdTo === 'string' && createdTo.trim()) {
+                const d = new Date(createdTo);
+                if (!Number.isNaN(d.getTime())) createdCond.$lt = d;
+            }
+            if (Object.keys(createdCond).length) andConds.push({ createdAt: createdCond, });
+
+            const lastCond = {};
+            if (typeof lastLoggedFrom === 'string' && lastLoggedFrom.trim()) {
+                const d = new Date(lastLoggedFrom);
+                if (!Number.isNaN(d.getTime())) lastCond.$gte = d;
+            }
+            if (typeof lastLoggedTo === 'string' && lastLoggedTo.trim()) {
+                const d = new Date(lastLoggedTo);
+                if (!Number.isNaN(d.getTime())) lastCond.$lt = d;
+            }
+            if (Object.keys(lastCond).length) andConds.push({ lastLoggedIn: lastCond, });
+
+            if (typeof search === 'string' && search.trim()) {
+                const s = search.trim();
+                const safe = escapeRegex(s);
+                const or = [
+                    { name: { $regex: safe, $options: 'i', }, },
+                    { email: { $regex: safe, $options: 'i', }, },
+                    { role: { $regex: safe, $options: 'i', }, },
+                ];
+                if (/^[0-9a-fA-F]{24}$/.test(s)) {
+                    or.push({ _id: s, });
+                } else if (/^[0-9a-fA-F]{3,}$/.test(s)) {
+                    or.push({
+                        $expr: {
+                            $regexMatch: {
+                                input: { $toString: '$_id' },
+                                regex: s,
+                                options: 'i',
+                            },
+                        },
+                    });
+                }
+                andConds.push({ $or: or, });
+            }
+
+            let finalQuery = filter;
+            if (andConds.length) {
+                if (Object.keys(filter).length) {
+                    finalQuery = { $and: [filter, ...andConds,], };
+                } else {
+                    finalQuery = { $and: andConds, };
+                }
+            }
+
+            if (!Object.keys(finalQuery).length) {
+                responseData.status = Status.OK;
+                responseData.error = null;
+                responseData.users = [];
+                return responseData;
+            }
+
+            const projection = { password: 0, resetTokenHash: 0, verificationCodeHash: 0, };
+            const sortOpt = parseSort(sort) || { createdAt: -1, };
+            const users = await dbHelper.findMany('user', finalQuery, {
+                projection,
+                sort: sortOpt,
+                limit: clampLimit(limit, 20),
+                skip: clampSkip(skip, 0),
+            });
+
+            responseData.status = Status.OK;
+            responseData.error = null;
+            responseData.users = users;
+            return responseData;
+        } catch (error) {
+            console.error('Error searching users:', error);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Error searching users';
+            return responseData;
+        }
+    },
+
+    /**
+     * Delete a user
+     * @param {Object} dbHelper - The database helper for database operations.
+     * @param {string} userId - The ID of the user to delete.
+     * @param {Object} user - The user object containing the user ID and role.
+     * @returns {Object} Response data with status, error, and an array of users on success.
+     */
+    deleteUser: async (dbHelper, userId, user) => {
+        const responseData = {
+            status: Status.INTERNAL_SERVER_ERROR,
+            error: 'Error deleting user',
+        };
         try {
             if (!user) {
                 responseData.status = Status.UNAUTHORIZED;
@@ -480,21 +720,20 @@ const userModule = {
                 return responseData;
             }
 
-            const dbQuery = buildUserSearchQuery(query || {});
-            const limit = clampLimit(query?.limit, 20);
-            const skip  = clampSkip(query?.skip, 0);
-            const sort  = parseSort(query?.sort) || { createdAt: -1, };
+            if (!userId) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Missing user ID';
+                return responseData;
+            }
 
-            const projection = { password: 0, resetTokenHash: 0, verificationCodeHash: 0, };
-
-            const users = await dbHelper.findMany('user', dbQuery, { projection, sort, limit, skip, });
+            await dbHelper.deleteOne('user', { _id: userId, });
             responseData.status = Status.OK;
             responseData.error = null;
-            responseData.users = users;
+            responseData.message = 'User deleted successfully';
         } catch (error) {
-            console.error('Error searching users:', error);
+            console.error('Error deleting user:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
-            responseData.error = 'Error searching users';
+            responseData.error = 'Error deleting user';
         }
         return responseData;
     },
@@ -847,144 +1086,6 @@ function parseSort(s) {
         out[f] = String(dir || 'asc').toLowerCase() === 'desc' ? -1 : 1;
     }
     return Object.keys(out).length ? out : null;
-}
-
-function parseIsoYmdUTC(s) {
-    const m = String(s).trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    if (!m) return null;
-    const y = +m[1], mo = +m[2] - 1, d = +m[3];
-    const start = new Date(Date.UTC(y, mo, d, 0, 0, 0));
-    const end   = new Date(Date.UTC(y, mo, d + 1, 0, 0, 0));
-    return [start, end,];
-}
-
-function parseLooseDateUTC(s) {
-    const d = new Date(s);
-    if (Number.isNaN(d.getTime())) return null;
-    const y = d.getUTCFullYear(), mo = d.getUTCMonth(), day = d.getUTCDate();
-    const start = new Date(Date.UTC(y, mo, day, 0, 0, 0));
-    const end   = new Date(Date.UTC(y, mo, day + 1, 0, 0, 0));
-    return [start, end,];
-}
-
-function parseRangeUTC(s) {
-    const m = String(s).trim().match(/^(\d{4}-\d{2}-\d{2})\s*(?:to|-)\s*(\d{4}-\d{2}-\d{2})$/i);
-    if (!m) return null;
-    const a = parseIsoYmdUTC(m[1]), b = parseIsoYmdUTC(m[2]);
-    if (!a || !b) return null;
-    return [a[0], b[1],]; 
-}
-
-const MONTHS = {
-    january: 1, february: 2, march: 3, april: 4, may: 5, june: 6,
-    july: 7, august: 8, september: 9, sept: 9, october: 10, november: 11, december: 12,
-};
-
-function buildUserSearchQuery(query = {}) {
-    const andConds = [];
-    const normRole = normalizeRole(query.role);
-    if (normRole) {
-        andConds.push({ role: normRole, });
-    } else {
-        andConds.push({ role: { $nin: [UserRole.GUEST, UserRole.CRMSTEAM], }, });
-    }
-
-    if (query.email) {
-        const e = String(query.email).trim();
-        if (e) andConds.push({ email: { $regex: escapeRegex(e), $options: 'i', }, });
-    }
-
-    if (query.name) {
-        const n = String(query.name).trim();
-        if (n) andConds.push({ name: { $regex: escapeRegex(n), $options: 'i', }, });
-    }
-
-    if (query.id) {
-        const idStr = String(query.id).trim();
-        const isHex = /^[0-9a-fA-F]+$/.test(idStr);
-        if (idStr.length === 24 && isHex) {
-            andConds.push({ _id: idStr, });
-        } else if (isHex && idStr.length >= 3) {
-            andConds.push({
-                $expr: { $regexMatch: { input: { $toString: '$_id', }, regex: idStr, options: 'i', }, },
-            });
-        }
-    }
-
-    if (query.createdFrom || query.createdTo) {
-        const gte = query.createdFrom ? new Date(query.createdFrom) : null;
-        const lt  = query.createdTo   ? new Date(query.createdTo)   : null;
-        const cond = {};
-        if (!Number.isNaN(gte?.getTime())) cond.$gte = gte;
-        if (!Number.isNaN(lt?.getTime()))  cond.$lt  = lt;
-        if (Object.keys(cond).length) andConds.push({ createdAt: cond, });
-    }
-
-    if (query.lastLoggedFrom || query.lastLoggedTo) {
-        const gte = query.lastLoggedFrom ? new Date(query.lastLoggedFrom) : null;
-        const lt  = query.lastLoggedTo   ? new Date(query.lastLoggedTo)   : null;
-        const cond = {};
-        if (!Number.isNaN(gte?.getTime())) cond.$gte = gte;
-        if (!Number.isNaN(lt?.getTime()))  cond.$lt  = lt;
-        if (Object.keys(cond).length) andConds.push({ lastLoggedIn: cond, });
-    }
-
-    if (query.search) {
-        const s = String(query.search).trim();
-        if (s) {
-            const orConds = [
-                { name: { $regex: escapeRegex(s), $options: 'i', }, },
-                { email: { $regex: escapeRegex(s), $options: 'i', }, },
-                { role: { $regex: escapeRegex(s), $options: 'i', }, },
-            ];
-
-            if (/^[0-9a-fA-F]{24}$/.test(s)) {
-                orConds.push({ _id: s, });
-            } else if (/^[0-9a-fA-F]{3,}$/.test(s)) {
-                orConds.push({
-                    $expr: { $regexMatch: { input: { $toString: '$_id', }, regex: s, options: 'i', }, },
-                });
-            }
-
-            const range = parseRangeUTC(s);
-            if (range) {
-                const [start, end,] = range;
-                orConds.push(
-                    { createdAt: { $gte: start, $lt: end, }, },
-                    { lastLoggedIn: { $gte: start, $lt: end, }, }
-                );
-            } else {
-                const day = parseIsoYmdUTC(s) || parseLooseDateUTC(s);
-                if (day) {
-                    const [start, end,] = day;
-                    orConds.push(
-                        { createdAt: { $gte: start, $lt: end, }, },
-                        { lastLoggedIn: { $gte: start, $lt: end, }, }
-                    );
-                }
-            }
-
-            const m = MONTHS[s.toLowerCase()];
-            if (m) {
-                orConds.push(
-                    { $expr: { $eq: [{ $month: '$createdAt', }, m,], }, },
-                    { $expr: { $eq: [{ $month: '$lastLoggedIn', }, m,], }, }
-                );
-            }
-
-            if (/^\d{4}$/.test(s)) {
-                const y = Number(s);
-                orConds.push(
-                    { $expr: { $eq: [{ $year: '$createdAt', }, y,], }, },
-                    { $expr: { $eq: [{ $year: '$lastLoggedIn', }, y,], }, }
-                );
-            }
-
-            andConds.push({ $or: orConds, });
-        }
-    }
-
-    return andConds.length ? { $and: andConds, } : {};
 }
 
 function isValidRole(role) {

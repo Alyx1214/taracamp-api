@@ -32,6 +32,7 @@ r.post('/facebook-login', asyncHandler(async (req, res) => {
   res.status(response.status).json(response);
 }));
 
+
 r.post('/send-password-reset-verification-code', asyncHandler(async (req, res) => {
   const response = await userModule.sendPasswordResetVerificationCode(dbHelper, emailModule, req.body);
   res.status(response.status).json(response);
@@ -63,6 +64,16 @@ r.get('/get-all-users-by-role/:role', asyncHandler(async (req, res) => {
 
 r.get('/search-users', asyncHandler(async (req, res) => {
   const response = await userModule.searchUsers(dbHelper, req.query, req.user);
+  res.status(response.status).json(response);
+}));
+
+r.post('/add-user', asyncHandler(async (req, res) => {
+  const response = await userModule.addUser(dbHelper, req.body, req.user);
+  res.status(response.status).json(response);
+}));
+
+r.post('/delete-user/:id', asyncHandler(async (req, res) => {
+  const response = await userModule.deleteUser(dbHelper, req.params.id, req.user);
   res.status(response.status).json(response);
 }));
 

@@ -37,7 +37,7 @@ export default function Declined({ searchQuery = "" }) {
         let res;
         if (String(searchQuery || '').trim()) {
           const s = String(searchQuery || '').trim();
-          res = await searchReservations({ search: s });
+          res = await searchReservations({ query: s });
           res.reservations = (res?.reservations || []).filter(r => r.status === 'DECLINED');
         } else {
           res = await getAllReservationsByStatus("DECLINED");

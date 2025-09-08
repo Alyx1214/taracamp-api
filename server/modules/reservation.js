@@ -6,6 +6,8 @@ dotenv.config();
 
 const storage = new Storage();
 const bucket = storage.bucket(process.env.BUCKET_NAME);
+const APP_TZ_OFFSET = '+08:00'; 
+const TZ = 'Asia/Manila';
 
 const reservationModule = {
     /**
@@ -602,7 +604,7 @@ const reservationModule = {
             );
 
             const list = (raw || []).map((r) => (typeof r.toObject === 'function' ? r.toObject() : r));
-            const userIds = toValidObjectIdStrings(list.map(r => r.userId));
+            const userIds = toValidObjectIdStrings(list.map((r) => r.userId));
 
             let emailById = new Map();
             if (userIds.length) {
@@ -634,14 +636,15 @@ const reservationModule = {
     /**
      * Searches for reservations based on the provided query object.
      * @param {Object} dbHelper - The database helper for database operations.
-     * @param {Object} query - The search and filter object.
+     * @param {Object} options - Additional options for the search.
      * @param {Object} user - The user object containing the user ID and role.
      * @returns {Object} Response data with status, error, and an array of reservations on success.
      */
-    searchReservations: async (dbHelper, query, user) => {
+    searchReservations: async (dbHelper, options = {}, user) => {
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
             error: 'Error searching reservations',
+            reservations: [],
         };
 
         try {
@@ -650,24 +653,153 @@ const reservationModule = {
                 responseData.error = 'User not logged in';
                 return responseData;
             }
-
             if (user.role === UserRole.GUEST) {
                 responseData.status = Status.FORBIDDEN;
                 responseData.error = 'You are not authorized to perform this action';
                 return responseData;
             }
 
-            const dbQuery = buildReservationSearchQuery(query || {});
+            const {
+                guestName,
+                guestEmail,
+                accountEmail,
+                status,
+                serviceType,
+                facility,
+                query,
+                start,
+                end,
+                limit,
+                skip,
+                sort,
+            } = options || {};
 
-            const raw = await dbHelper.findMany(
+            const filter = {};
+
+            if (isPresent(guestName)) {
+                filter.guestName = new RegExp(escapeRegex(String(guestName).trim()), 'i');
+            }
+
+            if (isPresent(guestEmail)) {
+                filter.guestEmail = new RegExp(escapeRegex(String(guestEmail).trim()), 'i');
+            }
+
+            if (isPresent(accountEmail)) {
+                const users = await dbHelper.findMany(
+                    'user',
+                    { email: new RegExp(escapeRegex(String(accountEmail).trim()), 'i'), },
+                    { projection: { _id: 1, }, }
+                );
+                const ids = (users || []).map((u) => String(u._id));
+                if (ids.length) {
+                    filter.userId = { $in: ids, };
+                } else {
+                    responseData.status = Status.OK;
+                    responseData.error = null;
+                    responseData.reservations = [];
+                    return responseData;
+                }
+            }
+
+            if (isPresent(status) && isValidReservationStatus(status)) {
+                filter.status = status;
+            }
+
+            if (isPresent(serviceType)) {
+                filter.serviceType = serviceType;
+            }
+
+            if (isPresent(facility)) {
+                filter.facility = facility;
+            }
+
+            if (isPresent(query)) {
+                const q = String(query).trim();
+                const safe = escapeRegex(q);
+                const or = [
+                    { guestName: { $regex: safe, $options: 'i', }, },
+                    { guestEmail: { $regex: safe, $options: 'i', }, },
+                    { referenceNumber: { $regex: safe, $options: 'i', }, },
+                    { telephone: { $regex: safe, $options: 'i', }, },
+                    { serviceType: { $regex: safe, $options: 'i', }, },
+                    { status: { $regex: safe, $options: 'i', }, },
+                ];
+
+                if (/^[0-9a-fA-F]{24}$/.test(q)) {
+                    or.push({ _id: q, });
+                } else if (/^[0-9a-fA-F]{3,}$/.test(q)) {
+                    or.push({
+                        $expr: {
+                            $regexMatch: {
+                                input: { $toString: '$_id' },
+                                regex: q,
+                                options: 'i',
+                            },
+                        },
+                    });
+                }
+
+                filter.$or = or;
+            }
+
+            if (isPresent(start) && isPresent(end) && isValidDate(start) && isValidDate(end)) {
+            const sYMD = String(start).split('T')[0].split(' ')[0];
+            const eYMD = String(end).split('T')[0].split(' ')[0];
+            filter.$and = (filter.$and || []).concat([
+                {
+                $expr: {
+                    $and: [
+                    {
+                        $lte: [
+                        {
+                            $cond: [
+                            { $eq: [ { $type: "$dateOfArrival" }, "string" ] },
+                            { $dateFromString: { dateString: "$dateOfArrival", timezone: TZ } },
+                            { $dateTrunc: { date: "$dateOfArrival", unit: "day", timezone: TZ } }
+                            ]
+                        },
+                        { $dateFromString: { dateString: eYMD, timezone: TZ } }
+                        ]
+                    },
+                    {
+                        $gte: [
+                        {
+                            $cond: [
+                            { $eq: [ { $type: "$dateOfDeparture" }, "string" ] },
+                            { $dateFromString: { dateString: "$dateOfDeparture", timezone: TZ } },
+                            { $dateTrunc: { date: "$dateOfDeparture", unit: "day", timezone: TZ } }
+                            ]
+                        },
+                        { $dateFromString: { dateString: sYMD, timezone: TZ } }
+                        ]
+                    }
+                    ]
+                }
+                }
+            ]);
+            }
+
+            if (Object.keys(filter).length === 0) {
+                responseData.status = Status.OK;
+                responseData.error = null;
+                responseData.reservations = [];
+                return responseData;
+            }
+
+            const sortOption = parseSort(sort) || { createdAt: -1, };
+            const docs = await dbHelper.findMany(
                 'reservation',
-                dbQuery,
-                { projection: { __v: 0, createdAt: 0, }, }
+                filter,
+                {
+                    projection: { __v: 0, createdAt: 0, },
+                    sort: sortOption,
+                    limit: clampLimit(limit),
+                    skip: clampSkip(skip),
+                }
             );
 
-            const list = (raw || []).map((r) => (typeof r.toObject === 'function' ? r.toObject() : r));
-            const userIds = toValidObjectIdStrings(list.map(r => r.userId));
-
+            const list = (docs || []).map((d) => (typeof d.toObject === 'function' ? d.toObject() : d));
+            const userIds = Array.from(new Set(list.map((r) => r.userId).filter(Boolean).map(String)));
             let emailById = new Map();
             if (userIds.length) {
                 const users = await dbHelper.findMany(
@@ -680,7 +812,7 @@ const reservationModule = {
 
             const withEmails = list.map((r) => ({
                 ...r,
-                guestEmail: r.guestEmail ?? emailById.get(String(r.userId)) ?? null,
+                guestEmail: r.guestEmail ?? (r.userId ? emailById.get(String(r.userId)) ?? null : null),
             }));
 
             responseData.status = Status.OK;
@@ -775,6 +907,95 @@ const reservationModule = {
     },
 
     /**
+     * Check in or check out a reservation by its ID.
+     * @param {Object} dbHelper - The database helper for database operations.
+     * @param {string} reservationId - The ID of the reservation to update.
+     * @param {string} status - The new status for the reservation.
+     * @param {Object} user - The user object containing the user ID and role.
+     * @returns {Object} Response data with status, error, message, and updated reservation on success.
+     */
+    checkInOrCheckOutReservation: async (dbHelper, reservationId, status, user) => {
+        const responseData = {
+            status: Status.INTERNAL_SERVER_ERROR,
+            error: 'Error checking in or checking out reservation',
+        };
+        try {
+            if (!user || !user.userId) {
+                responseData.status = Status.UNAUTHORIZED;
+                responseData.error = 'User not logged in';
+                return responseData;
+            }
+
+            if (![UserRole.SUPERINTENDENT, UserRole.FRONTDESK,].includes(user.role)) {
+                responseData.status = Status.FORBIDDEN;
+                responseData.error = 'You are not authorized to perform this action';
+                return responseData;
+            }
+
+            if (!reservationId) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Reservation ID is required';
+                return responseData;
+            }
+
+            if (!isValidReservationStatus(status)) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Invalid or missing status parameter';
+                return responseData;
+            }
+
+            const reservation = await dbHelper.findOne('reservation', { _id: reservationId, });
+            if (!reservation) {
+                responseData.status = Status.NOT_FOUND;
+                responseData.error = 'Reservation not found';
+                return responseData;
+            }
+
+            if (reservation.status === status) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = `Reservation is already ${String(status).toLowerCase()}`;
+                return responseData;
+            }
+
+            if (status === ReservationStatus.CHECKED_IN) {
+                if (reservation.status !== ReservationStatus.CONFIRMED) {
+                    responseData.status = Status.BAD_REQUEST;
+                    responseData.error = 'Only confirmed reservations can be checked in';
+                    return responseData;
+                }
+            }
+
+            if (status === ReservationStatus.CHECKED_OUT) {
+                if (reservation.status !== ReservationStatus.CHECKED_IN) {
+                    responseData.status = Status.BAD_REQUEST;
+                    responseData.error = 'Only checked-in reservations can be checked out';
+                    return responseData;
+                }
+            }
+
+            const updatedReservation = await dbHelper.findOneAndUpdate(
+                'reservation',
+                { _id: reservationId, },
+                { status: status, },
+                { new: true, }
+            );
+
+            responseData.status = Status.OK;
+            responseData.error = null;
+            responseData.message = 'Reservation status updated successfully';
+            responseData.reservation = {
+                _id: updatedReservation._id,
+                status: updatedReservation.status,
+            };
+        } catch (error) {
+            console.error('Error checking in or checking out reservation:', error);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Error checking in or checking out reservation';
+        }
+        return responseData;
+    },
+
+    /**
      * Deletes a reservation by its ID.
      * @param {Object} dbHelper - The database helper for database operations.
      * @param {string} reservationId - The ID of the reservation to delete.
@@ -810,6 +1031,12 @@ const reservationModule = {
             if (!reservation) {
                 responseData.status = Status.NOT_FOUND;
                 responseData.error = 'Reservation not found';
+                return responseData;
+            }
+
+            if (reservation.status !== ReservationStatus.CANCELLED || reservation.status !== ReservationStatus.CHECKED_OUT || reservation.status !== ReservationStatus.DECLINED) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Only cancelled, checked-out, and declined reservations can be deleted';
                 return responseData;
             }
 
@@ -1088,16 +1315,16 @@ function isValidPhone(number) {
 }
 
 function isValidObjectId(v) {
-  return v && /^[0-9a-fA-F]{24}$/.test(String(v));
+    return v && /^[0-9a-fA-F]{24}$/.test(String(v));
 }
 
 function toValidObjectIdStrings(values) {
-  return Array.from(new Set(
-    (values || [])
-      .map(v => v && (v._id ?? v))           
-      .filter(isValidObjectId)
-      .map(v => String(v))
-  ));
+    return Array.from(new Set(
+        (values || [])
+            .map((v) => v && (v._id ?? v))
+            .filter(isValidObjectId)
+            .map((v) => String(v))
+    ));
 }
 
 function isValidCategory(category) {
@@ -1116,6 +1343,10 @@ function isNonNegativeInteger(value) {
     return Number.isInteger(Number(value)) && Number(value) >= 0;
 }
 
+function escapeRegex(s) {
+    return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 function isValidDate(dateStr) {
     if (!dateStr) return false;
 
@@ -1126,6 +1357,20 @@ function isValidDate(dateStr) {
 
     const date = new Date(dateOnly);
     return !isNaN(date.getTime());
+}
+
+function parseSort(spec) {
+    if (!spec || typeof spec !== 'string') return undefined;
+    const parts = spec.split(',');
+    const sort = {};
+    for (const p of parts) {
+        const [fieldRaw, dirRaw,] = p.split(':');
+        const field = (fieldRaw || '').trim();
+        if (!field) continue;
+        const dir = (dirRaw || 'asc').trim().toLowerCase();
+        sort[field] = (dir === 'desc' || dir === '-1') ? -1 : 1;
+    }
+    return Object.keys(sort).length ? sort : undefined;
 }
 
 function isValidDateRange(dateOfArrival, dateOfDeparture) {
@@ -1151,10 +1396,10 @@ function isValidDateRange(dateOfArrival, dateOfDeparture) {
 }
 
 function normalizeDateOnly(dateStr) {
-    if (!dateStr || typeof dateStr !== 'string') return null;
-    const datePart = dateStr.split('T')[0].split(' ')[0];
-    const normalized = new Date(datePart + 'T00:00:00');
-    return isNaN(normalized.getTime()) ? null : normalized;
+  if (!dateStr || typeof dateStr !== 'string') return null;
+  const ymd = dateStr.split('T')[0].split(' ')[0];
+  const d = new Date(`${ymd}T00:00:00${APP_TZ_OFFSET}`); 
+  return isNaN(d.getTime()) ? null : d;
 }
 
 function isValidEmail(email) {
@@ -1192,134 +1437,6 @@ function isPresent(value) {
         return !Number.isNaN(value);
     }
     return true;
-}
-
-function parseIsoYmdUTC(s) {
-  const m = String(s).trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!m) return null;
-  const y = +m[1], mo = +m[2] - 1, d = +m[3];
-  const start = new Date(Date.UTC(y, mo, d, 0, 0, 0));
-  const end   = new Date(Date.UTC(y, mo, d + 1, 0, 0, 0));
-  return [start, end];
-}
-
-function parseLooseDateUTC(s) {
-  const d = new Date(s);
-  if (Number.isNaN(d.getTime())) return null;
-  const y = d.getUTCFullYear(), mo = d.getUTCMonth(), day = d.getUTCDate();
-  const start = new Date(Date.UTC(y, mo, day, 0, 0, 0));
-  const end   = new Date(Date.UTC(y, mo, day + 1, 0, 0, 0));
-  return [start, end];
-}
-
-function parseRangeUTC(s) {
-  const m = String(s).trim().match(/^(\d{4}-\d{2}-\d{2})\s*(?:to|-)\s*(\d{4}-\d{2}-\d{2})$/i);
-  if (!m) return null;
-  const a = parseIsoYmdUTC(m[1]), b = parseIsoYmdUTC(m[2]);
-  if (!a || !b) return null;
-  return [a[0], b[1]]; 
-}
-
-const MONTHS = {
-  january: 1, february: 2, march: 3, april: 4,
-  may: 5, june: 6, july: 7, august: 8,
-  september: 9, sept: 9, october: 10, november: 11, december: 12
-};
-
-function buildReservationSearchQuery(query = {}) {
-  const andConds = [];
-
-  if (query.guestName) andConds.push({ guestName: { $regex: String(query.guestName), $options: 'i' } });
-  if (query.guestEmail) andConds.push({ guestEmail: { $regex: String(query.guestEmail), $options: 'i' } });
-  if (query.createdAt) andConds.push({ createdAt: query.createdAt });
-  if (query.serviceType) andConds.push({ serviceType: query.serviceType });
-  if (query.status) andConds.push({ status: query.status });
-  if (query.id) {
-    const idStr = String(query.id).trim();
-    const isHex = /^[0-9a-fA-F]+$/.test(idStr);
-    if (idStr.length === 24 && isHex) {
-      andConds.push({ _id: idStr });
-    } else if (isHex && idStr.length >= 3) {
-      andConds.push({
-        $expr: { $regexMatch: { input: { $toString: '$_id' }, regex: idStr, options: 'i' } }
-      });
-    }
-  }
-
-  if (query.search) {
-    const s = String(query.search).trim();
-    if (s) {
-      const orConds = [
-        { guestName:      { $regex: s, $options: 'i' } },
-        { guestEmail:     { $regex: s, $options: 'i' } },
-        { referenceNumber:{ $regex: s, $options: 'i' } },
-        { telephone:      { $regex: s, $options: 'i' } },
-        { serviceType:    { $regex: s, $options: 'i' } },
-        { status:         { $regex: s, $options: 'i' } },
-      ];
-
-      if (/^[0-9a-fA-F]{24}$/.test(s)) {
-        orConds.push({ _id: s });
-      } else if (/^[0-9a-fA-F]{3,}$/.test(s)) {
-        orConds.push({
-          $expr: { $regexMatch: { input: { $toString: '$_id' }, regex: s, options: 'i' } }
-        });
-      }
-
-      const range = parseRangeUTC(s);
-      if (range) {
-        const [start, end] = range;
-        orConds.push(
-          { dateOfArrival:   { $gte: start, $lt: end } },
-          { dateOfDeparture: { $gte: start, $lt: end } },
-          { createdAt:       { $gte: start, $lt: end } },
-        );
-      } else {
-        const day = parseIsoYmdUTC(s) || parseLooseDateUTC(s);
-        if (day) {
-          const [dayStart, dayEnd] = day;
-          orConds.push(
-            { dateOfArrival:   { $gte: dayStart, $lt: dayEnd } },
-            { dateOfDeparture: { $gte: dayStart, $lt: dayEnd } },
-            { createdAt:       { $gte: dayStart, $lt: dayEnd } },
-          );
-        }
-      }
-
-      const monthNum = MONTHS[s.toLowerCase()];
-      if (monthNum) {
-        orConds.push(
-          { $expr: { $eq: [ { $month: "$dateOfArrival"   }, monthNum ] } },
-          { $expr: { $eq: [ { $month: "$dateOfDeparture" }, monthNum ] } },
-          { $expr: { $eq: [ { $month: "$createdAt"       }, monthNum ] } },
-        );
-      }
-
-      if (/^\d{1,2}$/.test(s)) {
-        const dayNum = Number(s);
-        if (dayNum >= 1 && dayNum <= 31) {
-          orConds.push(
-            { $expr: { $eq: [ { $dayOfMonth: "$dateOfArrival"   }, dayNum ] } },
-            { $expr: { $eq: [ { $dayOfMonth: "$dateOfDeparture" }, dayNum ] } },
-            { $expr: { $eq: [ { $dayOfMonth: "$createdAt"       }, dayNum ] } },
-          );
-        }
-      }
-
-      if (/^\d{4}$/.test(s)) {
-        const yearNum = Number(s);
-        orConds.push(
-          { $expr: { $eq: [ { $year: "$dateOfArrival"   }, yearNum ] } },
-          { $expr: { $eq: [ { $year: "$dateOfDeparture" }, yearNum ] } },
-          { $expr: { $eq: [ { $year: "$createdAt"       }, yearNum ] } },
-        );
-      }
-
-      andConds.push({ $or: orConds });
-    }
-  }
-
-  return andConds.length ? { $and: andConds } : {};
 }
 
 function computeEstimate({ facilityDoc, adults = 0, children = 0, pwds = 0, serviceType, }) {

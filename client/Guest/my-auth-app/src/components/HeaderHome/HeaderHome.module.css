@@ -133,7 +133,7 @@
   position: absolute;
   right: 0;
   top: 42px;
-  width: 360px;
+  width: 180px;
   max-height: 70vh;
   overflow: auto;
   background: #fff;
@@ -141,6 +141,10 @@
   border-radius: 12px;
   box-shadow: 0 10px 30px rgba(0,0,0,0.12);
   z-index: 1000;
+}
+
+.accountDropdownMenu .dropdownItem + .dropdownItem {
+  border-top: 1px solid #e5e7eb;
 }
 
 .msgHeaderRow {
@@ -179,6 +183,41 @@
   gap:8px;
   max-height:70vh;
   overflow:auto
+}
+
+.msgTypingRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-top: 1px solid #e5e7eb;
+  background: #ffffff;
+}
+
+.msgInput {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 20px;
+  outline: none;
+  font-size: 0.95rem;
+}
+
+.msgSendBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid #d1d5db;
+  background: #f9fafb;
+  color: #1f2937;
+  cursor: pointer;
+}
+
+.msgSendBtn:hover {
+  background: #f3f4f6;
 }
 
 .msgItem,.msgItemRead {
@@ -364,6 +403,9 @@
     .msgList {
       max-height: 50vh;   /* so long lists can scroll */
       overflow-y: auto;
+    }
+    .msgTypingRow {
+      padding: 12px 15px;
     }
     .msgItem,
     .msgItemRead {

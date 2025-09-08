@@ -13,8 +13,15 @@ export function getUsersByRole(role) {
   return apiGet(`/user/get-all-users-by-role/${encodeURIComponent(role)}`);
 }
 
-// Search users via server-side API with query params
-// Supported params include: search, role, email, name, id, createdFrom/To, lastLoggedFrom/To, sort, skip, limit
 export function searchUsers(query = {}) {
   return apiGet('/user/search-users', query);
+}
+
+export function addUser({ name, email, role, password }) {
+  return apiPost('/user/add-user', { name, email, role, password });
+}
+
+export function deleteUser(userId) {
+  if (!userId) throw new Error('userId is required');
+  return apiPost(`/user/delete-user/${encodeURIComponent(userId)}`);
 }
