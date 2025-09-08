@@ -133,7 +133,7 @@
   position: absolute;
   right: 0;
   top: 42px;
-  width: 360px;
+  width: 180px;
   max-height: 70vh;
   overflow: auto;
   background: #fff;
@@ -141,6 +141,10 @@
   border-radius: 12px;
   box-shadow: 0 10px 30px rgba(0,0,0,0.12);
   z-index: 1000;
+}
+
+.accountDropdownMenu .dropdownItem + .dropdownItem {
+  border-top: 1px solid #e5e7eb;
 }
 
 .msgHeaderRow {
