@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import asyncHandler from '../middleware/asyncHandler.js';
 import { authenticateJWT } from '../middleware/auth.js';
-import { uploadImage } from '../middleware/uploads.js';
+import { uploadImages } from '../middleware/uploads.js';
 import dbHelper from '../modules/dbHelper.js';
 import facilityModule from '../modules/facility.js';
 
@@ -34,22 +34,22 @@ r.get('/search-facilities', asyncHandler(async (req, res) => {
 
 r.use(authenticateJWT);
 
-r.post('/create-facility', uploadImage, asyncHandler(async (req, res) => {
+r.post('/create-facility', uploadImages, asyncHandler(async (req, res) => {
   const response = await facilityModule.addFacility(
     dbHelper,
     { ...req.body, ...req.query },
-    req.file,
+    req.files,
     req.user
   );
   res.status(response.status).json(response);
 }));
 
-r.post('/update-facility/:id', uploadImage, asyncHandler(async (req, res) => {
+r.post('/update-facility/:id', uploadImages, asyncHandler(async (req, res) => {
   const response = await facilityModule.updateFacility(
     dbHelper,
     req.params.id,
     { ...req.body, ...req.query },
-    req.file,
+    req.files,
     req.user
   );
   res.status(response.status).json(response);

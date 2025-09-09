@@ -32,7 +32,12 @@ export function createFacility(payload = {}) {
   Object.entries(payload).forEach(([k, v]) => {
     if (v === undefined || v === null) return;
     if (k === 'image' && v instanceof File) {
-      fd.append('image', v);
+      // backward compat: single image (not used now)
+      fd.append('images', v);
+    } else if (k === 'images' && (Array.isArray(v) || (typeof FileList !== 'undefined' && v instanceof FileList))) {
+      Array.from(v).forEach((file) => {
+        if (file instanceof File) fd.append('images', file);
+      });
     } else {
       fd.append(k, typeof v === 'object' ? JSON.stringify(v) : String(v));
     }
@@ -45,7 +50,12 @@ export function updateFacility(id, payload = {}) {
   Object.entries(payload).forEach(([k, v]) => {
     if (v === undefined || v === null) return;
     if (k === 'image' && v instanceof File) {
-      fd.append('image', v);
+      // backward compat: single image (not used now)
+      fd.append('images', v);
+    } else if (k === 'images' && (Array.isArray(v) || (typeof FileList !== 'undefined' && v instanceof FileList))) {
+      Array.from(v).forEach((file) => {
+        if (file instanceof File) fd.append('images', file);
+      });
     } else {
       fd.append(k, typeof v === 'object' ? JSON.stringify(v) : String(v));
     }

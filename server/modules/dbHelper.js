@@ -99,7 +99,7 @@ const dbHelper = {
                 ratePerPerson: { type: Number, required: false, },
                 price: { type: Number, required: false, },
                 status: { type: String, enum: Object.values(FacilityStatus), default: FacilityStatus.AVAILABLE, required: true, },
-                image: { type: String, required: false, },
+                images: { type: [String], default: [] },
                 createdAt: { type: Date, default: Date.now, },
             });
 

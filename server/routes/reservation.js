@@ -4,9 +4,14 @@ import { authenticateJWT } from '../middleware/auth.js';
 import { uploadLetter, uploadNonavailabilityCert } from '../middleware/uploads.js';
 import dbHelper from '../modules/dbHelper.js';
 import reservationModule from '../modules/reservation.js';
+import notificationModule from '../modules/notification.js';
 
 export default function buildReservationRouter(userSocketMap) {
   const r = Router();
+  const runUpload = (req, res) =>
+    new Promise((resolve, reject) =>
+      uploadLetter(req, res, err => (err ? reject(err) : resolve()))
+    );
 
   r.get('/get-reservation-by-id/:id', asyncHandler(async (req, res) => {
     const response = await reservationModule.getReservationById(dbHelper, req.params.id);
@@ -45,35 +50,28 @@ export default function buildReservationRouter(userSocketMap) {
     res.status(response.status).json(response);
   }));
 
-  r.get('/get-payment-summary/:id', asyncHandler(async (req, res) => {
-    const response = await reservationModule.getPaymentSummary(dbHelper, req.params.id, req.user);
-    res.status(response.status).json(response);
-  }));
+  r.post('/create-reservation', asyncHandler(async (req, res) => {
+    await runUpload(req, res);
 
-r.post('/reservations', asyncHandler(async (req, res) => {
-    const data = { ...req.body, ...req.query };
-    const file = req.file;           
+    const data = req.body;
+    const file = req.file;
     const response = await reservationModule.addReservation(dbHelper, data, file, req.user);
+
     res.status(response.status).json(response);
 
     if (response.status === 201 && response.reservationId) {
-      const userSocketMap = req.app.get('userSocketMap'); 
-      notificationModule
-        .createAndNotifyUser(
-          dbHelper,
-          {
-            title: 'Reservation submitted',
-            message:
-              "We received your reservation. You'll get another update once it’s reviewed.",
-            userId: req.user.userId,                
-            reservationId: response.reservationId,
-          },
-          userSocketMap
-        )
-        .catch(err => console.warn('Notify failed:', err?.message));
+      notificationModule.createAndNotifyUser(
+        dbHelper,
+        {
+          title: 'Reservation submitted',
+          message: "We received your reservation. You'll get another update once it’s reviewed.",
+          userId: req.user.userId,
+          reservationId: response.reservationId,
+        },
+        userSocketMap
+      ).catch(e => console.warn('Notify failed:', e?.message));
     }
-  })
-);
+  }));
 
   r.post('/cancel-booking/:id', asyncHandler(async (req, res) => {
     const response = await reservationModule.cancelBooking(dbHelper, req.params.id, req.user);

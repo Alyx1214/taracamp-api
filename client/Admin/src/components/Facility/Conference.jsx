@@ -22,7 +22,7 @@ export default function Conference({ onEdit, searchQuery = "" }) {
           name: f.name,
           capacity: f.capacity,
           rate: f.ratePerPerson ?? f.price ?? 0,
-          image: f.image || null,
+          images: Array.isArray(f.images) ? f.images : [],
         }));
         setConferences(mapped);
       } catch (e) {

@@ -17,7 +17,7 @@ const AddForm = () => {
     unit: "",
     capacity: "",
     status: "Available",
-    image: null,
+    images: [],
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
@@ -41,7 +41,11 @@ const AddForm = () => {
   const handleChange = (e) => {
     const { name, value, files } = e.target;
     if (files) {
-      setFormData((prev) => ({ ...prev, image: files[0] }));
+      if (name === 'images') {
+        setFormData((prev) => ({ ...prev, images: Array.from(files) }));
+      } else {
+        setFormData((prev) => ({ ...prev, [name]: files[0] }));
+      }
     } else {
       setFormData((prev) => ({ ...prev, [name]: value }));
     }
@@ -66,7 +70,7 @@ const AddForm = () => {
           name: formData.name,
           facilityType,
           status: formData.status.toUpperCase(),
-          image: formData.image,
+          images: formData.images,
         };
         if (facilityType === "DORMITORY" || facilityType === "CONFERENCE" || facilityType === "COTTAGE") {
           payload.capacity = formData.capacity;
@@ -103,15 +107,18 @@ const AddForm = () => {
             <p className={styles.uploadText}>Upload {category} Image</p>
             <input
               type="file"
-              name="image"
+              name="images"
               accept="image/png,image/jpeg"
+              multiple
               onChange={handleChange}
               hidden
             />
           </label>
-          {formData.image && (
+          {formData.images?.length > 0 && (
             <div style={{ marginBottom: 16 }}>
-              <small>Selected: {formData.image.name}</small>
+              <small>
+                Selected ({formData.images.length}): {formData.images.map(f => f.name).join(', ')}
+              </small>
             </div>
           )}
         </>

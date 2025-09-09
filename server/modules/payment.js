@@ -743,6 +743,7 @@ const paymentModule = {
 
             const downpaymentAmount = Math.max(0, Math.round(total * DOWNPAYMENT_PERCENT * 100) / 100);
             const remainingBalance = Math.max(0, Math.round((total - totalPaid) * 100) / 100);
+            const isFullyPaid = remainingBalance <= 0;
 
             responseData.status = Status.OK;
             responseData.error = null;
@@ -753,6 +754,7 @@ const paymentModule = {
                 downpaymentAmount,
                 totalPaid: Math.round(totalPaid * 100) / 100,
                 remainingBalance,
+                isFullyPaid,
                 dueDate: due.toISOString(),
             };
             return responseData;
