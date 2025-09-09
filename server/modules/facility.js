@@ -14,7 +14,7 @@ const facilityModule = {
      * @param {Object} user - The authenticated user.
      * @return {Promise<Object>} The response data.
      */
-    addFacility: async (dbHelper, data, file, user) => {
+    addFacility: async (dbHelper, data, files, user) => {
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
             error: 'Error adding facility',
@@ -47,26 +47,6 @@ const facilityModule = {
                 return responseData;
             }
 
-            let imageKey = null;
-            let imageUrl = null;
-
-            if (file) {
-                const imageError = isValidImage(file);
-                if (imageError) {
-                    responseData.status = Status.BAD_REQUEST;
-                    responseData.error = imageError;
-                    return responseData;
-                }
-                try {
-                    imageKey = await uploadImageAndGetKey(file);
-                    imageUrl = await getSignedReadUrl(imageKey);
-                } catch (err) {
-                    responseData.status = Status.INTERNAL_SERVER_ERROR;
-                    responseData.error = 'Image upload failed: ' + err.message;
-                    return responseData;
-                }
-            }
-
             if (!isValidFacilityType(facilityType)) {
                 responseData.status = Status.BAD_REQUEST;
                 responseData.error = 'Invalid facility type';
@@ -94,7 +74,25 @@ const facilityModule = {
                 return responseData;
             }
 
-            // Normalize facility name to Title Case directly in queries
+            let imageKeys = [];
+            let imageUrls = [];
+            if (Array.isArray(files) && files.length) {
+                const imgErr = isValidImages(files);
+                if (imgErr) {
+                    responseData.status = Status.BAD_REQUEST;
+                    responseData.error = imgErr;
+                    return responseData;
+                }
+                try {
+                    imageKeys = await uploadImagesAndGetKeys(files);
+                    imageUrls = await getSignedReadUrls(imageKeys);
+                } catch (err) {
+                    responseData.status = Status.INTERNAL_SERVER_ERROR;
+                    responseData.error = 'Image upload failed: ' + err.message;
+                    return responseData;
+                }
+            }
+
             const existing = await dbHelper.findOne('facility', { name: toTitleCase(String(name || '')), facilityType, });
             if (existing) {
                 responseData.status = Status.BAD_REQUEST;
@@ -106,14 +104,9 @@ const facilityModule = {
                 name: toTitleCase(String(name || '')),
                 facilityType,
                 status,
+                capacity: parseInt(String(capacity).replace(/,/g, ''), 10),
+                images: imageKeys,
             };
-
-            // Store capacity for all facility types
-            facilityData.capacity = parseInt(String(capacity).replace(/,/g, ''), 10);
-
-            if (imageKey) {
-                facilityData.image = imageKey;
-            }
 
             if (facilityType === FacilityType.CONFERENCE) {
                 facilityData.price = Number(String(price).replace(/,/g, '')) || 0;
@@ -128,7 +121,7 @@ const facilityModule = {
             responseData.error = null;
             responseData.message = 'Facility added successfully';
             responseData.facilityId = facility._id.toString();
-            if (imageKey) responseData.imageUrl = imageUrl;
+            responseData.imageUrls = imageUrls;
         } catch (error) {
             console.error('Error adding facility:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
@@ -150,7 +143,6 @@ const facilityModule = {
         };
         try {
             const { limit, skip, sort, } = options || {};
-            // Default sort by name asc for stable ordering
             const sortOption = sort ? parseSort(sort) : { name: 1, };
             const facilities = await dbHelper.findMany('facility', {}, {
                 projection: { __v: 0, createdAt: 0, },
@@ -163,7 +155,7 @@ const facilityModule = {
                 facilities.map(async (f) => {
                     const obj = f.toObject ? f.toObject() : f;
                     obj.name = toTitleCase(String(obj.name || ''));
-                    obj.image = obj.image ? await getSignedReadUrl(obj.image) : null;
+                    obj.images = await getSignedReadUrls(Array.isArray(obj.images) ? obj.images : []);
                     return obj;
                 })
             );
@@ -210,9 +202,7 @@ const facilityModule = {
             delete facilityObject.__v;
             delete facilityObject.createdAt;
             facilityObject.name = toTitleCase(String(facilityObject.name || ''));
-            facilityObject.image = facilityObject.image
-                ? await getSignedReadUrl(facilityObject.image)
-                : null;
+            facilityObject.images = await getSignedReadUrls(Array.isArray(facilityObject.images) ? facilityObject.images : []);
 
             responseData.status = Status.OK;
             responseData.error = null;
@@ -234,7 +224,7 @@ const facilityModule = {
      * @param {Object} user - The user object containing the user ID and role.
      * @returns {Object} Response data with status, error, message, and facilityId on success.
      */
-    updateFacility: async (dbHelper, id, data, file, user) => {
+    updateFacility: async (dbHelper, id, data, files, user) => {
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
             error: 'Error editing facility',
@@ -328,20 +318,31 @@ const facilityModule = {
                 updateData.status = data.status;
             }
 
-            if (file) {
-                const imageError = isValidImage(file);
+            if (Array.isArray(data.removeImageKeys) && data.removeImageKeys.length) {
+                const current = Array.isArray(facility.images) ? facility.images : [];
+                const keep = current.filter((k) => !data.removeImageKeys.includes(k));
+                const toDelete = current.filter((k) => data.removeImageKeys.includes(k));
+                if (toDelete.length) await deleteImages(toDelete);
+                updateData.images = keep;
+            }
+
+            const imagesMode = (data.imagesMode || 'replace').toLowerCase();
+            if (Array.isArray(files) && files.length) {
+                const imageError = isValidImages(files);
                 if (imageError) {
                     responseData.status = Status.BAD_REQUEST;
                     responseData.error = imageError;
                     return responseData;
                 }
                 try {
-                    if (facility.image) {
-                        try { await bucket.file(facility.image).delete(); } catch { /* ignore */ }
+                    const newKeys = await uploadImagesAndGetKeys(files);
+                    if (imagesMode === 'append') {
+                        updateData.images = (updateData.images ?? (facility.images || [])).concat(newKeys);
+                    } else {
+                        await deleteImages(facility.images || []);
+                        updateData.images = newKeys;
                     }
-                    const newKey = await uploadImageAndGetKey(file);
-                    updateData.image = newKey;
-                    responseData.newImageUrl = await getSignedReadUrl(newKey);
+                    responseData.newImageUrls = await getSignedReadUrls(updateData.images);
                 } catch (err) {
                     responseData.status = Status.INTERNAL_SERVER_ERROR;
                     responseData.error = 'Image upload failed: ' + err.message;
@@ -423,9 +424,9 @@ const facilityModule = {
                 return responseData;
             }
 
-            if (facility.image) {
-                try { await bucket.file(facility.image).delete(); } catch (imgErr) {
-                    console.warn('Failed to delete facility image:', imgErr.message);
+            if (facility.images?.length) {
+                try { await deleteImages(facility.images); } catch (imgErr) {
+                    console.warn('Failed to delete some images:', imgErr.message);
                 }
             }
 
@@ -481,7 +482,7 @@ const facilityModule = {
                 capacity: facility.capacity,
                 ratePerPerson: facility.ratePerPerson,
                 price: facility.price,
-                image: facility.image ? await getSignedReadUrl(facility.image) : null,
+                images: await getSignedReadUrls(Array.isArray(facility.images) ? facility.images : []),
             })));
 
             responseData.status = Status.OK;
@@ -621,7 +622,7 @@ const facilityModule = {
                 facilities.map(async (f) => {
                     const obj = f.toObject ? f.toObject() : f;
                     obj.name = toTitleCase(String(obj.name || ''));
-                    obj.image = obj.image ? await getSignedReadUrl(obj.image) : null;
+                    obj.images = await getSignedReadUrls(Array.isArray(obj.images) ? obj.images : []);
                     return obj;
                 })
             );
@@ -641,14 +642,14 @@ const facilityModule = {
 export default facilityModule;
 
 function isPresent(value) {
-  if (value === null || value === undefined) return false;
-  if (typeof value === 'string') {
-    return value.trim().length > 0;  
-  }
-  if (typeof value === 'number') {
-    return !Number.isNaN(value);
-  }
-  return true; 
+    if (value === null || value === undefined) return false;
+    if (typeof value === 'string') {
+        return value.trim().length > 0;
+    }
+    if (typeof value === 'number') {
+        return !Number.isNaN(value);
+    }
+    return true;
 }
 
 function toTitleCase(str = '') {
@@ -675,47 +676,58 @@ function isValidRate(rate) {
     return !isNaN(parsedRate) && parsedRate >= 0;
 }
 
-function isValidImage(file) {
-    if (!file) return 'Missing image';
-    const allowedTypes = ['image/jpeg', 'image/png',];
-    if (!allowedTypes.includes(file.mimetype)) {
-        return 'Invalid image type. Only JPEG and PNG are allowed';
-    }
-    const maxSize = 5 * 1024 * 1024; // 5MB
-    if (file.size > maxSize) {
-        return 'Image size exceeds the 5MB limit';
+function isValidImages(files) {
+    const allowed = ['image/jpeg', 'image/png',];
+    const max = 5 * 1024 * 1024; // 5MB
+    for (const f of files) {
+        if (!allowed.includes(f.mimetype))
+            return 'Invalid image type. Only JPEG and PNG are allowed';
+        if (f.size > max)
+            return 'Image size exceeds the 5MB limit';
     }
     return null;
 }
 
-async function uploadImageAndGetKey(file) {
-    const filename = `${Date.now()}_${file.originalname.replace(/\s/g, '_')}`;
-    const blob = bucket.file((('facility_images/')
-        .replace(/(^\/+|\/+$)/g, '') + '/') + filename);
-    await new Promise((resolve, reject) => {
-        const stream = blob.createWriteStream({
-            resumable: false,
-            contentType: file.mimetype,
+async function uploadImagesAndGetKeys(files) {
+    const keys = [];
+    for (const file of files) {
+        const filename = `${Date.now()}_${Math.random().toString(36).slice(2)}_${file.originalname.replace(/\s/g, '_')}`;
+        const key = (((process.env.FACILITY_IMAGE_PREFIX || 'facility_images/').replace(/(^\/+|\/+$)/g, '') + '/') + filename);
+        const blob = bucket.file(key);
+        await new Promise((resolve, reject) => {
+            const stream = blob.createWriteStream({ resumable: false, contentType: file.mimetype, });
+            stream.on('error', reject);
+            stream.on('finish', resolve);
+            stream.end(file.buffer);
         });
-        stream.on('error', reject);
-        stream.on('finish', resolve);
-        stream.end(file.buffer);
-    });
-    return (((process.env.FACILITY_IMAGE_PREFIX || 'facility_images/')
-        .replace(/(^\/+|\/+$)/g, '') + '/') + filename);
+        keys.push(key);
+    }
+    return keys;
 }
 
-async function getSignedReadUrl(imageKey, expiresInMs = 60 * 60 * 1000) {
-    if (!imageKey) return null;
-    const [url,] = await bucket.file(imageKey).getSignedUrl({
-        version: 'v4',
-        action: 'read',
-        expires: Date.now() + expiresInMs,
-    });
-    return url;
+async function getSignedReadUrls(keys, expiresInMs = 60 * 60 * 1000) {
+    const urls = [];
+    for (const key of keys) {
+        const [url,] = await bucket.file(key).getSignedUrl({
+            version: 'v4',
+            action: 'read',
+            expires: Date.now() + expiresInMs,
+        });
+        urls.push(url);
+    }
+    return urls;
 }
 
-// Helpers for list endpoints
+async function deleteImages(keys) {
+    for (const key of keys) {
+        try {
+            await bucket.file(key).delete();
+        } catch {
+        /* ignore */
+        }
+    }
+}
+
 function clampLimit(value, def = undefined) {
     if (value === null || value === undefined || value === '') return def;
     const n = Number(value);
@@ -735,7 +747,7 @@ function parseSort(spec) {
     const parts = spec.split(',');
     const sort = {};
     for (const p of parts) {
-        const [fieldRaw, dirRaw] = p.split(':');
+        const [fieldRaw, dirRaw,] = p.split(':');
         const field = (fieldRaw || '').trim();
         if (!field) continue;
         const dir = (dirRaw || 'asc').trim().toLowerCase();

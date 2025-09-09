@@ -129,11 +129,11 @@
   position: relative;
 }
 
-.accountDropdownMenu {
+.preview {
   position: absolute;
   right: 0;
   top: 42px;
-  width: 180px;
+  width: 370px;
   max-height: 70vh;
   overflow: auto;
   background: #fff;
@@ -143,7 +143,7 @@
   z-index: 1000;
 }
 
-.accountDropdownMenu .dropdownItem + .dropdownItem {
+.preview .dropdownItem + .dropdownItem {
   border-top: 1px solid #e5e7eb;
 }
 

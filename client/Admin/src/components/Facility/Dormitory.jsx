@@ -22,7 +22,7 @@ export default function Dormitory({ onEdit, searchQuery = "" }) {
           name: f.name,
           capacity: f.capacity,
           rate: f.ratePerPerson ?? f.price ?? 0,
-          image: f.image || null,
+          images: Array.isArray(f.images) ? f.images : [],
         }));
         setDorms(mapped);
       } catch (e) {

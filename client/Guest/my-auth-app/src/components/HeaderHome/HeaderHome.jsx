@@ -447,7 +447,7 @@ function HeaderHome() {
                 {unreadCount > 0 && <span className={styles.badge}>{unreadCount}</span>}
               </button>
               {isNotifOpen && (
-                <div className={styles.accountDropdownMenu}>
+                <div className={styles.preview}>
                   <Notif onMarkAllAsRead={() => setUnreadCount(0)} />
                 </div>
               )}
@@ -464,7 +464,7 @@ function HeaderHome() {
                 {msgUnreadCount > 0 && <span className={styles.badge}>{msgUnreadCount}</span>}
               </button>
               {isMsgOpen && (
-                <div className={styles.accountDropdownMenu} role="dialog" aria-label="Messages">
+                <div className={styles.preview} role="dialog" aria-label="Messages">
                   <div className={styles.msgHeaderRow}>
                     <span className={styles.msgHeaderTitle}>Messages</span>
                     <button
@@ -508,7 +508,7 @@ function HeaderHome() {
                 </svg>
               </button>
               {isAccountMenuOpen && (
-                <div className={styles.accountDropdownMenu}>
+                <div className={styles.preview}>
                   <button className={styles.dropdownItem} onClick={handleReservationClick}>Reservations</button>
                   <button className={styles.dropdownItem} onClick={handleTransactionsClick}>Transactions</button>
                   <button className={styles.dropdownItem} onClick={handleLogoutClick}>Log out</button>
@@ -539,7 +539,7 @@ function HeaderHome() {
             </button>
 
             {isNotifOpen && (
-              <div id="notif-dropdown" className={styles.accountDropdownMenu} role="dialog" aria-label="Notifications">
+              <div id="notif-dropdown" className={styles.preview} role="dialog" aria-label="Notifications">
                 <Notif onMarkAllAsRead={() => setUnreadCount(0)} />
               </div>
             )}
@@ -563,7 +563,7 @@ function HeaderHome() {
             </button>
 
             {isMsgOpen && (
-              <div id="msg-dropdown" className={styles.accountDropdownMenu} role="dialog" aria-label="Messages">
+              <div id="msg-dropdown" className={styles.preview} role="dialog" aria-label="Messages">
                 <div className={styles.msgHeaderRow}>
                   <span className={styles.msgHeaderTitle}>Messages</span>
                   <button
@@ -632,7 +632,7 @@ function HeaderHome() {
               </svg>
             </button>
             {isAccountMenuOpen && (
-              <div className={styles.accountDropdownMenu}>
+              <div className={styles.preview}>
                 <button className={styles.dropdownItem} onClick={handleReservationClick}>Reservations</button>
                 <button className={styles.dropdownItem} onClick={handleTransactionsClick}>Transactions</button>
                 <button className={styles.dropdownItem} onClick={handleLogoutClick}>Log out</button>

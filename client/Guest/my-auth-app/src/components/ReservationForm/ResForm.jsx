@@ -35,7 +35,8 @@ function ReservationForm() {
     type: { groups: false, individual: false },
     phoneNo: '',
     officeTelephoneNo: '',
-    guests: { adult: '', children: '', pwds: '' }, 
+    guests: { adult: '', children: '', pwds: '' },
+    emergencyContactPerson: '', 
     emergencyContact: '',
   });
 
@@ -146,6 +147,46 @@ function ReservationForm() {
             <ErrorBanner err={serverErr} onClose={() => setServerErr(null)} />
 
             <form onSubmit={(e) => e.preventDefault()}>
+              <div className={styles.checkboxGroupContainer}>
+                <div className={styles.checkboxGroup}>
+                  <label className={styles.label}>Select Category<span className={styles.requiredAsterisk}>*</span></label>
+                  <div className={styles.checkboxRow}>
+                    {['deped','government','pwds','private'].map(k => (
+                      <label className={styles.checkboxLabel} key={k}>
+                        <input
+                          type="checkbox"
+                          name={k}
+                          checked={formData.category[k]}
+                          onChange={() => handleCheckboxChange('category', k)}
+                          className={styles.checkbox}
+                        />
+                        {k === 'deped' ? 'DepEd' : k.charAt(0).toUpperCase() + k.slice(1)}
+                      </label>
+                    ))}
+                  </div>
+                  {errors.category && <div id="category-error" className={styles.fieldError} role="alert">{errors.category}</div>}
+                </div>
+
+                <div className={styles.checkboxGroup}>
+                  <label className={styles.label}>Type<span className={styles.requiredAsterisk}>*</span></label>
+                  <div className={styles.checkboxRow}>
+                    {['groups','individual'].map(k => (
+                      <label className={styles.checkboxLabel} key={k}>
+                        <input
+                          type="checkbox"
+                          name={k}
+                          checked={formData.type[k]}
+                          onChange={() => handleCheckboxChange('type', k)}
+                          className={styles.checkbox}
+                        />
+                        {k.charAt(0).toUpperCase() + k.slice(1)}
+                      </label>
+                    ))}
+                  </div>
+                  {errors.type && <div id="type-error" className={styles.fieldError} role="alert">{errors.type}</div>}
+                </div>
+              </div>
+              
               <div className={styles.formGroup}>
                 <label className={styles.label} htmlFor="groupAssociation">Name of Guest/Group/Association<span className={styles.requiredAsterisk}>*</span></label>
                 <input
@@ -216,45 +257,6 @@ function ReservationForm() {
                   <div className={styles.fieldError}>{errors.officeTelephoneNo}</div>
                 )}
               </div>
-              <div className={styles.checkboxGroupContainer}>
-                <div className={styles.checkboxGroup}>
-                  <label className={styles.label}>Select Category<span className={styles.requiredAsterisk}>*</span></label>
-                  <div className={styles.checkboxRow}>
-                    {['deped','government','pwds','private'].map(k => (
-                      <label className={styles.checkboxLabel} key={k}>
-                        <input
-                          type="checkbox"
-                          name={k}
-                          checked={formData.category[k]}
-                          onChange={() => handleCheckboxChange('category', k)}
-                          className={styles.checkbox}
-                        />
-                        {k === 'deped' ? 'DepEd' : k.charAt(0).toUpperCase() + k.slice(1)}
-                      </label>
-                    ))}
-                  </div>
-                  {errors.category && <div id="category-error" className={styles.fieldError} role="alert">{errors.category}</div>}
-                </div>
-
-                <div className={styles.checkboxGroup}>
-                  <label className={styles.label}>Type<span className={styles.requiredAsterisk}>*</span></label>
-                  <div className={styles.checkboxRow}>
-                    {['groups','individual'].map(k => (
-                      <label className={styles.checkboxLabel} key={k}>
-                        <input
-                          type="checkbox"
-                          name={k}
-                          checked={formData.type[k]}
-                          onChange={() => handleCheckboxChange('type', k)}
-                          className={styles.checkbox}
-                        />
-                        {k.charAt(0).toUpperCase() + k.slice(1)}
-                      </label>
-                    ))}
-                  </div>
-                  {errors.type && <div id="type-error" className={styles.fieldError} role="alert">{errors.type}</div>}
-                </div>
-              </div>
 
               <div className={styles.formRow}>
                 {/* Derived, read-only total */}
@@ -315,6 +317,19 @@ function ReservationForm() {
 
               <div className={styles.formGroup}>
                 <label className={styles.label} htmlFor="emergencyContact">Person/s to be notified in case of emergency<span className={styles.requiredAsterisk}>*</span></label>
+                <input
+                  id="emergencyContactPerson"
+                  type="tel"
+                  name="emergencyContactPerson"
+                  value={formData.emergencyContactPerson}
+                  onChange={handleInputChange}
+                  className={`${styles.input} ${errors.emergencyContactPerson ? styles.inputError : ''}`}
+                  aria-invalid={!!errors.emergencyContactPerson}
+                />
+                {errors.emergencyContact && <div className={styles.fieldError}>{errors.emergencyContact}</div>}
+              </div>  
+              <div className={styles.formGroup}>
+                <label className={styles.label} htmlFor="emergencyContact">Emergency contact number<span className={styles.requiredAsterisk}>*</span></label>
                 <input
                   id="emergencyContact"
                   type="tel"

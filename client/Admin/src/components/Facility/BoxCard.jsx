@@ -38,9 +38,7 @@ export default function BoxCard({ facilities, onDelete, type, onEdit }) {
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [openMenuIndex]);
 
   const handleMenuToggle = (index) => {
@@ -65,9 +63,7 @@ export default function BoxCard({ facilities, onDelete, type, onEdit }) {
   };
 
   const handleConfirmDelete = () => {
-    if (selectedFacility && onDelete) {
-      onDelete(selectedFacility.id);
-    }
+    if (selectedFacility && onDelete) onDelete(selectedFacility.id);
     setModalOpen(false);
     setSelectedFacility(null);
   };
@@ -75,68 +71,75 @@ export default function BoxCard({ facilities, onDelete, type, onEdit }) {
   return (
     <>
       <div className={styles["boxcards-container"]}>
-        {facilities.map((facility, index) => (
-          <div
-            className={styles.card}
-            key={facility.id}
-            style={{ position: "relative" }}
-          >
-            <div
-              className={styles["card-image"]}
-              style={facility.image ? {
-                // Quote the URL to avoid CSS parsing issues with query params
-                backgroundImage: `url("${facility.image}")`,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
-              } : undefined}
-            />
+        {facilities.map((facility, index) => {
+          const images = Array.isArray(facility.images) ? facility.images : [];
+          const primary = images[0] || "/placeholder.jpg"; // your placeholder path
 
-            <div className={styles["card-content"]}>
-              <h3 className={styles["card-title"]}>{facility.name}</h3>
-              <p className={styles["card-rate"]}>
-                {type === "Other Service"
-                  ? "Price per Unit"
-                  : type === "Conference"
-                  ? "Price"
-                  : "Rate per Person"}
-                : ₱ {facility.rate}
-                {type === "Other Service" && facility.capacity && facility.capacity !== '-' ? ` / ${facility.capacity}` : ''}
-              </p>
-              {type !== "Other Service" && (
-                <p className={styles["card-capacity"]}>
-                  Capacity: {facility.capacity}
+          return (
+            <div
+              className={styles.card}
+              key={facility.id}
+              style={{ position: "relative" }}
+            >
+              <div
+                className={styles["card-image"]}
+                style={{
+                  backgroundImage: `url("${primary}")`, // quote URL for signed URLs with query params
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                }}
+              />
+
+              <div className={styles["card-content"]}>
+                <h3 className={styles["card-title"]}>{facility.name}</h3>
+                <p className={styles["card-rate"]}>
+                  {type === "Other Service"
+                    ? "Price per Unit"
+                    : type === "Conference"
+                    ? "Price"
+                    : "Rate per Person"}
+                  : ₱ {facility.rate}
+                  {type === "Other Service" &&
+                    facility.capacity &&
+                    facility.capacity !== "-" &&
+                    ` / ${facility.capacity}`}
                 </p>
+                {type !== "Other Service" && (
+                  <p className={styles["card-capacity"]}>
+                    Capacity: {facility.capacity}
+                  </p>
+                )}
+              </div>
+
+              <div
+                className={styles["card-menu"]}
+                onClick={() => handleMenuToggle(index)}
+              >
+                ⋮
+              </div>
+
+              {openMenuIndex === index && (
+                <div
+                  className={styles["dropdown-menu"]}
+                  ref={(el) => (menuRefs.current[index] = el)}
+                >
+                  <div
+                    className={styles["dropdown-item"]}
+                    onClick={() => handleEditClick(facility)}
+                  >
+                    <FaEdit className={styles.icon} /> Edit
+                  </div>
+                  <div
+                    className={styles["dropdown-item"]}
+                    onClick={() => handleDeleteClick(facility)}
+                  >
+                    <FaTrash className={styles.icon} /> Delete
+                  </div>
+                </div>
               )}
             </div>
-
-            <div
-              className={styles["card-menu"]}
-              onClick={() => handleMenuToggle(index)}
-            >
-              ⋮
-            </div>
-
-            {openMenuIndex === index && (
-              <div
-                className={styles["dropdown-menu"]}
-                ref={(el) => (menuRefs.current[index] = el)}
-              >
-                <div
-                  className={styles["dropdown-item"]}
-                  onClick={() => handleEditClick(facility)}
-                >
-                  <FaEdit className={styles.icon} /> Edit
-                </div>
-                <div
-                  className={styles["dropdown-item"]}
-                  onClick={() => handleDeleteClick(facility)}
-                >
-                  <FaTrash className={styles.icon} /> Delete
-                </div>
-              </div>
-            )}
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <ConfirmDeleteModal
