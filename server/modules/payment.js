@@ -8,6 +8,22 @@ dotenv.config();
 const PAYMONGO_BASE_URL = process.env.PAYMONGO_BASE_URL || 'https://api.paymongo.com/v1';
 
 const paymentModule = {
+    /**
+     * Creates a payment intent and returns the intent data.
+     * @param {Object} dbHelper - The database helper for database operations.
+     * @param {string} id - The ID of the reservation to create the payment intent for.
+     * @param {Object} data - The data object containing the payment intent data.
+     * @param {string} [data.reservationId] - The ID of the reservation to create the payment intent for.
+     * @param {number} [data.amount] - The amount of the payment intent. Defaults to the total estimated amount of the reservation.
+     * @param {string} [data.currency=PHP] - The currency of the payment intent.
+     * @param {string[]} [data.paymentMethodAllowed=['card', 'gcash', 'grab_pay', 'paymaya']] - The allowed payment methods for the payment intent.
+     * @param {string} [data.description] - The description of the payment intent.
+     * @param {string} [data.statementDescriptor] - The statement descriptor of the payment intent.
+     * @param {Object} [data.metadata] - The metadata object to attach to the payment intent.
+     * @param {string} [data.captureType=automatic] - The capture type of the payment intent.
+     * @param {Object} user - The user object containing the user ID and role.
+     * @returns {Object} Response data with status, error, and paymentIntent on success.
+     */
     createPaymentIntent: async (dbHelper, id, data, user) => {
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
@@ -133,6 +149,16 @@ const paymentModule = {
         return responseData;
     },
 
+    /**
+     * Attaches a payment method to a payment intent.
+     * @param {Object} dbHelper The database helper for database operations.
+     * @param {Object} data - The data object containing the payment method data.
+     * @param {string} data.paymentIntentId - The ID of the payment intent to attach the payment method to.
+     * @param {string} data.paymentMethodId - The ID of the payment method to attach.
+     * @param {string} [data.returnUrl] - The URL to return to after the payment method attachment is successful.
+     * @param {string} [data.paymentMethodType] - The type of payment method being attached.
+     * @returns {Object} Response data with status, error, and updated paymentIntent.
+     */
     attachPaymentMethod: async (dbHelper, data) => {
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
@@ -207,6 +233,12 @@ const paymentModule = {
         return responseData;
     },
 
+    /**
+     * Retrieves a payment intent by its ID.
+     * @param {Object} dbHelper The database helper for database operations.
+     * @param {string} id The ID of the payment intent to retrieve.
+     * @returns {Object} Response data with status, error, and paymentIntent.
+     */
     getPaymentIntent: async (dbHelper, id) => {
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
@@ -240,6 +272,15 @@ const paymentModule = {
         return responseData;
     },
 
+    /**
+     * Creates a payment method.
+     * @param {Object} dbHelper - The database helper for database operations.
+     * @param {Object} data - The data object containing the payment method data.
+     * @param {string} data.type - The type of payment method to create.
+     * @param {Object} [data.details] - The payment method details, required for non-redirect payment methods.
+     * @param {Object} [data.billing] - The billing information for the payment method.
+     * @returns {Object} Response data with status, error, and paymentMethod.
+     */
     createPaymentMethod: async (dbHelper, data) => {
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
@@ -284,6 +325,13 @@ const paymentModule = {
         return responseData;
     },
 
+    /**
+     * Handle PayMongo webhook events.
+     * @param {import('../db-helper')} dbHelper - DB helper for persisting payment data.
+     * @param {Record<string, string>} headers - Request headers.
+     * @param {string|Object} body - Request body.
+     * @returns {Promise<{ status: number, error: string|null, event: Object, updatedReservation?: { _id: ObjectId, status: ReservationStatus }, note?: string }>} Response data.
+     */
     handleWebhook: async (dbHelper, headers, body) => {
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
@@ -458,6 +506,13 @@ const paymentModule = {
         return responseData;
     },
 
+    /**
+     * Reconcile a payment intent by its ID.
+     * @param {Object} dbHelper - The database helper for database operations.
+     * @param {string} id - The ID of the payment intent to reconcile.
+     * @param {Object} user - The user object containing the user ID and role.
+     * @returns {Object} Response data with status, error, paymentIntent, and updatedReservation on success.
+     */
     reconcilePaymentIntent: async (dbHelper, id, user) => {
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
@@ -548,6 +603,13 @@ const paymentModule = {
         }
     },
 
+    /**
+     * Retrieves a list of payments for a given reservation ID.
+     * @param {Object} dbHelper The database helper for database operations.
+     * @param {string} reservationId The ID of the reservation to fetch payments for.
+     * @param {Object} user The user object containing the user ID and role.
+     * @returns {Object} Response data with status, error, and data containing the list of payments.
+     */
     listPaymentsForReservation: async (dbHelper, reservationId, user) => {
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
@@ -602,6 +664,13 @@ const paymentModule = {
         }
     },
 
+    /**
+     * Computes the payment summary for a given reservation ID.
+     * @param {Object} dbHelper - The database helper for database operations.
+     * @param {string} reservationId - The ID of the reservation to compute the summary for.
+     * @param {Object} user - The user object containing the user ID and role.
+     * @returns {Object} Response data with status, error, and payment summary on success.
+     */
     getPaymentSummary: async (dbHelper, reservationId, user) => {
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
@@ -800,6 +869,13 @@ const paymentModule = {
         }
     },
 
+    /**
+     * Retrieves a payment details view for a given reservation ID.
+     * @param {Object} dbHelper The database helper for database operations.
+     * @param {string} reservationId The ID of the reservation to fetch payments for.
+     * @param {Object} user The user object containing the user ID and role.
+     * @returns {Object} Response data with status, error, and data containing the payment details view.
+     */
     getPaymentDetails: async (dbHelper, reservationId, user) => {
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
