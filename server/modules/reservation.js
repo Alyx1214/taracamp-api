@@ -1,12 +1,11 @@
 import { Category, GuestType, Status, UserRole, FacilityStatus, ServiceType, ReservationStatus, FileKind, } from '../constants.js';
-import notificationModule from './notification.js';
 import { Storage, } from '@google-cloud/storage';
 import dotenv from 'dotenv';
 dotenv.config();
 
 const storage = new Storage();
 const bucket = storage.bucket(process.env.BUCKET_NAME);
-const APP_TZ_OFFSET = '+08:00'; 
+const APP_TZ_OFFSET = '+08:00';
 const TZ = 'Asia/Manila';
 
 const reservationModule = {
@@ -30,7 +29,7 @@ const reservationModule = {
                 guestName, homeAddress, officeAddress, category, guestType,
                 telephone, officeTelephone, numberOfAdults, numberOfChildren, numberOfPwds,
                 emergencyContact, dateOfArrival, dateOfDeparture, facility,
-                serviceType, timeOfArrival, otherRequests, guestEmail,
+                serviceType, timeOfArrival, specialServices, otherRequests, guestEmail,
             } = data;
 
             if (
@@ -179,6 +178,25 @@ const reservationModule = {
                 return responseData;
             }
 
+            let addonIds = Array.isArray(specialServices) ? specialServices.filter(isValidObjectId) : [];
+            let addonsTotal = 0;
+
+            if (addonIds.length) {
+                const services = await dbHelper.findMany(
+                    'specialservice',
+                    { _id: { $in: addonIds, }, },
+                    { projection: { _id: 1, price: 1, }, }
+                );
+                const foundIds = new Set((services || []).map((s) => String(s._id)));
+                const unknown = addonIds.filter((id) => !foundIds.has(String(id)));
+                if (unknown.length) {
+                    responseData.status = Status.BAD_REQUEST;
+                    responseData.error = 'Unknown special service id(s): ' + unknown.join(', ');
+                    return responseData;
+                }
+                addonsTotal = services.reduce((sum, s) => sum + (Number(s.price) || 0), 0);
+            }
+
             const userOverlapping = await dbHelper.findOne('reservation', creatingForGuest ? {
                 guestEmail: guestEmail.trim(),
                 facility: facility,
@@ -268,6 +286,7 @@ const reservationModule = {
                 children,
                 pwds,
                 serviceType,
+                addonsTotal,
             });
 
             if (!Number.isFinite(totalEstimatedAmount)) {
@@ -296,6 +315,7 @@ const reservationModule = {
                 timeOfArrival,
                 facility: facilityDoc._id,
                 serviceType,
+                specialServices: addonIds,
                 otherRequests,
                 letterOfIntentFileId: loiFileDoc?._id ?? undefined,
                 totalEstimatedAmount,
@@ -724,7 +744,7 @@ const reservationModule = {
                     or.push({
                         $expr: {
                             $regexMatch: {
-                                input: { $toString: '$_id' },
+                                input: { $toString: '$_id', },
                                 regex: q,
                                 options: 'i',
                             },
@@ -736,40 +756,40 @@ const reservationModule = {
             }
 
             if (isPresent(start) && isPresent(end) && isValidDate(start) && isValidDate(end)) {
-            const sYMD = String(start).split('T')[0].split(' ')[0];
-            const eYMD = String(end).split('T')[0].split(' ')[0];
-            filter.$and = (filter.$and || []).concat([
-                {
-                $expr: {
-                    $and: [
+                const sYMD = String(start).split('T')[0].split(' ')[0];
+                const eYMD = String(end).split('T')[0].split(' ')[0];
+                filter.$and = (filter.$and || []).concat([
                     {
-                        $lte: [
-                        {
-                            $cond: [
-                            { $eq: [ { $type: "$dateOfArrival" }, "string" ] },
-                            { $dateFromString: { dateString: "$dateOfArrival", timezone: TZ } },
-                            { $dateTrunc: { date: "$dateOfArrival", unit: "day", timezone: TZ } }
-                            ]
+                        $expr: {
+                            $and: [
+                                {
+                                    $lte: [
+                                        {
+                                            $cond: [
+                                                { $eq: [{ $type: '$dateOfArrival', }, 'string',], },
+                                                { $dateFromString: { dateString: '$dateOfArrival', timezone: TZ, }, },
+                                                { $dateTrunc: { date: '$dateOfArrival', unit: 'day', timezone: TZ, }, },
+                                            ],
+                                        },
+                                        { $dateFromString: { dateString: eYMD, timezone: TZ, }, },
+                                    ],
+                                },
+                                {
+                                    $gte: [
+                                        {
+                                            $cond: [
+                                                { $eq: [{ $type: '$dateOfDeparture', }, 'string',], },
+                                                { $dateFromString: { dateString: '$dateOfDeparture', timezone: TZ, }, },
+                                                { $dateTrunc: { date: '$dateOfDeparture', unit: 'day', timezone: TZ, }, },
+                                            ],
+                                        },
+                                        { $dateFromString: { dateString: sYMD, timezone: TZ, }, },
+                                    ],
+                                },
+                            ],
                         },
-                        { $dateFromString: { dateString: eYMD, timezone: TZ } }
-                        ]
                     },
-                    {
-                        $gte: [
-                        {
-                            $cond: [
-                            { $eq: [ { $type: "$dateOfDeparture" }, "string" ] },
-                            { $dateFromString: { dateString: "$dateOfDeparture", timezone: TZ } },
-                            { $dateTrunc: { date: "$dateOfDeparture", unit: "day", timezone: TZ } }
-                            ]
-                        },
-                        { $dateFromString: { dateString: sYMD, timezone: TZ } }
-                        ]
-                    }
-                    ]
-                }
-                }
-            ]);
+                ]);
             }
 
             if (Object.keys(filter).length === 0) {
@@ -1027,7 +1047,7 @@ const reservationModule = {
                 return responseData;
             }
 
-            if (reservation.status !== ReservationStatus.CANCELLED || reservation.status !== ReservationStatus.CHECKED_OUT || reservation.status !== ReservationStatus.DECLINED) {
+            if (![ReservationStatus.CANCELLED, ReservationStatus.CHECKED_OUT, ReservationStatus.DECLINED,].includes(reservation.status)) {
                 responseData.status = Status.BAD_REQUEST;
                 responseData.error = 'Only cancelled, checked-out, and declined reservations can be deleted';
                 return responseData;
@@ -1181,7 +1201,7 @@ const reservationModule = {
         };
 
         try {
-            const { facility, adults = 0, children = 0, pwds = 0, serviceType, } = params;
+            const { facility, adults = 0, children = 0, pwds = 0, serviceType, specialServices, } = params;
 
             if (!facility) {
                 responseData.status = Status.BAD_REQUEST;
@@ -1196,6 +1216,24 @@ const reservationModule = {
                 return responseData;
             }
 
+            let addonIds = Array.isArray(specialServices) ? specialServices.filter(isValidObjectId) : [];
+            let addonsTotal = 0;
+            if (addonIds.length) {
+                const services = await dbHelper.findMany(
+                    'specialservice',
+                    { _id: { $in: addonIds, }, },
+                    { projection: { _id: 1, price: 1, }, }
+                );
+                const foundIds = new Set((services || []).map((s) => String(s._id)));
+                const unknown = addonIds.filter((id) => !foundIds.has(String(id)));
+                if (unknown.length) {
+                    responseData.status = Status.BAD_REQUEST;
+                    responseData.error = 'Unknown special service id(s): ' + unknown.join(', ');
+                    return responseData;
+                }
+                addonsTotal = services.reduce((sum, s) => sum + (Number(s.price) || 0), 0);
+            }
+
             const svcType = serviceType ||
             ((facilityDoc.facilityType === 'DORMITORY' || facilityDoc.facilityType === 'COTTAGE')
                 ? ServiceType.ACCOMMODATION
@@ -1207,6 +1245,7 @@ const reservationModule = {
                 children: Number(children) || 0,
                 pwds: Number(pwds) || 0,
                 serviceType: svcType,
+                addonsTotal,
             });
 
             responseData.status = Status.OK;
@@ -1389,10 +1428,10 @@ function isValidDateRange(dateOfArrival, dateOfDeparture) {
 }
 
 function normalizeDateOnly(dateStr) {
-  if (!dateStr || typeof dateStr !== 'string') return null;
-  const ymd = dateStr.split('T')[0].split(' ')[0];
-  const d = new Date(`${ymd}T00:00:00${APP_TZ_OFFSET}`); 
-  return isNaN(d.getTime()) ? null : d;
+    if (!dateStr || typeof dateStr !== 'string') return null;
+    const ymd = dateStr.split('T')[0].split(' ')[0];
+    const d = new Date(`${ymd}T00:00:00${APP_TZ_OFFSET}`);
+    return isNaN(d.getTime()) ? null : d;
 }
 
 function isValidEmail(email) {
@@ -1432,30 +1471,26 @@ function isPresent(value) {
     return true;
 }
 
-function computeEstimate({ facilityDoc, adults = 0, children = 0, pwds = 0, serviceType, }) {
+function computeEstimate({ facilityDoc, adults = 0, children = 0, pwds = 0, serviceType, addonsTotal = 0, }) {
     const isAccommodation =
     serviceType === ServiceType.ACCOMMODATION ||
     facilityDoc?.facilityType === 'DORMITORY' ||
     facilityDoc?.facilityType === 'COTTAGE';
 
     const perPersonRate = Number(facilityDoc?.ratePerPerson);
-    const flatBookingPrice = Number(
-        facilityDoc?.price ?? facilityDoc?.conferencePrice ?? facilityDoc?.flatPrice
-    );
+    const flatBookingPrice = Number(facilityDoc?.price ?? facilityDoc?.conferencePrice ?? facilityDoc?.flatPrice);
 
     if (isAccommodation) {
         if (!Number.isFinite(perPersonRate) || perPersonRate < 0) {
-            return { amount: 0, model: 'perPerson', };
+            return { amount: addonsTotal, model: 'perPerson', };
         }
-        const amount =
-      adults * perPersonRate +
-      (children + pwds) * perPersonRate * 0.80;
-        return { amount, model: 'perPerson', };
+        const base = adults * perPersonRate + (children + pwds) * perPersonRate * 0.80;
+        return { amount: base + addonsTotal, model: 'perPerson', };
     } else {
         if (!Number.isFinite(flatBookingPrice) || flatBookingPrice < 0) {
-            return { amount: 0, model: 'flat', };
+            return { amount: addonsTotal, model: 'flat', };
         }
-        return { amount: flatBookingPrice, model: 'flat', };
+        return { amount: flatBookingPrice + addonsTotal, model: 'flat', };
     }
 }
 

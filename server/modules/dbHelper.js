@@ -87,6 +87,7 @@ const dbHelper = {
                 status: { type: String, enum: Object.values(ReservationStatus), default: ReservationStatus.PENDING, required: true, },
                 totalEstimatedAmount: { type: Number, required: true, },
                 otherRequests: { type: String, required: false, },
+                specialServices: [{ type: mongoose.Schema.Types.ObjectId, ref: 'specialservice' }],
                 createdAt: { type: Date, default: Date.now, },
                 userId: { type: mongoose.Schema.Types.ObjectId, ref: 'user', required: false, index: true },
                 reservationCode: { type: String, required: true, unique: true, index: true },

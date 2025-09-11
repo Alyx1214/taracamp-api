@@ -1,49 +1,81 @@
 import React from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import styles from "./PaymentDetails.module.css";
-
-// Sample data
-const payments = [
-  {
-    id: "0508",
-    referenceNumber: "0000002",
-    name: "Tom John",
-    confirmationFee: "₱1,200.00",
-    breakdown: [
-      { label: "Quirino Conf Hall", amount: "12,000.00" },
-      { label: "Food", amount: "5,000.00" },
-      { label: "Table Cloth", amount: "390.00" },
-      { label: "Seat Cover", amount: "2,000.00" },
-      { label: "LED Wall", amount: "1,800.00" },
-    ],
-    discount: "None",
-    discountAmount: "00.00",
-    total: "₱ 19,990.00",
-    status: "Not Paid",
-  },
-];
+import { getPaymentDetails } from "../../apis/paymentApi"; 
 
 export default function PaymentDetails() {
-  const { id } = useParams();
+  const { id: reservationId } = useParams();
   const navigate = useNavigate();
 
-  const payment = payments.find((p) => p.id === id);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState("");
+  const [payment, setPayment] = React.useState(null);
 
-  if (!payment) {
+  React.useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      try {
+        if (!reservationId) throw new Error("Missing reservation id");
+        setLoading(true);
+        setError("");
+
+        const res = await getPaymentDetails(reservationId);
+        const data = res?.data?.data ?? res?.data ?? res;
+
+        if (!data || typeof data !== "object") {
+          throw new Error(res?.error || "Failed to fetch payment details");
+        }
+
+        if (!cancelled) setPayment(data);
+      } catch (e) {
+        if (!cancelled) setError(e?.message || "Something went wrong");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    load();
+    return () => { cancelled = true; };
+  }, [reservationId]);
+
+  const Back = (
+    <span
+      className={styles["payment-details-back"]}
+      onClick={() => navigate(-1)}
+      style={{ cursor: "pointer" }}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && navigate(-1)}
+      aria-label="Go back"
+    >
+      &larr;
+    </span>
+  );
+
+  if (loading) {
     return (
       <div className={styles["payment-details-container"]}>
         <div className={styles["payment-details-header"]}>
-          <span
-            className={styles["payment-details-back"]}
-            onClick={() => navigate(-1)}
-            style={{ cursor: "pointer" }}
-          >
-            &larr;
-          </span>
+          {Back}
           <h1 className={styles["payment-details-title"]}>Payment Details</h1>
         </div>
         <div className={styles["payment-details-card"]}>
-          <p>Payment not found.</p>
+          <p>Loading…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !payment) {
+    return (
+      <div className={styles["payment-details-container"]}>
+        <div className={styles["payment-details-header"]}>
+          {Back}
+          <h1 className={styles["payment-details-title"]}>Payment Details</h1>
+        </div>
+        <div className={styles["payment-details-card"]}>
+          <p>{error || "Payment not found."}</p>
         </div>
       </div>
     );
@@ -52,12 +84,7 @@ export default function PaymentDetails() {
   return (
     <div className={styles["payment-details-container"]}>
       <div className={styles["payment-details-header"]}>
-        <span
-          className={styles["payment-details-back"]}
-          onClick={() => navigate(-1)}
-        >
-          &larr;
-        </span>
+        {Back}
         <h1 className={styles["payment-details-title"]}>Payment Details</h1>
       </div>
       <div className={styles["payment-details-card"]}>
