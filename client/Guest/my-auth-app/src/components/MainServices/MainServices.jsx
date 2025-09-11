@@ -9,7 +9,7 @@ import MainServicesDormitories from './Dormitories';
 import MainServicesCottages from './Cottages';
 import MainServicesRates from './ServicesRates';
 import MainServicesConference from './Conference';
-import MainServicesOtherService from './OtherService';
+import MainServicesAddOns from './Add-Ons';
 import MainServicesServiceDetail from './ServiceDetail';
 import { searchFacilities } from '../../apis/facilityApi';
 import { searchSpecialServices } from '../../apis/specialServicesApi';
@@ -25,10 +25,10 @@ function MainServices() {
 
   const facilityType = useMemo(() => {
     const p = location.pathname;
-    if (p.includes('/dormitories')) return 'DORMITORY';
-    if (p.includes('/cottages')) return 'COTTAGE';
-    if (p.includes('/conference')) return 'CONFERENCE';
-    if (p.includes('/otherservice')) return 'OTHER SERVICE';
+    if (p.includes('/dormitories')) return 'Dormitory';
+    if (p.includes('/cottages')) return 'Cottage';
+    if (p.includes('/conference')) return 'Conference';
+    if (p.includes('/add-ons')) return 'Add-Ons';
     return '';
   }, [location.pathname]);
 
@@ -45,7 +45,7 @@ function MainServices() {
     setError(null);
 
     try {
-      if (facilityType === 'OTHER SERVICE') {
+      if (facilityType === 'Add-Ons') {
         const data = await searchSpecialServices({ query });
         setFacilities(Array.isArray(data?.specialServices) ? data.specialServices : []);
       } else {
@@ -66,7 +66,7 @@ function MainServices() {
     setError(null);
 
     try {
-      if (facilityType === 'OTHER SERVICE') {
+      if (facilityType === 'Add-Ons') {
         const params = {
           query: filters?.query,
           minPrice: filters?.minPrice,
@@ -106,11 +106,11 @@ function MainServices() {
     navigate('/auth/login');
   }
 
-  const isDetailViewOrOtherService =
+  const isDetailViewOrAddOn =
     (location.pathname.includes('/dormitories/') && location.pathname.split('/').length > 3) ||
     (location.pathname.includes('/cottages/') && location.pathname.split('/').length > 3) ||
     (location.pathname.includes('/conference/') && location.pathname.split('/').length > 3) ||
-    location.pathname.includes('/otherservice');
+    facilityType === 'Add-Ons';
 
   return (
     <div className={styles.mainServicesPageContainer}>
@@ -165,9 +165,9 @@ function MainServices() {
               }
             />
             <Route
-              path="otherservice"
+              path="add-ons"
               element={
-                <MainServicesOtherService
+                <MainServicesAddOns
                   facilities={facilities}
                   loading={loading}
                   searchAttempted={searchAttempted}
@@ -177,7 +177,7 @@ function MainServices() {
             <Route path=":type/:id" element={<MainServicesServiceDetail />} />
           </Routes>
 
-          {!isDetailViewOrOtherService && <MainServicesRates />}
+          {!isDetailViewOrAddOn && <MainServicesRates />}
         </div>
       </main>
 

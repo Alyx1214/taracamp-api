@@ -14,8 +14,8 @@ export default function Conference({ onEdit, searchQuery = "" }) {
         setLoading(true);
         const q = String(searchQuery || '').trim();
         const res = q
-          ? await searchFacilities({ type: 'CONFERENCE', query: q })
-          : await getFacilitiesByType('CONFERENCE');
+          ? await searchFacilities({ type: 'Conference', query: q })
+          : await getFacilitiesByType('Conference');
         if (cancelled) return;
         const mapped = (res.facilities || []).map(f => ({
           id: f.id,

@@ -25,7 +25,7 @@ function ReservationHistory() {
   const mapFacilityTypeLabel = (t) => {
     const s = String(t || '').trim().toUpperCase();
     if (!s) return 'N/A';
-    if (s === 'CONFERENCE' || s === 'CONFERENCE HALL' || s === 'CONFERENCE_HALL' || s === 'HALL') return 'Conference Hall';
+    if (s.includes('Conference')) return 'Conference Hall';
     if (s.includes('DORM')) return 'Dormitory';
     if (s.includes('COTTAGE') || s.includes('GUEST')) return 'Cottage';
     return t || 'N/A';

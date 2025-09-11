@@ -6,7 +6,7 @@ import Tabs from "../SharedTabs/SharedTabs.jsx";
 import SearchFil from "../SearchFil/SearchFil";
 import TransactionTable from "../TransactionTables/TransactionTable.jsx";
 import PaymentTable from "../TransactionTables/PaymentTable.jsx";
-import { getAllReservationsByStatus } from "../../apis/reservationApi.js";
+import { getAllReservationsByStatus, searchReservations } from "../../apis/reservationApi.js";
 
 
 export default function Transaction() {
@@ -32,7 +32,43 @@ export default function Transaction() {
     }
   }, [activeTab]);
 
-  const handleSearch = (value) => console.log("Searching for:", value);
+  const handleSearch = async (value) => {
+    const q = (value || "").trim();
+    if (!q) {
+      if (activeTab === "Transactions") {
+        try {
+          const data = await getAllReservationsByStatus("CHECKED-OUT");
+          setTransactions(data.reservations || []);
+        } catch {
+          setTransactions([]);
+        }
+      } else if (activeTab === "Payment") {
+        try {
+          const data = await getAllReservationsByStatus("CONFIRMED");
+          setPayments(data.reservations || []);
+        } catch {
+          setPayments([]);
+        }
+      }
+      return;
+    }
+
+    const params = {
+      query: q,
+      status: activeTab === "Transactions" ? "CHECKED-OUT" : "CONFIRMED",
+    };
+
+    try {
+      const res = await searchReservations(params);
+      const list = res?.reservations || [];
+      if (activeTab === "Transactions") setTransactions(list);
+      else if (activeTab === "Payment") setPayments(list);
+    } catch (err) {
+      console.error("Search failed:", err?.message || err);
+      if (activeTab === "Transactions") setTransactions([]);
+      else if (activeTab === "Payment") setPayments([]);
+    }
+  };
   const handleFilter = () => console.log("Filter clicked");
 
   const renderActiveTab = () => {

@@ -364,9 +364,9 @@ function ReservationFormStep2() {
                     disabled={Boolean(type)}
                   >
                     <option value="">Select a facility type</option>
-                    <option value="DORMITORY">Dormitory</option>
-                    <option value="CONFERENCE">Conference Hall</option>
-                    <option value="COTTAGE">Cottage/Guest House</option>
+                    <option value="Dormitory">Dormitory</option>
+                    <option value="Conference">Conference Hall</option>
+                    <option value="Cottage">Cottage/Guest House</option>
                   </select>
                   {fieldErrors.typeFacilities && (
                     <div className={styles.fieldError}>{fieldErrors.typeFacilities}</div>

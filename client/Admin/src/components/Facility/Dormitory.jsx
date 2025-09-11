@@ -14,8 +14,8 @@ export default function Dormitory({ onEdit, searchQuery = "" }) {
         setLoading(true);
         const q = String(searchQuery || '').trim();
         const res = q
-          ? await searchFacilities({ type: 'DORMITORY', query: q })
-          : await getFacilitiesByType('DORMITORY');
+          ? await searchFacilities({ type: 'Dormitory', query: q })
+          : await getFacilitiesByType('Dormitory');
         if (cancelled) return;
         const mapped = (res.facilities || []).map(f => ({
           id: f.id,

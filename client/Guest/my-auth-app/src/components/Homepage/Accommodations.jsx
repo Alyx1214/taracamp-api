@@ -11,7 +11,7 @@ const TYPE_ROUTE = {
 };
 
 const pickPrice = (f) => {
-  if (f?.facilityType === 'CONFERENCE') return f.price ?? '—';
+  if (f?.facilityType === 'Conference') return f.price ?? '—';
   return f.ratePerPerson ?? '—';
 };
 
@@ -79,7 +79,7 @@ export default function AccommodationsSection({ limit = 6 }) {
       {!state.loading && !state.error && (
         <div className={styles.cardsContainer}>
           {items.map(item => {
-            const routeType = TYPE_ROUTE[item.type] || item.type?.toLowerCase();
+            const routeType = TYPE_ROUTE[item.type];
             const to = `/user/services/${routeType}/${encodeURIComponent(item.id)}`;
             return (
               <Link key={item.id} to={to} className={styles.accommodationCard}>

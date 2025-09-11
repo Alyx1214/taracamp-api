@@ -14,8 +14,8 @@ export default function Cottages({ onEdit, searchQuery = "" }) {
         setLoading(true);
         const q = String(searchQuery || '').trim();
         const res = q
-          ? await searchFacilities({ type: 'COTTAGE', query: q })
-          : await getFacilitiesByType('COTTAGE');
+          ? await searchFacilities({ type: 'Cottage', query: q })
+          : await getFacilitiesByType('Cottage');
         if (cancelled) return;
         const mapped = (res.facilities || []).map(f => ({
           id: f.id,
