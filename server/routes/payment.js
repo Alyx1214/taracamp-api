@@ -28,6 +28,16 @@ r.get('/get-payment-summary/:id', asyncHandler(async (req, res) => {
   res.status(response.status).json(response);
 }));
 
+r.get('/get-payment-details/:id', asyncHandler(async (req, res) => {
+  const response = await paymentModule.getPaymentDetails(dbHelper, req.params.id, req.user);
+  res.status(response.status).json(response);
+}));
+
+r.get('/get-transaction-details/:reservationId', asyncHandler(async (req, res) => {
+  const response = await paymentModule.getTransactionDetails(dbHelper, req.params.reservationId, req.user);
+  res.status(response.status).json(response);
+}));
+
 r.post('/create-payment-intent/:id', asyncHandler(async (req, res) => {
   const response = await paymentModule.createPaymentIntent(dbHelper, req.params.id, req.body, req.user);
   res.status(response.status).json(response);

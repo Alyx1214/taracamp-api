@@ -1,29 +1,13 @@
 import fetch from 'node-fetch';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
-import { Status, ReservationStatus, } from '../constants.js';
+import { Status, ReservationStatus, UserRole, ServiceType, } from '../constants.js';
 
 dotenv.config();
 
 const PAYMONGO_BASE_URL = process.env.PAYMONGO_BASE_URL || 'https://api.paymongo.com/v1';
 
 const paymentModule = {
-    /**
-     * Creates a PayMongo payment intent, or throws an error if input is invalid or user is not authorized.
-     * @param {Object} dbHelper - a mongoDB client
-     * @param {string} id - reservation id
-     * @param {Object} data - optional
-     * @param {number|string} data.amount - amount in PHP, or a string parsable to a number
-     * @param {string} data.currency - optional, defaults to 'PHP'
-     * @param {string[]} data.paymentMethodAllowed - optional, default is ['card', 'gcash', 'grab_pay', 'paymaya']
-     * @param {string} data.description - optional
-     * @param {string} data.statementDescriptor - optional
-     * @param {Object} data.metadata - optional
-     * @param {string} data.captureType - optional, default is 'automatic'
-     * @param {Object} user - optional, required if id is provided
-     * @param {string} user.userId - user id
-     * @returns {Object} { status, error, paymentIntent }
-     */
     createPaymentIntent: async (dbHelper, id, data, user) => {
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
@@ -57,7 +41,7 @@ const paymentModule = {
                 }
 
                 const requesterUserId = user?.userId;
-                if (!requesterUserId || String(reservation.userId) !== String(requesterUserId)) {
+                if (!requesterUserId || String(reservation.userId) !== String(requesterUserId) && user?.role !== UserRole.SUPERINTENDENT) {
                     responseData.status = Status.FORBIDDEN;
                     responseData.error = 'Not allowed to create payment for this reservation';
                     return responseData;
@@ -149,12 +133,6 @@ const paymentModule = {
         return responseData;
     },
 
-    /**
-   * Attach a payment method to a payment intent.
-   * @param {Object} dbHelper - the database access object
-   * @param {Object} data - { paymentIntentId, paymentMethodId, returnUrl, paymentMethodType }
-   * @returns {Object} { status, error, paymentIntent }
-   */
     attachPaymentMethod: async (dbHelper, data) => {
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
@@ -210,12 +188,10 @@ const paymentModule = {
                 clientKey: intent?.attributes?.client_key,
             };
 
-            // Persist latest intent status on our payment record
             try {
                 await dbHelper.findOneAndUpdate('payment', { piId: intent.id, }, {
                     $set: {
                         status: intent?.attributes?.status,
-                        // If client passed the channel (gcash/paymaya), store it for display
                         paymentMethodType: paymentMethodType || undefined,
                         updatedAt: new Date(),
                     },
@@ -231,12 +207,6 @@ const paymentModule = {
         return responseData;
     },
 
-    /**
-     * Fetches a payment intent by its ID.
-     * @param {Object} dbHelper - The MongoDB client
-     * @param {string} id - The ID of the payment intent to fetch
-     * @returns {Object} Response data with status, error, and paymentIntent on success
-     */
     getPaymentIntent: async (dbHelper, id) => {
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
@@ -270,15 +240,6 @@ const paymentModule = {
         return responseData;
     },
 
-    /**
-     * Creates a PayMongo payment method.
-     * @param {Object} dbHelper - The MongoDB client
-     * @param {Object} data - The data object containing the payment method details
-     * @param {string} data.type - The type of payment method, e.g. 'card', 'gcash', 'grab_pay', 'paymaya'
-     * @param {Object} [data.details] - Optional details for the payment method type
-     * @param {Object} [data.billing] - Optional billing address
-     * @returns {Object} Response data with status, error, and paymentMethod on success
-     */
     createPaymentMethod: async (dbHelper, data) => {
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
@@ -323,13 +284,6 @@ const paymentModule = {
         return responseData;
     },
 
-    /**
-     * Handles a PayMongo webhook event.
-     * @param {Object} dbHelper - The MongoDB client
-     * @param {Object} headers - The headers of the webhook request
-     * @param {string|Object} body - The body of the webhook request
-     * @returns {Object} Response data with status, error, event, and optionally updatedReservation or note
-     */
     handleWebhook: async (dbHelper, headers, body) => {
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
@@ -372,7 +326,6 @@ const paymentModule = {
             if (!reservationId && resourceType === 'payment') {
                 const piId = resource?.attributes?.payment_intent_id || resource?.attributes?.payment_intent?.id;
                 if (piId) {
-                    // Try to recover reservationId from our DB first (created when PI was created)
                     try {
                         const existingPI = await dbHelper.findOne('payment', { piId, });
                         if (existingPI?.reservationId) {
@@ -381,7 +334,6 @@ const paymentModule = {
                         }
                     } catch (_) { /* noop */ }
 
-                    // If still missing, fall back to PayMongo fetch (requires proper PAYMONGO_* envs)
                     if (!reservationId) {
                         try {
                             const piJson = await paymongoRequest('GET', `/payment_intents/${piId}`);
@@ -410,7 +362,6 @@ const paymentModule = {
                             totalPaid = (paidRows || []).reduce((acc, p) => acc + (Number(p.amountCentavos || 0) / 100), 0);
                         } catch (_) {}
 
-                        const total = Number(reservation.totalEstimatedAmount) || 0;
                         const nextStatus = totalPaid > 0 ? ReservationStatus.CONFIRMED : reservation.status;
 
                         if (nextStatus !== reservation.status) {
@@ -426,7 +377,6 @@ const paymentModule = {
                 }
             }
 
-            // Persist payment info for listing/history
             try {
                 const now = new Date();
                 if (resourceType === 'payment_intent') {
@@ -508,15 +458,6 @@ const paymentModule = {
         return responseData;
     },
 
-    /**
-   * Reconciles a payment intent by fetching the latest state from PayMongo
-   * and updating our DB with that information. If the intent is in a succeeded
-   * state, marks the reservation as CONFIRMED if it isn't already.
-   * @param {Object} dbHelper - The MongoDB client
-   * @param {string} id - The payment intent ID to reconcile
-   * @param {Object} user - The user object containing the user ID and role
-   * @returns {Object} Response data with status, error, paymentIntent, and updatedReservation on success
-   */
     reconcilePaymentIntent: async (dbHelper, id, user) => {
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
@@ -529,14 +470,12 @@ const paymentModule = {
                 return responseData;
             }
 
-            // Fetch latest intent state from PayMongo
             const intentJson = await paymongoRequest('GET', `/payment_intents/${id}`);
             const intent = intentJson?.data;
             const intentStatus = intent?.attributes?.status;
             const meta = intent?.attributes?.metadata || {};
             let reservationId = meta?.reservationId || null;
 
-            // Try to recover reservationId from our DB if missing
             if (!reservationId) {
                 try {
                     const existing = await dbHelper.findOne('payment', { piId: id, });
@@ -557,7 +496,6 @@ const paymentModule = {
                 return responseData;
             }
 
-            // Authorization: only the reservation owner can reconcile (or allow admins later)
             const requesterUserId = user?.userId;
             if (!requesterUserId || String(reservation.userId) !== String(requesterUserId)) {
                 responseData.status = Status.FORBIDDEN;
@@ -565,7 +503,6 @@ const paymentModule = {
                 return responseData;
             }
 
-            // Persist latest intent info to our payment row
             try {
                 await dbHelper.findOneAndUpdate('payment', { piId: id, }, {
                     $set: {
@@ -578,11 +515,9 @@ const paymentModule = {
                 });
             } catch (_) {}
 
-            // If succeeded, mark reservation CONFIRMED (policy: any successful payment confirms)
             let updatedReservation = null;
             if (String(intentStatus).toLowerCase() === 'succeeded') {
                 try {
-                    // Count successful payments (paid/succeeded)
                     const successfulStatuses = ['paid', 'succeeded',];
                     const paidRows = await dbHelper.findMany('payment', { reservationId, status: { $in: successfulStatuses, }, }, { sort: { createdAt: 1, }, });
                     const totalPaid = (paidRows || []).reduce((acc, p) => acc + (Number(p.amountCentavos || 0) / 100), 0);
@@ -613,13 +548,6 @@ const paymentModule = {
         }
     },
 
-    /**
-     * Fetches all payments associated with a reservation.
-     * @param {Object} dbHelper - a mongoDB client
-     * @param {string} reservationId - the ID of the reservation
-     * @param {Object} user - the user object containing the user ID and role
-     * @returns {Object} { status, error, data }
-     */
     listPaymentsForReservation: async (dbHelper, reservationId, user) => {
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
@@ -643,7 +571,7 @@ const paymentModule = {
                 responseData.error = 'Reservation not found';
                 return responseData;
             }
-            if (String(reservation.userId) !== String(user.userId)) {
+            if (String(reservation.userId) !== String(user.userId) && user.role !== UserRole.SUPERINTENDENT) {
                 responseData.status = Status.FORBIDDEN;
                 responseData.error = 'Not allowed to access this reservation';
                 return responseData;
@@ -674,13 +602,6 @@ const paymentModule = {
         }
     },
 
-    /**
-     * Computes the payment summary for a given reservation.
-     * @param {Object} dbHelper - a mongoDB client
-     * @param {string} reservationId - the ID of the reservation
-     * @param {Object} user - the user object containing the user ID and role
-     * @returns {Object} { status, error, data }
-     */
     getPaymentSummary: async (dbHelper, reservationId, user) => {
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
@@ -705,7 +626,7 @@ const paymentModule = {
                 responseData.error = 'Reservation not found';
                 return responseData;
             }
-            if (String(reservation.userId) !== String(user.userId)) {
+            if (String(reservation.userId) !== String(user.userId) && user.role !== UserRole.SUPERINTENDENT) {
                 responseData.status = Status.FORBIDDEN;
                 responseData.error = 'Not allowed to access this reservation';
                 return responseData;
@@ -722,8 +643,6 @@ const paymentModule = {
                 );
                 totalPaid = (paidRows || []).reduce((acc, p) => acc + (Number(p.amountCentavos || 0) / 100), 0);
             } catch (_) {}
-            // Policy: 30% downpayment, due 3 days after creation,
-            // but never later than 1 day before arrival.
             const DOWNPAYMENT_PERCENT = 0.30;
             const DUE_IN_DAYS = 3;
 
@@ -762,6 +681,240 @@ const paymentModule = {
             console.error('Error computing payment summary:', err);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
             responseData.error = 'Error computing payment summary';
+            return responseData;
+        }
+    },
+
+    /**
+     * Returns a transaction view for a given reservation ID.
+     * @param dbHelper The database helper
+     * @param reservationId The reservation ID
+     * @param user The user object of the request sender
+     * @returns A response object containing the transaction view or an error message
+     */
+    getTransactionDetails: async (dbHelper, reservationId, user) => {
+        const responseData = {
+            status: Status.INTERNAL_SERVER_ERROR,
+            error: 'Error getting transaction view',
+        };
+
+        try {
+            if (!reservationId) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Reservation ID is required';
+                return responseData;
+            }
+            if (!user || !user.userId) {
+                responseData.status = Status.UNAUTHORIZED;
+                responseData.error = 'User not logged in';
+                return responseData;
+            }
+
+            const reservation = await dbHelper.findOne('reservation', { _id: reservationId, });
+            if (!reservation) {
+                responseData.status = Status.NOT_FOUND;
+                responseData.error = 'Reservation not found';
+                return responseData;
+            }
+
+            if (user.role !== UserRole.SUPERINTENDENT && String(reservation.userId) !== String(user.userId)) {
+                responseData.status = Status.FORBIDDEN;
+                responseData.error = 'You are not authorized to view this transaction.';
+                return responseData;
+            }
+
+            const [facility, reservationUser, payments, summaryRaw,] = await Promise.all([
+                reservation?.facility ? dbHelper.findOne('facility', { _id: reservation.facility, }) : null,
+                reservation?.userId ? dbHelper.findOne('user', { _id: reservation.userId, }) : null,
+                dbHelper.findMany(
+                    'payment',
+                    { reservationId, },
+                    { sort: { createdAt: -1, }, }
+                ),
+
+                (async () => {
+                    const total = Number(reservation.totalEstimatedAmount) || 0;
+                    const successfulStatuses = ['paid', 'succeeded',];
+                    const paidRows = await dbHelper.findMany(
+                        'payment',
+                        { reservationId, status: { $in: successfulStatuses, }, },
+                        { sort: { createdAt: 1, }, }
+                    );
+                    const totalPaid = (paidRows || []).reduce((acc, p) => acc + (Number(p.amountCentavos || 0) / 100), 0);
+
+                    const DOWNPAYMENT_PERCENT = 0.30;
+                    const DUE_IN_DAYS = 3;
+
+                    const createdAt = reservation.createdAt ? new Date(reservation.createdAt) : new Date();
+                    const arrival = reservation.dateOfArrival ? new Date(reservation.dateOfArrival) : null;
+
+                    const due = new Date(createdAt);
+                    due.setDate(due.getDate() + DUE_IN_DAYS);
+                    if (arrival && !Number.isNaN(arrival.getTime())) {
+                        const lastDay = new Date(arrival);
+                        lastDay.setDate(arrival.getDate() - 1);
+                        if (due > lastDay) due.setTime(lastDay.getTime());
+                    }
+
+                    return {
+                        downpaymentAmount: Math.max(0, Math.round(total * DOWNPAYMENT_PERCENT * 100) / 100),
+                        dueDate: due.toISOString(),
+                        totalPaid,
+                    };
+                })(),
+            ]);
+
+            const successful = (payments || []).filter((p) => ['paid', 'succeeded',].includes((p.status || '').toLowerCase()));
+            const latest = successful[0] || payments[0] || null;
+
+            const dateIso = latest?.paidAt || latest?.updatedAt || latest?.createdAt || null;
+            const paymentMethod = latest?.paymentMethodType || latest?.paymentMethod?.type || null;
+
+            const view = {
+                id: (reservation._id?.toString() || '').slice(-4) || '—',
+                referenceNumber: latest ? String(latest._id) : 'N/A',
+                name: reservationUser ? reservationUser.name : reservation.guestName || '—',
+                confirmationFee: peso(summaryRaw?.downpaymentAmount ?? 0),
+                paymentDue: summaryRaw?.dueDate ? fmtDate(summaryRaw.dueDate) : '—',
+                date: dateIso ? fmtDate(dateIso) : '—',
+                paymentMethod: methodLabel(paymentMethod),
+                status: (() => {
+                    const total = Number(reservation.totalEstimatedAmount) || 0;
+                    const totalPaid = Number(summaryRaw?.totalPaid || 0);
+                    if (totalPaid <= 0) return 'Not Paid';
+                    if (totalPaid >= total) return 'Paid';
+                    return 'Partially Paid';
+                })(),
+            };
+
+            responseData.status = Status.OK;
+            responseData.error = null;
+            responseData.data = view;
+            return responseData;
+
+        } catch (err) {
+            console.error('Error getting transaction view:', err);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Error getting transaction view';
+            return responseData;
+        }
+    },
+
+    getPaymentDetails: async (dbHelper, reservationId, user) => {
+        const responseData = {
+            status: Status.INTERNAL_SERVER_ERROR,
+            error: 'Error getting payment details view',
+        };
+
+        try {
+            if (!reservationId) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Reservation ID is required';
+                return responseData;
+            }
+            if (!user || !user.userId) {
+                responseData.status = Status.UNAUTHORIZED;
+                responseData.error = 'User not logged in';
+                return responseData;
+            }
+
+            const reservation = await dbHelper.findOne('reservation', { _id: reservationId, });
+            if (!reservation) {
+                responseData.status = Status.NOT_FOUND;
+                responseData.error = 'Reservation not found';
+                return responseData;
+            }
+
+            if (user.role !== UserRole.SUPERINTENDENT && String(reservation.userId) !== String(user.userId)) {
+                responseData.status = Status.FORBIDDEN;
+                responseData.error = 'You are not authorized to view this payment.';
+                return responseData;
+            }
+
+            const [facility, reservationUser, payments,] = await Promise.all([
+                reservation?.facility ? dbHelper.findOne('facility', { _id: reservation.facility, }) : null,
+                reservation?.userId ? dbHelper.findOne('user', { _id: reservation.userId, }) : null,
+                dbHelper.findMany('payment', { reservationId, }, { sort: { createdAt: -1, }, }),
+            ]);
+
+            const breakdown = [];
+
+            if (facility) {
+                const { amount: facilityCost, } = computeEstimate({
+                    facilityDoc: facility,
+                    adults: reservation?.numberOfGuests?.adult || 0,
+                    children: reservation?.numberOfGuests?.children || 0,
+                    pwds: reservation?.numberOfGuests?.pwds || 0,
+                    serviceType: reservation?.serviceType,
+                });
+                breakdown.push({
+                    label: facility.name,
+                    amount: fmtAmountOnly(facilityCost),
+                });
+            }
+
+            const serviceIds = []
+                .concat(reservation?.specialServices || [])
+                .concat(reservation?.specialService ? [reservation.specialService,] : [])
+                .filter(Boolean);
+
+            if (serviceIds.length) {
+                const services = await dbHelper.findMany(
+                    'specialservice',
+                    { _id: { $in: serviceIds.map(String), }, },
+                    { projection: { name: 1, price: 1, }, }
+                );
+                for (const s of services || []) {
+                    breakdown.push({
+                        label: s.name,
+                        amount: fmtAmountOnly(Number(s.price) || 0),
+                    });
+                }
+            }
+
+            const totalEstimated = Number(reservation.totalEstimatedAmount) || 0;
+            const successfulStatuses = ['paid', 'succeeded',];
+            const successful = (payments || []).filter((p) =>
+                successfulStatuses.includes(String(p.status || '').toLowerCase())
+            );
+            const totalPaid = successful.reduce((acc, p) => acc + (Number(p.amountCentavos || 0) / 100), 0);
+
+            const DOWNPAYMENT_PERCENT = 0.30;
+            const confirmationFee = totalEstimated * DOWNPAYMENT_PERCENT;
+
+            const status =
+            totalPaid <= 0 ? 'Not Paid' :
+            totalPaid >= totalEstimated ? 'Paid' : 'Partially Paid';
+
+            const latestSuccessful = successful[0] || null;
+            const latestAny = (payments && payments[0]) || null;
+            const referenceNumber =
+                latestSuccessful?._id?.toString() ||
+                latestAny?._id?.toString() ||
+                reservation.referenceNumber ||
+                reservation.reservationCode ||
+                'N/A';
+
+            const view = {
+                id: (reservation._id?.toString()),
+                referenceNumber,
+                name: reservationUser?.name || reservation.guestName || '—',
+                confirmationFee: peso(confirmationFee),             
+                breakdown,                                          
+                discount: 'None',                                   
+                discountAmount: '00.00',                            
+                total: peso(totalEstimated, true),                  
+                status,
+            };
+
+            responseData.status = Status.OK;
+            responseData.error = null;
+            responseData.data = view;
+            return responseData;
+        } catch (err) {
+            console.error('Error getting payment details view:', err);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Error getting payment details view';
             return responseData;
         }
     },
@@ -813,3 +966,57 @@ function toCentavos(amount) {
     if (!Number.isFinite(n)) return NaN;
     return Math.round(n * 100);
 }
+
+function fmtDate(iso) {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '—';
+    return d.toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: '2-digit', });
+}
+
+function methodLabel(t) {
+    if (!t) return '—';
+    const m = String(t).toLowerCase();
+    if (m === 'gcash') return 'GCash';
+    if (m === 'card') return 'Card';
+    if (m === 'grab_pay') return 'GrabPay';
+    if (m === 'paymaya') return 'Maya';
+    if (m === 'bank_transfer' || m === 'bank') return 'Bank Transfer';
+    return t;
+}
+
+function computeEstimate({ facilityDoc, adults = 0, children = 0, pwds = 0, serviceType, }) {
+    const isAccommodation =
+    serviceType === ServiceType.ACCOMMODATION ||
+    facilityDoc?.facilityType === 'DORMITORY' ||
+    facilityDoc?.facilityType === 'COTTAGE';
+
+    const perPersonRate = Number(facilityDoc?.ratePerPerson);
+    const flatBookingPrice = Number(facilityDoc?.price ?? facilityDoc?.conferencePrice ?? facilityDoc?.flatPrice);
+
+    if (isAccommodation) {
+        if (!Number.isFinite(perPersonRate) || perPersonRate < 0) {
+            return { amount: 0, model: 'perPerson', };
+        }
+        const amount = (Number(adults) || 0) * perPersonRate +
+                   ((Number(children) || 0) + (Number(pwds) || 0)) * perPersonRate * 0.8;
+        return { amount, model: 'perPerson', };
+    } else {
+        if (!Number.isFinite(flatBookingPrice) || flatBookingPrice < 0) {
+            return { amount: 0, model: 'flat', };
+        }
+        return { amount: flatBookingPrice, model: 'flat', };
+    }
+}
+
+function peso(num, withLeadingSpace = false) {
+    const n = Number(num);
+    const value = Number.isFinite(n) ? n.toFixed(2) : '0.00';
+    return withLeadingSpace ? `₱ ${value}` : `₱${value}`;
+}
+
+function fmtAmountOnly(num) {
+    const n = Number(num);
+    return Number.isFinite(n) ? n.toFixed(2) : '0.00';
+}
+
