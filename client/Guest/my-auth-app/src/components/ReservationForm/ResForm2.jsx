@@ -457,32 +457,78 @@ function ReservationFormStep2() {
                   )}
                 </div>
 
-                <div className={styles.formGroup}>
-                  <label className={styles.label}>Time of Arrival<span className={styles.requiredAsterisk}>*</span></label>
-                  <div className={styles.timeInput}>
-                    <input
-                      type="number"
-                      name="timeArrivalHour"
-                      value={formData.timeArrivalHour}
-                      onChange={handleInputChange}
-                      className={`${styles.timeInputBox} ${fieldErrors.timeArrivalHour ? styles.inputError : ''}`}
-                      placeholder="HH"
-                      min="1"
-                      max="12"
-                    />
-                    <select
-                      name="timeArrivalAMPM"
-                      value={formData.timeArrivalAMPM}
-                      onChange={handleInputChange}
-                      className={styles.ampmSelect}
-                    >
-                      <option value="AM">AM</option>
-                      <option value="PM">PM</option>
-                    </select>
+                <div className={styles.formRow}>
+                  <div className={styles.formGroup}>
+                    <label className={styles.label}>Time of Arrival<span className={styles.requiredAsterisk}>*</span></label>
+                    <div className={styles.timeInput}>
+                      <input
+                        type="number"
+                        name="timeArrivalHour"
+                        value={formData.timeArrivalHour}
+                        onChange={handleInputChange}
+                        className={`${styles.timeInputBox} ${fieldErrors.timeArrivalHour ? styles.inputError : ''}`}
+                        placeholder="HH"
+                        min="1"
+                        max="12"
+                      />
+                      <select
+                        name="timeArrivalAMPM"
+                        value={formData.timeArrivalAMPM}
+                        onChange={handleInputChange}
+                        className={styles.ampmSelect}
+                      >
+                        <option value="AM">AM</option>
+                        <option value="PM">PM</option>
+                      </select>
+                    </div>
+                    {fieldErrors.timeArrivalHour && (
+                      <div className={styles.fieldError}>{fieldErrors.timeArrivalHour}</div>
+                    )}
                   </div>
-                  {fieldErrors.timeArrivalHour && (
-                    <div className={styles.fieldError}>{fieldErrors.timeArrivalHour}</div>
-                  )}
+
+                  <div className={styles.formGroup}>
+                    <label className={styles.label}>Number of Rooms<span className={styles.requiredAsterisk}>*</span></label>
+                    <div className={styles.quantityInput}>
+                      <button
+                        type="button"
+                        className={styles.quantityButton}
+                        onClick={() => {
+                          const current = parseInt(formData.quantity || 1, 10);
+                          if (current > 1) {
+                            setFormData(prev => ({ ...prev, quantity: current - 1 }));
+                          }
+                        }}
+                        disabled={parseInt(formData.quantity || 1, 10) <= 1}
+                      >
+                        -
+                      </button>
+                      <input
+                        type="number"
+                        name="quantity"
+                        value={formData.quantity || 1}
+                        onChange={handleInputChange}
+                        className={`${styles.quantityInputBox} ${fieldErrors.quantity ? styles.inputError : ''}`}
+                        min="1"
+                        max="10"
+                      />
+                      <button
+                        type="button"
+                        className={styles.quantityButton}
+                        onClick={() => {
+                          const current = parseInt(formData.quantity || 1, 10);
+                          if (current < 10) {
+                            setFormData(prev => ({ ...prev, quantity: current + 1 }));
+                          }
+                        }}
+                        disabled={parseInt(formData.quantity || 1, 10) >= 10}
+                      >
+                        +
+                      </button>
+                    </div>
+                    {fieldErrors.quantity && (
+                      <div className={styles.fieldError}>{fieldErrors.quantity}</div>
+                    )}
+                  </div>
                 </div>
               </div>
 
