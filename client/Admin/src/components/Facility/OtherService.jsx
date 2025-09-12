@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import BoxCard from "./BoxCard";
+import TableServices from "./TableServices";
+import styles from "./TableServices.module.css";
 import { getAllSpecialServices, searchSpecialServices, deleteSpecialService } from "../../apis/specialServiceApi";
 
 export default function OtherService({ onEdit, searchQuery = "" }) {
@@ -45,18 +46,16 @@ export default function OtherService({ onEdit, searchQuery = "" }) {
   };
 
   return (
-    <>
+    <div className={styles.container}>
+      <h2 className={styles.heading}>
+        OTHER SERVICE
+      </h2>
       {loading && <p>Loading services...</p>}
       {error && <p style={{ color: 'red' }}>{error}</p>}
       {!loading && !error && services.length === 0 && <p>No Other Service found</p>}
       {!loading && !error && services.length > 0 && (
-        <BoxCard
-          facilities={services}
-          type="Other Service"
-          onEdit={onEdit}
-          onDelete={handleDelete}
-        />
+        <TableServices Tableservices={services}/>
       )}
-    </>
+    </div>
   );
 }

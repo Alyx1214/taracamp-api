@@ -90,7 +90,8 @@ export default function BoxCard({ facilities, onDelete, type, onEdit }) {
                 }}
               />
 
-              <div className={styles["card-content"]}>
+// Uncomment if connected to other tabs in the box
+              {/* <div className={styles["card-content"]}>
                 <h3 className={styles["card-title"]}>{facility.name}</h3>
                 <p className={styles["card-rate"]}>
                   {type === "Other Service"
@@ -109,7 +110,7 @@ export default function BoxCard({ facilities, onDelete, type, onEdit }) {
                     Capacity: {facility.capacity}
                   </p>
                 )}
-              </div>
+              </div> */}
 
               <div
                 className={styles["card-menu"]}

@@ -1,0 +1,38 @@
+.container {
+  padding: 24px;
+}
+
+.heading {
+  color: #4a3c1a;
+  font-weight: bold;
+  font-size: 2rem;
+  margin-bottom: 16px;
+}
+
+.tableWrapper {
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  padding: 24px;
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 8px;
+}
+
+.th {
+  text-align: left;
+  color: #4a3c1a;
+  font-size: 1.1rem;
+  letter-spacing: 1px;
+}
+
+.td {
+  padding: 6px 0;
+  font-family: "Montserrat", sans-serif;
+  font-size: 1rem;
+}
