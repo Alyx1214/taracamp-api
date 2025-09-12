@@ -6,6 +6,7 @@
   margin: 0 auto;
   color: #232e23;
   font-family: 'Inter', Arial, sans-serif;
+  border-radius: 12px;
 }
 
 .headerRow {
@@ -15,6 +16,7 @@
   padding: 16px 20px;
   border-bottom: 1px solid #3a4a3a;
   background: #1E3C24;
+  border-bottom: 1px solid #3a4a3a;
 }
 
 .headerTitle {
@@ -34,6 +36,8 @@
 
 .contentBox {
   padding: 20px 30px;
+  overflow-y: auto;
+  max-height: 450px;
 }
 
 .titleBox {

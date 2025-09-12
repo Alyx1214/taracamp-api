@@ -66,7 +66,7 @@ export default function NotifPreview({
         </button>
         <span className={styles.previewHeaderTitle}>Notifications</span>
       </div>
-      <div style={{ padding: '24px 32px 0 32px' }}>
+      <div className={styles.previewCard}>
         <div className={styles.previewTitleBox}>
           <span>{title}</span>
         </div>

@@ -36,6 +36,8 @@
 
 .contentBox {
   padding: 20px 30px;
+  overflow-y: auto;
+  max-height: 450px;
 }
 
 .titleBox {
