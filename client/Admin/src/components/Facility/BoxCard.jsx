@@ -12,7 +12,7 @@ const getSingularLabel = (category) => {
       return "Cottage";
     case "Conference":
       return "Conference";
-    case "Other Service":
+    case "Add-ons":
       return "Service";
     default:
       return "Facility";
@@ -90,27 +90,26 @@ export default function BoxCard({ facilities, onDelete, type, onEdit }) {
                 }}
               />
 
-// Uncomment if connected to other tabs in the box
-              {/* <div className={styles["card-content"]}>
+              <div className={styles["card-content"]}>
                 <h3 className={styles["card-title"]}>{facility.name}</h3>
                 <p className={styles["card-rate"]}>
-                  {type === "Other Service"
+                  {type === "Add-ons"
                     ? "Price per Unit"
                     : type === "Conference"
                     ? "Price"
                     : "Rate per Person"}
                   : ₱ {facility.rate}
-                  {type === "Other Service" &&
+                  {type === "Add-ons" &&
                     facility.capacity &&
                     facility.capacity !== "-" &&
                     ` / ${facility.capacity}`}
                 </p>
-                {type !== "Other Service" && (
+                {type !== "Add-ons" && (
                   <p className={styles["card-capacity"]}>
                     Capacity: {facility.capacity}
                   </p>
                 )}
-              </div> */}
+              </div>
 
               <div
                 className={styles["card-menu"]}

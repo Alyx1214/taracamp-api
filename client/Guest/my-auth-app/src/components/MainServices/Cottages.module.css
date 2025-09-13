@@ -169,7 +169,7 @@
 }
 
 .skelBody {
-  padding: 16px;
+  padding: 20px;
   display: grid;
   gap: 10px;
 }
@@ -225,4 +225,3 @@
 @media (max-width: 576px) {
   .skelImg { height: 150px; }
 }
-

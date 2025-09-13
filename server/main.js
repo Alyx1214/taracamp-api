@@ -13,7 +13,7 @@ import paymentModule from './modules/payment.js';
 
 import userRoutes from './routes/user.js';
 import facilityRoutes from './routes/facility.js';
-import specialServiceRoutes from './routes/specialService.js';
+import addonRoutes from './routes/addons.js';
 import buildReservationRouter from './routes/reservation.js';
 import paymentRoutes from './routes/payment.js';
 import notificationRoutes from './routes/notification.js';
@@ -62,7 +62,7 @@ app.use('/api/v1', basicLimiter, (req, res, next) => {
   const r = express.Router();
   r.use('/user', userRoutes);
   r.use('/facility', facilityRoutes);
-  r.use('/special-service', specialServiceRoutes);
+  r.use('/addons', addonRoutes);
   r.use('/reservation', buildReservationRouter(userSocketMap));
   r.use('/payment', paymentRoutes);
   r.use('/notification', notificationRoutes);

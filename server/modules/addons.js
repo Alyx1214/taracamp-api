@@ -1,18 +1,18 @@
 import { Status, UserRole, } from '../constants.js';
 import dbHelper from './dbHelper.js';
 
-const specialServiceModule = {
+const addonsModule = {
     /**
-     * Adds a new special service to the database.
+     * Adds a new add-on to the database.
      * @param {Object} dbHelper - The database helper for DB operations
      * @param {Object} data - Data object containing name, price, and unit
      * @param {Object} user - The user object representing the current user
-     * @returns {Object} Response data with status, error, message, and specialServiceId on success.
+     * @returns {Object} Response data with status, error, message, and addonId on success.
      */
-    addSpecialService: async (dbHelper, data, user) => {
+    addAddon: async (dbHelper, data, user) => {
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
-            error: 'Error adding special service',
+            error: 'Error adding add-on',
         };
 
         try {
@@ -38,11 +38,11 @@ const specialServiceModule = {
 
             if (user.role !== UserRole.CRMSTEAM && user.role !== UserRole.SUPERINTENDENT) {
                 responseData.status = Status.FORBIDDEN;
-                responseData.error = 'Only CRMS team and Superintendent can add a special service';
+                responseData.error = 'Only CRMS team and Superintendent can add an add-on';
                 return responseData;
             }
 
-            const existing = await dbHelper.findOne('specialservice', {
+            const existing = await dbHelper.findOne('addon', {
                 name,
                 price,
                 unit,
@@ -50,47 +50,47 @@ const specialServiceModule = {
 
             if (existing) {
                 responseData.status = Status.BAD_REQUEST;
-                responseData.error = 'Special service already exists';
+                responseData.error = 'Add-on already exists';
                 return responseData;
             }
 
-            const specialServiceData = {
+            const addonData = {
                 name,
                 price,
                 unit,
             };
 
-            const specialService = await dbHelper.create('specialservice', specialServiceData);
+            const addon = await dbHelper.create('addon', addonData);
 
             responseData.status = Status.CREATED;
             responseData.error = null;
-            responseData.message = 'Special service added successfully';
-            responseData.specialServiceId = specialService._id.toString();
+            responseData.message = 'Add-on added successfully';
+            responseData.addonId = addon._id.toString();
 
         } catch (error) {
-            console.error('Error adding special service:', error);
+            console.error('Error adding add-on:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
-            responseData.error = 'Error adding special service';
+            responseData.error = 'Error adding add-on';
         }
         return responseData;
     },
 
     /**
-     * Fetches all special services.
+     * Fetches all add-ons.
      * @param {Object} dbHelper - The database helper for database operations.
-     * @returns {Object} Response data with status, error, and specialServices on success.
+     * @returns {Object} Response data with status, error, and addons on success.
      */
-    getAllSpecialServices: async (dbHelper, options = {}) => {
+    getAllAddons: async (dbHelper, options = {}) => {
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
-            error: 'Error fetching special services',
-            specialServices: [],
+            error: 'Error fetching add-ons',
+            addons: [],
         };
 
         try {
             const { limit, skip, sort, } = options || {};
             const sortOption = sort ? parseSort(sort) : { name: 1, };
-            const specialServices = await dbHelper.findMany('specialservice', {}, {
+            const addons = await dbHelper.findMany('addon', {}, {
                 projection: { __v: 0, createdAt: 0, },
                 sort: sortOption,
                 limit: clampLimit(limit),
@@ -99,75 +99,75 @@ const specialServiceModule = {
 
             responseData.status = Status.OK;
             responseData.error = null;
-            responseData.specialServices = specialServices;
+            responseData.addons = addons;
         } catch (error) {
-            console.error('Error fetching special services:', error);
+            console.error('Error fetching add-ons:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
-            responseData.error = 'Error fetching special services';
+            responseData.error = 'Error fetching add-ons';
         }
         return responseData;
     },
 
     /**
-     * Fetches a special service by its ID.
-     * @param {string} id - The ID of the special service.
-     * @returns {Object} Response data with status, error, and specialService on success.
+     * Fetches an add-on by its ID.
+     * @param {string} id - The ID of the add-on.
+     * @returns {Object} Response data with status, error, and addon on success.
      */
-    getSpecialServiceById: async (dbHelper, id) => {
+    getAddonById: async (dbHelper, id) => {
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
-            error: 'Error fetching special service',
-            specialService: null,
+            error: 'Error fetching add-on',
+            addon: null,
         };
 
         if (!id) {
             responseData.status = Status.BAD_REQUEST;
-            responseData.error = 'Missing special service ID';
+            responseData.error = 'Missing add-on ID';
             return responseData;
         }
 
         try {
-            const specialService = await dbHelper.findOne('specialservice', { _id: id, });
-            if (!specialService) {
+            const addon = await dbHelper.findOne('addon', { _id: id, });
+            if (!addon) {
                 responseData.status = Status.NOT_FOUND;
-                responseData.error = 'Special service not found';
+                responseData.error = 'Add-on not found';
                 return responseData;
             }
 
-            const specialServiceObject = specialService.toObject();
-            delete specialServiceObject.__v;
-            delete specialServiceObject.createdAt;
+            const addonObject = addon.toObject();
+            delete addonObject.__v;
+            delete addonObject.createdAt;
 
             responseData.status = Status.OK;
             responseData.error = null;
-            responseData.specialService = specialServiceObject;
+            responseData.addon = addonObject;
         } catch (error) {
-            console.error('Error fetching special service:', error);
+            console.error('Error fetching add-on:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
-            responseData.error = 'Error fetching special service';
+            responseData.error = 'Error fetching add-on';
         }
         return responseData;
     },
 
     /**
-     * Edits a special service by its ID.
+     * Edits an add-on by its ID.
      * @param {Object} dbHelper - The database helper for database operations.
-     * @param {string} id - The ID of the special service to be edited.
+     * @param {string} id - The ID of the add-on to be edited.
      * @param {Object} data - The data object containing the new values for name, price, and unit
      * @param {Object} file - The file object containing the new image.
      * @param {Object} user - The user object containing the user ID and role.
-     * @returns {Object} Response data with status, error, message, and specialServiceId on success.
+     * @returns {Object} Response data with status, error, message, and addonId on success.
      */
-    updateSpecialService: async (dbHelper, id, data, user) => {
+    updateAddon: async (dbHelper, id, data, user) => {
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
-            error: 'Error editing special service',
+            error: 'Error editing add-on',
         };
 
         try {
             if (!id) {
                 responseData.status = Status.BAD_REQUEST;
-                responseData.error = 'Missing special service ID';
+                responseData.error = 'Missing add-on ID';
                 return responseData;
             }
 
@@ -179,14 +179,14 @@ const specialServiceModule = {
 
             if (user.role !== UserRole.CRMSTEAM && user.role !== UserRole.SUPERINTENDENT) {
                 responseData.status = Status.FORBIDDEN;
-                responseData.error = 'Only CRMS team  and Superintendent can edit a special service';
+                responseData.error = 'Only CRMS team and Superintendent can edit an add-on';
                 return responseData;
             }
 
-            const specialService = await dbHelper.findOne('specialservice', { _id: id, });
-            if (!specialService) {
+            const addon = await dbHelper.findOne('addon', { _id: id, });
+            if (!addon) {
                 responseData.status = Status.NOT_FOUND;
-                responseData.error = 'Special service not found';
+                responseData.error = 'Add-on not found';
                 return responseData;
             }
 
@@ -202,50 +202,50 @@ const specialServiceModule = {
             }
             if (isPresent(data.unit)) updateData.unit = data.unit;
 
-            const existing = await dbHelper.findOne('specialservice', {
+            const existing = await dbHelper.findOne('addon', {
                 _id: { $ne: id, },
-                name: updateData.name || specialService.name,
-                price: updateData.price || specialService.price,
-                unit: updateData.unit || specialService.unit,
+                name: updateData.name || addon.name,
+                price: updateData.price || addon.price,
+                unit: updateData.unit || addon.unit,
             });
 
             if (existing) {
                 responseData.status = Status.BAD_REQUEST;
-                responseData.error = 'Another special service with the same details already exists';
+                responseData.error = 'Another add-on with the same details already exists';
                 return responseData;
             }
 
-            await dbHelper.updateOne('specialservice', { _id: id, }, { $set: updateData, });
+            await dbHelper.updateOne('addon', { _id: id, }, { $set: updateData, });
 
             responseData.status = Status.OK;
             responseData.error = null;
-            responseData.message = 'Special service updated successfully';
-            responseData.specialServiceId = id;
+            responseData.message = 'Add-on updated successfully';
+            responseData.addonId = id;
         } catch (error) {
-            console.error('Error editing special service:', error);
+            console.error('Error editing add-on:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
-            responseData.error = 'Error editing special service';
+            responseData.error = 'Error editing add-on';
         }
         return responseData;
     },
 
     /**
-     * Deletes a special service by its ID.
+     * Deletes an add-on by its ID.
      * @param {Object} dbHelper - The database helper for database operations.
-     * @param {string} id - The ID of the special service to be deleted.
+     * @param {string} id - The ID of the add-on to be deleted.
      * @param {Object} user - The user object containing the user ID and role.
-     * @returns {Object} Response data with status, error, message, and specialServiceId on success.
+     * @returns {Object} Response data with status, error, message, and addonId on success.
      */
-    deleteSpecialService: async (dbHelper, id, user) => {
+    deleteAddon: async (dbHelper, id, user) => {
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
-            error: 'Error deleting special service',
+            error: 'Error deleting add-on',
         };
 
         try {
             if (!id) {
                 responseData.status = Status.BAD_REQUEST;
-                responseData.error = 'Missing special service ID';
+                responseData.error = 'Missing add-on ID';
                 return responseData;
             }
 
@@ -257,43 +257,43 @@ const specialServiceModule = {
 
             if (user.role !== UserRole.CRMSTEAM && user.role !== UserRole.SUPERINTENDENT) {
                 responseData.status = Status.FORBIDDEN;
-                responseData.error = 'Only CRMS team and Superintendent can delete a special service';
+                responseData.error = 'Only CRMS team and Superintendent can delete an add-on';
                 return responseData;
             }
 
-            const specialService = await dbHelper.findOne('specialservice', { _id: id, });
-            if (!specialService) {
+            const addon = await dbHelper.findOne('addon', { _id: id, });
+            if (!addon) {
                 responseData.status = Status.NOT_FOUND;
-                responseData.error = 'Special service not found';
+                responseData.error = 'Add-on not found';
                 return responseData;
             }
 
-            await dbHelper.deleteOne('specialservice', { _id: id, });
+            await dbHelper.deleteOne('addon', { _id: id, });
 
             responseData.status = Status.OK;
             responseData.error = null;
-            responseData.message = 'Special service deleted successfully';
-            responseData.specialServiceId = id;
+            responseData.message = 'Add-on deleted successfully';
+            responseData.addonId = id;
         } catch (error) {
-            console.error('Error deleting special service:', error);
+            console.error('Error deleting add-on:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
-            responseData.error = 'Error deleting special service';
+            responseData.error = 'Error deleting add-on';
         }
         return responseData;
     },
 
     /**
-     * Searches special services with optional filters.
+     * Searches add-ons with optional filters.
      * @param {Object} dbHelper - Database helper.
      * @param {Object} options - { query, minPrice, maxPrice, unit }
-     * @returns {Object} Response data with status, error, and specialServices on success.
+     * @returns {Object} Response data with status, error, and addons on success.
      */
-    searchSpecialServices: async (dbHelper, options = {}) => {
+    searchAddons: async (dbHelper, options = {}) => {
         const { query, minPrice, maxPrice, unit, } = options;
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
-            error: 'Error searching special services',
-            specialServices: [],
+            error: 'Error searching add-ons',
+            addons: [],
         };
 
         try {
@@ -307,31 +307,31 @@ const specialServiceModule = {
                 if (maxPrice) filter.price.$lte = Number(maxPrice);
             }
 
-            const specialServices = await dbHelper.find('specialservice', filter, { __v: 0, createdAt: 0, });
+            const addons = await dbHelper.find('addon', filter, { __v: 0, createdAt: 0, });
 
             responseData.status = Status.OK;
             responseData.error = null;
-            responseData.specialServices = specialServices;
+            responseData.addons = addons;
         } catch (error) {
-            console.error('Error searching special services:', error);
+            console.error('Error searching add-ons:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
-            responseData.error = 'Error searching special services';
+            responseData.error = 'Error searching add-ons';
         }
         return responseData;
     },
 };
 
-export default specialServiceModule;
+export default addonsModule;
 
 function isPresent(value) {
   if (value === null || value === undefined) return false;
   if (typeof value === 'string') {
-    return value.trim().length > 0;  
+    return value.trim().length > 0;
   }
   if (typeof value === 'number') {
     return !Number.isNaN(value);
   }
-  return true; 
+  return true;
 }
 
 function isValidPrice(price) {

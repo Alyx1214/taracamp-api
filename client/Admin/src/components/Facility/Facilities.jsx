@@ -46,10 +46,10 @@ export default function Facilities() {
             searchQuery={searchQuery}
           />
         );
-      case "Other Service":
+      case "Add-ons":
         return (
           <OtherService
-            onEdit={(id, f) => handleEdit(id, "Other Service", f)}
+            onEdit={(id, f) => handleEdit(id, "Add-ons", f)}
             searchQuery={searchQuery}
           />
         );

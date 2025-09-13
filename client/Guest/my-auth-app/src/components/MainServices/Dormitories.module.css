@@ -160,7 +160,7 @@
   animation: shimmer 1.2s infinite;
 }
 .skelBody {
-  padding: 16px;
+  padding: 20px;
   display: grid;
   gap: 10px;
 }

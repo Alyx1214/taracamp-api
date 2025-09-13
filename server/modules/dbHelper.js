@@ -87,7 +87,7 @@ const dbHelper = {
                 status: { type: String, enum: Object.values(ReservationStatus), default: ReservationStatus.PENDING, required: true, },
                 totalEstimatedAmount: { type: Number, required: true, },
                 otherRequests: { type: String, required: false, },
-                specialServices: [{ type: mongoose.Schema.Types.ObjectId, ref: 'specialservice' }],
+                addOns: [{ type: mongoose.Schema.Types.ObjectId, ref: 'addon' }],
                 createdAt: { type: Date, default: Date.now, },
                 userId: { type: mongoose.Schema.Types.ObjectId, ref: 'user', required: false, index: true },
                 reservationCode: { type: String, required: true, unique: true, index: true },
@@ -104,7 +104,7 @@ const dbHelper = {
                 createdAt: { type: Date, default: Date.now, },
             });
 
-            const SpecialServiceSchema = new mongoose.Schema({
+            const AddOnSchema = new mongoose.Schema({
                 name: { type: String, required: true, },
                 price: { type: Number, required: true, },
                 unit: { type: String, required: false, },
@@ -141,7 +141,7 @@ const dbHelper = {
             mongoose.model('reservation', ReservationSchema);
             mongoose.model('file', FileSchema);
             mongoose.model('facility', FacilitySchema);
-            mongoose.model('specialservice', SpecialServiceSchema);
+            mongoose.model('addon', AddOnSchema);
             mongoose.model('notification', NotificationSchema);
             mongoose.model('payment', PaymentSchema);
 

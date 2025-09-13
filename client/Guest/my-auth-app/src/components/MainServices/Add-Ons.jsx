@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import styles from './Add-Ons.module.css';
-import { getAllSpecialServices } from '../../apis/specialServicesApi';
+import { getAllAddons } from '../../apis/addonsApi';
 
 function MainServicesAddOns({
   facilities,
@@ -22,21 +22,21 @@ function MainServicesAddOns({
       setFetchingDefault(true);
       setFetchError(null);
       try {
-        const data = await getAllSpecialServices();
+        const data = await getAllAddons();
 
         const payloadError = data?.error || data?.message;
-        const list = Array.isArray(data?.specialServices) ? data.specialServices : [];
+        const list = Array.isArray(data?.addons) ? data.addons : [];
 
         if (payloadError) {
           throw new Error(
             typeof payloadError === 'string'
               ? payloadError
-              : 'Invalid response while loading special services.'
+              : 'Invalid response while loading add-ons.'
           );
         }
 
-        if (!Array.isArray(data?.specialServices)) {
-          throw new Error('Response missing "specialServices" array.');
+        if (!Array.isArray(data?.addons)) {
+          throw new Error('Response missing "addons" array.');
         }
 
         if (!cancelled) setDefaultServices(list);
@@ -48,7 +48,7 @@ function MainServicesAddOns({
             err?.response?.data?.message ||
             err?.data?.error ||
             err?.message ||
-            'Failed to load special services.';
+            'Failed to load add-ons.';
           setFetchError(msg);
         }
       } finally {

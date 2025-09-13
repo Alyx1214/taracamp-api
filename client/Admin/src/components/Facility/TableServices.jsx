@@ -1,7 +1,7 @@
 import React from "react";
 import styles from "./TableServices.module.css";
 
-export default function TableServices({ services }) {
+export default function TableServices({ services = [] }) {
   return (
     <div className={styles.tableWrapper}>
       <table className={styles.table}>
@@ -12,12 +12,12 @@ export default function TableServices({ services }) {
           </tr>
         </thead>
         <tbody>
-          {services.map((service) => (
-            <tr key={service.id}>
-              <td className={styles.td}>{service.name}</td>
+          {services.map((service, idx) => (
+            <tr key={service?.id ?? idx}>
+              <td className={styles.td}>{service?.name}</td>
               <td className={styles.td}>
-                ₱ {service.rate}
-                {service.unit ? `/${service.unit}` : ""}
+                ₱ {service?.rate}
+                {service?.unit ? `/${service.unit}` : ""}
               </td>
             </tr>
           ))}

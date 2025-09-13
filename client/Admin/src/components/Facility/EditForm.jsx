@@ -3,7 +3,7 @@ import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { FaArrowLeft, FaUpload } from "react-icons/fa";
 import styles from "./EditForm.module.css";
 import { updateFacility } from "../../apis/facilityApi";
-import { updateSpecialService } from "../../apis/specialServiceApi";
+import { updateAddon } from "../../apis/addonsApi";
 
 const getSingularLabel = (category) => {
   switch (category) {
@@ -13,7 +13,7 @@ const getSingularLabel = (category) => {
       return "Cottage";
     case "Conference":
       return "Conference";
-    case "Other Service":
+    case "Add-ons":
       return "Service";
     default:
       return "Facility";
@@ -47,7 +47,7 @@ export default function EditForm() {
     }
   }, [category]);
 
-  const isSpecialService = category === "Other Service";
+  const isSpecialService = category === "Add-ons";
 
   const onChange = (e) => {
     const { name, value, files } = e.target;
@@ -62,7 +62,7 @@ export default function EditForm() {
     setSuccess(null);
     try {
       if (isSpecialService) {
-        await updateSpecialService(id, {
+        await updateAddon(id, {
           name: form.name,
           price: form.rate,
           unit: form.unit,

@@ -1,7 +1,7 @@
 import { apiGet, apiPost } from './api';
 
 export function getFacilitiesByType(type) {
-  const t = String(type || '').trim().toUpperCase();
+  const t = String(type || '').trim();
   return apiGet(`/facility/get-facilities-by-type/${encodeURIComponent(t)}`);
 }
 
@@ -32,7 +32,6 @@ export function createFacility(payload = {}) {
   Object.entries(payload).forEach(([k, v]) => {
     if (v === undefined || v === null) return;
     if (k === 'image' && v instanceof File) {
-      // backward compat: single image (not used now)
       fd.append('images', v);
     } else if (k === 'images' && (Array.isArray(v) || (typeof FileList !== 'undefined' && v instanceof FileList))) {
       Array.from(v).forEach((file) => {
@@ -50,7 +49,6 @@ export function updateFacility(id, payload = {}) {
   Object.entries(payload).forEach(([k, v]) => {
     if (v === undefined || v === null) return;
     if (k === 'image' && v instanceof File) {
-      // backward compat: single image (not used now)
       fd.append('images', v);
     } else if (k === 'images' && (Array.isArray(v) || (typeof FileList !== 'undefined' && v instanceof FileList))) {
       Array.from(v).forEach((file) => {
