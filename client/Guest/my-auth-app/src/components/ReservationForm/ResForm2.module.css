@@ -44,12 +44,21 @@
   text-transform: uppercase;
 }
 
+.mainContent {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  width: 100%;
+}
+
 .formCard {
+  flex: 1;
+  max-width: 60%;
   background-color: #fff;
   border-radius: 20px;
   padding: 50px;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-  margin: 20px;
+  margin: 20px 20px 20px 20px; 
 }
 
 .formRow {
@@ -288,6 +297,56 @@
   transform: translateY(-2px);
 }
 
+
+.summaryContainer {
+  flex: 1;
+  max-width: 30%;  
+  margin: 20px 10px 10px 0;
+}
+
+.summaryCard {
+  background: #f5f5f5;
+  border: 2px solid #e0e0e0;
+  border-radius: 12px;
+  padding: 2.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  position: sticky;
+  top: 2rem;
+}
+
+.summaryTitle {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0 0 1rem 0;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #e0e0e0;
+  color: #1E3C24;
+}
+
+.summaryContent {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.summaryRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.25rem;
+}
+
+.summaryLabel {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #1E3C24;
+}
+
+.summaryValue {
+  font-size: 0.9rem;
+  color: #1E3C24;
+  font-weight: 400;
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .pageTitle {
@@ -344,4 +403,25 @@
 .requiredAsterisk {
   color: #d32f2f;
   margin-left: 4px;
+}
+
+@media (max-width: 1024px) {
+  .mainContent {
+    flex-direction: column;
+  }
+  
+  .summaryContainer {
+    width: 100%;
+    order: -1;
+  }
+  
+  .summaryCard {
+    position: static;
+  }
+}
+
+@media (max-width: 768px) {
+  .summaryContainer {
+    margin-bottom: 1rem;
+  }
 }

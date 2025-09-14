@@ -311,7 +311,8 @@ function ReservationFormStep2() {
             </button>
             <h1 className={styles.pageTitle}>RESERVATION FORM</h1>
           </div>
-
+          
+          <div className={styles.mainContent}>
           <div className={styles.formCard}>
             <ErrorBanner err={err} onClose={() => setErr(null)} />
 
@@ -577,8 +578,63 @@ function ReservationFormStep2() {
               </div>
             </form>
           </div>
+
+           {/* Static Summary Container with Dummy Data */}
+            <div className={styles.summaryContainer}>
+              <div className={styles.summaryCard}>
+                <h3 className={styles.summaryTitle}>Quirino Conf Hall</h3>
+                
+                <div className={styles.summaryContent}>
+                  <div className={styles.summaryRow}>
+                    <span className={styles.summaryLabel}>Type of Facility:</span>
+                    <span className={styles.summaryValue}>Conference Hall</span>
+                  </div>
+                  
+                  <div className={styles.summaryRow}>
+                    <span className={styles.summaryLabel}>Category:</span>
+                    <span className={styles.summaryValue}>DepEd</span>
+                  </div>
+                  
+                  <div className={styles.summaryRow}>
+                    <span className={styles.summaryLabel}>Type:</span>
+                    <span className={styles.summaryValue}>Groups</span>
+                  </div>
+                  
+                  <div className={styles.summaryRow}>
+                    <span className={styles.summaryLabel}>Total Guest:</span>
+                    <span className={styles.summaryValue}>50</span>
+                  </div>
+                  
+                  <div className={styles.summaryRow}>
+                    <span className={styles.summaryLabel}>Date of Arrival:</span>
+                    <span className={styles.summaryValue}>Sept 20, 2025</span>
+                  </div>
+                  
+                  <div className={styles.summaryRow}>
+                    <span className={styles.summaryLabel}>Date of Departure:</span>
+                    <span className={styles.summaryValue}>Sept 21, 2025</span>
+                  </div>
+                  
+                  <div className={styles.summaryRow}>
+                    <span className={styles.summaryLabel}>Type of Service:</span>
+                    <span className={styles.summaryValue}>Events</span>
+                  </div>
+                  
+                  <div className={styles.summaryRow}>
+                    <span className={styles.summaryLabel}>Time of Arrival:</span>
+                    <span className={styles.summaryValue}>7:00 AM</span>
+                  </div>
+                  
+                  <div className={styles.summaryRow}>
+                    <span className={styles.summaryLabel}>Add ons:</span>
+                    <span className={styles.summaryValue}>Certificate</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            </div>
+          </div>
         </div>
-      </div>
     </>
   );
 }
