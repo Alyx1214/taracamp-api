@@ -98,10 +98,10 @@ function App() {
       <Route path="/reservation-step2" element={<ReservationFormStep2 />} />
       <Route path="/reservation-step3" element={<ReservationFormStep3 />} />
       <Route path="/reservation-step4" element={<ReservationFormStep4 />} />
-      <Route path="/reservation-form/:type/:id" element={<ReservationForm />} />
-      <Route path="/reservation-step2/:type/:id" element={<ReservationFormStep2 />} />
-      <Route path="/reservation-step3/:type/:id" element={<ReservationFormStep3 />} />
-      <Route path="/reservation-step4/:type/:id" element={<ReservationFormStep4 />} />
+      <Route path="/reservation-form/:type/:facilityName/:id" element={<ReservationForm />} />
+      <Route path="/reservation-step2/:type/:facilityName/:id" element={<ReservationFormStep2 />} />
+      <Route path="/reservation-step3/:type/:facilityName/:id" element={<ReservationFormStep3 />} />
+      <Route path="/reservation-step4/:type/:facilityName/:id" element={<ReservationFormStep4 />} />
       {/* </Route> */}
     </Routes>
   );

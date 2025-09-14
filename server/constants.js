@@ -28,6 +28,7 @@ export const FileKind = {
 export const Category = {
     DEPED: 'DepEd',
     GOVERNMENT: 'Government',
+    PWDS: 'PWDs',
     PRIVATE: 'Private',
     OTHERS: 'Others',
 };

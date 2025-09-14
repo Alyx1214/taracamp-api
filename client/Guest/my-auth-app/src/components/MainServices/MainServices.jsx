@@ -12,7 +12,7 @@ import MainServicesConference from './Conference';
 import MainServicesAddOns from './Add-Ons';
 import MainServicesServiceDetail from './ServiceDetail';
 import { searchFacilities } from '../../apis/facilityApi';
-import { searchSpecialServices } from '../../apis/specialServicesApi';
+import { searchAddons } from '../../apis/addonsApi';
 
 function MainServices() {
   const [facilities, setFacilities] = useState([]);
@@ -46,8 +46,8 @@ function MainServices() {
 
     try {
       if (facilityType === 'Add-Ons') {
-        const data = await searchSpecialServices({ query });
-        setFacilities(Array.isArray(data?.specialServices) ? data.specialServices : []);
+        const data = await searchAddons({ query });
+        setFacilities(Array.isArray(data?.addons) ? data.addons : []);
       } else {
         const data = await searchFacilities({ type: facilityType, query });
         setFacilities(Array.isArray(data?.facilities) ? data.facilities : []);
@@ -73,8 +73,8 @@ function MainServices() {
           maxPrice: filters?.maxPrice,
           unit: filters?.unit,
         };
-        const data = await searchSpecialServices(params);
-        setFacilities(Array.isArray(data?.specialServices) ? data.specialServices : []);
+        const data = await searchAddons(params);
+        setFacilities(Array.isArray(data?.addons) ? data.addons : []);
       } else {
         const params = {
           type: facilityType,
@@ -107,9 +107,9 @@ function MainServices() {
   }
 
   const isDetailViewOrAddOn =
-    (location.pathname.includes('/dormitories/') && location.pathname.split('/').length > 3) ||
-    (location.pathname.includes('/cottages/') && location.pathname.split('/').length > 3) ||
-    (location.pathname.includes('/conference/') && location.pathname.split('/').length > 3) ||
+    (location.pathname.includes('/dormitories/') && location.pathname.split('/').length > 4) ||
+    (location.pathname.includes('/cottages/') && location.pathname.split('/').length > 4) ||
+    (location.pathname.includes('/conference/') && location.pathname.split('/').length > 4) ||
     facilityType === 'Add-Ons';
 
   return (
@@ -174,7 +174,7 @@ function MainServices() {
                 />
               }
             />
-            <Route path=":type/:id" element={<MainServicesServiceDetail />} />
+            <Route path=":type/:name/:id" element={<MainServicesServiceDetail />} />
           </Routes>
 
           {!isDetailViewOrAddOn && <MainServicesRates />}

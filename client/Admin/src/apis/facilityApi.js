@@ -12,7 +12,7 @@ export function getAllFacilities() {
 export function searchFacilities(params = {}) {
   const q = new URLSearchParams();
   const normalized = { ...params };
-  if (normalized.type != null) normalized.type = String(normalized.type).trim().toUpperCase();
+  if (normalized.type != null) normalized.type = String(normalized.type).trim();
   Object.entries(normalized).forEach(([k, v]) => {
     if (v !== undefined && v !== null && String(v).trim() !== '') q.append(k, v);
   });

@@ -16,7 +16,7 @@ function ResDetails({ onClose }) {
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState(null);
   const [quote, setQuote] = useState(null);
-  const { type, id } = useParams();
+  const { type, facilityName, id } = useParams();
   const { step1 = {}, step2 = {}, file } = location.state || {};
 
   useEffect(() => {
@@ -161,9 +161,9 @@ function ResDetails({ onClose }) {
       }
 
       if (Object.keys(mapped.errorsStep1).length) {
-        navigate(`/reservation-form/${type}/${id}`, { state: { step1, errorsStep1: mapped.errorsStep1, serverError: server, file } });
+        navigate(`/reservation-form/${type}/${facilityName}/${id}`, { state: { step1, errorsStep1: mapped.errorsStep1, serverError: server, file } });
       } else if (Object.keys(mapped.errorsStep2).length) {
-        navigate(`/reservation-step2/${type}/${id}`, { state: { step1, step2, errorsStep2: mapped.errorsStep2, serverError: server, file } });
+        navigate(`/reservation-step2/${type}/${facilityName}/${id}`, { state: { step1, step2, errorsStep2: mapped.errorsStep2, serverError: server, file } });
       }
     } finally {
       setSubmitting(false);

@@ -75,7 +75,9 @@ const dbHelper = {
                     children: { type: Number, required: false, },
                     pwds: { type: Number, required: false, },
                 },
+                numberOfRooms: { type: Number, required: false, },
                 emergencyContact: { type: String, required: true, },
+                emergencyContactPerson: { type: String, required: false, },
                 dateOfArrival: { type: Date, required: true, },
                 dateOfDeparture: { type: Date, required: true, },
                 timeOfArrival: { type: String, required: true, },
@@ -136,6 +138,23 @@ const dbHelper = {
                 paidAt: { type: Date, required: false, },
             });
 
+            const ReviewSchema = new mongoose.Schema({
+                facilityId: { type: mongoose.Schema.Types.ObjectId, ref: 'facility', required: true, index: true, },
+                userId: { type: mongoose.Schema.Types.ObjectId, ref: 'user', required: true, index: true, },
+                reservationId: { type: mongoose.Schema.Types.ObjectId, ref: 'reservation', required: false, },
+                rating: {
+                    location: { type: Number, min: 1, max: 10, required: true, },
+                    service: { type: Number, min: 1, max: 10, required: true, },
+                    cleanliness: { type: Number, min: 1, max: 10, required: true, },
+                    overall: { type: Number, min: 1, max: 10, required: true, },
+                },
+                text: { type: String, required: true, maxlength: 1000, },
+                authorName: { type: String, required: false, },
+                isVerified: { type: Boolean, default: false, },
+                createdAt: { type: Date, default: Date.now, },
+                updatedAt: { type: Date, required: false, },
+            });
+
             mongoose.model('user', UserSchema);
             mongoose.model('profile', ProfileSchema);
             mongoose.model('reservation', ReservationSchema);
@@ -144,6 +163,7 @@ const dbHelper = {
             mongoose.model('addon', AddOnSchema);
             mongoose.model('notification', NotificationSchema);
             mongoose.model('payment', PaymentSchema);
+            mongoose.model('review', ReviewSchema);
 
             await mongoose.connect(connectionString);
         } catch (error) {

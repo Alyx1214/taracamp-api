@@ -9,7 +9,7 @@ import { getFacilityById } from '../../apis/facilityApi';
 function ReservationForm() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { type, id } = useParams();
+  const { type, facilityName, id } = useParams();
   const prevStep2Ref = useRef(location.state?.step2 || null);
   const prevFileRef = useRef(location.state?.file || null);
 
@@ -126,8 +126,22 @@ function ReservationForm() {
   const handleNext = () => {
     if (!validateStep1()) return;
     const step1 = { ...formData };
-    navigate(`/reservation-step2/${type}/${id}`, {
-      state: { step1, type, facility, step2: prevStep2Ref.current, file: prevFileRef.current }
+    const navigationState = {
+      step1,
+      type,
+      facilityName,
+      facility,
+      step2: prevStep2Ref.current,
+      file: prevFileRef.current
+    };
+
+    // Preserve preselectedDates from ServiceDetail
+    if (location.state?.preselectedDates) {
+      navigationState.preselectedDates = location.state.preselectedDates;
+    }
+
+    navigate(`/reservation-step2/${type}/${facilityName}/${id}`, {
+      state: navigationState
     });
   };
 

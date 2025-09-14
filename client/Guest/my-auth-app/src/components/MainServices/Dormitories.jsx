@@ -151,7 +151,7 @@ function MainServicesDormitories({
               <p className={styles.dormitoryRate}>
                 Rates per Person : ₱ {formatPeso(dorm?.ratePerPerson ?? dorm?.rate)}
               </p>
-              <Link to={`${dorm?._id ?? dorm?.id ?? ''}`} relative="path" className={styles.checkButton}>
+              <Link to={`${dorm?.name?.replace(/\s+/g, '-').toLowerCase() || 'unnamed'}/${dorm?._id ?? dorm?.id ?? ''}`} className={styles.checkButton}>
                 Check
               </Link>
             </div>

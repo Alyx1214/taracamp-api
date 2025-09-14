@@ -42,9 +42,9 @@ export default function Pending({ searchQuery = "" }) {
         if (String(searchQuery || '').trim()) {
           const s = String(searchQuery || '').trim();
           res = await searchReservations({ query: s });
-          res.reservations = (res?.reservations || []).filter(r => r.status === 'PENDING');
+          res.reservations = (res?.reservations || []).filter(r => r.status === 'Pending');
         } else {
-          res = await getAllReservationsByStatus("PENDING");
+          res = await getAllReservationsByStatus("Pending");
         }
         const list = (res?.reservations || []).map((r) => ({
           id: r._id || "N/A",

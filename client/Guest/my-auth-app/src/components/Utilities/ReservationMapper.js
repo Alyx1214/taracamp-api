@@ -1,26 +1,27 @@
 export function pickCategory(cat = {}) {
-  if (cat.deped) return 'DEPED';
-  if (cat.government) return 'GOVERNMENT';
-  if (cat.private) return 'PRIVATE';
-  return 'OTHERS';
+  if (cat.deped) return 'DepEd';
+  if (cat.government) return 'Government';
+  if (cat.pwds) return 'PWDs';
+  if (cat.private) return 'Private';
+  return 'Others';
 }
 
 export function pickGuestType(t = {}) {
-  return t.groups ? 'GROUP' : 'INDIVIDUAL';
+  return t.groups ? 'Group' : 'Individual';
 }
 
 export function mapServiceType(label = '') {
   const s = String(label || '').trim().toUpperCase();
   const allowed = new Set([
-    'MEETING/CONFERENCE',
-    'WEDDING',
-    'BIRTHDAY PARTY',
-    'CORPORATE EVENT',
-    'TRAINING/SEMINAR',
-    'ACCOMMODATION',
-    'OTHER',
+    'Meeting/Conference',
+    'Wedding',
+    'Birthday Party',
+    'Corporate Event',
+    'Training/Seminar',
+    'Accommodation',
+    'Other',
   ]);
-  return allowed.has(s) ? s : 'OTHER';
+  return allowed.has(s) ? s : 'Other';
 }
 
 export function to24h(hour12, ampm) {
@@ -49,12 +50,12 @@ export function buildReservationPayload(step1 = {}, step2 = {}, facilityId) {
     numberOfChildren: children,
     numberOfPwds: pwds,
     emergencyContact: step1.emergencyContact?.trim(),
+    emergencyContactPerson: step1.emergencyContactPerson?.trim(),
     dateOfArrival: step2.dateArrival,         
     dateOfDeparture: step2.dateDeparture,     
     facility: facilityId,                    
-    // Normalize service type to permanent UPPERCASE for API
     serviceType: mapServiceType(
-      String(step2?.typeService || '').toUpperCase() === 'OTHER' ? 'OTHER' : step2?.typeService
+      String(step2?.typeService || '') === 'Other' ? 'Other' : step2?.typeService
     ),
     timeOfArrival: to24h(step2.timeArrivalHour, step2.timeArrivalAMPM || 'AM'),
     otherRequests: step2.specialRequests || ''
