@@ -40,12 +40,13 @@
   gap: 30px;
   align-items: flex-start;
   margin-bottom: 30px;
+  max-height: 200px;
 }
 
 /* Header Section */
 .facilityHeader {
   background: white;
-  padding: 25px 30px;
+  padding: 55px 40px;
   border-radius: 20px;
   box-shadow: 0 2px 15px rgba(0, 0, 0, 0.08);
   display: flex;
@@ -61,14 +62,14 @@
 }
 
 .facilityName {
-  font-size: 2rem;
+  font-size: 3rem;
   color: #4a4a4a;
   margin: 0 0 5px 0;
   font-weight: 600;
 }
 
 .facilityRate {
-  font-size: 1rem;
+  font-size: 1.5rem;
   color: #888;
   margin: 0;
   font-weight: 400;
@@ -78,7 +79,7 @@
   background-color: #2d4a32;
   color: white;
   border: none;
-  padding: 14px 28px;
+  padding: 18px 35px;
   border-radius: 22px;
   font-size: 0.95rem;
   font-weight: 600;
@@ -246,76 +247,173 @@
 
 /* Review Content Area */
 .reviewContent {
-  background-color: #e8e8e8;
-  padding: 20px 25px;
-  border-radius: 15px;
-  margin-bottom: 20px;
+  background: linear-gradient(145deg, #f8f9fa 0%, #ffffff 100%);
+  padding: 28px 32px;
+  border-radius: 20px;
+  margin-bottom: 24px;
   position: relative;
+  border: 1px solid rgba(107, 142, 114, 0.1);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+.reviewContent::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background: linear-gradient(180deg, #6b8e72 0%, #2d4a32 100%);
+  border-radius: 0 2px 2px 0;
+}
+
+.reviewContent::after {
+  content: '"';
+  position: absolute;
+  top: 16px;
+  right: 24px;
+  font-size: 3.5rem;
+  color: rgba(107, 142, 114, 0.1);
+  font-family: Georgia, serif;
+  line-height: 1;
+  font-weight: bold;
+}
+
+.reviewContent:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08);
+  border-color: rgba(107, 142, 114, 0.2);
 }
 
 .reviewText {
-  color: #555;
-  font-size: 1rem;
-  line-height: 1.6;
+  color: #2c3e50;
+  font-size: 1.05rem;
+  line-height: 1.7;
   margin: 0;
   font-weight: 400;
+  position: relative;
+  z-index: 1;
+  font-style: italic;
+  letter-spacing: 0.01em;
+  text-align: center;
 }
 
 .reviewNavigation {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 .navButton {
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  color: #333;
+  background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
+  border: 2px solid #e9ecef;
+  font-size: 1.3rem;
+  color: #495057;
   cursor: pointer;
-  padding: 8px 12px;
-  border-radius: 8px;
-  transition: all 0.3s ease;
+  padding: 0;
+  border-radius: 50%;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  position: relative;
+  overflow: hidden;
+}
+
+.navButton::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(107, 142, 114, 0.1), transparent);
+  transition: left 0.5s;
+}
+
+.navButton:hover::before {
+  left: 100%;
 }
 
 .navButton:hover {
-  background-color: #f0f0f0;
-  color: #000;
+  background: linear-gradient(145deg, #6b8e72 0%, #2d4a32 100%);
+  color: white;
+  border-color: #6b8e72;
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 6px 16px rgba(107, 142, 114, 0.3);
+}
+
+.navButton:active {
+  transform: translateY(0) scale(0.95);
+  box-shadow: 0 2px 8px rgba(107, 142, 114, 0.2);
 }
 
 .reviewDots {
   display: flex;
-  gap: 8px;
+  gap: 10px;
   align-items: center;
 }
 
 .dot {
-  width: 10px;
-  height: 10px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
-  background-color: #ccc;
+  background: linear-gradient(145deg, #dee2e6 0%, #adb5bd 100%);
   cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 2px solid transparent;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.dot::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.6) 0%, transparent 70%);
+  border-radius: 50%;
   transition: all 0.3s ease;
+  transform: translate(-50%, -50%);
+}
+
+.dot:hover::before {
+  width: 100%;
+  height: 100%;
 }
 
 .dot.active {
-  background-color: #6b8e72;
-  transform: scale(1.2);
+  background: linear-gradient(145deg, #6b8e72 0%, #2d4a32 100%);
+  transform: scale(1.25);
+  border-color: rgba(107, 142, 114, 0.3);
+  box-shadow: 0 0 0 4px rgba(107, 142, 114, 0.15), 0 4px 8px rgba(107, 142, 114, 0.3);
 }
 
 .dot:hover {
-  background-color: #999;
+  transform: scale(1.15);
+  background: linear-gradient(145deg, #6b8e72 0%, #5a7861 100%);
+  box-shadow: 0 4px 8px rgba(107, 142, 114, 0.2);
+}
+
+.dot:not(.active):hover {
+  background: linear-gradient(145deg, #a8bfa8 0%, #8fa58f 100%);
 }
 
 /* Date Availability Checker */
 .dateChecker {
   background: white;
-  padding: 25px 30px;
+  padding: 20px 20px;
   border-radius: 20px;
   box-shadow: 0 2px 15px rgba(0, 0, 0, 0.08);
   border: 1px solid #e5e5e5;
@@ -326,7 +424,7 @@
 }
 
 .dateCheckerTitle {
-  color: #4a4a4a;
+  color: #1e3323;
   font-size: 1.3rem;
   font-weight: 600;
   margin: 0 0 20px 0;
@@ -335,10 +433,10 @@
 
 .dateInputs {
   display: block;
-  grid-template-columns: 1fr 1fr auto;
-  gap: 15px;
+  grid-template-columns: 0.9fr 0.9fr auto;
+  gap:  5px;
   align-items: end;
-  margin-bottom: 20px;
+  margin-bottom: 15px;
 }
 
 .dateInput {
@@ -374,7 +472,6 @@
   border-color: #bbb;
 }
 
-/* Calendar Modal - Enhanced */
 .calendarOverlay {
   position: fixed;
   top: 0;

@@ -4,6 +4,24 @@ import styles from './ServiceDetail.module.css';
 import placeholderImage from '../../assets/conference.jpg';
 import Calendar from './Calendar';
 
+// Static review data
+const staticReviews = [
+  {
+    id: 1,
+    text: "Amazing place with breathtaking views! The cottage was clean, well-maintained, and perfect for our family getaway. The staff was incredibly helpful and accommodating.",
+  },
+  {
+    id: 2,
+    text: "Great location and excellent service. The cottage had everything we needed for a comfortable stay. Would definitely recommend to anyone looking for a peaceful retreat.",
+
+  },
+  {
+    id: 3,
+    text: "Perfect for groups! The cottage was spacious and the view was absolutely stunning. The facilities were clean and the booking process was smooth and easy.",
+
+  }
+];
+
 // Dummy data for testing
 const dummyFacility = {
   id: '1',
@@ -61,6 +79,7 @@ function MainServicesServiceDetail() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [showCalendar, setShowCalendar] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
+  const [currentReviewIndex, setCurrentReviewIndex] = useState(0);
   const navigate = useNavigate();
   const { isLoggedIn } = useAuth();
 
@@ -176,6 +195,25 @@ function MainServicesServiceDetail() {
     setCurrentDate(new Date(clickedDate.getFullYear(), clickedDate.getMonth(), 1));
     setShowCalendar(true);
   };
+
+  // Review navigation functions
+  const handlePrevReview = () => {
+    setCurrentReviewIndex((prev) => 
+      prev === 0 ? staticReviews.length - 1 : prev - 1
+    );
+  };
+
+  const handleNextReview = () => {
+    setCurrentReviewIndex((prev) => 
+      prev === staticReviews.length - 1 ? 0 : prev + 1
+    );
+  };
+
+  const handleDotClick = (index) => {
+    setCurrentReviewIndex(index);
+  };
+
+  const currentReview = staticReviews[currentReviewIndex];
 
   return (
     <section className={styles.serviceDetailSection}>
@@ -298,18 +336,40 @@ function MainServicesServiceDetail() {
               {/* Review Content */}
               <div className={styles.reviewContent}>
                 <p className={styles.reviewText}>
-                  Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has be...
+                  {currentReview.text}
                 </p>
+                <div className={styles.reviewMeta}>
+                  <span className={styles.reviewAuthor}></span>
+                </div>
               </div>
               
               <div className={styles.reviewNavigation}>
-                <button className={styles.navButton}>❮</button>
+                <button 
+                  className={styles.navButton}
+                  onClick={handlePrevReview}
+                  aria-label="Previous review"
+                >
+                  ❮
+                </button>
                 <div className={styles.reviewDots}>
-                  <span className={`${styles.dot} ${styles.active}`}></span>
-                  <span className={styles.dot}></span>
-                  <span className={styles.dot}></span>
+                  {staticReviews.map((_, index) => (
+                    <span 
+                      key={index}
+                      className={`${styles.dot} ${index === currentReviewIndex ? styles.active : ''}`}
+                      onClick={() => handleDotClick(index)}
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`Go to review ${index + 1}`}
+                    ></span>
+                  ))}
                 </div>
-                <button className={styles.navButton}>❯</button>
+                <button 
+                  className={styles.navButton}
+                  onClick={handleNextReview}
+                  aria-label="Next review"
+                >
+                  ❯
+                </button>
               </div>
             </div>
           </div>
