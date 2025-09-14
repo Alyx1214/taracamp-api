@@ -2,7 +2,7 @@ import React from "react";
 import styles from "./FaciTypes.module.css";
 
 const FaciTypes = ({ activeTab, setActiveTab }) => {
-const tabs = ["Dormitory", "Cottages", "Conference", "Other Service"];
+const tabs = ["Dormitory", "Cottage", "Conference", "Add-ons"];
 
 return (
 <div className={styles["faci-types-container"]}>

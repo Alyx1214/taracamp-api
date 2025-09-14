@@ -311,7 +311,8 @@ function ReservationFormStep2() {
             </button>
             <h1 className={styles.pageTitle}>RESERVATION FORM</h1>
           </div>
-
+          
+          <div className={styles.mainContent}>
           <div className={styles.formCard}>
             <ErrorBanner err={err} onClose={() => setErr(null)} />
 
@@ -364,9 +365,9 @@ function ReservationFormStep2() {
                     disabled={Boolean(type)}
                   >
                     <option value="">Select a facility type</option>
-                    <option value="DORMITORY">Dormitory</option>
-                    <option value="CONFERENCE">Conference Hall</option>
-                    <option value="COTTAGE">Cottage/Guest House</option>
+                    <option value="Dormitory">Dormitory</option>
+                    <option value="Conference">Conference Hall</option>
+                    <option value="Cottage">Cottage/Guest House</option>
                   </select>
                   {fieldErrors.typeFacilities && (
                     <div className={styles.fieldError}>{fieldErrors.typeFacilities}</div>
@@ -457,32 +458,78 @@ function ReservationFormStep2() {
                   )}
                 </div>
 
-                <div className={styles.formGroup}>
-                  <label className={styles.label}>Time of Arrival<span className={styles.requiredAsterisk}>*</span></label>
-                  <div className={styles.timeInput}>
-                    <input
-                      type="number"
-                      name="timeArrivalHour"
-                      value={formData.timeArrivalHour}
-                      onChange={handleInputChange}
-                      className={`${styles.timeInputBox} ${fieldErrors.timeArrivalHour ? styles.inputError : ''}`}
-                      placeholder="HH"
-                      min="1"
-                      max="12"
-                    />
-                    <select
-                      name="timeArrivalAMPM"
-                      value={formData.timeArrivalAMPM}
-                      onChange={handleInputChange}
-                      className={styles.ampmSelect}
-                    >
-                      <option value="AM">AM</option>
-                      <option value="PM">PM</option>
-                    </select>
+                <div className={styles.formRow}>
+                  <div className={styles.formGroup}>
+                    <label className={styles.label}>Time of Arrival<span className={styles.requiredAsterisk}>*</span></label>
+                    <div className={styles.timeInput}>
+                      <input
+                        type="number"
+                        name="timeArrivalHour"
+                        value={formData.timeArrivalHour}
+                        onChange={handleInputChange}
+                        className={`${styles.timeInputBox} ${fieldErrors.timeArrivalHour ? styles.inputError : ''}`}
+                        placeholder="HH"
+                        min="1"
+                        max="12"
+                      />
+                      <select
+                        name="timeArrivalAMPM"
+                        value={formData.timeArrivalAMPM}
+                        onChange={handleInputChange}
+                        className={styles.ampmSelect}
+                      >
+                        <option value="AM">AM</option>
+                        <option value="PM">PM</option>
+                      </select>
+                    </div>
+                    {fieldErrors.timeArrivalHour && (
+                      <div className={styles.fieldError}>{fieldErrors.timeArrivalHour}</div>
+                    )}
                   </div>
-                  {fieldErrors.timeArrivalHour && (
-                    <div className={styles.fieldError}>{fieldErrors.timeArrivalHour}</div>
-                  )}
+
+                  <div className={styles.formGroup}>
+                    <label className={styles.label}>Number of Rooms<span className={styles.requiredAsterisk}>*</span></label>
+                    <div className={styles.quantityInput}>
+                      <button
+                        type="button"
+                        className={styles.quantityButton}
+                        onClick={() => {
+                          const current = parseInt(formData.quantity || 1, 10);
+                          if (current > 1) {
+                            setFormData(prev => ({ ...prev, quantity: current - 1 }));
+                          }
+                        }}
+                        disabled={parseInt(formData.quantity || 1, 10) <= 1}
+                      >
+                        -
+                      </button>
+                      <input
+                        type="number"
+                        name="quantity"
+                        value={formData.quantity || 1}
+                        onChange={handleInputChange}
+                        className={`${styles.quantityInputBox} ${fieldErrors.quantity ? styles.inputError : ''}`}
+                        min="1"
+                        max="10"
+                      />
+                      <button
+                        type="button"
+                        className={styles.quantityButton}
+                        onClick={() => {
+                          const current = parseInt(formData.quantity || 1, 10);
+                          if (current < 10) {
+                            setFormData(prev => ({ ...prev, quantity: current + 1 }));
+                          }
+                        }}
+                        disabled={parseInt(formData.quantity || 1, 10) >= 10}
+                      >
+                        +
+                      </button>
+                    </div>
+                    {fieldErrors.quantity && (
+                      <div className={styles.fieldError}>{fieldErrors.quantity}</div>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -531,8 +578,63 @@ function ReservationFormStep2() {
               </div>
             </form>
           </div>
+
+           {/* Static Summary Container with Dummy Data */}
+            <div className={styles.summaryContainer}>
+              <div className={styles.summaryCard}>
+                <h3 className={styles.summaryTitle}>Quirino Conf Hall</h3>
+                
+                <div className={styles.summaryContent}>
+                  <div className={styles.summaryRow}>
+                    <span className={styles.summaryLabel}>Type of Facility:</span>
+                    <span className={styles.summaryValue}>Conference Hall</span>
+                  </div>
+                  
+                  <div className={styles.summaryRow}>
+                    <span className={styles.summaryLabel}>Category:</span>
+                    <span className={styles.summaryValue}>DepEd</span>
+                  </div>
+                  
+                  <div className={styles.summaryRow}>
+                    <span className={styles.summaryLabel}>Type:</span>
+                    <span className={styles.summaryValue}>Groups</span>
+                  </div>
+                  
+                  <div className={styles.summaryRow}>
+                    <span className={styles.summaryLabel}>Total Guest:</span>
+                    <span className={styles.summaryValue}>50</span>
+                  </div>
+                  
+                  <div className={styles.summaryRow}>
+                    <span className={styles.summaryLabel}>Date of Arrival:</span>
+                    <span className={styles.summaryValue}>Sept 20, 2025</span>
+                  </div>
+                  
+                  <div className={styles.summaryRow}>
+                    <span className={styles.summaryLabel}>Date of Departure:</span>
+                    <span className={styles.summaryValue}>Sept 21, 2025</span>
+                  </div>
+                  
+                  <div className={styles.summaryRow}>
+                    <span className={styles.summaryLabel}>Type of Service:</span>
+                    <span className={styles.summaryValue}>Events</span>
+                  </div>
+                  
+                  <div className={styles.summaryRow}>
+                    <span className={styles.summaryLabel}>Time of Arrival:</span>
+                    <span className={styles.summaryValue}>7:00 AM</span>
+                  </div>
+                  
+                  <div className={styles.summaryRow}>
+                    <span className={styles.summaryLabel}>Add ons:</span>
+                    <span className={styles.summaryValue}>Certificate</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            </div>
+          </div>
         </div>
-      </div>
     </>
   );
 }

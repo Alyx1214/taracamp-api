@@ -275,7 +275,7 @@ function ReservationForm() {
                   {errors.guestsAdult && <div className={styles.fieldError}>{errors.guestsAdult}</div>}
                 </div>
                 <div className={styles.formGroup}>
-                  <label className={styles.label} htmlFor="children">Children (under 12)</label>
+                  <label className={styles.label} htmlFor="children">Children (6yrs old below)</label>
                   <input
                     id="children"
                     type="number"
@@ -316,7 +316,7 @@ function ReservationForm() {
               </div>
 
               <div className={styles.formGroup}>
-                <label className={styles.label} htmlFor="emergencyContact">Person/s to be notified in case of emergency<span className={styles.requiredAsterisk}>*</span></label>
+                <label className={styles.label} htmlFor="emergencyContactPerson">Person/s to be notified in case of emergency<span className={styles.requiredAsterisk}>*</span></label>
                 <input
                   id="emergencyContactPerson"
                   type="tel"

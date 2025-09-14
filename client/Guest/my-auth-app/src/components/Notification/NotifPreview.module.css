@@ -34,6 +34,14 @@
   margin-right: 12px;
 }
 
+.previewCard {
+  background: #ffffff;
+  margin: 0;
+  padding: 24px 32px 20px 32px;
+  overflow-y: auto;
+  max-height: 450px;
+}
+
 .previewTitleBox {
   font-weight: 600;
   font-size: 1.1rem;

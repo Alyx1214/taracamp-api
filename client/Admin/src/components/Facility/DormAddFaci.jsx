@@ -13,7 +13,7 @@ const DormAddFaci = ({ activeTab }) => {
   return (
     <div className={styles["dormitory-header-container"]}>
       <h1 className={styles["dormitory-header-title"]}>
-        {activeTab.toUpperCase()} FACILITY
+{activeTab.toLowerCase() === "add-ons" ? "ADD-ONS" : `${activeTab.toUpperCase()} FACILITY`}
       </h1>
 
       <button
@@ -21,7 +21,7 @@ const DormAddFaci = ({ activeTab }) => {
         onClick={handleAddClick}
       >
         <FaPlus className={styles["dormitory-header-icon"]} />
-        Add {activeTab}
+        Add {activeTab.toLowerCase() === "add-ons" ? "Add-on" : activeTab}
       </button>
     </div>
   );

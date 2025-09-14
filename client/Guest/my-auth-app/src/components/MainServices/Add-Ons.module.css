@@ -66,6 +66,94 @@
   text-align: right;
 }
 
+.loadingWrap {
+  display: grid;
+  gap: 12px;
+  padding: 20px 0;
+  justify-items: center;
+}
+
+.skeletonList {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  margin-top: 8px;
+}
+
+.skeletonRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f1f1f1;
+}
+
+.skelName,
+.skelPrice {
+  display: inline-block;
+  border-radius: 6px;
+  background: linear-gradient(
+    90deg,
+    rgba(200, 200, 200, 0.4),
+    rgba(200, 200, 200, 0.7),
+    rgba(200, 200, 200, 0.4)
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.2s infinite;
+  height: 14px;
+}
+
+.skelName {
+  width: 50%;
+}
+.skelPrice {
+  width: 80px;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.emptyState {
+  display: flex;
+  justify-content: center;
+  padding: 25px 8px;
+}
+
+.emptyCard {
+  width: min(680px, 100%);
+  padding: 20px 16px;
+  border-radius: 12px;
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  text-align: center;
+}
+
+.emptyIcon {
+  color: #538E5E;
+  margin-bottom: 8px;
+}
+
+.emptyTitle {
+  margin: 4px 0 6px;
+  font-size: 1.2rem;
+  color: #4F3718;
+  font-weight: 600;
+}
+
+.emptyDesc {
+  margin: 0;
+  color: #555;
+  font-size: 0.95rem;
+}
+
 @media (max-width: 992px) {
   .otherServiceSection {
     margin: 10px 20px 60px 20px;

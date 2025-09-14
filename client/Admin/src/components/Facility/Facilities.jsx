@@ -32,10 +32,10 @@ export default function Facilities() {
             searchQuery={searchQuery}
           />
         );
-      case "Cottages":
+      case "Cottage":
         return (
           <Cottages
-            onEdit={(id, f) => handleEdit(id, "Cottages", f)}
+            onEdit={(id, f) => handleEdit(id, "Cottage", f)}
             searchQuery={searchQuery}
           />
         );
@@ -46,10 +46,10 @@ export default function Facilities() {
             searchQuery={searchQuery}
           />
         );
-      case "Other Service":
+      case "Add-ons":
         return (
           <OtherService
-            onEdit={(id, f) => handleEdit(id, "Other Service", f)}
+            onEdit={(id, f) => handleEdit(id, "Add-ons", f)}
             searchQuery={searchQuery}
           />
         );

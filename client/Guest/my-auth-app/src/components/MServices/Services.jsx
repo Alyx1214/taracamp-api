@@ -10,7 +10,7 @@ import MainServicesDormitories from '../MainServices/Dormitories';
 import MainServicesCottages from '../MainServices/Cottages';
 import MainServicesRates from '../MainServices/ServicesRates';
 import MainServicesConference from '../MainServices/Conference';
-import MainServicesOtherService from '../MainServices/OtherService';
+import MainServicesAddOns from '../MainServices/Add-Ons';
 import MainServicesServiceDetail from '../MainServices/ServiceDetail';
 import { searchFacilities } from '../../apis/facilityApi'; 
 
@@ -23,10 +23,10 @@ function Services() {
   const API = import.meta.env.VITE_API_URL; 
 
   const getFacilityTypeFromPath = (pathname) => {
-    if (pathname.includes('/dormitories')) return 'DORMITORY';
-    if (pathname.includes('/cottages')) return 'COTTAGE';
-    if (pathname.includes('/conference')) return 'CONFERENCE';
-    if (pathname.includes('/otherservice')) return 'OTHER SERVICE';
+    if (pathname.includes('/dormitories')) return 'Dormitory';
+    if (pathname.includes('/cottages')) return 'Cottage';
+    if (pathname.includes('/conference')) return 'Conference';
+    if (pathname.includes('/other-service')) return 'Other Service';
     return '';
   };
 
@@ -91,11 +91,11 @@ function Services() {
     }
   };
 
-  const isDetailViewOrOtherService =
+  const isDetailViewOrAddOns =
     (location.pathname.includes('/dormitories/') && location.pathname.split('/').length > 3) ||
     (location.pathname.includes('/cottages/') && location.pathname.split('/').length > 3) ||
     (location.pathname.includes('/conference/') && location.pathname.split('/').length > 3) ||
-    location.pathname.includes('/otherservice');
+    location.pathname.includes('/add-ons/');
 
   return (
     <div className={styles.mainServicesPageContainer}>
@@ -125,13 +125,13 @@ function Services() {
               element={<MainServicesConference facilities={facilities} loading={loading} searchAttempted={searchAttempted} />}
             />
             <Route
-              path="otherservice"
-              element={<MainServicesOtherService facilities={facilities} loading={loading} searchAttempted={searchAttempted} />}
+              path="add-ons"
+              element={<MainServicesAddOns facilities={facilities} loading={loading} searchAttempted={searchAttempted} />}
             />
             <Route path=":type/:id" element={<MainServicesServiceDetail />} />
           </Routes>
 
-          {!isDetailViewOrOtherService && <MainServicesRates />}
+          {!isDetailViewOrAddOns && <MainServicesRates />}
         </div>
       </main>
 

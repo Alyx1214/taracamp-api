@@ -29,7 +29,7 @@ const reservationModule = {
                 guestName, homeAddress, officeAddress, category, guestType,
                 telephone, officeTelephone, numberOfAdults, numberOfChildren, numberOfPwds,
                 emergencyContact, dateOfArrival, dateOfDeparture, facility,
-                serviceType, timeOfArrival, specialServices, otherRequests, guestEmail,
+                serviceType, timeOfArrival, addOns, otherRequests, guestEmail,
             } = data;
 
             if (
@@ -178,12 +178,12 @@ const reservationModule = {
                 return responseData;
             }
 
-            let addonIds = Array.isArray(specialServices) ? specialServices.filter(isValidObjectId) : [];
+            let addonIds = Array.isArray(addOns) ? addOns.filter(isValidObjectId) : [];
             let addonsTotal = 0;
 
             if (addonIds.length) {
                 const services = await dbHelper.findMany(
-                    'specialservice',
+                    'addon',
                     { _id: { $in: addonIds, }, },
                     { projection: { _id: 1, price: 1, }, }
                 );
@@ -315,7 +315,7 @@ const reservationModule = {
                 timeOfArrival,
                 facility: facilityDoc._id,
                 serviceType,
-                specialServices: addonIds,
+                addOns: addonIds,
                 otherRequests,
                 letterOfIntentFileId: loiFileDoc?._id ?? undefined,
                 totalEstimatedAmount,
@@ -1201,7 +1201,7 @@ const reservationModule = {
         };
 
         try {
-            const { facility, adults = 0, children = 0, pwds = 0, serviceType, specialServices, } = params;
+            const { facility, adults = 0, children = 0, pwds = 0, serviceType, addOns, } = params;
 
             if (!facility) {
                 responseData.status = Status.BAD_REQUEST;
@@ -1216,11 +1216,11 @@ const reservationModule = {
                 return responseData;
             }
 
-            let addonIds = Array.isArray(specialServices) ? specialServices.filter(isValidObjectId) : [];
+            let addonIds = Array.isArray(addOns) ? addOns.filter(isValidObjectId) : [];
             let addonsTotal = 0;
             if (addonIds.length) {
                 const services = await dbHelper.findMany(
-                    'specialservice',
+                    'addon',
                     { _id: { $in: addonIds, }, },
                     { projection: { _id: 1, price: 1, }, }
                 );

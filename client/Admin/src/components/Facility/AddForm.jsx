@@ -3,7 +3,7 @@ import { FaArrowLeft, FaUpload } from "react-icons/fa";
 import { useNavigate, useLocation } from "react-router-dom";
 import styles from "./AddForm.module.css";
 import { createFacility } from "../../apis/facilityApi";
-import { createSpecialService } from "../../apis/specialServiceApi";
+import { createAddon } from "../../apis/addonsApi";
 
 const AddForm = () => {
   const navigate = useNavigate();
@@ -26,17 +26,17 @@ const AddForm = () => {
   const facilityType = useMemo(() => {
     switch (category) {
       case "Dormitory":
-        return "DORMITORY";
-      case "Cottages":
-        return "COTTAGE";
+        return "Dormitory";
+      case "Cottage":
+        return "Cottage";
       case "Conference":
-        return "CONFERENCE";
+        return "Conference";
       default:
         return "";
     }
   }, [category]);
 
-  const isSpecialService = category === "Other Service";
+  const isSpecialService = category === "Add-ons";
 
   const handleChange = (e) => {
     const { name, value, files } = e.target;
@@ -59,7 +59,7 @@ const AddForm = () => {
 
     try {
       if (isSpecialService) {
-        const res = await createSpecialService({
+        const res = await createAddon({
           name: formData.name,
           price: formData.rate,
           unit: formData.unit,
@@ -69,15 +69,18 @@ const AddForm = () => {
         const payload = {
           name: formData.name,
           facilityType,
-          status: formData.status.toUpperCase(),
+          status: formData.status,
           images: formData.images,
         };
-        if (facilityType === "DORMITORY" || facilityType === "CONFERENCE" || facilityType === "COTTAGE") {
+
+        // Only attach capacity for actual facilities (not other services)
+        if (!isSpecialService && formData.capacity) {
           payload.capacity = formData.capacity;
         }
-        if (facilityType === "CONFERENCE") {
+
+        if (facilityType === "Conference") {
           payload.price = formData.rate;
-        } else if (facilityType === "DORMITORY" || facilityType === "COTTAGE") {
+        } else if (facilityType === "Dormitory" || facilityType === "Cottage") {
           payload.ratePerPerson = formData.rate;
         }
         const res = await createFacility(payload);
@@ -138,7 +141,7 @@ const AddForm = () => {
           </label>
 
           <label>
-            {isSpecialService || facilityType === "CONFERENCE" ? "Price:" : "Rate per Person:"}
+            {isSpecialService || facilityType === "Conference" ? "Price:" : "Rate per Person:"}
             <input
               type="number"
               name="rate"
@@ -150,7 +153,7 @@ const AddForm = () => {
         </div>
 
         <div className={styles.formRow}>
-          {(facilityType === "DORMITORY" || facilityType === "CONFERENCE" || facilityType === "COTTAGE") && (
+          {!isSpecialService && (
             <label>
               Capacity:
               <input
@@ -192,7 +195,7 @@ const AddForm = () => {
         {error && <p style={{ color: 'red' }}>{error}</p>}
         {success && <p style={{ color: 'green' }}>{success}</p>}
         <button type="submit" className={styles.submitBtn} disabled={submitting}>
-          {isSpecialService ? 'Add Other service' : `Add ${category.charAt(0).toUpperCase() + category.slice(1).toLowerCase()}`}
+          {isSpecialService ? 'Add Add-on' : `Add ${category.charAt(0).toUpperCase() + category.slice(1).toLowerCase()}`}
         </button>
       </form>
     </div>

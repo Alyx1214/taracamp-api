@@ -930,13 +930,13 @@ const paymentModule = {
             }
 
             const serviceIds = []
-                .concat(reservation?.specialServices || [])
+                .concat(reservation?.addOns || [])
                 .concat(reservation?.specialService ? [reservation.specialService,] : [])
                 .filter(Boolean);
 
             if (serviceIds.length) {
                 const services = await dbHelper.findMany(
-                    'specialservice',
+                    'addon',
                     { _id: { $in: serviceIds.map(String), }, },
                     { projection: { name: 1, price: 1, }, }
                 );

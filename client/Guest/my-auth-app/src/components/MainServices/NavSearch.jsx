@@ -22,27 +22,20 @@ function MainServicesNavSearch({ onSearch, onClearSearch, onApplyFilters }) {
     }
   };
 
-  // State for filter inputs
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
   const [capacity, setCapacity] = useState('');
   const [checkInDate, setCheckInDate] = useState('');
   const [checkOutDate, setCheckOutDate] = useState('');
-
-  // State to control the visibility of the filter overlay
   const [showFilterOverlay, setShowFilterOverlay] = useState(false);
-
-  // Function to handle opening the overlay
   const openFilterOverlay = () => {
     setShowFilterOverlay(true);
   };
 
-  // Function to handle closing the overlay
   const closeFilterOverlay = () => {
     setShowFilterOverlay(false);
   };
 
-  // Function to handle filter application
   const handleApplyFilters = () => {
     onApplyFilters({
       minPrice,
@@ -71,13 +64,13 @@ function MainServicesNavSearch({ onSearch, onClearSearch, onApplyFilters }) {
           Dormitory
         </NavLink>
         <NavLink to={`${base}/cottages`} className={({ isActive }) => `${styles.navTab} ${isActive ? styles.activeTab : ''}`} end>
-          Cottages
+          Cottage
         </NavLink>
         <NavLink to={`${base}/conference`} className={({ isActive }) => `${styles.navTab} ${isActive ? styles.activeTab : ''}`} end>
           Conference
         </NavLink>
-        <NavLink to={`${base}/otherservice`} className={({ isActive }) => `${styles.navTab} ${isActive ? styles.activeTab : ''}`} end>
-          Other Service
+        <NavLink to={`${base}/add-ons`} className={({ isActive }) => `${styles.navTab} ${isActive ? styles.activeTab : ''}`} end>
+          Add-ons
         </NavLink>
       </div>
 

@@ -5,7 +5,7 @@ import { ArrowLeft } from 'lucide-react';
 import ErrorBanner from '../ErrorBanner/ErrorBanner';
 import { searchFacilities } from '../../apis/facilityApi';
 import { checkAvailability as apiCheckAvailability } from '../../apis/reservationApi';
-import { getAllSpecialServices } from '../../apis/specialServiceApi';
+import { getAllAddons } from '../../apis/addonsApi';
 
 function ReservationFormStep2() {
   const navigate = useNavigate();
