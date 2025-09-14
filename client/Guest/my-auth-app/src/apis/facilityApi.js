@@ -15,7 +15,7 @@ export function getAllFacilities() {
 export function searchFacilities(params = {}) {
   const normalized = { ...params };
   if (normalized.type != null) {
-    normalized.type = String(normalized.type).trim().toUpperCase();
+    normalized.type = String(normalized.type).trim();
   }
   return apiGet('/facility/search-facilities', normalized);
 }

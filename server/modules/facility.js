@@ -583,7 +583,7 @@ const facilityModule = {
 
         try {
             let filter = {};
-            if (type) filter.facilityType = type.trim().toUpperCase();
+            if (type) filter.facilityType = type.trim();
             if (query) filter.name = new RegExp(query.trim(), 'i');
             if (capacity) filter.capacity = { $gte: Number(capacity), };
 

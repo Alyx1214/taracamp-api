@@ -121,7 +121,6 @@ function MainServicesConference({
                   9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
               </svg>
               <h4 className={styles.emptyTitle}>No conference halls found</h4>
-              <p className={styles.emptyDesc}>Try changing filters or search terms.</p>
             </div>
           </div>
         )}

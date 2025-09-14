@@ -146,10 +146,7 @@ function MainServicesAddOns({
                   9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"
                   />
                 </svg>
-                <h4 className={styles.emptyTitle}>No facility type found</h4>
-                <p className={styles.emptyDesc}>
-                  Try broadening your search or check the default add-ons list.
-                </p>
+                <h4 className={styles.emptyTitle}>No add-ons found</h4>
               </div>
             </div>
           )}

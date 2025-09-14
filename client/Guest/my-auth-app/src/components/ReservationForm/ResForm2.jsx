@@ -7,7 +7,7 @@ import ErrorBanner from '../ErrorBanner/ErrorBanner';
 
 import { searchFacilities } from '../../apis/facilityApi';
 import { checkAvailability as apiCheckAvailability } from '../../apis/reservationApi';
-import { getAllSpecialServices } from '../../apis/specialServicesApi';
+import { getAllAddons } from '../../apis/addonsApi';
 
 function ReservationFormStep2() {
   const navigate = useNavigate();
@@ -102,17 +102,17 @@ function ReservationFormStep2() {
     (async () => {
       try {
         setLoadingSpecials(true);
-        const json = await getAllSpecialServices();
+        const json = await getAllAddons();
         if (!active) return;
 
-        const arr = Array.isArray(json.specialServices) ? json.specialServices : [];
+        const arr = Array.isArray(json.addons) ? json.addons : [];
         const opts = arr.map((s) => ({
           value: String(s._id),
           label: s.name,
         }));
         setSpecialOptions(opts);
       } catch (e) {
-        if (active) setErr({ message: e.message || 'Failed to load special services' });
+        if (active) setErr({ message: e.message || 'Failed to load add ons' });
       } finally {
         if (active) setLoadingSpecials(false);
       }
@@ -544,7 +544,7 @@ function ReservationFormStep2() {
                     style={{ flex: 1 }}
                   >
                     <option value="">
-                      {loadingSpecials ? 'Loading options…' : 'Select a special service'}
+                      {loadingSpecials ? 'Loading options…' : 'Select add ons'}
                     </option>
                     {specialOptions.map(request => (
                       <option key={request.value} value={request.value}>

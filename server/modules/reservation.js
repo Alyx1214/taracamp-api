@@ -28,7 +28,7 @@ const reservationModule = {
             const {
                 guestName, homeAddress, officeAddress, category, guestType,
                 telephone, officeTelephone, numberOfAdults, numberOfChildren, numberOfPwds,
-                emergencyContact, dateOfArrival, dateOfDeparture, facility,
+                emergencyContact, emergencyContactPerson, dateOfArrival, dateOfDeparture, facility,
                 serviceType, timeOfArrival, addOns, otherRequests, guestEmail,
             } = data;
 
@@ -295,6 +295,11 @@ const reservationModule = {
                 return responseData;
             }
 
+            // Generate unique reservation code
+            const timestamp = Date.now();
+            const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+            const reservationCode = `TC${timestamp}${random}`;
+
             const reservationData = {
                 guestName,
                 homeAddress,
@@ -310,6 +315,7 @@ const reservationModule = {
                     pwds: pwds,
                 },
                 emergencyContact,
+                emergencyContactPerson,
                 dateOfArrival: normalizeDateOnly(dateOfArrival),
                 dateOfDeparture: normalizeDateOnly(dateOfDeparture),
                 timeOfArrival,
@@ -319,6 +325,7 @@ const reservationModule = {
                 otherRequests,
                 letterOfIntentFileId: loiFileDoc?._id ?? undefined,
                 totalEstimatedAmount,
+                reservationCode,
                 userId: creatingForGuest ? undefined : user.userId,
                 guestEmail: creatingForGuest ? guestEmail.trim() : undefined,
                 createdAt: new Date(),

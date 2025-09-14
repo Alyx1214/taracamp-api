@@ -76,6 +76,7 @@ const dbHelper = {
                     pwds: { type: Number, required: false, },
                 },
                 emergencyContact: { type: String, required: true, },
+                emergencyContactPerson: { type: String, required: false, },
                 dateOfArrival: { type: Date, required: true, },
                 dateOfDeparture: { type: Date, required: true, },
                 timeOfArrival: { type: String, required: true, },
