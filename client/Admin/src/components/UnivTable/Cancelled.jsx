@@ -36,9 +36,9 @@ export default function Cancelled({ searchQuery = "" }) {
         if (String(searchQuery || '').trim()) {
           const s = String(searchQuery || '').trim();
           res = await searchReservations({ query: s });
-          res.reservations = (res?.reservations || []).filter(r => r.status === 'CANCELLED');
+          res.reservations = (res?.reservations || []).filter(r => r.status === 'Cancelled');
         } else {
-          res = await getAllReservationsByStatus("CANCELLED");
+          res = await getAllReservationsByStatus("Cancelled");
         }
         const list = (res?.reservations || []).map(r => ({
           id: r._id || "N/A",

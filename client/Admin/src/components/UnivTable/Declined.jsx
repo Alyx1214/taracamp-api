@@ -38,9 +38,9 @@ export default function Declined({ searchQuery = "" }) {
         if (String(searchQuery || '').trim()) {
           const s = String(searchQuery || '').trim();
           res = await searchReservations({ query: s });
-          res.reservations = (res?.reservations || []).filter(r => r.status === 'DECLINED');
+          res.reservations = (res?.reservations || []).filter(r => r.status === 'Declined');
         } else {
-          res = await getAllReservationsByStatus("DECLINED");
+          res = await getAllReservationsByStatus("Declined");
         }
         const list = (res?.reservations || []).map(r => ({
           id: r._id || "N/A",

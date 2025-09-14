@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from "react";
-import TableServices from "./TableServices";
 import styles from "./TableServices.module.css";
-import { getAllAddons, searchAddons, deleteAddon } from "../../apis/addonsApi";
+import { getAllAddons, searchAddons } from "../../apis/addonsApi";
 
-export default function OtherService({ onEdit, searchQuery = "" }) {
+export default function OtherService({ searchQuery = "" }) {
   const [services, setServices] = useState([]);
   const [state, setState] = useState({ loading: true, error: null });
 
@@ -54,24 +53,6 @@ export default function OtherService({ onEdit, searchQuery = "" }) {
     return () => { cancelled = true; };
   }, [searchQuery]);
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this service?")) {
-      return;
-    }
-
-    try {
-      await deleteAddon(id);
-      setServices((prev) => prev.filter((s) => String(s.id) !== String(id)));
-    } catch (e) {
-      const msg =
-        e?.response?.data?.error ||
-        e?.response?.data?.message ||
-        e?.data?.error ||
-        e?.message ||
-        "Failed to delete add-on.";
-      setState(s => ({ ...s, error: msg }));
-    }
-  };
 
   const isLoading = state.loading;
   const hasError = !isLoading && Boolean(state.error);

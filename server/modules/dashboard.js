@@ -58,7 +58,7 @@ const dashboardModule = {
                         $gte: firstDayOfCurrentMonth,
                         $lte: today,
                     },
-                    status: ReservationStatus.CHECKIN,
+                    status: ReservationStatus.CHECKED_IN,
                 }),
                 dbHelper.count('reservation', {
                     status: ReservationStatus.CONFIRMED,
@@ -127,7 +127,7 @@ const dashboardModule = {
                 const endDate = new Date(currentYear, month + 1, 1);
 
                 const confirmedCount = await dbHelper.count('reservation', {
-                    status: { $in: [ReservationStatus.CHECKOUT, ReservationStatus.CONFIRMED] },
+                    status: { $in: [ReservationStatus.CHECKED_OUT, ReservationStatus.CONFIRMED] },
                     dateOfArrival: {
                         $gte: startDate,
                         $lt: endDate,

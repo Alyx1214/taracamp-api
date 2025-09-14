@@ -40,9 +40,9 @@ export default function Approved({ searchQuery = "" }) {
         if (String(searchQuery || '').trim()) {
           const s = String(searchQuery || '').trim();
           res = await searchReservations({ query: s });
-          res.reservations = (res?.reservations || []).filter(r => r.status === 'APPROVED');
+          res.reservations = (res?.reservations || []).filter(r => r.status === 'Approved');
         } else {
-          res = await getAllReservationsByStatus("APPROVED"); 
+          res = await getAllReservationsByStatus("Approved"); 
         }
         const list = (res?.reservations || []).map(r => ({
           id: r._id || "N/A",
