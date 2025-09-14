@@ -1,4 +1,4 @@
-import { Category, GuestType, Status, UserRole, FacilityStatus, ServiceType, ReservationStatus, FileKind, } from '../constants.js';
+import { Category, GuestType, Status, UserRole, FacilityStatus, ServiceType, ReservationStatus, FileKind, FacilityType, } from '../constants.js';
 import { Storage, } from '@google-cloud/storage';
 import dotenv from 'dotenv';
 dotenv.config();
@@ -29,7 +29,7 @@ const reservationModule = {
                 guestName, homeAddress, officeAddress, category, guestType,
                 telephone, officeTelephone, numberOfAdults, numberOfChildren, numberOfPwds,
                 emergencyContact, emergencyContactPerson, dateOfArrival, dateOfDeparture, facility,
-                serviceType, timeOfArrival, addOns, otherRequests, guestEmail,
+                serviceType, timeOfArrival, addOns, otherRequests, guestEmail, numberOfRooms,
             } = data;
 
             if (
@@ -78,12 +78,12 @@ const reservationModule = {
                 }
             }
 
-            if (!file) {
+            if (!file && guestType !== GuestType.INDIVIDUAL) {
                 responseData.status = Status.BAD_REQUEST;
                 responseData.error = 'Missing Letter of Intent file';
                 return responseData;
             }
-
+            
             if (!isValidPhone(telephone)) {
                 responseData.status = Status.BAD_REQUEST;
                 responseData.error = 'Invalid phone number';
@@ -245,6 +245,14 @@ const reservationModule = {
                 return responseData;
             }
 
+            if (facilityDoc.facilityType === ReservationStatus.DORMITORY) {
+                if (!isNonNegativeInteger(numberOfRooms) || parseInt(numberOfRooms) <= 0) {
+                    responseData.status = Status.BAD_REQUEST;
+                    responseData.error = 'Number of rooms is required for dormitory reservations and must be a positive integer';
+                    return responseData;
+                }
+            }
+
             let loiFileDoc = null;
             if (file) {
                 try {
@@ -295,7 +303,6 @@ const reservationModule = {
                 return responseData;
             }
 
-            // Generate unique reservation code
             const timestamp = Date.now();
             const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
             const reservationCode = `TC${timestamp}${random}`;
@@ -314,6 +321,7 @@ const reservationModule = {
                     children: children,
                     pwds: pwds,
                 },
+                numberOfRooms: facilityDoc.facilityType === '' ? parseInt(numberOfRooms) : undefined,
                 emergencyContact,
                 emergencyContactPerson,
                 dateOfArrival: normalizeDateOnly(dateOfArrival),
@@ -1242,7 +1250,7 @@ const reservationModule = {
             }
 
             const svcType = serviceType ||
-            ((facilityDoc.facilityType === 'DORMITORY' || facilityDoc.facilityType === 'COTTAGE')
+            ((facilityDoc.facilityType === ReservationStatus.DORMITORY || facilityDoc.facilityType === ReservationStatus.COTTAGE)
                 ? ServiceType.ACCOMMODATION
                 : ServiceType.MEETING);
 
@@ -1481,8 +1489,8 @@ function isPresent(value) {
 function computeEstimate({ facilityDoc, adults = 0, children = 0, pwds = 0, serviceType, addonsTotal = 0, }) {
     const isAccommodation =
     serviceType === ServiceType.ACCOMMODATION ||
-    facilityDoc?.facilityType === 'DORMITORY' ||
-    facilityDoc?.facilityType === 'COTTAGE';
+    facilityDoc?.facilityType === ReservationStatus.DORMITORY ||
+    facilityDoc?.facilityType === ReservationStatus.COTTAGE;
 
     const perPersonRate = Number(facilityDoc?.ratePerPerson);
     const flatBookingPrice = Number(facilityDoc?.price ?? facilityDoc?.conferencePrice ?? facilityDoc?.flatPrice);

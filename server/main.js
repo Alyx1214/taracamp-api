@@ -18,6 +18,7 @@ import buildReservationRouter from './routes/reservation.js';
 import paymentRoutes from './routes/payment.js';
 import notificationRoutes from './routes/notification.js';
 import dashboardRoutes from './routes/dashboard.js';
+import reviewRoutes from './routes/reviews.js';
 
 import { basicLimiter } from './middleware/limiter.js';
 import asyncHandler from './middleware/asyncHandler.js';
@@ -67,6 +68,7 @@ app.use('/api/v1', basicLimiter, (req, res, next) => {
   r.use('/payment', paymentRoutes);
   r.use('/notification', notificationRoutes);
   r.use('/dashboard', dashboardRoutes);
+  r.use('/reviews', reviewRoutes);
   return r(req, res, next);
 });
 

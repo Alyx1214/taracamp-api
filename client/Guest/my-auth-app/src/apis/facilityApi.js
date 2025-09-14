@@ -1,8 +1,5 @@
 import { apiGet } from './api';
 
-/**
- * @param {'CONFERENCE'|'DORMITORY'|'COTTAGE'|string} type
- */
 export function getFacilitiesByType(type) {
   const t = String(type || '').trim();
   return apiGet(`/facility/get-facilities-by-type/${encodeURIComponent(t)}`);

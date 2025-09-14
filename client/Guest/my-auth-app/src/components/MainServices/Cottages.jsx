@@ -153,7 +153,7 @@ function MainServicesCottages({
               <p className={styles.cottageRate}>
                 Rates per Person : ₱ {formatPeso(cottage?.ratePerPerson ?? cottage?.rate)}
               </p>
-              <Link to={`${cottage?._id ?? cottage?.id ?? ''}`} relative="path" className={styles.checkButton}>
+              <Link to={`${cottage?.name?.replace(/\s+/g, '-').toLowerCase() || 'unnamed'}/${cottage?._id ?? cottage?.id ?? ''}`} className={styles.checkButton}>
                 Check
               </Link>
             </div>

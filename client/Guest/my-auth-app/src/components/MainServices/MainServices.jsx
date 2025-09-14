@@ -107,9 +107,9 @@ function MainServices() {
   }
 
   const isDetailViewOrAddOn =
-    (location.pathname.includes('/dormitories/') && location.pathname.split('/').length > 3) ||
-    (location.pathname.includes('/cottages/') && location.pathname.split('/').length > 3) ||
-    (location.pathname.includes('/conference/') && location.pathname.split('/').length > 3) ||
+    (location.pathname.includes('/dormitories/') && location.pathname.split('/').length > 4) ||
+    (location.pathname.includes('/cottages/') && location.pathname.split('/').length > 4) ||
+    (location.pathname.includes('/conference/') && location.pathname.split('/').length > 4) ||
     facilityType === 'Add-Ons';
 
   return (
@@ -174,7 +174,7 @@ function MainServices() {
                 />
               }
             />
-            <Route path=":type/:id" element={<MainServicesServiceDetail />} />
+            <Route path=":type/:name/:id" element={<MainServicesServiceDetail />} />
           </Routes>
 
           {!isDetailViewOrAddOn && <MainServicesRates />}

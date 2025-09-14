@@ -10,7 +10,7 @@ function ReservationFormStep3() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const { type, id } = useParams();
+  const { type, facilityName, id } = useParams();
   const step1 = location.state?.step1 || {};
   const step2 = location.state?.step2 || {};
 
@@ -20,7 +20,7 @@ function ReservationFormStep3() {
 
   useEffect(() => {
     if (!step1 || !Object.keys(step1).length || !step2 || !Object.keys(step2).length) {
-      navigate(`/reservation-step2/${type}/${id}`, { state: { step1, step2, file } });;
+      navigate(`/reservation-step2/${type}/${facilityName}/${id}`, { state: { step1, step2, file } });;
     }
   }, [step1, step2, type, id, navigate]);
 
@@ -31,11 +31,11 @@ function ReservationFormStep3() {
     }, [file]);
 
   const handleGoBack = () => {
-    navigate(`/reservation-step2/${type}/${id}`, { state: { step1, step2, file } });
+    navigate(`/reservation-step2/${type}/${facilityName}/${id}`, { state: { step1, step2, file } });
   };
 
   const handlePrevious = () => {
-    navigate(`/reservation-step2/${type}/${id}`, { state: { step1, step2, file } });
+    navigate(`/reservation-step2/${type}/${facilityName}/${id}`, { state: { step1, step2, file } });
   };
 
   const handleNext = () => {
@@ -44,7 +44,7 @@ function ReservationFormStep3() {
       return;
     }
     setFileError('');
-    navigate(`/reservation-step4/${type}/${id}`, { state: { step1, step2, file } });
+    navigate(`/reservation-step4/${type}/${facilityName}/${id}`, { state: { step1, step2, file } });
   };
 
   const handleBoxClick = () => {

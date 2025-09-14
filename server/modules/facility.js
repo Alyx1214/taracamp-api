@@ -175,9 +175,10 @@ const facilityModule = {
      * Fetches a facility by its ID.
      * @param {Object} dbHelper - The database helper for database operations.
      * @param {string} id - The ID of the facility to be fetched.
+     * @param {boolean} includeReviews - Whether to include review data.
      * @returns {Object} Response data with status, error, and facility on success.
      */
-    getFacilityById: async (dbHelper, id) => {
+    getFacilityById: async (dbHelper, id, includeReviews = false) => {
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
             error: 'Error fetching facility',
@@ -203,6 +204,24 @@ const facilityModule = {
             delete facilityObject.createdAt;
             facilityObject.name = toTitleCase(String(facilityObject.name || ''));
             facilityObject.images = await getSignedReadUrls(Array.isArray(facilityObject.images) ? facilityObject.images : []);
+
+            // Include review data if requested
+            if (includeReviews) {
+                try {
+                    const reviews = await dbHelper.find('review', { facilityId: id });
+                    const averageRatings = calculateAverageRatings(reviews);
+                    facilityObject.reviewSummary = {
+                        totalReviews: reviews.length,
+                        averageRatings
+                    };
+                } catch (reviewError) {
+                    console.warn('Error fetching reviews for facility:', reviewError);
+                    facilityObject.reviewSummary = {
+                        totalReviews: 0,
+                        averageRatings: { location: 0, service: 0, cleanliness: 0, overall: 0 }
+                    };
+                }
+            }
 
             responseData.status = Status.OK;
             responseData.error = null;
@@ -754,4 +773,31 @@ function parseSort(spec) {
         sort[field] = (dir === 'desc' || dir === '-1') ? -1 : 1;
     }
     return Object.keys(sort).length ? sort : undefined;
+}
+
+function calculateAverageRatings(reviews) {
+    if (!reviews || reviews.length === 0) {
+        return {
+            location: 0,
+            service: 0,
+            cleanliness: 0,
+            overall: 0
+        };
+    }
+
+    const totals = reviews.reduce((acc, review) => {
+        acc.location += review.rating.location;
+        acc.service += review.rating.service;
+        acc.cleanliness += review.rating.cleanliness;
+        acc.overall += review.rating.overall;
+        return acc;
+    }, { location: 0, service: 0, cleanliness: 0, overall: 0 });
+
+    const count = reviews.length;
+    return {
+        location: Math.round((totals.location / count) * 10) / 10,
+        service: Math.round((totals.service / count) * 10) / 10,
+        cleanliness: Math.round((totals.cleanliness / count) * 10) / 10,
+        overall: Math.round((totals.overall / count) * 10) / 10
+    };
 }

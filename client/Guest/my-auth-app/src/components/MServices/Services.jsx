@@ -127,7 +127,7 @@ function Services() {
               path="add-ons"
               element={<MainServicesAddOns facilities={facilities} loading={loading} searchAttempted={searchAttempted} />}
             />
-            <Route path=":type/:id" element={<MainServicesServiceDetail />} />
+            <Route path=":type/:facilityName/:id" element={<MainServicesServiceDetail />} />
           </Routes>
 
           {!isDetailViewOrAddOns && <MainServicesRates />}

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { useNavigate, useLocation, useParams } from 'react-router-dom';
+import { useNavigate, useLocation, useParams, useSearchParams } from 'react-router-dom';
 import HeaderHome from '../HeaderHome/HeaderHome';
 import styles from './ResForm2.module.css';
 import { ArrowLeft } from 'lucide-react';
@@ -12,41 +12,53 @@ import { getAllAddons } from '../../apis/addonsApi';
 function ReservationFormStep2() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
 
   const step1 = location.state?.step1 || {};
   const file = location.state?.file || null;
-  const { type, id } = useParams();
+  const { type, facilityName, id } = useParams();
   const routeFacilityType = useMemo(() => {
     const t = String(type || '').toLowerCase();
-    if (t.startsWith('dormi')) return 'DORMITORY';
-    if (t.startsWith('cott')) return 'COTTAGE';
-    if (t.startsWith('conf')) return 'CONFERENCE';
+    if (t.startsWith('dormi')) return 'Dormitory';
+    if (t.startsWith('cott')) return 'Cottage';
+    if (t.startsWith('conf')) return 'Conference';
     return '';
   }, [type]);
 
+  const urlFacilityType = useMemo(() => {
+    const facilityType = searchParams.get('facilityType');
+    return facilityType || routeFacilityType;
+  }, [searchParams, routeFacilityType]);
+
   useEffect(() => {
     if (!location.state?.step1 || !Object.keys(location.state.step1).length) {
-      navigate(`/reservation-form/${type}/${id}`, { replace: true });
+      // If we have URL parameters, use them; otherwise fallback to basic route
+      if (type && facilityName && id) {
+        navigate(`/reservation-form/${type}/${facilityName}/${id}`, { replace: true });
+      } else {
+        navigate('/reservation-form', { replace: true });
+      }
     }
-  }, [location.state, type, id, navigate]);
+  }, [location.state, type, facilityName, id, navigate]);
 
 
 
   const [formData, setFormData] = useState({
     dateArrival: '',
     dateDeparture: '',
-    typeFacilities: routeFacilityType,   
+    typeFacilities: urlFacilityType,
     facilityName: '',
     typeService: '',
     timeArrivalHour: '',
     timeArrivalAMPM: 'AM',
     customService: '',
     specialRequests: '',
+    numberOfRooms: 1,
   });
 
   const [facilityOptions, setFacilityOptions] = useState([]);
   const [specialOptions, setSpecialOptions] = useState([]);
-  const [loadingFacilities, setLoadingFacilities] = useState(false);
+  const [selectedAddons, setSelectedAddons] = useState([]);
   const [loadingSpecials, setLoadingSpecials] = useState(false);
   const [err, setErr] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
@@ -64,37 +76,64 @@ function ReservationFormStep2() {
   useEffect(() => {
     let hydrated = false;
     if (location.state?.step2) {
-      setFormData(prev => ({ ...prev, ...location.state.step2, typeFacilities: prev.typeFacilities || routeFacilityType || location.state.step2.typeFacilities || ''}));
+      setFormData(prev => ({
+        ...prev,
+        ...location.state.step2,
+        typeFacilities: prev.typeFacilities || urlFacilityType || location.state.step2.typeFacilities || ''
+      }));
+      if (location.state.step2.selectedAddons) {
+        setSelectedAddons(location.state.step2.selectedAddons);
+      }
       hydrated = true;
     }
     if (location.state?.errorsStep2) setFieldErrors(location.state.errorsStep2);
+
+    // Handle preselected dates from ServiceDetail
+    if (location.state?.preselectedDates) {
+      const { dateArrival, dateDeparture } = location.state.preselectedDates;
+      setFormData(prev => ({
+        ...prev,
+        dateArrival: dateArrival || prev.dateArrival,
+        dateDeparture: dateDeparture || prev.dateDeparture,
+        typeFacilities: prev.typeFacilities || urlFacilityType
+      }));
+      hydrated = true;
+    }
+
     if (!hydrated) {
       try {
         const saved = sessionStorage.getItem('reservation.step2');
         if (saved) {
           const parsed = JSON.parse(saved);
           if (parsed && typeof parsed === 'object') {
-            setFormData(prev => ({ ...prev, ...parsed }));
+            setFormData(prev => ({
+              ...prev,
+              ...parsed,
+              typeFacilities: prev.typeFacilities || urlFacilityType,
+              // Ensure preselected dates override sessionStorage
+              ...(location.state?.preselectedDates && {
+                dateArrival: location.state.preselectedDates.dateArrival || prev.dateArrival,
+                dateDeparture: location.state.preselectedDates.dateDeparture || prev.dateDeparture
+              })
+            }));
+            if (parsed.selectedAddons) {
+              setSelectedAddons(parsed.selectedAddons);
+            }
           }
         }
       } catch {}
     }
-  }, [location.state, routeFacilityType]);
+  }, [location.state, urlFacilityType]);
 
   useEffect(() => {
     try {
-      sessionStorage.setItem('reservation.step2', JSON.stringify(formData));
+      sessionStorage.setItem('reservation.step2', JSON.stringify({ ...formData, selectedAddons }));
     } catch {}
-  }, [formData]);
+  }, [formData, selectedAddons]);
 
-  const minArrival = useMemo(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 1);
-    return d.toISOString().slice(0, 10);
-  }, []);
 
   const handleGoBack = () => {
-    navigate(`/reservation-form/${type}/${id}`, { state: { step1, step2: formData, file } });
+    navigate(`/reservation-form/${type}/${facilityName}/${id}`, { state: { step1, step2: formData, file } });
   };
 
   useEffect(() => {
@@ -127,12 +166,11 @@ function ReservationFormStep2() {
       setErr(null);
       if (!formData.typeFacilities) return;
       try {
-        setLoadingFacilities(true);
         const json = await searchFacilities({ type: formData.typeFacilities });
         if (!active) return;
 
         const src = Array.isArray(json.facilities) ? json.facilities : [];
-        const filtered = src.filter(f => String(f?.status || '').toUpperCase() === 'AVAILABLE');
+        const filtered = src.filter(f => String(f?.status || '') === 'Available');
         const list = filtered.map((f) => {
           const rawName = String(f.name || '');
           const label = rawName.toLowerCase().replace(/\b[a-z]/g, c => c.toUpperCase());
@@ -153,15 +191,13 @@ function ReservationFormStep2() {
               const stillExists = list.some(o => o._id === String(prev.facilityName));
               return stillExists ? prev : { ...prev, facilityName: '' };
           }
-          
+
           const urlMatch = list.find(o => o._id === String(id));
           return urlMatch ? { ...prev, facilityName: urlMatch._id } : prev;
 
         });
       } catch (e) {
         if (active) setErr({ message: e.message || 'Failed to load facilities' });
-      } finally {
-        if (active) setLoadingFacilities(false);
       }
     })();
 
@@ -194,20 +230,16 @@ function ReservationFormStep2() {
 
   function validateStep2Local() {
     const e = {};
-    if (!formData.dateArrival) e.dateArrival = 'Required';
-    if (!formData.dateDeparture) e.dateDeparture = 'Required';
-    if (formData.dateArrival && formData.dateDeparture && formData.dateDeparture < formData.dateArrival) {
-      e.dateDeparture = 'Departure must be after arrival.';
-    }
-    if (!formData.typeFacilities) e.typeFacilities = 'Select a facility type.';
-    if (!formData.facilityName) e.facilityName = 'Select a facility.';
     if (!formData.typeService) e.typeService = 'Select a service type.';
-    if (!formData.timeArrivalHour) e.timeArrivalHour = 'Enter arrival hour.';
+    if (isDormitory && (!formData.numberOfRooms || formData.numberOfRooms < 1)) {
+      e.numberOfRooms = 'Number of rooms is required for dormitory reservations.';
+    }
     setFieldErrors(e);
     return Object.keys(e).length === 0;
   }
 
   const chosenFacility = facilityOptions.find(o => o._id === formData.facilityName);
+  const isDormitory = formData.typeFacilities?.toLowerCase().includes('dormitory');
   const capacityOk = !chosenFacility || Number(chosenFacility.capacity) >= totalGuests;
   const capacityMsg =
     chosenFacility && !capacityOk
@@ -255,7 +287,7 @@ function ReservationFormStep2() {
   }, [formData.facilityName, formData.dateArrival, formData.dateDeparture, totalGuests, chosenFacility?.capacity, capacityOk]);
 
   const handlePrevious = () => {
-    navigate(`/reservation-form/${type}/${id}`, { state: { step1, step2: formData, file } });
+    navigate(`/reservation-form/${type}/${facilityName}/${id}`, { state: { step1, step2: formData, file } });
   };
 
   const handleNext = () => {
@@ -293,9 +325,10 @@ function ReservationFormStep2() {
       facilityLabelFromList: chosen.label,
       facilityCapacity: chosen.capacity,
       facilityRatePerPerson: chosen.ratePerPerson,
+      selectedAddons: selectedAddons,
     };
 
-    navigate(`/reservation-step3/${type}/${id}`, {
+    navigate(`/reservation-step3/${type}/${facilityName}/${id}`, {
       state: { step1, step2, file },
     });
   };
@@ -319,91 +352,41 @@ function ReservationFormStep2() {
             <form onSubmit={e => e.preventDefault()}>
               <div className={styles.formRow}>
                 <div className={styles.formGroup}>
-                  <label className={styles.label}>Date of Arrival<span className={styles.requiredAsterisk}>*</span></label>
-                  <input
-                    type="date"
-                    name="dateArrival"
-                    min={minArrival}
-                    value={formData.dateArrival}
-                    onChange={handleInputChange}
-                    className={`${styles.input} ${fieldErrors.dateArrival ? styles.inputError : ''}`}
-                  />
-                  {fieldErrors.dateArrival && (
-                    <div className={styles.fieldError}>{fieldErrors.dateArrival}</div>
-                  )}
+                  <label className={styles.label}>Date of Arrival</label>
+                  <div className={styles.input} style={{ backgroundColor: '#f5f5f5', color: '#333' }}>
+                    {formData.dateArrival ? new Date(formData.dateArrival).toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric'
+                    }) : 'Not specified'}
+                  </div>
                 </div>
 
                 <div className={styles.formGroup}>
-                  <label className={styles.label}>Date of Departure<span className={styles.requiredAsterisk}>*</span></label>
-                  <input
-                    type="date"
-                    name="dateDeparture"
-                    min={formData.dateArrival || minArrival}
-                    value={formData.dateDeparture}
-                    onChange={handleInputChange}
-                    className={`${styles.input} ${fieldErrors.dateDeparture ? styles.inputError : ''}`}
-                  />
-                  {fieldErrors.dateDeparture && (
-                    <div className={styles.fieldError}>{fieldErrors.dateDeparture}</div>
-                  )}
+                  <label className={styles.label}>Date of Departure</label>
+                  <div className={styles.input} style={{ backgroundColor: '#f5f5f5', color: '#333' }}>
+                    {formData.dateDeparture ? new Date(formData.dateDeparture).toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric'
+                    }) : 'Not specified'}
+                  </div>
                 </div>
               </div>
 
               <div className={styles.formRow}>
                 <div className={styles.formGroup}>
-                  <label className={styles.label}>Type of Facilities<span className={styles.requiredAsterisk}>*</span></label>
-                  <select
-                    name="typeFacilities"
-                    value={formData.typeFacilities}
-                    onChange={e => {
-                      handleInputChange(e);
-                      setFormData(prev => ({ ...prev, facilityName: '' }));
-                      setIsAvailable(null);
-                      setAvailReason('');
-                    }}
-                    className={`${styles.input} ${fieldErrors.typeFacilities ? styles.inputError : ''}`}
-                    disabled={Boolean(type)}
-                  >
-                    <option value="">Select a facility type</option>
-                    <option value="Dormitory">Dormitory</option>
-                    <option value="Conference">Conference Hall</option>
-                    <option value="Cottage">Cottage/Guest House</option>
-                  </select>
-                  {fieldErrors.typeFacilities && (
-                    <div className={styles.fieldError}>{fieldErrors.typeFacilities}</div>
-                  )}
+                  <label className={styles.label}>Type of Facilities</label>
+                  <div className={styles.input} style={{ backgroundColor: '#f5f5f5', color: '#333' }}>
+                    {formData.typeFacilities || 'Not specified'}
+                  </div>
                 </div>
 
                 <div className={styles.formGroup}>
-                  <label className={styles.label}>Facility Name<span className={styles.requiredAsterisk}>*</span></label>
-                  <select
-                    name="facilityName"
-                    value={formData.facilityName}
-                    onChange={handleInputChange}
-                    className={`${styles.input} ${fieldErrors.facilityName ? styles.inputError : ''}`}
-                    disabled={!formData.typeFacilities || loadingFacilities}
-                  >
-                    <option value="">
-                      {loadingFacilities ? 'Loading facilities…' : 'Select a facility'}
-                    </option>
-                    {facilityOptions.map(f => {
-                      const tooSmall = Number(f.capacity) < totalGuests;
-                      const label = `${f.label} (max ${Number.isFinite(f.capacity) ? f.capacity : 0})`;
-                      return (
-                        <option key={f.__k} value={f._id} disabled={tooSmall}>
-                          {label}
-                        </option>
-                      );
-                    })}
-                  </select>
-                  {fieldErrors.facilityName && (
-                    <div className={styles.fieldError}>{fieldErrors.facilityName}</div>
-                  )}
-                  {!fieldErrors.facilityName && chosenFacility && !capacityOk && (
-                    <div className={styles.fieldError}>
-                      {`Selected facility capacity is ${chosenFacility.capacity}, but you have ${totalGuests} guests.`}
-                    </div>
-                  )}
+                  <label className={styles.label}>Facility Name</label>
+                  <div className={styles.input} style={{ backgroundColor: '#f5f5f5', color: '#333' }}>
+                    {chosenFacility?.label || 'Not specified'}
+                  </div>
 
                   {formData.facilityName && formData.dateArrival && formData.dateDeparture && capacityOk && (
                     <div className={styles.availabilityRow}>
@@ -460,76 +443,80 @@ function ReservationFormStep2() {
 
                 <div className={styles.formRow}>
                   <div className={styles.formGroup}>
-                    <label className={styles.label}>Time of Arrival<span className={styles.requiredAsterisk}>*</span></label>
-                    <div className={styles.timeInput}>
-                      <input
-                        type="number"
+                    <label className={styles.label}>Time of Arrival</label>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <select
                         name="timeArrivalHour"
                         value={formData.timeArrivalHour}
                         onChange={handleInputChange}
-                        className={`${styles.timeInputBox} ${fieldErrors.timeArrivalHour ? styles.inputError : ''}`}
-                        placeholder="HH"
-                        min="1"
-                        max="12"
-                      />
+                        className={styles.input}
+                        style={{ flex: 1 }}
+                      >
+                        <option value="">Hour</option>
+                        {Array.from({ length: 12 }, (_, i) => i + 1).map(hour => (
+                          <option key={hour} value={hour.toString().padStart(2, '0')}>
+                            {hour.toString().padStart(2, '0')}
+                          </option>
+                        ))}
+                      </select>
                       <select
                         name="timeArrivalAMPM"
                         value={formData.timeArrivalAMPM}
                         onChange={handleInputChange}
-                        className={styles.ampmSelect}
+                        className={styles.input}
+                        style={{ flex: 0, minWidth: '70px' }}
                       >
                         <option value="AM">AM</option>
                         <option value="PM">PM</option>
                       </select>
                     </div>
-                    {fieldErrors.timeArrivalHour && (
-                      <div className={styles.fieldError}>{fieldErrors.timeArrivalHour}</div>
-                    )}
                   </div>
 
-                  <div className={styles.formGroup}>
-                    <label className={styles.label}>Number of Rooms<span className={styles.requiredAsterisk}>*</span></label>
-                    <div className={styles.quantityInput}>
-                      <button
-                        type="button"
-                        className={styles.quantityButton}
-                        onClick={() => {
-                          const current = parseInt(formData.quantity || 1, 10);
-                          if (current > 1) {
-                            setFormData(prev => ({ ...prev, quantity: current - 1 }));
-                          }
-                        }}
-                        disabled={parseInt(formData.quantity || 1, 10) <= 1}
-                      >
-                        -
-                      </button>
-                      <input
-                        type="number"
-                        name="quantity"
-                        value={formData.quantity || 1}
-                        onChange={handleInputChange}
-                        className={`${styles.quantityInputBox} ${fieldErrors.quantity ? styles.inputError : ''}`}
-                        min="1"
-                        max="10"
-                      />
-                      <button
-                        type="button"
-                        className={styles.quantityButton}
-                        onClick={() => {
-                          const current = parseInt(formData.quantity || 1, 10);
-                          if (current < 10) {
-                            setFormData(prev => ({ ...prev, quantity: current + 1 }));
-                          }
-                        }}
-                        disabled={parseInt(formData.quantity || 1, 10) >= 10}
-                      >
-                        +
-                      </button>
+                  {isDormitory && (
+                    <div className={styles.formGroup}>
+                      <label className={styles.label}>Number of Rooms<span className={styles.requiredAsterisk}>*</span></label>
+                      <div className={styles.quantityInput}>
+                        <button
+                          type="button"
+                          className={styles.quantityButton}
+                          onClick={() => {
+                            const current = parseInt(formData.numberOfRooms || 1, 10);
+                            if (current > 1) {
+                              setFormData(prev => ({ ...prev, numberOfRooms: current - 1 }));
+                            }
+                          }}
+                          disabled={parseInt(formData.numberOfRooms || 1, 10) <= 1}
+                        >
+                          -
+                        </button>
+                        <input
+                          type="number"
+                          name="numberOfRooms"
+                          value={formData.numberOfRooms || 1}
+                          onChange={handleInputChange}
+                          className={`${styles.quantityInputBox} ${fieldErrors.numberOfRooms ? styles.inputError : ''}`}
+                          min="1"
+                          max="10"
+                        />
+                        <button
+                          type="button"
+                          className={styles.quantityButton}
+                          onClick={() => {
+                            const current = parseInt(formData.numberOfRooms || 1, 10);
+                            if (current < 10) {
+                              setFormData(prev => ({ ...prev, numberOfRooms: current + 1 }));
+                            }
+                          }}
+                          disabled={parseInt(formData.numberOfRooms || 1, 10) >= 10}
+                        >
+                          +
+                        </button>
+                      </div>
+                      {fieldErrors.numberOfRooms && (
+                        <div className={styles.fieldError}>{fieldErrors.numberOfRooms}</div>
+                      )}
                     </div>
-                    {fieldErrors.quantity && (
-                      <div className={styles.fieldError}>{fieldErrors.quantity}</div>
-                    )}
-                  </div>
+                  )}
                 </div>
               </div>
 
@@ -552,8 +539,64 @@ function ReservationFormStep2() {
                       </option>
                     ))}
                   </select>
-                  <button type="button" className={styles.addRequestButton}>+</button>
+                  <button
+                    type="button"
+                    className={styles.addRequestButton}
+                    onClick={() => {
+                      if (formData.specialRequests) {
+                        const selectedOption = specialOptions.find(opt => opt.value === formData.specialRequests);
+                        if (selectedOption && !selectedAddons.some(addon => addon.value === selectedOption.value)) {
+                          setSelectedAddons(prev => [...prev, selectedOption]);
+                          setFormData(prev => ({ ...prev, specialRequests: '' }));
+                        }
+                      }
+                    }}
+                    disabled={!formData.specialRequests || selectedAddons.some(addon => addon.value === formData.specialRequests)}
+                  >+</button>
                 </div>
+                {selectedAddons.length > 0 && (
+                  <div style={{ marginTop: 12 }}>
+                    <div style={{ fontSize: '14px', marginBottom: 8, color: '#666' }}>Selected Add-ons:</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                      {selectedAddons.map((addon) => (
+                        <div
+                          key={addon.value}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            backgroundColor: '#e8f4fd',
+                            border: '1px solid #b3d8f2',
+                            borderRadius: '16px',
+                            padding: '4px 12px',
+                            fontSize: '13px',
+                            gap: '6px'
+                          }}
+                        >
+                          <span>{addon.label}</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedAddons(prev => prev.filter(item => item.value !== addon.value));
+                            }}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              color: '#666',
+                              cursor: 'pointer',
+                              fontSize: '16px',
+                              lineHeight: '1',
+                              padding: '0',
+                              marginLeft: '2px'
+                            }}
+                            title="Remove addon"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className={styles.buttonContainer}>
@@ -579,55 +622,102 @@ function ReservationFormStep2() {
             </form>
           </div>
 
-           {/* Static Summary Container with Dummy Data */}
-            <div className={styles.summaryContainer}>
+           <div className={styles.summaryContainer}>
               <div className={styles.summaryCard}>
-                <h3 className={styles.summaryTitle}>Quirino Conf Hall</h3>
-                
+                <h3 className={styles.summaryTitle}>
+                  {chosenFacility?.label || formData.facilityName || 'Select Facility'}
+                </h3>
+
                 <div className={styles.summaryContent}>
                   <div className={styles.summaryRow}>
                     <span className={styles.summaryLabel}>Type of Facility:</span>
-                    <span className={styles.summaryValue}>Conference Hall</span>
+                    <span className={styles.summaryValue}>
+                      {formData.typeFacilities || 'Not selected'}
+                    </span>
                   </div>
-                  
+
                   <div className={styles.summaryRow}>
                     <span className={styles.summaryLabel}>Category:</span>
-                    <span className={styles.summaryValue}>DepEd</span>
+                    <span className={styles.summaryValue}>
+                      {(() => {
+                        const categoryKey = Object.entries(step1?.category || {}).find(([, v]) => v)?.[0];
+                        if (!categoryKey) return 'Not selected';
+                        if (categoryKey === 'deped') return 'DepEd';
+                        if (categoryKey === 'pwds') return 'PWDs';
+                        return categoryKey.charAt(0).toUpperCase() + categoryKey.slice(1);
+                      })()}
+                    </span>
                   </div>
-                  
+
                   <div className={styles.summaryRow}>
                     <span className={styles.summaryLabel}>Type:</span>
-                    <span className={styles.summaryValue}>Groups</span>
+                    <span className={styles.summaryValue}>
+                      {Object.entries(step1?.type || {}).find(([, v]) => v)?.[0]?.charAt(0).toUpperCase() + Object.entries(step1?.type || {}).find(([, v]) => v)?.[0]?.slice(1) || 'Not selected'}
+                    </span>
                   </div>
-                  
+
                   <div className={styles.summaryRow}>
                     <span className={styles.summaryLabel}>Total Guest:</span>
-                    <span className={styles.summaryValue}>50</span>
+                    <span className={styles.summaryValue}>{totalGuests}</span>
                   </div>
-                  
+
                   <div className={styles.summaryRow}>
                     <span className={styles.summaryLabel}>Date of Arrival:</span>
-                    <span className={styles.summaryValue}>Sept 20, 2025</span>
+                    <span className={styles.summaryValue}>
+                      {formData.dateArrival ? new Date(formData.dateArrival).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric'
+                      }) : 'Not selected'}
+                    </span>
                   </div>
-                  
+
                   <div className={styles.summaryRow}>
                     <span className={styles.summaryLabel}>Date of Departure:</span>
-                    <span className={styles.summaryValue}>Sept 21, 2025</span>
+                    <span className={styles.summaryValue}>
+                      {formData.dateDeparture ? new Date(formData.dateDeparture).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric'
+                      }) : 'Not selected'}
+                    </span>
                   </div>
-                  
+
                   <div className={styles.summaryRow}>
                     <span className={styles.summaryLabel}>Type of Service:</span>
-                    <span className={styles.summaryValue}>Events</span>
+                    <span className={styles.summaryValue}>
+                      {formData.typeService === 'Other' ? (formData.customService || 'Other') : (formData.typeService || 'Not selected')}
+                    </span>
                   </div>
-                  
+
                   <div className={styles.summaryRow}>
                     <span className={styles.summaryLabel}>Time of Arrival:</span>
-                    <span className={styles.summaryValue}>7:00 AM</span>
+                    <span className={styles.summaryValue}>
+                      {formData.timeArrivalHour ? `${formData.timeArrivalHour}:00 ${formData.timeArrivalAMPM}` : 'Not selected'}
+                    </span>
                   </div>
-                  
+
                   <div className={styles.summaryRow}>
                     <span className={styles.summaryLabel}>Add ons:</span>
-                    <span className={styles.summaryValue}>Certificate</span>
+                    <span className={styles.summaryValue}>
+                      {selectedAddons.length > 0 ? selectedAddons.map(addon => addon.label).join(', ') : 'None'}
+                    </span>
+                  </div>
+
+                  {isDormitory && (
+                    <div className={styles.summaryRow}>
+                      <span className={styles.summaryLabel}>Number of Rooms:</span>
+                      <span className={styles.summaryValue}>
+                        {formData.numberOfRooms || 1}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className={styles.summaryRow}>
+                    <span className={styles.summaryLabel}>Emergency Contact Person:</span>
+                    <span className={styles.summaryValue}>
+                      {step1.emergencyContactPerson || 'Not provided'}
+                    </span>
                   </div>
                 </div>
               </div>

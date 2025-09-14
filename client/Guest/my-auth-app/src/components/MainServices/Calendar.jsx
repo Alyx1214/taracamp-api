@@ -1,7 +1,7 @@
 import React from 'react';
 import styles from './Calendar.module.css';
 
-const Calendar = ({ currentDate, onPrevMonth, onNextMonth, calendarData }) => {
+const Calendar = ({ currentDate, onPrevMonth, onNextMonth, calendarData, onDateClick }) => {
   return (
     <div className={styles.reservationsCalendar}>
       <h4 className={styles.calendarHeader}>Reservations Calendar</h4>
@@ -26,7 +26,8 @@ const Calendar = ({ currentDate, onPrevMonth, onNextMonth, calendarData }) => {
           return (
             <div
               key={index}
-              className={`${styles.calendarDate} ${isReserved ? styles.reservedDate : ''} ${isToday ? styles.currentDay : ''}`}
+              className={`${styles.calendarDate} ${isReserved ? styles.reservedDate : ''} ${isToday ? styles.currentDay : ''} ${date ? styles.clickable : ''}`}
+              onClick={date ? () => onDateClick && onDateClick(date, currentDate) : undefined}
             >
               {date || ''}
             </div>
