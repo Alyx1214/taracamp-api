@@ -63,7 +63,8 @@ function MainServicesServiceDetail() {
   const [selectedDepartureDateDisplay, setSelectedDepartureDateDisplay] = useState(null);
   const [isSelectingDeparture, setIsSelectingDeparture] = useState(false);
   const [currentReviewIndex, setCurrentReviewIndex] = useState(0);
-  const [showErrorPopup, setShowErrorPopup] = useState(false);
+  const [arrivalDateError, setArrivalDateError] = useState('');
+  const [departureDateError, setDepartureDateError] = useState('');
   const navigate = useNavigate();
   const { isLoggedIn } = useAuth();
   const API = import.meta.env.VITE_API_URL; 
@@ -151,7 +152,71 @@ function MainServicesServiceDetail() {
   if (loading) {
     return (
       <section className={styles.serviceDetailSection}>
-        <div className={styles.loading}>Loading...</div>
+        <div className={styles.container}>
+          <h1 className={styles.sectionTitle}>
+            FACILITIES / DETAIL VIEW
+          </h1>
+
+          <div className={styles.mainContent}>
+            <div className={styles.contentContainer}>
+              <div className={styles.headerAndDateContainer}>
+                <div className={styles.skeletonHeader}>
+                  <div className={styles.skeletonHeaderInfo}>
+                    <div className={styles.skeletonTitle}></div>
+                    <div className={styles.skeletonSubtitle}></div>
+                  </div>
+                  <div className={styles.skeletonButton}></div>
+                </div>
+
+                <div className={styles.skeletonDateChecker}>
+                  <div className={styles.skeletonDateInput}>
+                    <div className={styles.skeletonDateLabel}></div>
+                    <div className={styles.skeletonDateField}></div>
+                  </div>
+                  <div className={styles.skeletonDateInput}>
+                    <div className={styles.skeletonDateLabel}></div>
+                    <div className={styles.skeletonDateField}></div>
+                  </div>
+                </div>
+              </div>
+
+              <div className={styles.skeletonImageGallery}>
+                <div className={styles.skeletonMainImage}></div>
+                <div className={styles.skeletonThumbnailGrid}>
+                  <div className={styles.skeletonThumbnail}></div>
+                  <div className={styles.skeletonThumbnail}></div>
+                  <div className={styles.skeletonThumbnail}></div>
+                  <div className={styles.skeletonThumbnail}></div>
+                </div>
+              </div>
+
+              <div className={styles.skeletonFeaturesGrid}>
+                {[1, 2, 3, 4].map((_, index) => (
+                  <div key={index} className={styles.skeletonFeatureCard}>
+                    <div className={styles.skeletonFeatureIcon}></div>
+                    <div className={styles.skeletonFeatureTitle}></div>
+                  </div>
+                ))}
+              </div>
+
+              <div className={styles.skeletonReviewsSection}>
+                <div className={styles.skeletonReviewHeader}>
+                  <div className={styles.skeletonReviewTitle}></div>
+                  <div className={styles.skeletonReviewButton}></div>
+                </div>
+                <div className={styles.skeletonReviewScores}>
+                  <div className={styles.skeletonScoreItem}></div>
+                  <div className={styles.skeletonScoreItem}></div>
+                  <div className={styles.skeletonScoreItem}></div>
+                </div>
+                <div className={styles.skeletonReviewContent}>
+                  <div className={styles.skeletonReviewText}></div>
+                  <div className={styles.skeletonReviewAuthor}></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </section>
     );
   }
@@ -252,10 +317,32 @@ function MainServicesServiceDetail() {
     const dayName = dateObj.toLocaleString('default', { weekday: 'long' });
 
     if (isSelectingDeparture) {
+      // Validate departure date is after arrival date
+      if (selectedArrivalDate) {
+        const arrivalDateObj = new Date(selectedArrivalDate);
+        if (dateObj <= arrivalDateObj) {
+          setDepartureDateError('Departure date must be after arrival date');
+          return;
+        }
+      }
       setSelectedDepartureDateDisplay(`${formattedDate} - ${dayName}`);
       setSelectedDepartureDate(selectedDateStr);
+      setDepartureDateError(''); // Clear any previous error
       setIsSelectingDeparture(false);
     } else {
+      // If departure date is already selected, validate it's still valid
+      if (selectedDepartureDate) {
+        const departureDateObj = new Date(selectedDepartureDate);
+        if (dateObj >= departureDateObj) {
+          setSelectedDepartureDate('');
+          setSelectedDepartureDateDisplay(null);
+          setArrivalDateError('Arrival date must be before departure date. Please reselect departure date.');
+        } else {
+          setArrivalDateError(''); // Clear any previous error
+        }
+      } else {
+        setArrivalDateError(''); // Clear any previous error
+      }
       setSelectedDate(`${formattedDate} - ${dayName}`);
       setSelectedArrivalDate(selectedDateStr);
     }
@@ -263,9 +350,74 @@ function MainServicesServiceDetail() {
   };
 
   const onReserveNow = () => {
+    // Clear previous errors
+    setArrivalDateError('');
+    setDepartureDateError('');
+
     // Validate that both dates are selected
-    if (!selectedArrivalDate || !selectedDepartureDate) {
-      setShowErrorPopup(true);
+    let hasError = false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (!selectedArrivalDate) {
+      setArrivalDateError('Please select an arrival date');
+      hasError = true;
+    } else {
+      // Validate arrival date is not in the past
+      const arrivalDateObj = new Date(selectedArrivalDate);
+      if (arrivalDateObj < today) {
+        setArrivalDateError('Arrival date cannot be in the past');
+        hasError = true;
+      }
+
+      // Validate arrival date is available
+      if (!availableDates.includes(selectedArrivalDate)) {
+        setArrivalDateError('Selected arrival date is not available');
+        hasError = true;
+      }
+    }
+
+    if (!selectedDepartureDate) {
+      setDepartureDateError('Please select a departure date');
+      hasError = true;
+    } else {
+      // Validate departure date is not in the past
+      const departureDateObj = new Date(selectedDepartureDate);
+      if (departureDateObj < today) {
+        setDepartureDateError('Departure date cannot be in the past');
+        hasError = true;
+      }
+
+      // Validate departure date is available
+      if (!availableDates.includes(selectedDepartureDate)) {
+        setDepartureDateError('Selected departure date is not available');
+        hasError = true;
+      }
+
+      // Validate departure date is after arrival date
+      if (selectedArrivalDate) {
+        const arrivalDateObj = new Date(selectedArrivalDate);
+        if (departureDateObj <= arrivalDateObj) {
+          setDepartureDateError('Departure date must be after arrival date');
+          hasError = true;
+        }
+      }
+    }
+
+    // Additional validation: Check if stay duration is reasonable (at least 1 day)
+    if (selectedArrivalDate && selectedDepartureDate && !hasError) {
+      const arrivalDateObj = new Date(selectedArrivalDate);
+      const departureDateObj = new Date(selectedDepartureDate);
+      const diffTime = departureDateObj - arrivalDateObj;
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      if (diffDays < 1) {
+        setDepartureDateError('Stay must be at least 1 day');
+        hasError = true;
+      }
+    }
+
+    if (hasError) {
       return;
     }
 
@@ -344,12 +496,18 @@ function MainServicesServiceDetail() {
                       onClick={() => {
                         setIsSelectingDeparture(false);
                         setShowCalendar(true);
+                        setArrivalDateError(''); // Clear error when clicking
                       }}
                       style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
                     >
                       <span>{selectedDate || 'Select arrival date'}</span>
                       <span>📅</span>
                     </div>
+                    {arrivalDateError && (
+                      <div style={{ color: '#e74c3c', fontSize: '0.85rem', marginTop: '5px', fontWeight: '500' }}>
+                        {arrivalDateError}
+                      </div>
+                    )}
                   </div>
                   <div className={styles.dateInput}>
                     <label>Departure Date<span style={{color: 'red'}}>*</span></label>
@@ -358,12 +516,18 @@ function MainServicesServiceDetail() {
                       onClick={() => {
                         setIsSelectingDeparture(true);
                         setShowCalendar(true);
+                        setDepartureDateError(''); // Clear error when clicking
                       }}
                       style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
                     >
                       <span>{selectedDepartureDateDisplay || 'Select departure date'}</span>
                       <span>📅</span>
                     </div>
+                    {departureDateError && (
+                      <div style={{ color: '#e74c3c', fontSize: '0.85rem', marginTop: '5px', fontWeight: '500' }}>
+                        {departureDateError}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -494,23 +658,6 @@ function MainServicesServiceDetail() {
         </div>
       </div>
 
-      {showErrorPopup && (
-        <div className={styles.errorPopupOverlay}>
-          <div className={styles.errorPopupModal}>
-            <div className={styles.errorIcon}>⚠️</div>
-            <h3 className={styles.errorTitle}>Required Fields Missing</h3>
-            <p className={styles.errorMessage}>
-              Please select both arrival and departure dates before making a reservation.
-            </p>
-            <button
-              className={styles.errorButton}
-              onClick={() => setShowErrorPopup(false)}
-            >
-              Got it
-            </button>
-          </div>
-        </div>
-      )}
     </section>
   );
 }

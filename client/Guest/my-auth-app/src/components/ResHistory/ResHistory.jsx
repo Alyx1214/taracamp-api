@@ -151,7 +151,7 @@ function ReservationHistory() {
           typeOfService: r?.serviceType || 'N/A',
         },
         totalEstimatedAmount: fmtPeso(r?.totalEstimatedAmount),
-        confirmed: String(r?.status || '').toUpperCase() === 'CONFIRMED',
+        confirmed: String(r?.status || '') === 'Confirmed',
       };
     });
   }, [reservationsRaw]);

@@ -67,7 +67,7 @@ export default function Pending({ searchQuery = "" }) {
 
   async function onApprove(row) {
     try {
-      await decideReservation(row.id, "APPROVED");
+      await decideReservation(row.id, "Approved");
       setRows((prev) => prev.filter((r) => r.id !== row.id));
     } catch (e) {
       alert(e?.message || "Failed to approve reservation");
@@ -83,7 +83,7 @@ export default function Pending({ searchQuery = "" }) {
     if (!selectedRow) return;
     try {
       setDeclining(true);
-      await decideReservation(selectedRow.id, "DECLINED");
+      await decideReservation(selectedRow.id, "Declined");
       setRows((prev) => prev.filter((r) => r.id !== selectedRow.id));
       setConfirmDeclineOpen(false);
       setSelectedRow(null);

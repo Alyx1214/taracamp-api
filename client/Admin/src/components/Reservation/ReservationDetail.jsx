@@ -86,7 +86,7 @@ export default function ReservationDetails() {
     if (!id) return;
     try {
       setSubmitting(true);
-      await decideReservation(id, "DECLINED");
+      await decideReservation(id, "Declined");
       alert("Reservation declined.");
       navigate(-1);
     } catch (e) {
@@ -108,7 +108,7 @@ export default function ReservationDetails() {
     }
     try {
       setSubmitting(true);
-      await decideReservation(id, "APPROVED");
+      await decideReservation(id, "Approved");
       alert("Reservation approved.");
       navigate(-1);
     } catch (e) {

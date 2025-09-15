@@ -51,7 +51,7 @@ export default function AccommodationsSection({ limit = 6 }) {
           type: f.facilityType,
           capacity: f.capacity,
           value: pickPrice(f),
-          image: f.image || f.thumbnail || placeholderImage,
+          images: f.images?.length > 0 ? f.images : [placeholderImage, placeholderImage, placeholderImage, placeholderImage, placeholderImage]
         }));
 
         if (!active) return;
@@ -127,7 +127,7 @@ export default function AccommodationsSection({ limit = 6 }) {
                 <div
                   className={styles.cardImagePlaceholder}
                   style={{
-                    backgroundImage: `url("${item.image || placeholderImage}")`,
+                    backgroundImage: `url("${item.images[0] || placeholderImage}")`,
                     backgroundSize: 'cover',
                     backgroundPosition: 'center'
                   }}

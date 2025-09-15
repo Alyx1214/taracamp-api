@@ -328,9 +328,15 @@ function ReservationFormStep2() {
       selectedAddons: selectedAddons,
     };
 
-    navigate(`/reservation-step3/${type}/${facilityName}/${id}`, {
-      state: { step1, step2, file },
-    });
+    if (step1?.type?.individual) {
+      navigate(`/reservation-step4/${type}/${facilityName}/${id}`, {
+        state: { step1, step2, file: null },
+      });
+    } else {
+      navigate(`/reservation-step3/${type}/${facilityName}/${id}`, {
+        state: { step1, step2, file },
+      });
+    }
   };
 
   return (

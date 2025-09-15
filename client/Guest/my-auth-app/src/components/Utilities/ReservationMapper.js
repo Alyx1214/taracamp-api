@@ -37,6 +37,7 @@ export function buildReservationPayload(step1 = {}, step2 = {}, facilityId) {
   const adults   = parseInt(step1?.guests?.adult    || '0', 10) || 0;
   const children = parseInt(step1?.guests?.children || '0', 10) || 0;
   const pwds     = parseInt(step1?.guests?.pwds     || '0', 10) || 0;
+  const rooms    = parseInt(step2?.numberOfRooms   || '0', 10) || 0;
 
   return {
     guestName: step1.groupAssociation?.trim(),
@@ -49,11 +50,12 @@ export function buildReservationPayload(step1 = {}, step2 = {}, facilityId) {
     numberOfAdults: adults,
     numberOfChildren: children,
     numberOfPwds: pwds,
+    numberOfRooms: rooms,
     emergencyContact: step1.emergencyContact?.trim(),
     emergencyContactPerson: step1.emergencyContactPerson?.trim(),
-    dateOfArrival: step2.dateArrival,         
-    dateOfDeparture: step2.dateDeparture,     
-    facility: facilityId,                    
+    dateOfArrival: step2.dateArrival,
+    dateOfDeparture: step2.dateDeparture,
+    facility: facilityId,
     serviceType: mapServiceType(
       String(step2?.typeService || '') === 'Other' ? 'Other' : step2?.typeService
     ),

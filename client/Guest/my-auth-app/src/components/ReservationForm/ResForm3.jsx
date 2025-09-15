@@ -20,9 +20,9 @@ function ReservationFormStep3() {
 
   useEffect(() => {
     if (!step1 || !Object.keys(step1).length || !step2 || !Object.keys(step2).length) {
-      navigate(`/reservation-step2/${type}/${facilityName}/${id}`, { state: { step1, step2, file } });;
+      navigate(`/reservation-step2/${type}/${facilityName}/${id}`, { state: { step1, step2, file } });
     }
-  }, [step1, step2, type, id, navigate]);
+  }, [step1, step2, type, facilityName, id, navigate]);
 
     useEffect(() => {
       try {
@@ -39,7 +39,8 @@ function ReservationFormStep3() {
   };
 
   const handleNext = () => {
-    if (!file) {
+    // Letter of Intent is only required for group reservations
+    if (!file && type === 'Group') {
       setFileError('Letter of Intent is required.');
       return;
     }
@@ -97,6 +98,9 @@ function ReservationFormStep3() {
               for your reference and make sure your uploaded file covers all required information.
             </div>
             <div className={styles.groupNote}>This section is only for group reservations.</div>
+            {type === 'Group' && <div className={styles.groupNote}>This section is required for group reservations.</div>}
+            {type !== 'Group' && <div className={styles.groupNote}>This section is optional for individual 
+           reservations.</div>}
             <div className={styles.uploadBox} onClick={handleBoxClick} role="button" tabIndex={0}>
               <input
                 type="file"

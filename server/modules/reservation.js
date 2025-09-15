@@ -82,7 +82,7 @@ const reservationModule = {
                 responseData.status = Status.BAD_REQUEST;
                 responseData.error = 'Missing Letter of Intent file';
                 return responseData;
-            }
+            } 
             
             if (!isValidPhone(telephone)) {
                 responseData.status = Status.BAD_REQUEST;
@@ -138,9 +138,9 @@ const reservationModule = {
                 return responseData;
             }
 
-            if (!isValidFile(file)) {
+            if (file && !isValidFile(file)) {
                 responseData.status = Status.BAD_REQUEST;
-                responseData.error = 'Invalid or missing Letter of Intent file';
+                responseData.error = 'Invalid Letter of Intent file';
                 return responseData;
             }
 
@@ -245,7 +245,7 @@ const reservationModule = {
                 return responseData;
             }
 
-            if (facilityDoc.facilityType === ReservationStatus.DORMITORY) {
+            if (facilityDoc.facilityType === FacilityType.DORMITORY) {
                 if (!isNonNegativeInteger(numberOfRooms) || parseInt(numberOfRooms) <= 0) {
                     responseData.status = Status.BAD_REQUEST;
                     responseData.error = 'Number of rooms is required for dormitory reservations and must be a positive integer';
@@ -321,7 +321,7 @@ const reservationModule = {
                     children: children,
                     pwds: pwds,
                 },
-                numberOfRooms: facilityDoc.facilityType === '' ? parseInt(numberOfRooms) : undefined,
+                numberOfRooms: facilityDoc.facilityType === FacilityType.DORMITORY ? parseInt(numberOfRooms) : undefined,
                 emergencyContact,
                 emergencyContactPerson,
                 dateOfArrival: normalizeDateOnly(dateOfArrival),
@@ -1250,7 +1250,7 @@ const reservationModule = {
             }
 
             const svcType = serviceType ||
-            ((facilityDoc.facilityType === ReservationStatus.DORMITORY || facilityDoc.facilityType === ReservationStatus.COTTAGE)
+            ((facilityDoc.facilityType === FacilityType.DORMITORY || facilityDoc.facilityType === FacilityType.COTTAGE)
                 ? ServiceType.ACCOMMODATION
                 : ServiceType.MEETING);
 
@@ -1489,8 +1489,8 @@ function isPresent(value) {
 function computeEstimate({ facilityDoc, adults = 0, children = 0, pwds = 0, serviceType, addonsTotal = 0, }) {
     const isAccommodation =
     serviceType === ServiceType.ACCOMMODATION ||
-    facilityDoc?.facilityType === ReservationStatus.DORMITORY ||
-    facilityDoc?.facilityType === ReservationStatus.COTTAGE;
+    facilityDoc?.facilityType === FacilityType.DORMITORY ||
+    facilityDoc?.facilityType === FacilityType.COTTAGE;
 
     const perPersonRate = Number(facilityDoc?.ratePerPerson);
     const flatBookingPrice = Number(facilityDoc?.price ?? facilityDoc?.conferencePrice ?? facilityDoc?.flatPrice);
