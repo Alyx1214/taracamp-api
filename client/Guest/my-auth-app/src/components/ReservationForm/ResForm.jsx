@@ -104,6 +104,7 @@ function ReservationForm() {
     if (!formData.groupAssociation?.trim()) e.groupAssociation = 'Required';
     if (!formData.homeAddress?.trim()) e.homeAddress = 'Required';
     if (!phoneOk) e.phoneNo = 'Enter a valid PH mobile (e.g., 09XXXXXXXXX or +639XXXXXXXXX).';
+    if (!formData.emergencyContactPerson?.trim()) e.emergencyContactPerson = 'Required';
     if (!emerOk) e.emergencyContact = 'Enter a valid PH mobile for emergency contact.';
     if (!hasCategory) e.category = 'Please select a category.';
     if (!hasType) e.type = 'Please select a type.';
@@ -340,7 +341,7 @@ function ReservationForm() {
                   className={`${styles.input} ${errors.emergencyContactPerson ? styles.inputError : ''}`}
                   aria-invalid={!!errors.emergencyContactPerson}
                 />
-                {errors.emergencyContact && <div className={styles.fieldError}>{errors.emergencyContact}</div>}
+                {errors.emergencyContactPerson && <div className={styles.fieldError}>{errors.emergencyContactPerson}</div>}
               </div>  
               <div className={styles.formGroup}>
                 <label className={styles.label} htmlFor="emergencyContact">Emergency contact number<span className={styles.requiredAsterisk}>*</span></label>

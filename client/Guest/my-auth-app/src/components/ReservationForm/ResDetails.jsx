@@ -94,7 +94,7 @@ function ResDetails({ onClose }) {
       if (!payload.dateOfArrival || !payload.dateOfDeparture)
         throw new Error('Arrival and departure dates are required.');
       if (!payload.timeOfArrival) throw new Error('Time of arrival is required.');
-      if (!file) throw new Error('Letter of Intent file is required.');
+      if (!file && type === 'Group') throw new Error('Letter of Intent file is required.');
 
       const facilityForPost = typeof step2?.facilityIdFromList === 'string' ? step2.facilityIdFromList : id;
       const apiPayload = { ...payload, facility: facilityForPost };
@@ -171,14 +171,6 @@ function ResDetails({ onClose }) {
     }
   }
 
-  if (showOverlay) {
-    return (
-      <ConfirmationOverlay
-        onDone={() => navigate('/homepage')}
-        onReview={() => navigate('/reservations')}
-      />
-    );
-  }
 
   return (
     <>
@@ -233,6 +225,13 @@ function ResDetails({ onClose }) {
           {submitting ? 'Submitting…' : 'Submit'}
         </button>
       </div>
+
+      {showOverlay && (
+        <ConfirmationOverlay
+          onDone={() => navigate('/homepage')}
+          onReview={() => navigate('/reservations')}
+        />
+      )}
     </>
   );
 }

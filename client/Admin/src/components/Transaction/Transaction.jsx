@@ -16,14 +16,14 @@ export default function Transaction() {
 
   useEffect(() => {
     if (activeTab === "Transactions") {
-      getAllReservationsByStatus("CHECKED-OUT")
+      getAllReservationsByStatus("Checked-Out")
         .then(data => setTransactions(data.reservations || []))
         .catch((err) => {
           console.error("Failed to fetch checked out reservations:", err)
           setTransactions([]);
         });
     } else if (activeTab === "Payment") {
-        getAllReservationsByStatus("CONFIRMED")
+        getAllReservationsByStatus("Confirmed")
         .then(data => setPayments(data.reservations || []))
         .catch((err) => {
           console.error("Failed to fetch confirmed reservations:", err)
@@ -37,14 +37,14 @@ export default function Transaction() {
     if (!q) {
       if (activeTab === "Transactions") {
         try {
-          const data = await getAllReservationsByStatus("CHECKED-OUT");
+          const data = await getAllReservationsByStatus("Checked-Out");
           setTransactions(data.reservations || []);
         } catch {
           setTransactions([]);
         }
       } else if (activeTab === "Payment") {
         try {
-          const data = await getAllReservationsByStatus("CONFIRMED");
+          const data = await getAllReservationsByStatus("Confirmed");
           setPayments(data.reservations || []);
         } catch {
           setPayments([]);
@@ -55,7 +55,7 @@ export default function Transaction() {
 
     const params = {
       query: q,
-      status: activeTab === "Transactions" ? "CHECKED-OUT" : "CONFIRMED",
+      status: activeTab === "Transactions" ? "Checked-Out" : "Confirmed",
     };
 
     try {

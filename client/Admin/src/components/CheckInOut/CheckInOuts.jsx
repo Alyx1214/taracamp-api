@@ -18,9 +18,9 @@ export default function CheckInOuts() {
   const [err, setErr] = useState(null);
 
   const statusForTab = (tab) => {
-    if (tab === "Approved") return "CONFIRMED"; 
-    if (tab === "Check-in") return "CHECKED-IN";
-    if (tab === "Check-out") return "CHECKED-OUT";
+    if (tab === "Approved") return "Confirmed"; 
+    if (tab === "Check-in") return "Checked-In";
+    if (tab === "Check-out") return "Checked-Out";
     return "";
   };
 
