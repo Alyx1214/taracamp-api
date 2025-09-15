@@ -69,7 +69,7 @@ function MainServicesDormitories({
   const showNoResult = !isLoading && !showError && searchAttempted && (facilities?.length ?? 0) === 0;
   const showEmptyDefault = !isLoading && !showError && !searchAttempted && (displayDorms?.length ?? 0) === 0;
 
-  const imgSrc = (d) => d?.image || dormitoryPlaceholder;
+  const imgSrc = (d) => d?.images?.[0] || d?.image || dormitoryPlaceholder;
   const formatPeso = (n) => {
     const val = Number(n);
     return Number.isFinite(val)

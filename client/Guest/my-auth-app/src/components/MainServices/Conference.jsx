@@ -75,7 +75,7 @@ function MainServicesConference({
       ? n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
       : '—';
   };
-  const imgSrc = (hall) => hall?.image || placeholderImage;
+  const imgSrc = (hall) => hall?.images?.[0] || hall?.image || placeholderImage;
 
   return (
     <section className={styles.conferenceSection}>
