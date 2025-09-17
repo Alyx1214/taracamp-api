@@ -1,10 +1,19 @@
 import { Storage, } from '@google-cloud/storage';
-import { Status, FacilityType, FacilityStatus, UserRole, } from '../constants.js';
+import { Status, FacilityType, FacilityStatus, UserRole, ReservationStatus, } from '../constants.js';
 import dotenv from 'dotenv';
 dotenv.config();
 
 const storage = new Storage();
 const bucket = storage.bucket(process.env.BUCKET_NAME);
+const APP_TZ_OFFSET = '+08:00';
+const APP_TZ_OFFSET_MINUTES = 8 * 60;
+const BLOCKING_RESERVATION_STATUSES = [
+    ReservationStatus.PENDING,
+    ReservationStatus.APPROVED,
+    ReservationStatus.CONFIRMED,
+    ReservationStatus.CHECKED_IN,
+];
+
 const facilityModule = {
     /**
      * Adds a new facility to the database.
@@ -543,13 +552,14 @@ const facilityModule = {
             }
 
             // Define the date range to check (e.g., next 6 months)
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const endDate = new Date();
-            endDate.setMonth(today.getMonth() + 6); // Check for next 6 months
+            const todayYmd = toAppYMD(new Date());
+            const today = fromAppYMD(todayYmd) || new Date();
+            const endDate = new Date(today);
+            endDate.setUTCMonth(endDate.getUTCMonth() + 6); // Check for next 6 months
 
             const reservations = await dbHelper.find('reservation', {
                 facility: facilityId,
+                status: { $in: BLOCKING_RESERVATION_STATUSES, },
                 $or: [
                     { dateOfArrival: { $lte: endDate, }, dateOfDeparture: { $gte: today, }, },
                 ],
@@ -557,21 +567,27 @@ const facilityModule = {
 
             const unavailableDates = new Set();
             reservations.forEach((reservation) => {
-                let currentDate = new Date(reservation.dateOfArrival);
-                while (currentDate <= reservation.dateOfDeparture) {
-                    unavailableDates.add(currentDate.toISOString().split('T')[0]);
-                    currentDate.setDate(currentDate.getDate() + 1);
+                const arrivalYmd = toAppYMD(reservation.dateOfArrival);
+                const departureYmd = toAppYMD(reservation.dateOfDeparture);
+                if (!arrivalYmd || !departureYmd) return;
+
+                const arrival = fromAppYMD(arrivalYmd);
+                const checkout = fromAppYMD(departureYmd);
+                if (!arrival || !checkout) return;
+                if (arrival >= checkout) return;
+
+                for (let cur = new Date(arrival); cur < checkout; cur = addAppDays(cur, 1)) {
+                    const ymd = toAppYMD(cur);
+                    if (ymd) unavailableDates.add(ymd);
                 }
             });
 
             const availableDates = [];
-            let currentDate = new Date(today);
-            while (currentDate <= endDate) {
-                const dateString = currentDate.toISOString().split('T')[0];
-                if (!unavailableDates.has(dateString)) {
+            for (let currentDate = new Date(today); currentDate <= endDate; currentDate = addAppDays(currentDate, 1)) {
+                const dateString = toAppYMD(currentDate);
+                if (dateString && !unavailableDates.has(dateString)) {
                     availableDates.push(dateString);
                 }
-                currentDate.setDate(currentDate.getDate() + 1);
             }
 
             responseData.status = Status.OK;
@@ -773,6 +789,29 @@ function parseSort(spec) {
         sort[field] = (dir === 'desc' || dir === '-1') ? -1 : 1;
     }
     return Object.keys(sort).length ? sort : undefined;
+}
+
+function toAppYMD(date) {
+    if (!date) return null;
+    const d = new Date(date);
+    if (Number.isNaN(d.getTime())) return null;
+    const shifted = new Date(d.getTime() + APP_TZ_OFFSET_MINUTES * 60 * 1000);
+    const yyyy = shifted.getUTCFullYear();
+    const mm = String(shifted.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(shifted.getUTCDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+}
+
+function fromAppYMD(ymd) {
+    if (!ymd) return null;
+    const date = new Date(`${ymd}T00:00:00${APP_TZ_OFFSET}`);
+    return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function addAppDays(date, days = 1) {
+    const d = new Date(date);
+    d.setUTCDate(d.getUTCDate() + days);
+    return d;
 }
 
 function calculateAverageRatings(reviews) {

@@ -82,7 +82,7 @@ function MainServicesCottages({
     if (c == null) return '—';
     return `${c} pax`;
   };
-  const imgSrc = (c) => c?.image || placeholderImage;
+  const imgSrc = (c) => c?.images[0] || placeholderImage;
 
   return (
     <section className={styles.cottagesSection}>

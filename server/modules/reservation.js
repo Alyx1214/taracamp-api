@@ -1324,14 +1324,24 @@ const reservationModule = {
             const startDate = normalizeDateOnly(start);
             const endDate = normalizeDateOnly(end);
 
+            if (!startDate || !endDate) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Unable to interpret provided dates';
+                return responseData;
+            }
+
+            const blockingStatuses = [
+                ReservationStatus.PENDING,
+                ReservationStatus.APPROVED,
+                ReservationStatus.CONFIRMED,
+                ReservationStatus.CHECKED_IN,
+            ];
+
             const overlapping = await dbHelper.findOne('reservation', {
                 facility: facilityDoc._id,
-                $or: [
-                    {
-                        dateOfArrival: { $lte: endDate, },
-                        dateOfDeparture: { $gte: startDate, },
-                    },
-                ],
+                status: { $in: blockingStatuses, },
+                dateOfArrival: { $lt: endDate, },
+                dateOfDeparture: { $gt: startDate, },
             });
 
             if (overlapping) {

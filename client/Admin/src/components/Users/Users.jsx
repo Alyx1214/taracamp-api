@@ -10,16 +10,16 @@ import { searchUsers, deleteUser } from "../../apis/userApi";
 export default function Users() {
   const roleTabs = useMemo(
     () => [
-      { label: "All", value: "ALL" },
-      { label: "Front Desk", value: "FRONTDESK" },
-      { label: "Staff", value: "STAFF" },
-      { label: "Accounting", value: "ACCOUNTING" },
-      { label: "Superintendent", value: "SUPERINTENDENT" },
+      { label: "All", value: "All" },
+      { label: "Front Desk", value: "Frontdesk" },
+      { label: "Staff", value: "Staff" },
+      { label: "Accounting", value: "Accounting" },
+      { label: "Superintendent", value: "Superintendent" },
     ],
     []
   );
 
-  const [activeTab, setActiveTab] = useState("ALL");
+  const [activeTab, setActiveTab] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [filters, setFilters] = useState({});
   const [rawUsers, setRawUsers] = useState([]);
@@ -45,7 +45,7 @@ export default function Users() {
       try {
         const query = { ...filters };
         if (searchQuery) query.search = searchQuery;
-        if (activeTab && activeTab !== "ALL" && !query.role) query.role = activeTab;
+        if (activeTab && activeTab !== "All" && !query.role) query.role = activeTab;
         query.limit = query.limit ?? 100;
         query.sort = query.sort ?? "createdAt:desc";
 
@@ -54,7 +54,7 @@ export default function Users() {
         const hasAnyFilter = [
           'email','name','role','id','createdFrom','createdTo','lastLoggedFrom','lastLoggedTo','search'
         ].some((k) => Boolean(query[k]));
-        if (activeTab === 'ALL' && !hasAnyFilter) {
+        if (activeTab === 'All' && !hasAnyFilter) {
           query.createdFrom = '1970-01-01';
         }
 
@@ -82,9 +82,8 @@ export default function Users() {
   }, [rawUsers]);
 
   const filteredData = useMemo(() => {
-    // Exclude GUEST and CRMS/CRMSTEAM roles globally from All/results
-    const role = (u) => String(u.role || "").toUpperCase();
-    const EXCLUDED = new Set(["GUEST", "CRMS TEAM", "CRMSTEAM"]);
+    const role = (u) => String(u.role || "");
+    const EXCLUDED = new Set(["Guest", "CRMS Team"]);
     return mappedUsers.filter(u => !EXCLUDED.has(role(u)));
   }, [mappedUsers]);
 
