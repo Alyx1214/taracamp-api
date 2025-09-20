@@ -214,7 +214,6 @@ const facilityModule = {
             facilityObject.name = toTitleCase(String(facilityObject.name || ''));
             facilityObject.images = await getSignedReadUrls(Array.isArray(facilityObject.images) ? facilityObject.images : []);
 
-            // Include review data if requested
             if (includeReviews) {
                 try {
                     const reviews = await dbHelper.find('review', { facilityId: id });

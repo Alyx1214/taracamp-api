@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import styles from './Footer.module.css';
 import mountainLogo from '../../assets/logo.png';
 import locationIcon from '../../assets/locIcon.svg';
@@ -7,7 +7,7 @@ import phoneIcon from '../../assets/phoneIcon.svg';
 import emailIcon from '../../assets/mailIcon.svg';
 
 
-function Footer({ onReserveNow }) {
+function Footer() {
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -35,6 +35,9 @@ function Footer({ onReserveNow }) {
     }
   };
 
+  const handleTaraCampClick = () => {
+    navigate('/services');
+  };
 
   return (
     <footer className={styles.footerContainer} id="footer">
@@ -92,7 +95,7 @@ function Footer({ onReserveNow }) {
 
           <button
             className={styles.taraCampButton}
-            onClick={onReserveNow}
+            onClick={handleTaraCampClick}
           >
             TaraCAMP!
           </button>

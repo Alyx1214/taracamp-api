@@ -14,6 +14,9 @@ function MainServicesConference({
   const [fetchingDefault, setFetchingDefault] = useState(false);
   const [fetchError, setFetchError] = useState(null);
 
+  const filterAvailable = (list = []) =>
+    list.filter((item) => String(item?.status || '') !== 'Unavailable');
+
   useEffect(() => {
     let cancelled = false;
 
@@ -40,7 +43,7 @@ function MainServicesConference({
           throw new Error('Response missing "facilities" array.');
         }
 
-        if (!cancelled) setDefaultConferences(list);
+        if (!cancelled) setDefaultConferences(filterAvailable(list));
       } catch (err) {
         if (!cancelled) {
           setDefaultConferences([]);
@@ -62,11 +65,12 @@ function MainServicesConference({
   }, [facilities, searchAttempted]);
 
   const isLoading = Boolean(loading || fetchingDefault);
+  const availableFacilities = filterAvailable(Array.isArray(facilities) ? facilities : []);
   const displayConferences = searchAttempted
-    ? (facilities || [])
-    : (facilities && facilities.length ? facilities : defaultConferences);
+    ? availableFacilities
+    : (availableFacilities.length ? availableFacilities : defaultConferences);
   const showError = !isLoading && Boolean(fetchError || loadError);
-  const showNoResult = !isLoading && !showError && searchAttempted && (facilities?.length ?? 0) === 0;
+  const showNoResult = !isLoading && !showError && searchAttempted && availableFacilities.length === 0;
   const showEmptyDefault = !isLoading && !showError && !searchAttempted && (displayConferences?.length ?? 0) === 0;
 
   const formatPrice = (price) => {
