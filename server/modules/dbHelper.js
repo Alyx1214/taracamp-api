@@ -122,6 +122,17 @@ const dbHelper = {
                 reservationId: { type: mongoose.Schema.Types.ObjectId, ref: 'reservation', required: false, },
             });
 
+            const MessageSchema = new mongoose.Schema({
+                userId: { type: mongoose.Schema.Types.ObjectId, ref: 'user', required: true, index: true, },
+                sender: { type: String, required: true, },
+                role: { type: String, required: false, },
+                text: { type: String, required: true, maxlength: 2000, },
+                isUser: { type: Boolean, default: false, },
+                isRead: { type: Boolean, default: false, },
+                createdAt: { type: Date, default: Date.now, index: true, },
+                updatedAt: { type: Date, required: false, },
+            });
+
             const PaymentSchema = new mongoose.Schema({
                 piId: { type: String, required: false, index: true, },
                 paymentId: { type: String, required: false, index: true, },
@@ -162,6 +173,7 @@ const dbHelper = {
             mongoose.model('facility', FacilitySchema);
             mongoose.model('addon', AddOnSchema);
             mongoose.model('notification', NotificationSchema);
+            mongoose.model('message', MessageSchema);
             mongoose.model('payment', PaymentSchema);
             mongoose.model('review', ReviewSchema);
 
