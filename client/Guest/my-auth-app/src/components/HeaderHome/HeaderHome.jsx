@@ -4,6 +4,12 @@ import styles from './HeaderHome.module.css';
 import mountainLogo from '../../assets/logo.png';
 import Notif from '../Notification/Notif';
 import Message from '../Message/Message';
+import {
+  listMessages,
+  countUnreadMessages,
+  sendMessage as sendMessageApi,
+  markAllMessagesRead,
+} from '../../apis/messageApi';
 
 let refreshingPromise = null;
 const API = import.meta.env.VITE_API_URL;
@@ -173,17 +179,16 @@ function HeaderHome() {
     async function loadMessages() {
       try {
         setMsgLoading(true);
-        // Replace with your API:
-        // const json = await api('/api/message/list');
-        // const items = json?.data ?? [];
-        const items = [
-          { _id: 'm1', sender: 'Front Desk', role: 'Support', text: 'Hi! Your booking is confirmed. Need anything else?', timeLabel: '3m', isRead: false, isUser: false },
-          { _id: 'm2', sender: 'You', text: 'Thanks! What time is check-in?', timeLabel: '7m', isRead: true, isUser: true },
-          { _id: 'm3', sender: 'Front Desk', role: 'Support', text: 'Check-in starts at 2 PM. See you soon!', timeLabel: '10m', isRead: false, isUser: false },
-        ];
-        if (!cancelled) setMessages(items);
+        const response = await listMessages({ limit: 20 });
+        const items = Array.isArray(response?.data) ? response.data : [];
+        if (!cancelled) {
+          setMessages(items);
+          setMsgUnreadCount(items.filter((m) => !m.isRead).length);
+        }
       } catch {
-        if (!cancelled) setMessages([]);
+        if (!cancelled) {
+          setMessages([]);
+        }
       } finally {
         if (!cancelled) setMsgLoading(false);
       }
@@ -198,9 +203,8 @@ function HeaderHome() {
     let cancelled = false;
     async function refreshCount() {
       try {
-        // const json = await api('/api/message/count-unread');
-        // if (!cancelled) setMsgUnreadCount(Number(json?.data?.count || 0));
-        if (!cancelled) setMsgUnreadCount(2); // demo placeholder
+        const response = await countUnreadMessages();
+        if (!cancelled) setMsgUnreadCount(Number(response?.data?.count || 0));
       } catch {
         // ignore badge errors
       }
@@ -220,9 +224,8 @@ function HeaderHome() {
     let cancelled = false;
     (async () => {
       try {
-        // const json = await api('/api/message/count-unread');
-        // if (!cancelled) setMsgUnreadCount(Number(json?.data?.count || 0));
-        if (!cancelled) setMsgUnreadCount(2); // demo
+        const response = await countUnreadMessages();
+        if (!cancelled) setMsgUnreadCount(Number(response?.data?.count || 0));
       } catch {}
     })();
     return () => { cancelled = true; };
@@ -290,10 +293,13 @@ function HeaderHome() {
     setMessages((prev) => [optimistic, ...prev]);
     setMsgDraft('');
     try {
-      // Replace with your API call
-      // await api('/api/message/send', { method: 'POST', body: JSON.stringify({ text }) });
+      const response = await sendMessageApi({ text });
+      const saved = response?.data || null;
+      setMessages((prev) => {
+        const withoutOptimistic = prev.filter((m) => m._id !== optimistic._id);
+        return saved ? [saved, ...withoutOptimistic] : withoutOptimistic;
+      });
     } catch (e) {
-      // revert optimistic add on error
       setMessages((prev) => prev.filter((m) => m._id !== optimistic._id));
       setMsgDraft(text);
     } finally {

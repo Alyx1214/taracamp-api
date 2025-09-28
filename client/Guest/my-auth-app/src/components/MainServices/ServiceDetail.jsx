@@ -237,50 +237,56 @@ function MainServicesServiceDetail() {
     );
   }
 
-  const getCalendarData = (date) => {
-    const year = date.getFullYear();
-    const month = date.getMonth();
+  function toYMDFromParts(year, monthZeroBased, dayNum) {
+  return `${year}-${String(monthZeroBased + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+}
 
-    const firstDayOfMonth = new Date(year, month, 1);
-    const firstDayIndex = firstDayOfMonth.getDay();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
+const getCalendarData = (date) => {
+  const year = date.getFullYear();
+  const month = date.getMonth(); 
 
-    const calendarDays = [];
-    for (let i = 0; i < firstDayIndex; i++) calendarDays.push(null);
-    for (let i = 1; i <= daysInMonth; i++) calendarDays.push(i);
-    while (calendarDays.length < 42) calendarDays.push(null);
+  const firstDayOfMonth = new Date(year, month, 1);
+  const firstDayIndex = firstDayOfMonth.getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-    const monthStr = `${year}-${String(month + 1).padStart(2, '0')}-`;
-    const allMonthDates = Array.from({ length: daysInMonth }, (_, i) =>
-      monthStr + String(i + 1).padStart(2, '0')
-    );
+  const calendarDays = [];
+  for (let i = 0; i < firstDayIndex; i++) calendarDays.push(null);
+  for (let i = 1; i <= daysInMonth; i++) calendarDays.push(i);
+  while (calendarDays.length < 42) calendarDays.push(null);
 
-    const availableSet = new Set(availableDates);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+  const allMonthYMD = Array.from({ length: daysInMonth }, (_, i) =>
+    toYMDFromParts(year, month, i + 1)
+  );
 
-    const availableCalendarDates = [];
-    const reservedDates = [];
+  const availableSet = new Set((availableDates || []).filter(Boolean));
 
-    allMonthDates.forEach((dateStr, idx) => {
-      const dateObj = new Date(dateStr);
-      const dayNumber = idx + 1;
-      
-      if (availableSet.has(dateStr) && dateObj >= today) {
-        availableCalendarDates.push(dayNumber);
-      } else {
-        reservedDates.push(dayNumber);
-      }
-    });
+  const today = new Date();
+  today.setHours(0,0,0,0);
 
-    return {
-      monthDisplay: date.toLocaleString('default', { month: 'long', year: 'numeric' }),
-      daysOfWeek: ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'],
-      calendarDaysGrid: calendarDays,
-      availableDates: availableCalendarDates,
-      reservedDates,
-    };
+  const reservedYMD = [];
+  const reservedDaysNumbers = []; // optional: day numbers (1..31) for legacy usage if you need it
+
+  allMonthYMD.forEach((dateStr, idx) => {
+    const dayNumber = idx + 1;
+    const dateObj = new Date(dateStr);
+    // consider reserved if not in availableSet OR it's in the past
+    const isAvailable = availableSet.has(dateStr);
+    if (!isAvailable || dateObj < today) {
+      reservedYMD.push(dateStr);
+      reservedDaysNumbers.push(dayNumber);
+    }
+  });
+
+  return {
+    monthDisplay: date.toLocaleString('default', { month: 'long', year: 'numeric' }),
+    daysOfWeek: ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'],
+    calendarDaysGrid: calendarDays,
+    reservedSet: new Set(reservedYMD),
+    reservedDatesArr: reservedYMD,
+    reservedDaysNumbers,
+    availableDatesArr: Array.from(availableSet),
   };
+};
 
   const calendarData = getCalendarData(currentDate);
 
@@ -457,11 +463,11 @@ function MainServicesServiceDetail() {
 
   const currentReview = reviews[currentReviewIndex];
 
-  const displayPrice = facility.facilityType === 'CONFERENCE' 
+  const displayPrice = facility.facilityType === 'Conference' 
     ? facility.price 
     : facility.ratePerPerson;
 
-  const priceLabel = facility.facilityType === 'CONFERENCE' 
+  const priceLabel = facility.facilityType === 'Conference' 
     ? 'Price' 
     : 'Rates per Person';
 

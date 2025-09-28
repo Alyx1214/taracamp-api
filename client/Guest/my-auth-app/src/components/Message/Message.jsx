@@ -1,8 +1,9 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import styles from './Message.module.css';
 import weblogo from '../../assets/logo.png';
 import { FaPaperclip, FaSmile, FaPaperPlane } from 'react-icons/fa';
+import { listMessages, sendMessage as sendMessageApi } from '../../apis/messageApi';
 
 /** Single message bubble */
 const Message = ({ sender, text, isUser, role }) => (
@@ -34,50 +35,128 @@ Message.defaultProps = {
   role: undefined
 };
 
-// Dummy messages for initial render in ChatContainer (not used by dropdown bubble)
-const dummyMessages = [
-  { sender: 'Alice', text: 'Hi there!', isUser: false, role: 'Support' },
-  { sender: 'You', text: 'Hello, Alice.', isUser: true },
-  { sender: 'Alice', text: 'How can I help you today?', isUser: false, role: 'Support' }
-];
-
 /** Chat container with typing input */
 const ChatContainer = ({
-  messages = dummyMessages,
+  messages,
   onSend,
   onAttach,
   onEmoji,
   placeholder = 'Enter your message…',
   disabled = false,
+  autoLoad = true,
 }) => {
-  const safeMessages = Array.isArray(messages) ? messages : [];
+  const manageMessages = typeof messages === 'undefined' && autoLoad;
+  const [fetchedMessages, setFetchedMessages] = useState([]);
+  const [loading, setLoading] = useState(manageMessages);
+  const [loadError, setLoadError] = useState(null);
   const [draft, setDraft] = useState('');
+  const [isSending, setIsSending] = useState(false);
 
-  const send = useCallback(() => {
+  // Auto-fetch messages when this component manages its own data source
+  useEffect(() => {
+    if (!manageMessages) return;
+    let cancelled = false;
+
+    async function load() {
+      setLoading(true);
+      setLoadError(null);
+      try {
+        const response = await listMessages({ limit: 50 });
+        const rows = Array.isArray(response?.data) ? response.data : [];
+        if (!cancelled) setFetchedMessages(rows);
+      } catch (error) {
+        if (!cancelled) {
+          console.error('Failed to fetch messages', error);
+          setLoadError(error);
+          setFetchedMessages([]);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [manageMessages]);
+
+  const safeMessages = manageMessages
+    ? fetchedMessages
+    : Array.isArray(messages)
+      ? messages
+      : [];
+
+  const handleSend = useCallback(async () => {
     const text = draft.trim();
-    if (!text || disabled) return;
+    if (!text || disabled || isSending) return;
+    setIsSending(true);
+
     const payload = { sender: 'You', text, isUser: true };
-    if (typeof onSend === 'function') onSend(payload);
+    let optimisticEntry = null;
+
+    if (manageMessages) {
+      optimisticEntry = {
+        ...payload,
+        _id: `tmp-${Date.now()}`,
+        timeLabel: 'now',
+        isRead: true,
+      };
+      setFetchedMessages(prev => [optimisticEntry, ...prev]);
+    }
+
     setDraft('');
-  }, [draft, onSend, disabled]);
+    try {
+      let saved = null;
+      if (typeof onSend === 'function') {
+        saved = await onSend(payload);
+      } else {
+        const response = await sendMessageApi({ text });
+        saved = response?.data || null;
+      }
+
+      if (manageMessages) {
+        setFetchedMessages(prev => {
+          const withoutOptimistic = optimisticEntry
+            ? prev.filter(m => m._id !== optimisticEntry._id)
+            : prev;
+          return saved ? [saved, ...withoutOptimistic] : withoutOptimistic;
+        });
+      }
+    } catch (error) {
+      if (manageMessages && optimisticEntry) {
+        setFetchedMessages(prev => prev.filter(m => m._id !== optimisticEntry._id));
+      }
+      setDraft(text);
+      console.error('Failed to send message', error);
+    } finally {
+      setIsSending(false);
+    }
+  }, [draft, disabled, isSending, manageMessages, onSend, sendMessageApi]);
 
   const handleKeyDown = useCallback(
     (e) => {
       if (e.key === 'Enter') {
         e.preventDefault();
-        send();
+        handleSend();
       }
     },
-    [send]
+    [handleSend]
   );
 
   return (
     <div className={styles.chatContainer}>
       <div className={styles.messagesContainer}>
-        {safeMessages.length === 0 ? (
+        {loading ? (
+          <div className={styles.emptyState}>Loading…</div>
+        ) : loadError ? (
+          <div className={styles.emptyState}>Unable to load messages.</div>
+        ) : safeMessages.length === 0 ? (
           <div className={styles.emptyState}>No messages yet.</div>
         ) : (
-          safeMessages.map((message, index) => <Message key={index} {...message} />)
+          safeMessages.map((message, index) => (
+            <Message key={message._id || index} {...message} />
+          ))
         )}
       </div>
 
@@ -90,7 +169,7 @@ const ChatContainer = ({
           placeholder={placeholder}
           aria-label="Message input"
           className={styles.input}
-          disabled={disabled}
+          disabled={disabled || isSending}
         />
         <div className={styles.iconContainer}>
           <FaPaperclip
@@ -112,7 +191,7 @@ const ChatContainer = ({
             role="button"
             tabIndex={0}
             aria-label="Send message"
-            onClick={send}
+            onClick={handleSend}
           />
         </div>
       </div>
@@ -126,7 +205,10 @@ ChatContainer.propTypes = {
       sender: PropTypes.string,
       text: PropTypes.string,
       isUser: PropTypes.bool,
-      role: PropTypes.string
+      role: PropTypes.string,
+      _id: PropTypes.string,
+      timeLabel: PropTypes.string,
+      isRead: PropTypes.bool,
     })
   ),
   onSend: PropTypes.func,
@@ -134,6 +216,7 @@ ChatContainer.propTypes = {
   onEmoji: PropTypes.func,
   placeholder: PropTypes.string,
   disabled: PropTypes.bool,
+  autoLoad: PropTypes.bool,
 };
 
 export { ChatContainer };

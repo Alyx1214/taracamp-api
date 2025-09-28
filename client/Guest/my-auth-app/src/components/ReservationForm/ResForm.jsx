@@ -117,6 +117,9 @@ function ReservationForm() {
     if (c < 0) e.guestsChildren = 'Children cannot be negative.';
     if (p < 0) e.guestsPwds = 'PWD guests cannot be negative.';
     if (a + c + p <= 0) e.guestsTotal = 'At least 1 guest is required.';
+    if (facility?.capacity && (a + c + p) > facility.capacity) {
+      e.guestsTotal = `Total guests (${a + c + p}) exceeds facility capacity (${facility.capacity}).`;
+    }
 
     setErrors(e);
     return Object.keys(e).length === 0;

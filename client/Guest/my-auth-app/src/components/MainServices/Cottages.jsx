@@ -14,6 +14,9 @@ function MainServicesCottages({
   const [fetchingDefault, setFetchingDefault] = useState(false);
   const [fetchError, setFetchError] = useState(null);
 
+  const filterAvailable = (list = []) =>
+    list.filter((item) => String(item?.status || '') !== 'Unavailable');
+
   useEffect(() => {
     let cancelled = false;
 
@@ -40,7 +43,7 @@ function MainServicesCottages({
           throw new Error('Response missing "facilities" array.');
         }
 
-        if (!cancelled) setDefaultCottages(list);
+        if (!cancelled) setDefaultCottages(filterAvailable(list));
       } catch (err) {
         if (!cancelled) {
           setDefaultCottages([]);
@@ -63,12 +66,14 @@ function MainServicesCottages({
 
   const isLoading = Boolean(loading || fetchingDefault);
 
+  const availableFacilities = filterAvailable(Array.isArray(facilities) ? facilities : []);
+
   const displayCottages = searchAttempted
-    ? (facilities || [])
-    : (facilities && facilities.length > 0 ? facilities : defaultCottages);
+    ? availableFacilities
+    : (availableFacilities.length > 0 ? availableFacilities : defaultCottages);
 
   const showError = !isLoading && Boolean(fetchError || loadError);
-  const showNoResult = !isLoading && !showError && searchAttempted && (facilities?.length ?? 0) === 0;
+  const showNoResult = !isLoading && !showError && searchAttempted && availableFacilities.length === 0;
   const showEmptyDefault = !isLoading && !showError && !searchAttempted && (displayCottages?.length ?? 0) === 0;
 
   const formatPeso = (n) => {
@@ -82,7 +87,7 @@ function MainServicesCottages({
     if (c == null) return '—';
     return `${c} pax`;
   };
-  const imgSrc = (c) => c?.images?.[0] || c?.image || placeholderImage;
+  const imgSrc = (c) => c?.images[0] || placeholderImage;
 
   return (
     <section className={styles.cottagesSection}>

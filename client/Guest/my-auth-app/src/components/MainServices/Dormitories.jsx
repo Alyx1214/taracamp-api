@@ -14,6 +14,9 @@ function MainServicesDormitories({
   const [fetchingDefault, setFetchingDefault] = useState(false);
   const [fetchError, setFetchError] = useState(null);
 
+  const filterAvailable = (list = []) =>
+    list.filter((item) => String(item?.status || '') !== 'Unavailable');
+
   useEffect(() => {
     let cancelled = false;
 
@@ -38,7 +41,7 @@ function MainServicesDormitories({
           throw new Error('Response missing "facilities" array.');
         }
 
-        if (!cancelled) setDefaultDorms(list);
+        if (!cancelled) setDefaultDorms(filterAvailable(list));
       } catch (err) {
         if (!cancelled) {
           setDefaultDorms([]);
@@ -61,15 +64,17 @@ function MainServicesDormitories({
 
   const isLoading = Boolean(loading || fetchingDefault);
 
+  const availableFacilities = filterAvailable(Array.isArray(facilities) ? facilities : []);
+
   const displayDorms = searchAttempted
-    ? (facilities || [])
-    : (facilities && facilities.length > 0 ? facilities : defaultDorms);
+    ? availableFacilities
+    : (availableFacilities.length > 0 ? availableFacilities : defaultDorms);
 
   const showError = !isLoading && Boolean(fetchError || loadError);
-  const showNoResult = !isLoading && !showError && searchAttempted && (facilities?.length ?? 0) === 0;
+  const showNoResult = !isLoading && !showError && searchAttempted && availableFacilities.length === 0;
   const showEmptyDefault = !isLoading && !showError && !searchAttempted && (displayDorms?.length ?? 0) === 0;
 
-  const imgSrc = (d) => d?.images?.[0] || d?.image || dormitoryPlaceholder;
+  const imgSrc = (d) => d?.images[0] || dormitoryPlaceholder;
   const formatPeso = (n) => {
     const val = Number(n);
     return Number.isFinite(val)

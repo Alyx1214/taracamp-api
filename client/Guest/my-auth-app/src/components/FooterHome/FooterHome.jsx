@@ -36,7 +36,7 @@ function Footer({ onReserveNow }) {
   };
 
   const handleTaraCampClick = () => {
-    navigate('/reservation-form');
+    navigate('/user/services');
   };
 
 

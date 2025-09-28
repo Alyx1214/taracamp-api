@@ -65,6 +65,7 @@ function ReservationFormStep2() {
   const [checkingAvail, setCheckingAvail] = useState(false);
   const [isAvailable, setIsAvailable] = useState(null);
   const [availReason, setAvailReason] = useState('');
+  const [autoSetServiceForDorm, setAutoSetServiceForDorm] = useState(false);
   const availReqId = useRef(0);
   const totalGuests = useMemo(() => {
     const a = parseInt(step1?.guests?.adult || 0, 10) || 0;
@@ -228,15 +229,6 @@ function ReservationFormStep2() {
     }
   };
 
-  function validateStep2Local() {
-    const e = {};
-    if (!formData.typeService) e.typeService = 'Select a service type.';
-    if (isDormitory && (!formData.numberOfRooms || formData.numberOfRooms < 1)) {
-      e.numberOfRooms = 'Number of rooms is required for dormitory reservations.';
-    }
-    setFieldErrors(e);
-    return Object.keys(e).length === 0;
-  }
 
   const chosenFacility = facilityOptions.find(o => o._id === formData.facilityName);
   const isDormitory = formData.typeFacilities?.toLowerCase().includes('dormitory');
@@ -285,6 +277,33 @@ function ReservationFormStep2() {
 
     return () => clearTimeout(t);
   }, [formData.facilityName, formData.dateArrival, formData.dateDeparture, totalGuests, chosenFacility?.capacity, capacityOk]);
+
+  function validateStep2Local() {
+    const e = {};
+    if (!formData.typeService) e.typeService = 'Select a service type.';
+    if (isDormitory && (!formData.numberOfRooms || formData.numberOfRooms < 1)) {
+      e.numberOfRooms = 'Number of rooms is required for dormitory reservations.';
+    }
+    setFieldErrors(e);
+    return Object.keys(e).length === 0;
+  }
+
+  useEffect(() => {
+    if (isDormitory) {
+      if (!formData.typeService) {
+        setFormData(prev => ({ ...prev, typeService: 'Accommodation' }));
+        setAutoSetServiceForDorm(true);
+      } else {
+        setAutoSetServiceForDorm(false);
+      }
+      return;
+    }
+
+    if (!isDormitory && autoSetServiceForDorm) {
+      setFormData(prev => ({ ...prev, typeService: '' }));
+      setAutoSetServiceForDorm(false);
+    }
+  }, [isDormitory]); 
 
   const handlePrevious = () => {
     navigate(`/reservation-form/${type}/${facilityName}/${id}`, { state: { step1, step2: formData, file } });
@@ -414,36 +433,46 @@ function ReservationFormStep2() {
 
               <div className={styles.formRow}>
                 <div className={styles.formGroup}>
-                  <label className={styles.label}>Type of Service<span className={styles.requiredAsterisk}>*</span></label>
-                  <select
-                    name="typeService"
-                    value={formData.typeService}
-                    onChange={handleInputChange}
-                    className={`${styles.input} ${fieldErrors.typeService ? styles.inputError : ''}`}
-                  >
-                    <option value="">Select a service type</option>
-                    <option value="Meeting/Conference">Meeting/Conference</option>
-                    <option value="Wedding">Wedding</option>
-                    <option value="Birthday Party">Birthday Party</option>
-                    <option value="Corporate Event">Corporate Event</option>
-                    <option value="Training/Seminar">Training/Seminar</option>
-                    <option value="Accommodation">Accommodation</option>
-                    <option value="Other">Other</option>
-                  </select>
-                  {fieldErrors.typeService && (
-                    <div className={styles.fieldError}>{fieldErrors.typeService}</div>
-                  )}
+                  <label className={styles.label}>
+                    Type of Service{!isDormitory && <span className={styles.requiredAsterisk}>*</span>}
+                  </label>
+                  {!isDormitory ? (
+                    <>
+                      <select
+                        name="typeService"
+                        value={formData.typeService}
+                        onChange={handleInputChange}
+                        className={`${styles.input} ${fieldErrors.typeService ? styles.inputError : ''}`}
+                      >
+                        <option value="">Select a service type</option>
+                        <option value="Meeting/Conference">Meeting/Conference</option>
+                        <option value="Wedding">Wedding</option>
+                        <option value="Birthday Party">Birthday Party</option>
+                        <option value="Corporate Event">Corporate Event</option>
+                        <option value="Training/Seminar">Training/Seminar</option>
+                        <option value="Accommodation">Accommodation</option>
+                        <option value="Other">Other</option>
+                      </select>
+                      {fieldErrors.typeService && (
+                        <div className={styles.fieldError}>{fieldErrors.typeService}</div>
+                      )}
 
-                  {formData.typeService === 'Other' && (
-                    <input
-                      type="text"
-                      name="customService"
-                      value={formData.customService || ''}
-                      onChange={handleInputChange}
-                      placeholder="Please specify..."
-                      className={styles.input}
-                      style={{ marginTop: 8 }}
-                    />
+                      {formData.typeService === 'Other' && (
+                        <input
+                          type="text"
+                          name="customService"
+                          value={formData.customService || ''}
+                          onChange={handleInputChange}
+                          placeholder="Please specify..."
+                          className={styles.input}
+                          style={{ marginTop: 8 }}
+                        />
+                      )}
+                    </>
+                  ) : (
+                    <div className={styles.input} style={{ backgroundColor: '#f5f5f5', color: '#333' }}>
+                      Accommodation
+                    </div>
                   )}
                 </div>
 
