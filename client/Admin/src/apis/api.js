@@ -83,6 +83,21 @@ function handle(res, data) {
   err.status = res.status; err.data = data; throw err;
 }
 
+function decodeJwt(token) {
+  try { return JSON.parse(atob(token.split('.')[1])); } catch { return {}; }
+}
+
+export async function ensureFreshAccess(skewSec = 60) {
+  const token = getAccessToken();
+  if (!token) return null;
+
+  const exp = decodeJwt(token)?.exp || 0;  
+  const now = Math.floor(Date.now() / 1000);
+  if (exp > now + skewSec) return token;   
+  const newAccess = await tryRefresh();
+  return newAccess;
+}
+
 export async function apiGet(path, query) {
   const res = await rawFetch(withQuery(path, query), { method: 'GET' });
   const data = await safeJson(res);

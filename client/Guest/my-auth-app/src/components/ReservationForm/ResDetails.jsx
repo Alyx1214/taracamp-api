@@ -4,7 +4,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import styles from './ResDetails.module.css';
 import HeaderHome from '../HeaderHome/HeaderHome';
 import ErrorBanner from '../ErrorBanner/ErrorBanner';
-import { buildReservationPayload, mapServiceType } from '../Utilities/ReservationMapper';
+import { buildReservationPayload, mapServiceType } from '../../utils/reservationMapper';
 import ConfirmationOverlay from './ConfirmationOverlay';
 import { estimateAmount as apiEstimateAmount, createReservation as apiCreateReservation, } from '../../apis/reservationApi';
 

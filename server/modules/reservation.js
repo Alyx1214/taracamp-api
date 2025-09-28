@@ -83,6 +83,11 @@ const reservationModule = {
                 responseData.error = 'Missing Letter of Intent file';
                 return responseData;
             } 
+
+            const initialStatus =
+                guestType === GuestType.INDIVIDUAL
+                    ? ReservationStatus.APPROVED
+                    : ReservationStatus.PENDING;
             
             if (!isValidPhone(telephone)) {
                 responseData.status = Status.BAD_REQUEST;
@@ -332,6 +337,7 @@ const reservationModule = {
                 addOns: addonIds,
                 otherRequests,
                 letterOfIntentFileId: loiFileDoc?._id ?? undefined,
+                status: initialStatus,
                 totalEstimatedAmount,
                 reservationCode,
                 userId: creatingForGuest ? undefined : user.userId,

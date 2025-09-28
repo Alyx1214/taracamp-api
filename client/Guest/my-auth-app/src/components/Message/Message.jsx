@@ -35,6 +35,32 @@ Message.defaultProps = {
   role: undefined
 };
 
+const MessageSkeleton = ({ isUser = false, compact = false }) => (
+  <div
+    className={
+      styles.messageRow +
+      ' ' +
+      (isUser ? styles.user : styles.bot) +
+      (compact ? ' ' + styles.skelCompact : '')
+    }
+    role="status"
+    aria-busy="true"
+  >
+    {!isUser && <div className={styles.skelAvatar} />}
+    <div className={styles.bubbleContainer}>
+      <div className={styles.senderRow}>
+        <div className={styles.skelSender} />
+        {!isUser && <div className={styles.skelRole} />}
+      </div>
+      <div className={styles.skelBubble}>
+        <div className={styles.skelLine} />
+        <div className={styles.skelLine} />
+        <div className={styles.skelLineShort} />
+      </div>
+    </div>
+  </div>
+);
+
 /** Chat container with typing input */
 const ChatContainer = ({
   messages,
@@ -148,7 +174,12 @@ const ChatContainer = ({
     <div className={styles.chatContainer}>
       <div className={styles.messagesContainer}>
         {loading ? (
-          <div className={styles.emptyState}>Loading…</div>
+          <div className={styles.skeletonWrap}>
+            <MessageSkeleton />
+            <MessageSkeleton isUser />
+            <MessageSkeleton />
+            <MessageSkeleton isUser />
+          </div>
         ) : loadError ? (
           <div className={styles.emptyState}>Unable to load messages.</div>
         ) : safeMessages.length === 0 ? (
@@ -158,8 +189,8 @@ const ChatContainer = ({
             <Message key={message._id || index} {...message} />
           ))
         )}
-      </div>
 
+      </div>
       <div className={styles.typingContainer}>
         <input
           type="text"
@@ -219,5 +250,5 @@ ChatContainer.propTypes = {
   autoLoad: PropTypes.bool,
 };
 
-export { ChatContainer };
+export { ChatContainer, MessageSkeleton };
 export default Message;

@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import styles from './HeaderHome.module.css';
 import mountainLogo from '../../assets/logo.png';
 import Notif from '../Notification/Notif';
-import Message from '../Message/Message';
+import Message, { MessageSkeleton } from '../Message/Message';
 import {
   listMessages,
   countUnreadMessages,
@@ -486,18 +486,24 @@ function HeaderHome() {
                   </div>
 
                   <div className={styles.msgList}>
-                    {msgLoading && <div className={styles.msgEmpty}>Loading…</div>}
-                    {!msgLoading && messages.length === 0 && (
-                      <div className={styles.msgEmpty}>No messages yet.</div>
-                    )}
-                    {!msgLoading && messages.map(m => (
-                      <div key={m._id} className={m.isRead ? styles.msgItemRead : styles.msgItem}>
-                        <div className={styles.msgMetaRow}>
-                          <span className={styles.msgTime}>{m.timeLabel}</span>
+                    {msgLoading ? (
+                        <>
+                          <MessageSkeleton compact />
+                          <MessageSkeleton isUser compact />
+                          <MessageSkeleton compact />
+                        </>
+                      ) : messages.length === 0 ? (
+                        <div className={styles.msgEmpty}>No messages yet.</div>
+                      ) : (
+                      messages.map(m => (
+                        <div key={m._id} className={m.isRead ? styles.msgItemRead : styles.msgItem}>
+                          <div className={styles.msgMetaRow}>
+                            <span className={styles.msgTime}>{m.timeLabel}</span>
+                          </div>
+                          <Message sender={m.sender} text={m.text} isUser={m.isUser} role={m.role} />
                         </div>
-                        <Message sender={m.sender} text={m.text} isUser={m.isUser} role={m.role} />
-                      </div>
-                    ))}
+                      ))
+                    )}
                   </div>
                 </div>
               )}
@@ -586,18 +592,24 @@ function HeaderHome() {
                 </div>
 
                 <div className={styles.msgList}>
-                  {msgLoading && <div className={styles.msgEmpty}>Loading…</div>}
-                  {!msgLoading && messages.length === 0 && (
-                    <div className={styles.msgEmpty}>No messages yet.</div>
-                  )}
-                  {!msgLoading && messages.map(m => (
-                    <div key={m._id} className={m.isRead ? styles.msgItemRead : styles.msgItem}>
-                      <div className={styles.msgMetaRow}>
-                        <span className={styles.msgTime}>{m.timeLabel}</span>
+                 {msgLoading ? (
+                      <>
+                        <MessageSkeleton compact />
+                        <MessageSkeleton isUser compact />
+                        <MessageSkeleton compact />
+                      </>
+                    ) : messages.length === 0 ? (
+                      <div className={styles.msgEmpty}>No messages yet.</div>
+                    ) : (
+                    messages.map(m => (
+                      <div key={m._id} className={m.isRead ? styles.msgItemRead : styles.msgItem}>
+                        <div className={styles.msgMetaRow}>
+                          <span className={styles.msgTime}>{m.timeLabel}</span>
+                        </div>
+                        <Message sender={m.sender} text={m.text} isUser={m.isUser} role={m.role} />
                       </div>
-                      <Message sender={m.sender} text={m.text} isUser={m.isUser} role={m.role} />
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
                 <div className={styles.msgTypingRow}>
                   <input
