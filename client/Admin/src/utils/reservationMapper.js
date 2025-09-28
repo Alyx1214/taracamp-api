@@ -53,7 +53,6 @@ export function buildReservationPayload(step1 = {}, step2 = {}, facilityId) {
     dateOfArrival: step2.dateArrival,         
     dateOfDeparture: step2.dateDeparture,     
     facility: facilityId,                    
-    // Normalize service type to permanent UPPERCASE for API
     serviceType: mapServiceType(
       String(step2?.typeService || '').toUpperCase() === 'OTHER' ? 'OTHER' : step2?.typeService
     ),

@@ -60,11 +60,13 @@ export default function buildReservationRouter(userSocketMap) {
     res.status(response.status).json(response);
 
     if (response.status === 201 && response.reservationId) {
-      notificationModule.createAndNotifyUser(
+      await notificationModule.createAndNotifyUser(
         dbHelper,
         {
-          title: 'Reservation submitted',
-          message: "We received your reservation. You'll get another update once it’s reviewed.",
+          title: 'Congratulations, Camper! You have successfully booked a reservation!',
+          message: null,                         
+          kind: 'booking_success',               
+          isRead: false,
           userId: req.user.userId,
           reservationId: response.reservationId,
         },

@@ -1,4 +1,4 @@
-const API_BASE = 'https://taracamp-api.onrender.com';
+const API_BASE = 'http://localhost:3000';
 const API_V1_PREFIX = '/api/v1';
 const ACCESS_KEY = 'accessToken';
 const REFRESH_KEY = 'refreshToken';
@@ -82,6 +82,21 @@ function handle(res, data) {
   if (res.ok) return data;
   const err = new Error(data?.error || data?.message || `HTTP ${res.status}`);
   err.status = res.status; err.data = data; throw err;
+}
+
+function decodeJwt(token) {
+  try { return JSON.parse(atob(token.split('.')[1])); } catch { return {}; }
+}
+
+export async function ensureFreshAccess(skewSec = 60) {
+  const token = getAccessToken();
+  if (!token) return null;
+
+  const exp = decodeJwt(token)?.exp || 0;  
+  const now = Math.floor(Date.now() / 1000);
+  if (exp > now + skewSec) return token;   
+  const newAccess = await tryRefresh();
+  return newAccess;
 }
 
 export async function apiGet(path, query) {

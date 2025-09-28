@@ -3,36 +3,37 @@ import styles from './Notif.module.css';
 import NotifPreview from './NotifPreview';
 import NotifUpload from './NotifUpload';
 import NotifIndiv from './NotifIndiv';
+import { listNotifications, markAllNotificationsRead, markNotificationRead, } from '../../apis/notificationApi';
 
-const dummyNotifications = [
-  {
-    _id: 'n1',
-    title:
-      "Congratulations, Camper! Payment Successful — your reservation is now confirmed. We can't wait to welcome you!",
-    isRead: false,
-    source: "Teachers' Camp",
-    timeLabel: "30mins",
-    kind: 'payment_success',
-  },
-  {
-    _id: 'n2',
-    title:
-      "Congratulations, Camper!  You have successfully booked a reservation!",
-    isRead: false,
-    source: "Teachers' Camp",
-    timeLabel: "5mins",
-    kind: "booking_success", 
-  },
-  {
-    _id: 'n3',
-    title: "Mabuhay! Welcome to Teachers Camp!",
-    message:
-      "We’re thrilled to have you here! Whether you’re visiting for a seminar, retreat, or a well-deserved break, Teachers’ Camp offers a perfect blend of history, comfort, and inspiration. Explore our facilities, connect with fellow educators, and make the most of your stay. If you need any assistance, we’re here to help. Enjoy your experience!",
-    isRead: true,
-    source: "Teachers Camp System",
-    timeLabel: "1 Hr",
-  },
-];
+// const dummyNotifications = [
+//   {
+//     _id: 'n1',
+//     title:
+//       "Congratulations, Camper! Payment Successful — your reservation is now confirmed. We can't wait to welcome you!",
+//     isRead: false,
+//     source: "Teachers' Camp",
+//     timeLabel: "30mins",
+//     kind: 'payment_success',
+//   },
+//   {
+//     _id: 'n2',
+//     title:
+//       "Congratulations, Camper!  You have successfully booked a reservation!",
+//     isRead: false,
+//     source: "Teachers' Camp",
+//     timeLabel: "5mins",
+//     kind: "booking_success", 
+//   },
+//   {
+//     _id: 'n3',
+//     title: "Mabuhay! Welcome to Teachers Camp!",
+//     message:
+//       "We’re thrilled to have you here! Whether you’re visiting for a seminar, retreat, or a well-deserved break, Teachers’ Camp offers a perfect blend of history, comfort, and inspiration. Explore our facilities, connect with fellow educators, and make the most of your stay. If you need any assistance, we’re here to help. Enjoy your experience!",
+//     isRead: true,
+//     source: "Teachers Camp System",
+//     timeLabel: "1 Hr",
+//   },
+// ];
 
 export default function Notif() {
   const [notifications, setNotifications] = useState([]);
@@ -40,23 +41,47 @@ export default function Notif() {
   const [selected, setSelected] = useState(null);
   const [stage, setStage] = useState('list'); // list | preview | upload | indiv
 
+
   useEffect(() => {
-    setLoading(true);
-    setTimeout(() => {
-      setNotifications(dummyNotifications);
-      setLoading(false);
-    }, 400);
+    let cancelled = false;
+    async function load() {
+      try {
+        setLoading(true);
+        const res = await listNotifications({ limit: 20 });
+        const items = Array.isArray(res?.data) ? res.data : [];
+        if (!cancelled) setNotifications(items);
+      } catch (e) {
+        if (!cancelled) setNotifications([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => { cancelled = true; };
   }, []);
 
-  function markAll() {
+   async function markAll() {
     setNotifications(n => n.map(x => ({ ...x, isRead: true })));
+    try {
+      await markAllNotificationsRead();
+    } catch (e) {
+      console.warn('Mark all failed:', e.message);
+    }
   }
 
-  function handleClick(notif) {
-    // Route to different detail screens depending on kind
+  async function handleClick(notif) {
+    if (!notif.isRead) {
+      setNotifications(n => n.map(x => x._id === notif._id ? { ...x, isRead: true } : x));
+      try {
+        await markNotificationRead({ id: notif._id });
+      } catch (e) {
+        console.warn('Mark read failed:', e.message);
+      }
+    }
+
     if (notif.kind === 'payment_success') {
       setSelected(notif);
-      setStage('indiv'); // show Food Preference + Cancel Booking UI
+      setStage('indiv');
       return;
     }
     if (notif.kind === 'booking_success') {
@@ -64,8 +89,6 @@ export default function Notif() {
       setStage('preview');
       return;
     }
-    // default: just mark as read
-    setNotifications(n => n.map(x => x._id === notif._id ? { ...x, isRead: true } : x));
   }
 
   if (selected && stage === 'preview') {
@@ -74,11 +97,8 @@ export default function Notif() {
         notif={selected}
         clientType="individual"
         onBack={() => { setSelected(null); setStage('list'); }}
-        onConfirm={() => {
-          // Move to upload screen with dummy data
-          setStage('upload');
-        }}
-        onCancel={() => { console.log("Cancel clicked"); setSelected(null); }}
+        onConfirm={() => { setStage('upload'); }}
+        onCancel={() => { setSelected(null); }}
       />
     );
   }
@@ -88,14 +108,8 @@ export default function Notif() {
       <NotifIndiv
         notif={selected}
         onBack={() => { setSelected(null); setStage('list'); }}
-        onFoodPref={() => {
-          // In a real app, navigate to food preference form
-          alert('Open Food Preference form (placeholder)');
-        }}
-        onCancel={() => {
-          // In a real app, navigate to cancellation flow
-          alert('Open Cancel Booking flow (placeholder)');
-        }}
+        onFoodPref={() => { alert('Open Food Preference form (placeholder)'); }}
+        onCancel={() => { alert('Open Cancel Booking flow (placeholder)'); }}
       />
     );
   }
@@ -107,7 +121,6 @@ export default function Notif() {
         onBack={() => setStage('preview')}
         onSubmit={(files) => {
           console.log('Dummy submit files:', files);
-          // Mark notification as read and return to list
           setNotifications(n => n.map(x => x._id === selected._id ? { ...x, isRead: true } : x));
           setSelected(null);
           setStage('list');
@@ -121,34 +134,60 @@ export default function Notif() {
     <div className={styles.notifContainer}>
       <div className={styles.headerRow}>
         <span className={styles.headerTitle}>Notifications</span>
-        <button className={styles.markAllBtn} onClick={markAll}>
-          Mark all as Read
-        </button>
+        {notifications.some(n => !n.isRead) && (
+          <button className={styles.markAllBtn} onClick={markAll}>
+            Mark all as Read
+          </button>
+        )}
       </div>
-
       <div className={styles.notifList}>
-        {loading && <div className={styles.emptyMsg}>Loading…</div>}
-        {!loading &&
-          notifications.map((notif) => (
-            <div
-              key={notif._id}
-              className={notif.isRead ? styles.notifItemRead : styles.notifItem}
-              onClick={() => handleClick(notif)}
-            >
-              <div className={styles.notifTitleRow}>
-                <span className={styles.notifTitle}>{notif.title}</span>
+        {loading && (
+          <div className={styles.skeletonList} role="status" aria-live="polite" aria-busy="true">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className={styles.skelItem}>
+                <div className={styles.skelDot} />
+                <div className={styles.skelContent}>
+                  <div className={`${styles.skelBar} ${styles.skelTitle}`} />
+                  <div className={`${styles.skelBar} ${styles.skelBody}`} />
+                  <div className={styles.skelMetaRow}>
+                    <div className={`${styles.skelBar} ${styles.skelMeta}`} />
+                    <div className={`${styles.skelBar} ${styles.skelMetaShort}`} />
+                  </div>
+                </div>
               </div>
-              {notif.message && (
-                <div className={styles.notifBody}>{notif.message}</div>
-              )}
-              <div className={styles.notifMeta}>
-                <span className={styles.notifSource}>
-                  <span className={styles.notifSourceDot} /> {notif.source}
-                </span>
-                <span className={styles.notifTime}>{notif.timeLabel}</span>
-              </div>
+            ))}
+          </div>
+        )}
+
+        {!loading && notifications.length === 0 && (
+          <div className={styles.emptyState}>
+            <div className={styles.emptyTitle}>No notifications</div>
+            <div className={styles.emptySub}>You’re all caught up.</div>
+          </div>
+        )}
+
+        {!loading && notifications.length > 0 && notifications.map((notif) => (
+          <div
+            key={notif._id}
+            className={notif.isRead ? styles.notifItemRead : styles.notifItem}
+            onClick={() => handleClick(notif)}
+          >
+            <div className={styles.notifTitleRow}>
+              <span className={styles.notifTitle}>{notif.title}</span>
             </div>
-          ))}
+            {notif.message && (
+              <div className={styles.notifBody}>{notif.message}</div>
+            )}
+            <div className={styles.notifMeta}>
+              <span className={styles.notifSource}>
+                <span className={styles.notifSourceDot} /> {notif.source}
+              </span>
+              <span className={styles.notifTime}>
+                {notif.timeLabel ?? new Date(notif.createdAt).toLocaleString()}
+              </span>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );

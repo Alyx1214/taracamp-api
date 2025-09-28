@@ -175,3 +175,101 @@
 	margin: 8px 0 0 16px;
 	font-style: italic;
 }
+
+.emptyState {
+  display: grid;
+  place-items: center;
+  gap: 4px;
+  padding: 28px 16px;
+  color: #1e3c24be;
+  background: #f5f5f5;
+}
+
+.emptyTitle {
+  font-weight: 600;
+  color: #1E3C24;
+  font-size: 0.98rem;
+}
+
+.emptySub {
+  font-size: 0.86rem;
+  color: #516357;
+  opacity: 0.9;
+}
+
+@keyframes tc-shimmer {
+  0% { background-position: -200px 0; }
+  100% { background-position: calc(200px + 100%) 0; }
+}
+
+.skeletonList {
+  padding: 12px 16px;
+  background: #f5f5f5;
+}
+
+.skelItem {
+  display: grid;
+  grid-template-columns: 12px 1fr;
+  align-items: start;
+  gap: 12px;
+  padding: 14px 8px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.skelItem:last-child {
+  border-bottom: none;
+}
+
+.skelDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-top: 6px;
+  background: #dfe6e1;
+}
+
+.skelContent { margin-top: -2px; }
+
+.skelBar {
+  position: relative;
+  overflow: hidden;
+  border-radius: 6px;
+  background: #e9eeeb;
+  background-image: linear-gradient(
+    90deg,
+    #e9eeeb 0%,
+    #f4f7f5 50%,
+    #e9eeeb 100%
+  );
+  background-size: 200px 100%;
+  animation: tc-shimmer 1.2s linear infinite;
+}
+
+.skelTitle {
+  height: 14px;
+  width: 85%;
+  margin: 2px 0 10px 0;
+}
+
+.skelBody {
+  height: 12px;
+  width: 70%;
+  margin: 0 0 10px 0;
+}
+
+.skelMetaRow {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.skelMeta {
+  height: 10px;
+  width: 110px;
+}
+
+.skelMetaShort {
+  height: 10px;
+  width: 70px;
+}
+
