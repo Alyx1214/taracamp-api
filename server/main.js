@@ -39,7 +39,7 @@ app.set('trust proxy', 1);
 await redisClient.connect();
 
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:5174', 'https://taracamp-api.vercel.app'],
+  origin: ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:5174', 'https://taracamp-api.vercel.app', 'taracamp-api-admin.vercel.app'],
   credentials: true
 }));
 
