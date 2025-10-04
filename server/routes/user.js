@@ -4,18 +4,24 @@ import { authenticateJWT } from '../middleware/auth.js';
 import dbHelper from '../modules/dbHelper.js';
 import userModule from '../modules/user.js';
 import profileModule from '../modules/profile.js';
+import notificationModule from '../modules/notification.js';
 import emailModule from '../modules/email.js';
 
 const r = Router();
 
 r.post('/register', asyncHandler(async (req, res) => {
-  const data = { ...req.body, ...req.query };
-  const response = await userModule.register(dbHelper, data);
-  if (response.status === 201 && response.userId) {
-    await profileModule.createProfile(dbHelper, response.userId);
-  }
-  res.status(response.status).json(response);
-}));
+    const result = await userModule.register(dbHelper, req.body);
+    if (result.status === Status.CREATED) {
+      await notificationModule.createAndNotifyUser(dbHelper, {
+        userId: result.userId,
+        title: 'Welcome to Teachers Camp!',
+        message: 'Thank you for joining Teachers Camp. We’re thrilled to have you aboard—let’s make some memories!',
+        kind: 'welcome',            
+      }, userSocketMap);
+    }
+    res.status(result.status).json(result);
+  })
+);
 
 r.post('/login', asyncHandler(async (req, res) => {
   const response = await userModule.login(dbHelper, req.body);

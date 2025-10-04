@@ -143,7 +143,8 @@ function HeaderHome() {
 
     async function refreshCount() {
       try {
-        const json = await api('/api/notification/count-unread');
+        const response = await countUnreadNotifications();
+        const count = response.data.count;
         if (!cancelled) setUnreadCount(Number(json?.data?.count || 0));
       } catch {
         // ignore badge errors
@@ -165,7 +166,8 @@ function HeaderHome() {
     let cancelled = false;
     (async () => {
       try {
-        const json = await api('/api/notification/count-unread');
+        const response = await countUnreadNotifications();
+        const count = response.data.count;
         if (!cancelled) setUnreadCount(Number(json?.data?.count || 0));
       } catch {}
     })();

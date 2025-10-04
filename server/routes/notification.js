@@ -10,23 +10,23 @@ r.use(authenticateJWT);
 
 r.get('/list', asyncHandler(async (req, res) => {
   const { limit, before } = req.query;
-  const data = await notificationModule.listForUser(dbHelper, req.user.userId, { limit, before });
-  res.status(200).json({ status: 200, data });
+  const result = await notificationModule.listForUser(dbHelper, req.user.userId, { limit, before });
+  res.status(result?.status ?? 200).json(result);
 }));
 
 r.get('/count-unread', asyncHandler(async (req, res) => {
-  const count = await notificationModule.countUnread(dbHelper, req.user.userId);
-  res.status(200).json({ status: 200, data: { count } });
+  const result = await notificationModule.countUnread(dbHelper, req.user.userId);
+  res.status(result?.status ?? 200).json(result);
 }));
 
 r.post('/mark-read/:id', asyncHandler(async (req, res) => {
-  await notificationModule.markRead(dbHelper, req.params.id, req.user.userId);
-  res.status(200).json({ status: 200 });
+  const result = await notificationModule.markRead(dbHelper, req.params.id, req.user.userId);
+  res.status(result?.status ?? 200).json(result);
 }));
 
 r.post('/mark-all-read', asyncHandler(async (req, res) => {
-  await notificationModule.markAllRead(dbHelper, req.user.userId);
-  res.status(200).json({ status: 200 });
+  const result = await notificationModule.markAllRead(dbHelper, req.user.userId);
+  res.status(result?.status ?? 200).json(result);
 }));
 
 export default r;

@@ -39,7 +39,7 @@ export default function Notif() {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState(null);
-  const [stage, setStage] = useState('list'); // list | preview | upload | indiv
+  const [stage, setStage] = useState('list'); 
 
 
   useEffect(() => {

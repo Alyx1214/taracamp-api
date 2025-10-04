@@ -429,13 +429,16 @@ const getCalendarData = (date) => {
     const target = `/reservation-form/${type}/${facilityNameParam}/${facility.id}`;
 
     if (isLoggedIn) {
-      const state = { facility };
-      if (selectedArrivalDate) {
-        state.preselectedDates = {
-          dateArrival: selectedArrivalDate,
-          ...(selectedDepartureDate && { dateDeparture: selectedDepartureDate })
-        };
-      }
+      const state = {
+        facility,
+        ...(selectedArrivalDate && {
+          preselectedDates: {
+            dateArrival: selectedArrivalDate,
+            ...(selectedDepartureDate && { dateDeparture: selectedDepartureDate })
+          }
+        }),
+        from: `/service-detail/${type}/${facilityNameParam}/${facility.id}`
+      };
       navigate(target, { state });
     } else {
       navigate(`/auth/login?redirect=${encodeURIComponent(target)}`);

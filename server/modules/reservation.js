@@ -398,7 +398,7 @@ const reservationModule = {
             }
 
             const reservation = await dbHelper.findOne('reservation', { _id: reservationId, });
-            const facilityDoc = reservation?.facility ? await dbHelper.findOne('facility', { _id: reservation.facility, }) : null;
+            const facilityDoc = reservation?.facility ? await dbHelper.findOne('facility', { _id: reservation.facility, projection: { v: 0, } }) : null;
             if (!reservation) {
                 responseData.status = Status.NOT_FOUND;
                 responseData.error = 'Reservation not found';
@@ -1439,21 +1439,14 @@ function parseSort(spec) {
 function isValidDateRange(dateOfArrival, dateOfDeparture) {
     if (!isValidDate(dateOfArrival) || !isValidDate(dateOfDeparture)) return false;
 
-    const arrival = new Date(dateOfArrival.split('T')[0].split(' ')[0]);
-    const departure = new Date(dateOfDeparture.split('T')[0].split(' ')[0]);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const arrival = normalizeDateOnly(dateOfArrival);
+    const departure = normalizeDateOnly(dateOfDeparture);
+    const today = normalizeDateOnly(new Date().toISOString().split('T')[0]);
 
-    const tomorrow = new Date(today);
-    tomorrow.setDate(today.getDate() + 1);
-
-    // Optional: add max window, eg, 6 months from today
-    const maxAdvance = new Date(today); maxAdvance.setMonth(today.getMonth() + 6);
-
-    if (isNaN(arrival.getTime()) || isNaN(departure.getTime())) return false;
-    if (arrival < tomorrow) return false;
+    if (!arrival || !departure || !today) return false;
+    if (arrival < today) return false;
     if (departure <= arrival) return false;
-    // if (arrival > maxAdvance) return false;       // Uncomment if you want to limit how far in advance
+    // Optional: enforce an upper booking window by comparing against a computed `maxAdvance`
 
     return true;
 }
