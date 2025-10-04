@@ -135,7 +135,7 @@ function MainServicesNavSearch({ onSearch, onClearSearch, onApplyFilters }) {
                 <input
                   type="number"
                   id="capacity"
-                  placeholder="Guests"
+                  placeholder="No. of Guests"
                   className={styles.overlayInput}
                   value={capacity}
                   onChange={(e) => setCapacity(e.target.value)}
