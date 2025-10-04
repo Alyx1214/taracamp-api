@@ -11,14 +11,14 @@ main {
 
 .heroSection {
   position: relative;
-  height: 25vh; 
+  height: 30vh; 
   display: flex;
   align-items: center;
   justify-content: center;
   text-align: center;
   color: #4F3718;
   z-index: 1;
-  padding-top: 70px; 
+  padding-top: 80px; 
 }
 
 .heroContent {
@@ -29,7 +29,7 @@ main {
 .heroTitle {
   font-size: 2.8em;
   font-weight: bold;
-  margin-bottom: 0;
+  margin: 10px 10px;
   letter-spacing: 0.05em;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5); 
   text-transform: uppercase; 

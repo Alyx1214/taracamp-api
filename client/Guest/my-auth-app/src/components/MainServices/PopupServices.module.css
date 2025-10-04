@@ -1,0 +1,149 @@
+.popupOverlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10000;
+}
+
+.popupContainer {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  width: 90%;
+  max-width: 500px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.popupHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.popupHeader h2 {
+  margin: 0;
+  color: #333;
+  font-size: 24px;
+}
+
+.closeBtn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #666;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.closeBtn:hover { color: #333; }
+
+.serviceTypes {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.serviceBtn {
+  flex: 1;
+  padding: 12px 16px;
+  border: 1px solid #ddd;
+  background: white;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 14px;
+}
+.serviceBtn:hover { border-color: #8B4513; }
+.active {
+  background-color: #8B4513;
+  color: white;
+  border-color: #8B4513;
+}
+
+.dateSection {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.dateInput { flex: 1; }
+.dateInput label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: #666;
+}
+.dateField {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: white;
+  cursor: pointer;
+}
+.dateField:hover { border-color: #8B4513; }
+.calendarIcon { font-size: 18px; }
+.dateValue { font-size: 14px; font-weight: 500; color: #333; }
+.dateDay { font-size: 12px; color: #666; }
+
+.guestSection {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.guestInput { flex: 1; }
+.guestInput label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: #666;
+}
+.counter {
+  display: flex;
+  align-items: center;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: white;
+}
+.counterBtn {
+  background: none;
+  border: none;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 18px;
+  color: #666;
+}
+.counterBtn:hover { background-color: #f5f5f5; color: #333; }
+.count {
+  padding: 0 16px;
+  font-size: 14px;
+  font-weight: 500;
+  min-width: 20px;
+  text-align: center;
+}
+
+.searchBtn {
+  width: 100%;
+  padding: 14px;
+  background-color: #2d5a3d;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+.searchBtn:hover { background-color: #1e3a29; }
