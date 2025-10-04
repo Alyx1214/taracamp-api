@@ -7,7 +7,7 @@ import {
   FaExchangeAlt,
   FaUser,
   FaDoorOpen,
-  FaChartBar,
+  FaEnvelope,
   FaSignOutAlt,
   FaTimes,
 } from "react-icons/fa";
@@ -56,9 +56,9 @@ const Sidebar = ({ isOpen, onClose }) => {
           <FaDoorOpen />
           <span>CHECK-IN/OUT</span>
         </NavLink>
-        <NavLink to="/reports" className="nav-item" activeclassname="active">
-          <FaChartBar />
-          <span>REPORTS</span>
+        <NavLink to="/messages" className="nav-item" activeclassname="active">
+          <FaEnvelope />
+          <span>MESSAGES</span>
         </NavLink>
       </nav>
 
