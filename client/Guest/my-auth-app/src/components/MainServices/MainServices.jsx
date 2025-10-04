@@ -15,13 +15,15 @@ import Controls from './Controls';
 import { searchFacilities } from '../../apis/facilityApi';
 import { searchAddons } from '../../apis/addonsApi';
 import AllServices from './AllServices';
+import PopupServices from './PopupServices';
 
 function MainServices() {
   const [facilities, setFacilities] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchAttempted, setSearchAttempted] = useState(false);
   const [error, setError] = useState(null);
-
+  const [showPopup, setShowPopup] = useState(false);
+  const [hasShownPopup, setHasShownPopup] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -41,63 +43,123 @@ function MainServices() {
     setError(null);
   }, [facilityType]);
 
-  async function handleSearch(query) {
-    if (!query?.trim() || !facilityType) return;
-    setLoading(true);
-    setSearchAttempted(true);
-    setError(null);
+  useEffect(() => {
+    const isDetail =
+      (location.pathname.includes('/all/') && location.pathname.split('/').length === 4) ||
+      (location.pathname.includes('/dormitories/') && location.pathname.split('/').length > 4) ||
+      (location.pathname.includes('/cottages/') && location.pathname.split('/').length > 4) ||
+      (location.pathname.includes('/conference/') && location.pathname.split('/').length > 4);
 
-    try {
-      if (facilityType === 'Add-Ons') {
-        const data = await searchAddons({ query });
-        setFacilities(Array.isArray(data?.addons) ? data.addons : []);
-      } else {
-        const data = await searchFacilities({ type: facilityType, query });
-        setFacilities(Array.isArray(data?.facilities) ? data.facilities : []);
+    if (!isDetail && facilityType && facilityType !== 'Add-Ons') {
+      if (!hasShownPopup) {
+        setShowPopup(true);
+        setHasShownPopup(true);
       }
-    } catch (err) {
-      setFacilities([]);
-      setError(err?.data?.error || 'Search failed.');
-    } finally {
-      setLoading(false);
+    } else {
+      setShowPopup(false);
     }
+  }, [facilityType, hasShownPopup, location.pathname]);
+
+
+  function handlePopupSubmit(form) {
+    const mapType = {
+      Dormitory: 'DORMITORY',
+      Cottage: 'COTTAGE',
+      Conference: 'CONFERENCE',
+    };
+    const enumType = mapType[form.serviceType] || null;
+
+    if (enumType === 'DORMITORY') navigate('/user/services/dormitories');
+    else if (enumType === 'COTTAGE') navigate('/user/services/cottages');
+    else if (enumType === 'CONFERENCE') navigate('/user/services/conference');
+    else navigate('/user/services/all');
+
+    handleApplyFilters({
+      type: enumType,
+      checkInDate: form.checkIn,
+      checkOutDate: form.checkOut,
+      capacity: form.adults + form.children, 
+      query: '', 
+    });
   }
+
+  async function handleSearch(query) {
+  if (!query?.trim() || !facilityType) return;
+  setLoading(true);
+  setSearchAttempted(true);
+  setError(null);
+
+  try {
+    if (facilityType === 'Add-Ons') {
+      const data = await searchAddons({ query });
+      setFacilities(Array.isArray(data?.addons) ? data.addons : []);
+    } else {
+      const mapLabelToEnum = {
+        Dormitory: 'DORMITORY',
+        Cottage: 'COTTAGE',
+        Conference: 'CONFERENCE',
+        All: null,
+      };
+      const resolvedType = mapLabelToEnum[facilityType] ?? null;
+      const data = await searchFacilities({ type: resolvedType, query });
+      setFacilities(Array.isArray(data?.facilities) ? data.facilities : []);
+    }
+  } catch (err) {
+    setFacilities([]);
+    setError(err?.data?.error || 'Search failed.');
+  } finally {
+    setLoading(false);
+  }
+}
+
 
   async function handleApplyFilters(filters) {
-    setLoading(true);
-    setSearchAttempted(true);
-    setError(null);
+  setLoading(true);
+  setSearchAttempted(true);
+  setError(null);
 
-    try {
-      if (facilityType === 'Add-Ons') {
-        const params = {
-          query: filters?.query,
-          minPrice: filters?.minPrice,
-          maxPrice: filters?.maxPrice,
-          unit: filters?.unit,
-        };
-        const data = await searchAddons(params);
-        setFacilities(Array.isArray(data?.addons) ? data.addons : []);
-      } else {
-        const params = {
-          type: facilityType,
-          minPrice: filters?.minPrice,
-          maxPrice: filters?.maxPrice,
-          capacity: filters?.capacity,
-          checkInDate: filters?.checkInDate,
-          checkOutDate: filters?.checkOutDate,
-          query: filters?.query,
-        };
-        const data = await searchFacilities(params);
-        setFacilities(Array.isArray(data?.facilities) ? data.facilities : []);
-      }
-    } catch (err) {
-      setFacilities([]);
-      setError(err?.data?.error || 'Filter failed.');
-    } finally {
-      setLoading(false);
+  try {
+    if (facilityType === 'Add-Ons' && !filters?.type) {
+      const params = {
+        query: filters?.query,
+        minPrice: filters?.minPrice,
+        maxPrice: filters?.maxPrice,
+        unit: filters?.unit,
+      };
+      const data = await searchAddons(params);
+      setFacilities(Array.isArray(data?.addons) ? data.addons : []);
+    } else {
+      // prefer explicit type from filters; else map current tab label to enum
+      const mapLabelToEnum = {
+        Dormitory: 'DORMITORY',
+        Cottage: 'COTTAGE',
+        Conference: 'CONFERENCE',
+        All: null,
+      };
+      const resolvedType =
+        filters?.type ??
+        mapLabelToEnum[facilityType] ??
+        null;
+
+      const params = {
+        type: resolvedType,
+        minPrice: filters?.minPrice,
+        maxPrice: filters?.maxPrice,
+        capacity: filters?.capacity,
+        checkInDate: filters?.checkInDate,
+        checkOutDate: filters?.checkOutDate,
+        query: filters?.query,
+      };
+      const data = await searchFacilities(params);
+      setFacilities(Array.isArray(data?.facilities) ? data.facilities : []);
     }
+  } catch (err) {
+    setFacilities([]);
+    setError(err?.data?.error || 'Filter failed.');
+  } finally {
+    setLoading(false);
   }
+}
 
   function handleClearSearch() {
     setFacilities([]);
@@ -197,6 +259,11 @@ function MainServices() {
           </Routes>
 
           {!isDetailViewOrAddOn && <MainServicesRates />}
+          <PopupServices
+            isOpen={showPopup}
+            onClose={() => setShowPopup(false)}
+            onSubmit={handlePopupSubmit}
+          />
         </div>
       </main>
 
