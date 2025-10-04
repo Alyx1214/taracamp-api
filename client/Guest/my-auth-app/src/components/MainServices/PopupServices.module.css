@@ -1,0 +1,193 @@
+.popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.popup-container {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  width: 90%;
+  max-width: 500px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.popup-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.popup-header h2 {
+  margin: 0;
+  color: #333;
+  font-size: 24px;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #666;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.close-btn:hover {
+  color: #333;
+}
+
+.service-types {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.service-btn {
+  flex: 1;
+  padding: 12px 16px;
+  border: 1px solid #ddd;
+  background: white;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 14px;
+}
+
+.service-btn:hover {
+  border-color: #8B4513;
+}
+
+.service-btn.active {
+  background-color: #8B4513;
+  color: white;
+  border-color: #8B4513;
+}
+
+.date-section {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.date-input {
+  flex: 1;
+}
+
+.date-input label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: #666;
+}
+
+.date-field {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: white;
+  cursor: pointer;
+}
+
+.date-field:hover {
+  border-color: #8B4513;
+}
+
+.calendar-icon {
+  font-size: 18px;
+}
+
+.date-value {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+}
+
+.date-day {
+  font-size: 12px;
+  color: #666;
+}
+
+.guest-section {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.guest-input {
+  flex: 1;
+}
+
+.guest-input label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: #666;
+}
+
+.counter {
+  display: flex;
+  align-items: center;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: white;
+}
+
+.counter-btn {
+  background: none;
+  border: none;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 18px;
+  color: #666;
+}
+
+.counter-btn:hover {
+  background-color: #f5f5f5;
+  color: #333;
+}
+
+.count {
+  padding: 0 16px;
+  font-size: 14px;
+  font-weight: 500;
+  min-width: 20px;
+  text-align: center;
+}
+
+.search-btn {
+  width: 100%;
+  padding: 14px;
+  background-color: #2d5a3d;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.search-btn:hover {
+  background-color: #1e3a29;
+}
