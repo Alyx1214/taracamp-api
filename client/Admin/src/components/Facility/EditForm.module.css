@@ -6,12 +6,12 @@ font-family: "Arial", sans-serif;
 }
 
 .header {
-display: flex;
-align-items: center;
-gap: 1.5rem;
-margin-bottom: 3rem;
-margin-left: -150px;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
 }
+
 
 .backArrow {
 font-size: 3rem;
@@ -20,32 +20,40 @@ cursor: pointer;
 }
 
 .title {
-font-size: 3.5rem;
-font-weight: 700;
-color: #4F3718;
-letter-spacing: 10px;
-margin: 0;
+  font-size: 2rem;
+  font-weight: 700;
+  color: #4F3718;
+  letter-spacing: 2px;
+  margin: 0;
 }
 
 .imageUpload {
-display: flex;
-justify-content: center;
-margin-bottom: 3rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 2rem;
+  max-width: 680px;
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .imageBox {
-width: 100%;
-min-height: 200px;
-border: 2px solid #ccc;
-border-radius: 20px;
-background: #fafafa;
-position: relative;
-display: flex;
-align-items: center;
-justify-content: center;
-cursor: pointer;
-transition: all 0.3s ease;
+  width: 100%;
+  height: 360px;
+  border: 2px solid #ccc;
+  border-radius: 20px;
+  background: #fafafa;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  overflow: hidden;
 }
+
 
 .imageBox:hover {
 border-color: #1E3C24;
@@ -54,19 +62,20 @@ box-shadow: 0 4px 12px rgba(30, 60, 36, 0.15);
 }
 
 .editImageBtn {
-position: absolute;
-bottom: 12px;
-right: 16px;
-font-size: 1rem;
-color: #1E3C24;
-background: rgba(255, 255, 255, 0.9);
-border: 2px solid #1E3C24;
-border-radius: 20px;
-padding: 0.5rem 1rem;
-cursor: pointer;
-text-decoration: none;
-transition: all 0.3s ease;
-font-weight: 600;
+  position: absolute;
+  bottom: 12px;
+  right: 16px;
+  z-index: 2; 
+  font-size: 1rem;
+  color: #1E3C24;
+  background: rgba(255, 255, 255, 0.9);
+  border: 2px solid #1E3C24;
+  border-radius: 20px;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  font-weight: 600;
 }
 
 .editImageBtn:hover {
@@ -90,11 +99,16 @@ gap: 0.1rem;
 }
 
 .formRow {
-display: flex;
-justify-content: space-between;
-gap: 3rem;
-margin-bottom: 1rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 1rem;
 }
+
+@media (max-width: 900px) {
+  .formRow { grid-template-columns: 1fr; }
+}
+
 
 .form label {
 flex: 1;
@@ -139,6 +153,21 @@ background-color: white;
   position: center;
   margin-top: 2rem;
   gap: 2rem;
+}
+
+.statusMessage {
+  margin-top: 1rem;
+  text-align: center;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.errorMessage {
+  color: #c0392b;
+}
+
+.successMessage {
+  color: #27ae60;
 }
 
 .saveBtnWrapper {
@@ -215,4 +244,19 @@ color: #333;
 border-color: #bbb;
 transform: translateY(-2px);
 box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.previewImage {
+  max-width: 100%;
+  max-height: 300px;
+  border-radius: 12px;
+  object-fit: contain;
+}
+
+.selectedFile {
+  margin-top: 0.5rem;
+  font-size: 0.95rem;
+  color: #333;
+  font-weight: 500;
+  text-align: center;
 }
