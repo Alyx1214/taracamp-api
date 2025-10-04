@@ -91,7 +91,12 @@ export default function EditForm() {
   return (
     <div className={styles.editFormContainer}>
       <div className={styles.header}>
-        <FaArrowLeft className={styles.backArrow} onClick={() => navigate(-1)} />
+        <span
+          className={styles["edit-form-back"]}
+          onClick={() => navigate(-1)}
+          >
+          &larr;
+        </span>
         <h2 className={styles.title}>{category || "FACILITY"}</h2>
       </div>
 
