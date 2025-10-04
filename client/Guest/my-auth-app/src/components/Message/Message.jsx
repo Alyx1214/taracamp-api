@@ -1,11 +1,10 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import PropTypes from 'prop-types';
 import styles from './Message.module.css';
 import weblogo from '../../assets/logo.png';
 import { FaPaperclip, FaSmile, FaPaperPlane } from 'react-icons/fa';
 import { listMessages, sendMessage as sendMessageApi } from '../../apis/messageApi';
 
-/** Single message bubble */
 const Message = ({ sender, text, isUser, role }) => (
   <div className={styles.messageRow + ' ' + (isUser ? styles.user : styles.bot)}>
     {!isUser && <img src={weblogo} alt="Teachers Camp" className={styles.avatar} />}
@@ -20,20 +19,6 @@ const Message = ({ sender, text, isUser, role }) => (
     </div>
   </div>
 );
-
-Message.propTypes = {
-  sender: PropTypes.string,
-  text: PropTypes.string,
-  isUser: PropTypes.bool,
-  role: PropTypes.string
-};
-
-Message.defaultProps = {
-  sender: 'System',
-  text: '',
-  isUser: false,
-  role: undefined
-};
 
 const MessageSkeleton = ({ isUser = false, compact = false }) => (
   <div
@@ -61,57 +46,43 @@ const MessageSkeleton = ({ isUser = false, compact = false }) => (
   </div>
 );
 
-/** Chat container with typing input */
-const ChatContainer = ({
-  messages,
-  onSend,
-  onAttach,
-  onEmoji,
-  placeholder = 'Enter your message…',
-  disabled = false,
-  autoLoad = true,
-}) => {
+
+const ChatContainer = ({ messages, onSend, onAttach, onEmoji, placeholder = 'Enter your message…', disabled = false, autoLoad = true }) => {
   const manageMessages = typeof messages === 'undefined' && autoLoad;
   const [fetchedMessages, setFetchedMessages] = useState([]);
   const [loading, setLoading] = useState(manageMessages);
-  const [loadError, setLoadError] = useState(null);
   const [draft, setDraft] = useState('');
   const [isSending, setIsSending] = useState(false);
 
-  // Auto-fetch messages when this component manages its own data source
+  const messagesEndRef = useRef(null);
+
   useEffect(() => {
     if (!manageMessages) return;
     let cancelled = false;
 
     async function load() {
       setLoading(true);
-      setLoadError(null);
       try {
         const response = await listMessages({ limit: 50 });
         const rows = Array.isArray(response?.data) ? response.data : [];
-        if (!cancelled) setFetchedMessages(rows);
-      } catch (error) {
-        if (!cancelled) {
-          console.error('Failed to fetch messages', error);
-          setLoadError(error);
-          setFetchedMessages([]);
-        }
+        if (!cancelled) setFetchedMessages(toChronological(rows));
+      } catch {
+        if (!cancelled) setFetchedMessages([]);
       } finally {
         if (!cancelled) setLoading(false);
       }
     }
 
     load();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [manageMessages]);
 
-  const safeMessages = manageMessages
-    ? fetchedMessages
-    : Array.isArray(messages)
-      ? messages
-      : [];
+  const safeMessages = manageMessages ? fetchedMessages : Array.isArray(messages) ? messages : [];
+  const displayMessages = useMemo(() => toChronological(safeMessages), [safeMessages]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [displayMessages.length]);
 
   const handleSend = useCallback(async () => {
     const text = draft.trim();
@@ -122,13 +93,8 @@ const ChatContainer = ({
     let optimisticEntry = null;
 
     if (manageMessages) {
-      optimisticEntry = {
-        ...payload,
-        _id: `tmp-${Date.now()}`,
-        timeLabel: 'now',
-        isRead: true,
-      };
-      setFetchedMessages(prev => [optimisticEntry, ...prev]);
+      optimisticEntry = { ...payload, _id: `tmp-${Date.now()}`, timeLabel: 'now', isRead: true, createdAt: new Date() };
+      setFetchedMessages(prev => toChronological([...prev, optimisticEntry]));
     }
 
     setDraft('');
@@ -143,53 +109,38 @@ const ChatContainer = ({
 
       if (manageMessages) {
         setFetchedMessages(prev => {
-          const withoutOptimistic = optimisticEntry
-            ? prev.filter(m => m._id !== optimisticEntry._id)
-            : prev;
-          return saved ? [saved, ...withoutOptimistic] : withoutOptimistic;
+          const withoutOptimistic = optimisticEntry ? prev.filter(m => m._id !== optimisticEntry._id) : prev;
+          if (!saved) return withoutOptimistic;
+          return toChronological([...withoutOptimistic, saved]);
         });
       }
-    } catch (error) {
-      if (manageMessages && optimisticEntry) {
-        setFetchedMessages(prev => prev.filter(m => m._id !== optimisticEntry._id));
-      }
-      setDraft(text);
-      console.error('Failed to send message', error);
     } finally {
       setIsSending(false);
     }
-  }, [draft, disabled, isSending, manageMessages, onSend, sendMessageApi]);
+  }, [draft, disabled, isSending, manageMessages, onSend]);
 
-  const handleKeyDown = useCallback(
-    (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        handleSend();
-      }
-    },
-    [handleSend]
-  );
+  const handleKeyDown = useCallback((e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSend();
+    }
+  }, [handleSend]);
 
   return (
     <div className={styles.chatContainer}>
       <div className={styles.messagesContainer}>
         {loading ? (
-          <div className={styles.skeletonWrap}>
-            <MessageSkeleton />
-            <MessageSkeleton isUser />
-            <MessageSkeleton />
-            <MessageSkeleton isUser />
-          </div>
-        ) : loadError ? (
-          <div className={styles.emptyState}>Unable to load messages.</div>
-        ) : safeMessages.length === 0 ? (
+          <div>Loading…</div>
+        ) : displayMessages.length === 0 ? (
           <div className={styles.emptyState}>No messages yet.</div>
         ) : (
-          safeMessages.map((message, index) => (
-            <Message key={message._id || index} {...message} />
-          ))
+          <>
+            {displayMessages.map((message, index) => (
+              <Message key={message._id || index} {...message} />
+            ))}
+            <div ref={messagesEndRef} />
+          </>
         )}
-
       </div>
       <div className={styles.typingContainer}>
         <input
@@ -198,32 +149,13 @@ const ChatContainer = ({
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
-          aria-label="Message input"
           className={styles.input}
           disabled={disabled || isSending}
         />
         <div className={styles.iconContainer}>
-          <FaPaperclip
-            className={styles.icon}
-            role="button"
-            tabIndex={0}
-            aria-label="Attach file"
-            onClick={() => typeof onAttach === 'function' && onAttach()}
-          />
-          <FaSmile
-            className={styles.icon}
-            role="button"
-            tabIndex={0}
-            aria-label="Insert emoji"
-            onClick={() => typeof onEmoji === 'function' && onEmoji(setDraft)}
-          />
-          <FaPaperPlane
-            className={styles.icon}
-            role="button"
-            tabIndex={0}
-            aria-label="Send message"
-            onClick={handleSend}
-          />
+          <FaPaperclip className={styles.icon} onClick={() => typeof onAttach === 'function' && onAttach()} />
+          <FaSmile className={styles.icon} onClick={() => typeof onEmoji === 'function' && onEmoji(setDraft)} />
+          <FaPaperPlane className={styles.icon} onClick={handleSend} />
         </div>
       </div>
     </div>
@@ -231,17 +163,7 @@ const ChatContainer = ({
 };
 
 ChatContainer.propTypes = {
-  messages: PropTypes.arrayOf(
-    PropTypes.shape({
-      sender: PropTypes.string,
-      text: PropTypes.string,
-      isUser: PropTypes.bool,
-      role: PropTypes.string,
-      _id: PropTypes.string,
-      timeLabel: PropTypes.string,
-      isRead: PropTypes.bool,
-    })
-  ),
+  messages: PropTypes.array,
   onSend: PropTypes.func,
   onAttach: PropTypes.func,
   onEmoji: PropTypes.func,
@@ -252,3 +174,51 @@ ChatContainer.propTypes = {
 
 export { ChatContainer, MessageSkeleton };
 export default Message;
+
+function toChronological(messages) {
+  if (!Array.isArray(messages)) return [];
+
+  return messages
+    .map((message, index) => {
+      const normalized = normalizeMessage(message);
+      if (!normalized) return null;
+      return {
+        message: normalized,
+        index,
+        timestamp: getMessageTimestamp(normalized) ?? index,
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => {
+      if (a.timestamp === b.timestamp) return a.index - b.index;
+      return a.timestamp - b.timestamp;
+    })
+    .map(item => item.message);
+}
+
+function normalizeMessage(message) {
+  if (!message || typeof message !== 'object') return null;
+
+  const timestamp = getMessageTimestamp(message);
+  if (timestamp === null) {
+    return { ...message };
+  }
+
+  const createdAt = message.createdAt instanceof Date && !Number.isNaN(message.createdAt.getTime())
+    ? message.createdAt
+    : new Date(timestamp);
+
+  return { ...message, createdAt };
+}
+
+function getMessageTimestamp(message) {
+  const source = message?.createdAt ?? message?.created_at ?? message?.timestamp;
+  if (source === undefined || source === null || source === '') return null;
+
+  if (source instanceof Date && !Number.isNaN(source.getTime())) {
+    return source.getTime();
+  }
+
+  const time = new Date(source).getTime();
+  return Number.isNaN(time) ? null : time;
+}

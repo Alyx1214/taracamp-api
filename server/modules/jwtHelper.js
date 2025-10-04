@@ -43,7 +43,7 @@ const jwtHelper = {
         try {
             return jwt.verify(token, process.env.JWT_SECRET);
         } catch (err) {
-            console.error('WS JWT verify failed: Invalid token', err);
+            logTokenIssue('access', err);
             return null;
         }
     },
@@ -57,10 +57,32 @@ const jwtHelper = {
         try {
             return jwt.verify(token, process.env.JWT_REFRESH_SECRET);
         } catch (err) {
-            console.error('WS JWT refresh verify failed: Invalid token', err);
+            logTokenIssue('refresh', err);
             return null;
         }
     },
 };
 
 export default jwtHelper;
+
+function logTokenIssue(kind, err) {
+    if (!err) {
+        console.warn(`WS JWT ${kind} verify failed: unknown error`);
+        return;
+    }
+
+    if (err.name === 'TokenExpiredError') {
+        const ts = typeof err.expiredAt === 'object' && err.expiredAt?.toISOString
+            ? err.expiredAt.toISOString()
+            : err.expiredAt;
+        console.info(`WS JWT ${kind} expired at ${ts}`);
+        return;
+    }
+
+    if (err.name === 'JsonWebTokenError' || err.name === 'NotBeforeError') {
+        console.warn(`WS JWT ${kind} verify failed: ${err.message}`);
+        return;
+    }
+
+    console.error(`WS JWT ${kind} verify failed`, err);
+}

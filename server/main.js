@@ -11,7 +11,7 @@ import redisClient from './modules/redisClient.js';
 import jwtHelper from './modules/jwtHelper.js';
 import paymentModule from './modules/payment.js';
 
-import userRoutes from './routes/user.js';
+import buildUserRouter from './routes/user.js';
 import facilityRoutes from './routes/facility.js';
 import addonRoutes from './routes/addons.js';
 import buildReservationRouter from './routes/reservation.js';
@@ -62,7 +62,7 @@ app.use(express.json());
 const userSocketMap = new Map();
 app.use('/api/v1', basicLimiter, (req, res, next) => {
   const r = express.Router();
-  r.use('/user', userRoutes);
+  r.use('/user', buildUserRouter(userSocketMap));
   r.use('/facility', facilityRoutes);
   r.use('/addons', addonRoutes);
   r.use('/reservation', buildReservationRouter(userSocketMap));

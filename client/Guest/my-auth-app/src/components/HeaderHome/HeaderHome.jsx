@@ -1,8 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import styles from './HeaderHome.module.css';
 import mountainLogo from '../../assets/logo.png';
 import Notif from '../Notification/Notif';
+import { countUnreadNotifications } from '../../apis/notificationApi';
 import Message, { MessageSkeleton } from '../Message/Message';
 import {
   listMessages,
@@ -22,6 +23,40 @@ function getRefreshToken() {
 function setTokens({ accessToken, refreshToken }) {
   if (accessToken) localStorage.setItem('accessToken', accessToken);
   if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
+}
+
+function getMessageTimestamp(message) {
+  const source = message?.createdAt ?? message?.created_at ?? message?.timestamp;
+  if (source === undefined || source === null || source === '') return null;
+
+  if (source instanceof Date && !Number.isNaN(source.getTime())) {
+    return source.getTime();
+  }
+
+  const time = new Date(source).getTime();
+  return Number.isNaN(time) ? null : time;
+}
+
+function sortMessagesAscending(messages = []) {
+  if (!Array.isArray(messages)) return [];
+
+  return [...messages]
+    .map((message, index) => {
+      const timestamp = getMessageTimestamp(message);
+      return {
+        message,
+        timestamp,
+        index,
+      };
+    })
+    .sort((a, b) => {
+      if (a.timestamp === null && b.timestamp === null) return a.index - b.index;
+      if (a.timestamp === null) return -1;
+      if (b.timestamp === null) return 1;
+      if (a.timestamp === b.timestamp) return a.index - b.index;
+      return a.timestamp - b.timestamp;
+    })
+    .map((entry) => entry.message);
 }
 
 async function callRefresh() {
@@ -81,7 +116,6 @@ async function api(path, opts = {}) {
   if (!res.ok) throw new Error(text || `HTTP ${res.status}`);
   return text ? JSON.parse(text) : {};
 }
-/* ================== end auth-aware fetch ================== */
 
 function HeaderHome() {
   const navigate = useNavigate();
@@ -105,6 +139,8 @@ function HeaderHome() {
   const accountMenuRef = useRef(null);
   const notifMenuRef = useRef(null);
   const msgMenuRef = useRef(null);
+  const msgListRef = useRef(null);
+  const msgListUserScrolledRef = useRef(false);
 
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 992);
 
@@ -143,9 +179,9 @@ function HeaderHome() {
 
     async function refreshCount() {
       try {
-        const response = await countUnreadNotifications();
-        const count = response.data.count;
-        if (!cancelled) setUnreadCount(Number(json?.data?.count || 0));
+        const res = await countUnreadNotifications();
+        const count = Number(res?.data?.count ?? 0);
+        if (!cancelled) setUnreadCount(count);
       } catch {
         // ignore badge errors
       }
@@ -166,13 +202,24 @@ function HeaderHome() {
     let cancelled = false;
     (async () => {
       try {
-        const response = await countUnreadNotifications();
-        const count = response.data.count;
-        if (!cancelled) setUnreadCount(Number(json?.data?.count || 0));
+        const res = await countUnreadNotifications();
+        const count = Number(res?.data?.count ?? 0);
+        if (!cancelled) setUnreadCount(count);
       } catch {}
     })();
     return () => { cancelled = true; };
   }, [location.pathname]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await countUnreadNotifications();
+        if (!cancelled) setUnreadCount(Number(res?.data?.count ?? 0));
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   // Load messages when opening the dropdown
   useEffect(() => {
@@ -183,8 +230,9 @@ function HeaderHome() {
         const response = await listMessages({ limit: 20 });
         const items = Array.isArray(response?.data) ? response.data : [];
         if (!cancelled) {
-          setMessages(items);
+          setMessages(sortMessagesAscending(items));
           setMsgUnreadCount(items.filter((m) => !m.isRead).length);
+          msgListUserScrolledRef.current = false;
         }
       } catch {
         if (!cancelled) {
@@ -273,7 +321,17 @@ function HeaderHome() {
   };
 
   const handleMessagesClick = () => {
-    setIsMsgOpen(prev => !prev);
+    setIsMsgOpen(prev => {
+      const next = !prev;
+      if (next) {
+        msgListUserScrolledRef.current = false;
+        setTimeout(() => {
+          const list = msgListRef.current;
+          if (list) list.scrollTop = list.scrollHeight;
+        }, 0);
+      }
+      return next;
+    });
     if (!isMobile) setIsMenuOpen(false);
     setIsAccountMenuOpen(false);
     setIsNotifOpen(false);
@@ -290,15 +348,17 @@ function HeaderHome() {
       isUser: true,
       isRead: true,
       timeLabel: 'now',
+      createdAt: new Date(),
     };
-    setMessages((prev) => [optimistic, ...prev]);
+    setMessages((prev) => sortMessagesAscending([...prev, optimistic]));
     setMsgDraft('');
     try {
       const response = await sendMessageApi({ text });
       const saved = response?.data || null;
       setMessages((prev) => {
         const withoutOptimistic = prev.filter((m) => m._id !== optimistic._id);
-        return saved ? [saved, ...withoutOptimistic] : withoutOptimistic;
+        if (!saved) return sortMessagesAscending(withoutOptimistic);
+        return sortMessagesAscending([...withoutOptimistic, saved]);
       });
     } catch (e) {
       setMessages((prev) => prev.filter((m) => m._id !== optimistic._id));
@@ -307,6 +367,27 @@ function HeaderHome() {
       setMsgSending(false);
     }
   };
+
+  const handleMessageListScroll = useCallback(() => {
+    const list = msgListRef.current;
+    if (!list) return;
+
+    const distanceFromBottom = list.scrollHeight - list.scrollTop - list.clientHeight;
+    msgListUserScrolledRef.current = distanceFromBottom > 60;
+  }, []);
+
+  useEffect(() => {
+    if (!isMsgOpen) return;
+    const list = msgListRef.current;
+    if (!list) return;
+
+    const distanceFromBottom = list.scrollHeight - list.scrollTop - list.clientHeight;
+    const shouldStick = !msgListUserScrolledRef.current || distanceFromBottom < 120;
+    if (shouldStick) {
+      list.scrollTop = list.scrollHeight;
+      msgListUserScrolledRef.current = false;
+    }
+  }, [messages, isMsgOpen]);
 
   const handleReservationClick = () => {
     setIsAccountMenuOpen(false);
@@ -381,7 +462,7 @@ function HeaderHome() {
                 </svg>
                 {msgUnreadCount > 0 && <span className={styles.badge}>{msgUnreadCount}</span>}
               </button>
-              {isMsgOpen && (
+              {isMobile && isMsgOpen && (
                 <div className={styles.preview} role="dialog" aria-label="Messages">
                   <div className={styles.msgHeaderRow}>
                     <span className={styles.msgHeaderTitle}>Messages</span>
@@ -397,8 +478,12 @@ function HeaderHome() {
                     </button>
                   </div>
 
-                  <div className={styles.msgList}>
-                    {msgLoading ? (
+                  <div
+                    className={styles.msgList}
+                    ref={msgListRef}
+                    onScroll={handleMessageListScroll}
+                  >
+                   {msgLoading ? (
                         <>
                           <MessageSkeleton compact />
                           <MessageSkeleton isUser compact />
@@ -416,6 +501,30 @@ function HeaderHome() {
                         </div>
                       ))
                     )}
+                  </div>
+                  <div className={styles.msgTypingRow}>
+                    <input
+                      type="text"
+                      className={styles.msgInput}
+                      placeholder="Type a message…"
+                      value={msgDraft}
+                      onChange={(e) => setMsgDraft(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSendMessage(); } }}
+                      disabled={msgSending}
+                      aria-label="Message input"
+                    />
+                    <button
+                      className={styles.msgSendBtn}
+                      onClick={handleSendMessage}
+                      disabled={msgSending || !msgDraft.trim()}
+                      aria-label="Send message"
+                      title="Send"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="22" y1="2" x2="11" y2="13"></line>
+                        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                      </svg>
+                    </button>
                   </div>
                 </div>
               )}
@@ -486,8 +595,8 @@ function HeaderHome() {
               {msgUnreadCount > 0 && <span className={styles.badge}>{msgUnreadCount}</span>}
             </button>
 
-            {isMsgOpen && (
-              <div id="msg-dropdown" className={styles.preview} role="dialog" aria-label="Messages">
+              {!isMobile && isMsgOpen && (
+                <div id="msg-dropdown" className={styles.preview} role="dialog" aria-label="Messages">
                 <div className={styles.msgHeaderRow}>
                   <span className={styles.msgHeaderTitle}>Messages</span>
                   <button
@@ -503,7 +612,11 @@ function HeaderHome() {
                   </button>
                 </div>
 
-                <div className={styles.msgList}>
+                <div
+                  className={styles.msgList}
+                  ref={msgListRef}
+                  onScroll={handleMessageListScroll}
+                >
                  {msgLoading ? (
                       <>
                         <MessageSkeleton compact />
