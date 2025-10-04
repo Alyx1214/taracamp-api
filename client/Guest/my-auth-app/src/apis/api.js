@@ -23,8 +23,27 @@ async function rawFetch(path, options = {}) {
   if (!headers.has('Content-Type') && options.body && !isFormData(options.body)) {
     headers.set('Content-Type', 'application/json');
   }
-  const access = getAccessToken();
-  if (access) headers.set('Authorization', `Bearer ${access}`);
+
+  let access = getAccessToken();
+
+  if (access && !headers.has('Authorization')) {
+    const maybeFresh = await ensureFreshAccess();
+    if (maybeFresh) {
+      access = maybeFresh;
+    } else {
+      const payload = decodeJwt(access);
+      const exp = payload?.exp;
+      const now = Math.floor(Date.now() / 1000);
+      if (!exp || exp <= now) {
+        try { clearTokens(); } catch {}
+        access = null;
+      }
+    }
+  }
+
+  if (access && !headers.has('Authorization')) {
+    headers.set('Authorization', `Bearer ${access}`);
+  }
 
   const res = await fetch(url, { ...options, headers, credentials: 'include' });
   if (res.status !== 401) return res;

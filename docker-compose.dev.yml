@@ -32,9 +32,8 @@ services:
       - ./server/.env
     volumes:
       - ./server:/app
-      - ./server/modules/taracamp-e87a751f4810.json:/app/modules/taracamp-e87a751f4810.json
+      - ./server/modules/eighth-parity-474012-a2-e43b626c3437.json:/app/modules/eighth-parity-474012-a2-e43b626c3437.json
     environment:
       - NODE_ENV=development
-      - GOOGLE_APPLICATION_CREDENTIALS=/app/modules/taracamp-e87a751f4810.json
-
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/modules/eighth-parity-474012-a2-e43b626c3437.json
 

@@ -125,7 +125,24 @@ function ReservationForm() {
     return Object.keys(e).length === 0;
   }
 
-  const handleGoBack = () => navigate(-1);
+  const handleGoBack = () => {
+  const fallback = `/user/services/${type}/${facilityName}/${id}`; 
+  const to = location.state?.from || fallback;
+
+  navigate(to, {
+    replace: true, 
+    state: {
+      facility: facility || location.state?.facility,
+      preselectedDates: location.state?.preselectedDates,
+      step1: formData,
+      errorsStep1: errors,
+      serverError: serverErr,
+      step2: prevStep2Ref.current,
+      file: prevFileRef.current
+    }
+  });
+};
+
 
   const handleNext = () => {
     if (!validateStep1()) return;

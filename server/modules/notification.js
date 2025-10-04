@@ -14,16 +14,23 @@ const notificationModule = {
             error: 'Error creating notification',
         };
         try {
-            const { title, message, userId, reservationId, } = data;
+            const { title, message, kind, userId, reservationId, } = data;
 
             const doc = {
                 title,
-                message,
                 isRead: false,
                 userId,
                 reservationId,
                 createdAt: new Date(),
             };
+
+            if (message !== undefined && message !== null) {
+                doc.message = message;
+            }
+
+            if (kind) {
+                doc.kind = kind;
+            }
 
             const saved = await dbHelper.create('notification', doc);
 
@@ -33,8 +40,9 @@ const notificationModule = {
                     type: 'notification',
                     notification: {
                         id: saved.id || saved._id?.toString?.() || saved._id,
-                        title,
-                        message,
+                        title: doc.title,
+                        message: doc.message ?? null,
+                        kind: doc.kind ?? null,
                         createdAt: doc.createdAt,
                         isRead: false,
                         source: "Teachers' Camp",

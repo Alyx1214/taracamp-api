@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from 'react';
+import { getReservationById } from '../../apis/reservationApi';
+import { timeAgo } from '../../utils/timeAgo';
 import styles from './NotifPreview.module.css';
 
 export default function NotifPreview({
@@ -11,19 +13,30 @@ export default function NotifPreview({
   const [reservation, setReservation] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // fake load
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setReservation({
-        checkInDate: '2025-09-01',
-        checkOutDate: '2025-09-05',
-        accommodationType: 'Cottage',
-        numGuests: 2,
-      });
-      setLoading(false);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, []);
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      try {
+        const res = await getReservationById(notif.reservationId);
+        const raw = res.reservation || res.data?.reservation;
+        if (!cancelled && raw) {
+          setReservation({
+            checkInDate: raw.dateOfArrival,
+            checkOutDate: raw.dateOfDeparture,
+            accommodationType: raw.facilityType,
+            numGuests: raw.numberOfGuests?.total ?? 0,
+          });
+        }
+      } catch (e) {
+        console.error('load failed', e);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    if (notif.reservationId) load();
+    return () => { cancelled = true; };
+  }, [notif.reservationId]);
 
   const isPay = clientType === 'priva-group' || clientType === 'individual';
   const confirmLabel = isPay ? 'Pay Now' : 'Confirm Now';
@@ -52,7 +65,9 @@ export default function NotifPreview({
   const accommodationType = reservation?.accommodationType;
   const numGuests = reservation?.numGuests;
   const source = notif.source || 'Teachers Camp';
-  const time = notif.time || '30mins';
+  const time   = notif.timeLabel
+    ? notif.timeLabel           
+    : timeAgo(notif.createdAt);  
 
   return (
     <div className={styles.previewContainer}>
