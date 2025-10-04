@@ -17,12 +17,14 @@ function LoginForm({ onForgotPassword, onLoginSuccess }) {
   const [facebookError, setFacebookError] = useState(null);
   const API = import.meta.env.VITE_API_URL; 
 
+  const googleRedirectUri = import.meta.env.VITE_GOOGLE_REDIRECT_URI || window.location.origin;
+
   const handleGoogleLogin = useGoogleLogin({
     onSuccess: async (codeResponse) => {
       setLoading(true);
       setError(null);
       try {
-        const data = await apiGoogleLogin({ code: codeResponse.code });
+        const data = await apiGoogleLogin({ code: codeResponse.code, redirectUri: googleRedirectUri });
         persistAuth(data);
         onLoginSuccess();
       } catch (err) {
@@ -33,6 +35,7 @@ function LoginForm({ onForgotPassword, onLoginSuccess }) {
     },
     onError: () => setError('Google login failed. Please try again.'),
     flow: 'auth-code',
+    redirect_uri: googleRedirectUri,
   });
 
   const fbLogin = useFacebookLogin({

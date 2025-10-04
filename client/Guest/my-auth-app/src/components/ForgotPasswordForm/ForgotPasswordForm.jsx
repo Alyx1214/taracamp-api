@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import commonStyles from '../AuthFormContainer/AuthFormContainer.module.css';
 import styles from './ForgotPasswordForm.module.css'; 
+import { forgotPassword } from '../../apis/userApi';
 
 function ForgotPasswordForm({ onBackToLogin }) {
   const [email, setEmail] = useState('');
@@ -16,21 +17,11 @@ function ForgotPasswordForm({ onBackToLogin }) {
       return;
     }
 
-  
-    try {
-      const response = await fetch(`${API}/user/send-password-reset-verification-code`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      });
-      const data = await response.json();
-      if (response.ok) {
-        setMessage(data.message || 'If an account with that email exists, a password reset link has been sent.');
-      } else {
-        setMessage(data.error || 'Failed to send reset email.');
-      }
+  try {
+      const res = await forgotPassword({ email });
+      setMessage(res?.message || 'If an account with that email exists, a password reset link has been sent.');
     } catch (error) {
-      setMessage('An error occurred. Please try again later.');
+      setMessage(error?.message || 'Failed to send reset email.');
     }
   };
 

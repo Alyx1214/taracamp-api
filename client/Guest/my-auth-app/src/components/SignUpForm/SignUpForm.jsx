@@ -36,6 +36,8 @@ function SignUpForm({ onRegistrationSuccess }) {
     else navigate('/auth/login');
   };
 
+  const googleRedirectUri = import.meta.env.VITE_GOOGLE_REDIRECT_URI || window.location.origin;
+
   // Google OAuth (auth code flow)
   const handleGoogleLogin = useGoogleLogin({
     onSuccess: async (codeResponse) => {
@@ -43,7 +45,7 @@ function SignUpForm({ onRegistrationSuccess }) {
       setError(null);
       try {
         // IMPORTANT: backend expects { code }, not { token }
-        const data = await apiGoogleLogin({ code: codeResponse.code });
+        const data = await apiGoogleLogin({ code: codeResponse.code, redirectUri: googleRedirectUri });
         // Social signups usually log you in right away
         persistAuth(data);
         navigate('/homepage');
@@ -55,6 +57,7 @@ function SignUpForm({ onRegistrationSuccess }) {
     },
     onError: () => setError('Google login failed. Please try again.'),
     flow: 'auth-code',
+    redirect_uri: googleRedirectUri,
   });
 
   // Facebook OAuth

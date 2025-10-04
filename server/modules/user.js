@@ -200,6 +200,7 @@ const userModule = {
         };
 
         try {
+            let isNewUser = false;
             const code = data?.code || data?.token;
             if (!code) {
                 responseData.status = Status.BAD_REQUEST;
@@ -279,6 +280,7 @@ const userModule = {
                     createdAt: Date.now(),
                     lastLoggedIn: Date.now(),
                 });
+                isNewUser = true;
             } else {
                 await dbHelper.updateOne('user', { _id: user._id, }, { lastLoggedIn: Date.now(), });
             }
@@ -300,6 +302,7 @@ const userModule = {
             responseData.accessToken = accessToken;
             responseData.refreshToken = refreshToken;
             responseData.jti = jti;
+            responseData.isNewUser = isNewUser;
             return responseData;
 
         } catch (error) {
@@ -323,6 +326,7 @@ const userModule = {
         };
 
         try {
+            let isNewUser = false;
             const userToken = data?.token;
             if (!userToken) {
                 responseData.status = Status.BAD_REQUEST;
@@ -380,6 +384,7 @@ const userModule = {
                 };
 
                 user = await dbHelper.create('user', baseDoc);
+                isNewUser = true;
             } else {
                 await dbHelper.updateOne('user', { _id: user._id, }, { lastLoggedIn: Date.now(), });
             }
@@ -402,6 +407,7 @@ const userModule = {
             responseData.accessToken = accessToken;
             responseData.refreshToken = refreshToken;
             responseData.jti = jti;
+            responseData.isNewUser = isNewUser;
             return responseData;
 
         } catch (error) {
