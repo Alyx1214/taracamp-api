@@ -11,8 +11,10 @@ import MainServicesRates from './ServicesRates';
 import MainServicesConference from './Conference';
 import MainServicesAddOns from './Add-Ons';
 import MainServicesServiceDetail from './ServiceDetail';
+import Controls from './Controls';
 import { searchFacilities } from '../../apis/facilityApi';
 import { searchAddons } from '../../apis/addonsApi';
+import AllServices from './AllServices';
 
 function MainServices() {
   const [facilities, setFacilities] = useState([]);
@@ -25,6 +27,7 @@ function MainServices() {
 
   const facilityType = useMemo(() => {
     const p = location.pathname;
+    if (p.includes('/all')) return 'All';
     if (p.includes('/dormitories')) return 'Dormitory';
     if (p.includes('/cottages')) return 'Cottage';
     if (p.includes('/conference')) return 'Conference';
@@ -107,10 +110,13 @@ function MainServices() {
   }
 
   const isDetailViewOrAddOn =
+    (location.pathname.includes('/all/') && location.pathname.split('/').length === 4) ||
     (location.pathname.includes('/dormitories/') && location.pathname.split('/').length > 4) ||
     (location.pathname.includes('/cottages/') && location.pathname.split('/').length > 4) ||
     (location.pathname.includes('/conference/') && location.pathname.split('/').length > 4) ||
     facilityType === 'Add-Ons';
+
+  const shouldShowControls = !isDetailViewOrAddOn;
 
   return (
     <div className={styles.mainServicesPageContainer}>
@@ -132,7 +138,20 @@ function MainServices() {
             </div>
           )}
 
+          {shouldShowControls && <Controls />}
+
           <Routes>
+            <Route path="*" element={<Navigate to="all" replace />} />
+            <Route
+              path="all"
+              element={(
+                <AllServices
+                  facilities={facilities}
+                  loading={loading}
+                  searchAttempted={searchAttempted}
+                />
+              )}
+            />
             <Route index element={<Navigate to="dormitories" replace />} />
             <Route
               path="dormitories"

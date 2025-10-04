@@ -13,6 +13,8 @@ import MainServicesConference from '../MainServices/Conference';
 import MainServicesAddOns from '../MainServices/Add-Ons';
 import MainServicesServiceDetail from '../MainServices/ServiceDetail';
 import { searchFacilities } from '../../apis/facilityApi'; 
+import AllServices from '../MainServices/AllServices';
+import Controls from '../MainServices/Controls';
 
 function Services() {
   const [facilities, setFacilities] = useState([]);
@@ -91,10 +93,13 @@ function Services() {
   };
 
   const isDetailViewOrAddOns =
+    (location.pathname.includes('/all/') && location.pathname.split('/').length > 3) ||
     (location.pathname.includes('/dormitories/') && location.pathname.split('/').length > 3) ||
     (location.pathname.includes('/cottages/') && location.pathname.split('/').length > 3) ||
     (location.pathname.includes('/conference/') && location.pathname.split('/').length > 3) ||
     location.pathname.includes('/add-ons/');
+
+  const shouldShowControls = !isDetailViewOrAddOns;
 
   return (
     <div className={styles.mainServicesPageContainer}>
@@ -109,7 +114,14 @@ function Services() {
             onApplyFilters={handleApplyFilters}
           />
 
+          {shouldShowControls && <Controls />}
+
           <Routes>
+            <Route path="*" element={<Navigate to="all" replace />} />
+            <Route
+              path="all"
+              element={<AllServices facilities={facilities} loading={loading} searchAttempted={searchAttempted} />}
+            />
             <Route index element={<Navigate to="dormitories" replace />} />
             <Route
               path="dormitories"
