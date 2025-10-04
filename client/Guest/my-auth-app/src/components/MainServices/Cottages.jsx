@@ -159,7 +159,7 @@ function MainServicesCottages({
                 Rates per Person : ₱ {formatPeso(cottage?.ratePerPerson ?? cottage?.rate)}
               </p>
               <Link to={`${cottage?.name?.replace(/\s+/g, '-').toLowerCase() || 'unnamed'}/${cottage?._id ?? cottage?.id ?? ''}`} className={styles.checkButton}>
-                Check
+                View Details
               </Link>
             </div>
           </div>
