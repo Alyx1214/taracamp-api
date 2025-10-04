@@ -1,4 +1,11 @@
-.transaction-header__title {
+.messages-header{
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0;
+}
+.messages-header__title {
    margin: 0;
   font-weight: 700;
   font-size: 50px;

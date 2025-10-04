@@ -1,5 +1,6 @@
 // client/Admin/src/pages/Messages.jsx
 import React, { useState, useRef, useEffect } from "react";
+import SearchFil from "../SearchFil/SearchFil";
 import styles from "./Messages.module.css";
 
 const sampleConversations = [
@@ -56,9 +57,13 @@ export default function Messages() {
 
     return (
         <>
-            <h1 className={styles["transaction-header__title"]}>
-                MESSAGES
-            </h1>
+            <div className={styles["messages-header"]}>
+                <h1 className={styles["messages-header__title"]}>
+                    MESSAGES
+                </h1>
+                <SearchFil onSearch={(value) => console.log("Search:", value)} />
+            </div>
+
             <div className={styles["messenger-container"]}>
                 <aside className={styles["messenger-sidebar"]}>
                     <h2 className={styles["messenger-title"]}>Chats</h2>
