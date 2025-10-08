@@ -445,13 +445,9 @@ function ReservationFormStep2() {
                         className={`${styles.input} ${fieldErrors.typeService ? styles.inputError : ''}`}
                       >
                         <option value="">Select a service type</option>
-                        <option value="Meeting/Conference">Meeting/Conference</option>
-                        <option value="Wedding">Wedding</option>
-                        <option value="Birthday Party">Birthday Party</option>
-                        <option value="Corporate Event">Corporate Event</option>
-                        <option value="Training/Seminar">Training/Seminar</option>
-                        <option value="Accommodation">Accommodation</option>
-                        <option value="Other">Other</option>
+                        <option value="Event">Event</option>
+                        <option value="Event and Lodging">Event and Lodging</option>
+                        <option value="Lodging">Lodging</option>
                       </select>
                       {fieldErrors.typeService && (
                         <div className={styles.fieldError}>{fieldErrors.typeService}</div>
