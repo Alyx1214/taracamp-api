@@ -64,6 +64,11 @@
   font-size: 0.95em;
 }
 
+.noteText {
+  font-size: 0.85em;
+  color: #858585;
+}
+
 .input {
   width: 100%;
   padding: 10px 13px;

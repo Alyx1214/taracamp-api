@@ -214,7 +214,7 @@ function MainServices() {
                 />
               )}
             />
-            <Route index element={<Navigate to="all" replace />} />
+            <Route index element={<Navigate to="dormitories" replace />} />
             <Route
               path="dormitories"
               element={
