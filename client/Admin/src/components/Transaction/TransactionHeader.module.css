@@ -1,15 +1,39 @@
 .transaction-header__container {
   display: flex;
   align-items: center;
-  gap: 30px;
-  margin-bottom: 0;
-  font-family: "Montserrat", sans-serif;
+  justify-content: space-between; /* title left, button right */
+  gap: 1rem;
+  padding: 0.5rem 0;
 }
 
 .transaction-header__title {
   margin: 0;
+  font-size: 1.75rem;
+  letter-spacing: 2px;
+  color: #174226; /* keep existing theme color or adjust */
+}
+
+/* Generate Report button */
+.transaction-header__generate {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: #4ca16b;
+  color: #fff;
+  border: none;
+  border-radius: 28px;
+  padding: 0.6rem 1rem;
   font-weight: 700;
-  font-size: 50px;
-  color: #4F3718;
-  letter-spacing: 10px;
+  cursor: pointer;
+  box-shadow: 0 6px 14px rgba(0,0,0,0.12);
+  transition: transform 0.12s ease, background 0.12s ease;
+}
+
+.transaction-header__generate:hover {
+  transform: translateY(-1px);
+  background: #3f9256;
+}
+
+.generate__icon {
+  font-size: 0.95rem;
 }

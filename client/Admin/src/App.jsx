@@ -18,6 +18,7 @@ import EditForm from "../src/components/Facility/EditForm.jsx";
 import Transaction from "./components/Transaction/Transaction.jsx";
 import TransactionDetails from "./components/Transaction/TransactionDetails.jsx";
 import PaymentDetails from "./components/Transaction/PaymentDetails.jsx";
+import GenerateReport from "./components/Transaction/GenerateReport.jsx";
 import CheckInOut from "./components/CheckInOut/CheckInOuts.jsx";
 import Messages from "./components/Messages/Messages.jsx";
 import User from "./components/Users/Users.jsx";
@@ -108,6 +109,7 @@ return (
 <Route path="/transaction/:id/details" element={<TransactionDetails />} /> 
 
 <Route path="/payment/:id/details" element={<PaymentDetails />} /> 
+<Route path="/transactions/report" element={<GenerateReport />} />
 
 <Route path="/pendingRSV/:id/details" element={<PendingRSVDetails />} />
 <Route path="/approvedRSV/:id/details" element={<ApprovedRSVDetails />} />
