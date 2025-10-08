@@ -1,6 +1,7 @@
 import React, { useRef } from 'react';
 import HeaderHome from '../HeaderHome/HeaderHome'; 
 import Footer from '../FooterHome/FooterHome'; 
+import ReserveNow from '../BubbleButton/ReserveNow';
 import styles from './Contacts.module.css';
 
 import contactsHeroBg from '../../assets/contactus.png';      
@@ -117,7 +118,13 @@ function ContactsPage() {
           </div>
         </section>
       </main>
-
+      {/* Floating Reserve Button */}
+      <ReserveNow
+        navigateTo="/services"
+        className={styles.floatingReserveBtn}
+      >
+        Reserve Now
+      </ReserveNow>
       <Footer />
     </div>
   );

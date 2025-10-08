@@ -1,27 +1,62 @@
-import React, { useState } from 'react';
-import Calendar from './Calendar'; // Assuming Calendar.jsx is in the same directory
+import React, { useEffect, useRef, useState } from 'react';
+import Calendar from './Calendar'; 
 import styles from './Controls.module.css';
 
-const Controls = () => {
-  const [checkInDate, setCheckInDate] = useState('8 Nov 2025');
-  const [checkOutDate, setCheckOutDate] = useState('11 Nov 2025');
+const Controls = ({ facilityType = 'All', onApplyFilters }) => {
+  const today = new Date();
+  const tomorrow = new Date();
+  tomorrow.setDate(today.getDate() + 1);
+
+  const [checkInDate, setCheckInDate] = useState(today);
+  const [checkOutDate, setCheckOutDate] = useState(tomorrow);
   const [adults, setAdults] = useState(1);
   const [children, setChildren] = useState(1);
   const [showCheckInCalendar, setShowCheckInCalendar] = useState(false);
   const [showCheckOutCalendar, setShowCheckOutCalendar] = useState(false);
+  const lastAppliedFiltersRef = useRef(null);
 
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    const day = date.getDate();
-    const month = date.toLocaleDateString('en-US', { month: 'short' });
-    const year = date.getFullYear();
-    const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
-    
+  const toISODate = (d) => {
+    const date = d instanceof Date ? new Date(d.getTime()) : new Date(d);
+    if (Number.isNaN(date.getTime())) return undefined;
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+
+  const formatDate = (date) => {
+    const d = date instanceof Date ? date : new Date(date);
+    if (Number.isNaN(d.getTime())) return { formatted: '—', dayName: '' };
     return {
-      formatted: `${day} ${month} ${year}`,
-      dayName: dayName
+      formatted: `${d.getDate()} ${d.toLocaleDateString('en-US', { month: 'short' })} ${d.getFullYear()}`,
+      dayName: d.toLocaleDateString('en-US', { weekday: 'long' })
     };
   };
+
+  useEffect(() => {
+    if (!onApplyFilters) return;
+
+    const totalGuests = Number(adults) + Number(children);
+    const nextFilters = {
+      type: facilityType === 'All' ? null : facilityType,
+      capacity: Number.isFinite(totalGuests) ? totalGuests : undefined,
+      checkInDate: toISODate(checkInDate),
+      checkOutDate: toISODate(checkOutDate),
+    };
+
+    const prev = lastAppliedFiltersRef.current;
+    const changed =
+      !prev ||
+      prev.type !== nextFilters.type ||
+      prev.capacity !== nextFilters.capacity ||
+      prev.checkInDate !== nextFilters.checkInDate ||
+      prev.checkOutDate !== nextFilters.checkOutDate;
+
+    if (!changed) return;
+
+    lastAppliedFiltersRef.current = nextFilters;
+    onApplyFilters(nextFilters);
+  }, [adults, children, checkInDate, checkOutDate, facilityType, onApplyFilters]);
 
   const handleAdultDecrease = () => {
     if (adults > 1) setAdults(adults - 1);
@@ -38,16 +73,18 @@ const Controls = () => {
   const handleChildIncrease = () => {
     setChildren(children + 1);
   };
-
-  const handleCheckInDateSelect = (date) => {
-    setCheckInDate(date);
+  
+  const handleCheckInDateSelect = (picked) => {
+    setCheckInDate(picked.date); 
     setShowCheckInCalendar(false);
   };
 
-  const handleCheckOutDateSelect = (date) => {
-    setCheckOutDate(date);
+  const handleCheckOutDateSelect = (picked) => {
+    setCheckOutDate(picked.date); 
     setShowCheckOutCalendar(false);
   };
+
+
 
   const checkInDateInfo = formatDate(checkInDate);
   const checkOutDateInfo = formatDate(checkOutDate);
@@ -55,7 +92,13 @@ const Controls = () => {
   return (
     <div className={styles.controlsContainer}>
       {/* Check-in Date */}
-      <div className={styles.dateControl} onClick={() => setShowCheckInCalendar(!showCheckInCalendar)}>
+      <div
+          className={styles.dateControl}
+          onClick={() => {
+            setShowCheckInCalendar(!showCheckInCalendar);
+            setShowCheckOutCalendar(false); 
+          }}
+        >
         <div className={styles.calendarIcon}>
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
             <rect x="3" y="4" width="18" height="18" rx="2" ry="2" stroke="currentColor" strokeWidth="2"/>
@@ -80,7 +123,13 @@ const Controls = () => {
       </div>
 
       {/* Check-out Date */}
-      <div className={styles.dateControl} onClick={() => setShowCheckOutCalendar(!showCheckOutCalendar)}>
+        <div
+          className={styles.dateControl}
+          onClick={() => {
+            setShowCheckOutCalendar(!showCheckOutCalendar);
+            setShowCheckInCalendar(false); 
+          }}
+        >
         <div className={styles.calendarIcon}>
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
             <rect x="3" y="4" width="18" height="18" rx="2" ry="2" stroke="currentColor" strokeWidth="2"/>

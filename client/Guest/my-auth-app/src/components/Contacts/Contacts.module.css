@@ -273,3 +273,29 @@ main {
     height: 250px; 
   }
 }
+
+.floatingReserveBtn {
+  position: fixed;
+  bottom: 20px;       
+  right: 20px;
+  z-index: 1100;
+  background-color: #007bff;
+  color: #fff;
+  font-size: 1rem;
+  padding: 14px 22px;
+  border-radius: 50px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  border: none;
+  cursor: pointer;
+  transition: transform 0.2s ease, background-color 0.3s ease;
+}
+
+.floatingReserveBtn:hover {
+  background-color: #0056b3;
+  transform: scale(1.05);
+}
+
+.floatingReserveBtn.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

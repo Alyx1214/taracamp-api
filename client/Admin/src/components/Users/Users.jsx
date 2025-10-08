@@ -11,8 +11,9 @@ export default function Users() {
   const roleTabs = useMemo(
     () => [
       { label: "All", value: "All" },
+      { label: "Guest", value: "Guest" },
       { label: "Front Desk", value: "Frontdesk" },
-      { label: "Staff", value: "Staff" },
+      { label: "Staff", value: "CRMS Team" },
       { label: "Accounting", value: "Accounting" },
       { label: "Superintendent", value: "Superintendent" },
     ],
@@ -81,12 +82,6 @@ export default function Users() {
     }));
   }, [rawUsers]);
 
-  const filteredData = useMemo(() => {
-    const role = (u) => String(u.role || "");
-    const EXCLUDED = new Set(["Guest", "CRMS Team"]);
-    return mappedUsers.filter(u => !EXCLUDED.has(role(u)));
-  }, [mappedUsers]);
-
   const columns = ["ID", "Name", "Email", "Last Logged In", "Role", "Actions"];
 
   async function handleDelete(row) {
@@ -134,7 +129,7 @@ export default function Users() {
           <>
             <UnivTable
               columns={columns}
-              data={filteredData}
+              data={mappedUsers}
               renderActions={() => (
                 <button className={styles.editBtn}>Edit</button>
               )}

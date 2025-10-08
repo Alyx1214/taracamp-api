@@ -175,7 +175,9 @@ function ReservationForm() {
             <button onClick={handleGoBack} className={styles.backButton} aria-label="Go back">
               <ArrowLeft size={24} />
             </button>
-            <h1 className={styles.pageTitle}>RESERVATION FORM</h1>
+            <h1 className={styles.pageTitle}>
+              RESERVATION FORM{facility?.name ? ` / ${facility.name}` : ''}
+            </h1>
           </div>
 
           <div className={styles.formCard}>
@@ -199,6 +201,7 @@ function ReservationForm() {
                       </label>
                     ))}
                   </div>
+                  <p className={styles.noteText}>Note: A 20% discount applies only to DepEd, government employees, senior citizens and PWDs.</p>
                   {errors.category && <div id="category-error" className={styles.fieldError} role="alert">{errors.category}</div>}
                 </div>
 
@@ -218,6 +221,7 @@ function ReservationForm() {
                       </label>
                     ))}
                   </div>
+                  <p className={styles.noteText}>Note: Individuals may reserve dorms, guest houses, and cottages only. Halls are for group bookings.</p>
                   {errors.type && <div id="type-error" className={styles.fieldError} role="alert">{errors.type}</div>}
                 </div>
               </div>

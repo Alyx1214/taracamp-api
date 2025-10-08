@@ -97,7 +97,7 @@ function Footer() {
             className={styles.taraCampButton}
             onClick={handleTaraCampClick}
           >
-            TaraCAMP!
+            Reserve Now!
           </button>
         </div>
       </div>

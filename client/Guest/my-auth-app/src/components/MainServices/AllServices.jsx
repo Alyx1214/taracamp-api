@@ -11,38 +11,61 @@ const TYPE = Object.freeze({
 
 const toKey = (value) => String(value || '').toUpperCase();
 
-const AllServices = () => {
+const AllServices = ({
+  facilities = [],
+  loading = false,
+  searchAttempted = false,
+  loadError = null,
+}) => {
   const navigate = useNavigate();
-  const [facilities, setFacilities] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState(null);
+  const [defaultFacilities, setDefaultFacilities] = useState([]);
+  const [fetchingDefault, setFetchingDefault] = useState(false);
+  const [fetchError, setFetchError] = useState(null);
 
   useEffect(() => {
     let ignore = false;
-    (async () => {
+    async function loadDefault() {
+      if (searchAttempted) return;
+      if (Array.isArray(facilities) && facilities.length > 0) return;
+
+      setFetchingDefault(true);
+      setFetchError(null);
       try {
-        setLoading(true);
-        const res = await getAllFacilities(); 
+        const res = await getAllFacilities();
+        const list = Array.isArray(res?.facilities) ? res.facilities : [];
+        if (!ignore) setDefaultFacilities(list);
+      } catch (err) {
         if (!ignore) {
-          if (res?.status >= 200 && res?.status < 300 && Array.isArray(res?.facilities)) {
-            setFacilities(res.facilities);
-            setErr(null);
-          } else {
-            setErr(res?.error || 'Failed to load facilities');
-          }
+          setDefaultFacilities([]);
+          const message =
+            err?.response?.data?.error ||
+            err?.response?.data?.message ||
+            err?.data?.error ||
+            err?.message ||
+            'Failed to load facilities.';
+          setFetchError(message);
         }
-      } catch (e) {
-        if (!ignore) setErr(e?.message || 'Network error');
       } finally {
-        if (!ignore) setLoading(false);
+        if (!ignore) setFetchingDefault(false);
       }
-    })();
+    }
+
+    loadDefault();
     return () => { ignore = true; };
-  }, []);
+  }, [facilities, searchAttempted]);
+
+  const isLoading = Boolean(loading || fetchingDefault);
+  const errorMessage = loadError || fetchError;
+
+  const facilitiesList = Array.isArray(facilities) ? facilities : [];
+  const source = searchAttempted
+    ? facilitiesList
+    : (facilitiesList.length > 0 ? facilitiesList : defaultFacilities);
 
   // Split by type and cap each to 6
   const { dorms, cottages, conferences } = useMemo(() => {
-    const buckets = facilities.reduce((acc, item) => {
+    const list = Array.isArray(source) ? source : [];
+    const buckets = list.reduce((acc, item) => {
       const key = toKey(item.facilityType);
       if (!acc[key]) acc[key] = [];
       acc[key].push(item);
@@ -58,7 +81,7 @@ const AllServices = () => {
       cottages: byType(TYPE.COTTAGE),
       conferences: byType(TYPE.CONFERENCE),
     };
-  }, [facilities]);
+  }, [source]);
 
   const handleViewAll = (section) => {
     // route shape up to you; query param keeps it simple
@@ -66,7 +89,7 @@ const AllServices = () => {
   };
 
   const handleCheck = (id) => {
-    navigate(`/facility/${id}`);
+    navigate(`/${facilityType}/${facilityName}/${id}`);
   };
 
   const ServiceCard = ({ item }) => (
@@ -94,13 +117,13 @@ const AllServices = () => {
         ) : null}
 
         <button className={styles['check-btn']} onClick={() => handleCheck(item._id || item.id)}>
-          Check
+          View Details
         </button>
       </div>
     </div>
   );
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className={styles['all-services']}>
         <p>Loading facilities… try not to blink.</p>
@@ -108,16 +131,28 @@ const AllServices = () => {
     );
   }
 
-  if (err) {
+  if (errorMessage) {
     return (
       <div className={styles['all-services']}>
-        <p className={styles.error}>Error: {String(err)}</p>
+        <p className={styles.error}>Error: {String(errorMessage)}</p>
       </div>
     );
   }
 
+  const noResults =
+    searchAttempted &&
+    Array.isArray(facilities) &&
+    facilities.length === 0 &&
+    !loading &&
+    !errorMessage;
+
   return (
     <div className={styles['all-services']}>
+      {noResults && (
+        <div style={{ marginBottom: '16px', color: '#475569' }}>
+          <p>No facilities matched your filters. Try adjusting the controls above.</p>
+        </div>
+      )}
       {/* Dormitories */}
       <section className={styles['service-section']}>
         <h2 className={styles['section-title']}>DORMITORIES</h2>

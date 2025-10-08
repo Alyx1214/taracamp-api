@@ -20,6 +20,8 @@
     "@iconify/react": "^6.0.0",
     "chart.js": "^4.5.0",
     "dotenv": "^17.2.1",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^3.0.3",
     "lucide-react": "^0.542.0",
     "react": "^19.1.1",
     "react-calendar": "^6.0.0",
