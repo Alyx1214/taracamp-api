@@ -13,6 +13,7 @@ import {
 } from '../../apis/messageApi';
 
 let refreshingPromise = null;
+const MIN_UNREAD_REFRESH_MS = 1200;
 
 function getAccessToken() {
   return localStorage.getItem('accessToken');
@@ -136,6 +137,12 @@ function HeaderHome() {
   const [msgDraft, setMsgDraft] = useState('');
   const [msgSending, setMsgSending] = useState(false);
 
+  const unreadCountInFlightRef = useRef(null);
+  const unreadCountLastFetchedRef = useRef(0);
+  const unreadCountLastValueRef = useRef(0);
+  const headerMountedRef = useRef(true);
+  const unreadReadyRef = useRef(false);
+
   const accountMenuRef = useRef(null);
   const notifMenuRef = useRef(null);
   const msgMenuRef = useRef(null);
@@ -151,6 +158,48 @@ function HeaderHome() {
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
+
+  useEffect(() => {
+    headerMountedRef.current = true;
+    return () => {
+      headerMountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    unreadCountLastValueRef.current = unreadCount;
+  }, [unreadCount]);
+
+  const refreshUnreadCount = useCallback(async ({ force = false } = {}) => {
+    const existing = unreadCountInFlightRef.current;
+    if (existing) return existing;
+
+    const now = Date.now();
+    if (!force && now - unreadCountLastFetchedRef.current < MIN_UNREAD_REFRESH_MS) {
+      if (headerMountedRef.current) setUnreadCount(unreadCountLastValueRef.current);
+      return unreadCountLastValueRef.current;
+    }
+
+    const request = countUnreadNotifications()
+      .then((res) => {
+        const count = Number(res?.data?.count ?? 0);
+        unreadCountLastFetchedRef.current = Date.now();
+        unreadCountLastValueRef.current = count;
+        if (headerMountedRef.current) setUnreadCount(count);
+        return count;
+      })
+      .catch((err) => {
+        throw err;
+      })
+      .finally(() => {
+        if (unreadCountInFlightRef.current === request) {
+          unreadCountInFlightRef.current = null;
+        }
+      });
+
+    unreadCountInFlightRef.current = request;
+    return request;
+  }, [setUnreadCount]);
 
   // Close menus when clicking outside
   useEffect(() => {
@@ -175,51 +224,29 @@ function HeaderHome() {
   // Fetch unread notifications when panel opens; refresh while open
   useEffect(() => {
     let timer;
-    let cancelled = false;
-
-    async function refreshCount() {
-      try {
-        const res = await countUnreadNotifications();
-        const count = Number(res?.data?.count ?? 0);
-        if (!cancelled) setUnreadCount(count);
-      } catch {
-        // ignore badge errors
-      }
-    }
-
     if (isNotifOpen) {
-      refreshCount();
-      timer = setInterval(refreshCount, 20000);
+      refreshUnreadCount({ force: true }).catch(() => {});
+      timer = setInterval(() => {
+        refreshUnreadCount({ force: true }).catch(() => {});
+      }, 20000);
     }
     return () => {
-      cancelled = true;
       if (timer) clearInterval(timer);
     };
-  }, [isNotifOpen]);
+  }, [isNotifOpen, refreshUnreadCount]);
 
   // Refresh notification badge on route change
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await countUnreadNotifications();
-        const count = Number(res?.data?.count ?? 0);
-        if (!cancelled) setUnreadCount(count);
-      } catch {}
-    })();
-    return () => { cancelled = true; };
-  }, [location.pathname]);
+    if (!unreadReadyRef.current) {
+      unreadReadyRef.current = true;
+      return;
+    }
+    refreshUnreadCount().catch(() => {});
+  }, [location.pathname, refreshUnreadCount]);
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await countUnreadNotifications();
-        if (!cancelled) setUnreadCount(Number(res?.data?.count ?? 0));
-      } catch {}
-    })();
-    return () => { cancelled = true; };
-  }, []);
+    refreshUnreadCount({ force: true }).catch(() => {});
+  }, [refreshUnreadCount]);
 
   // Load messages when opening the dropdown
   useEffect(() => {

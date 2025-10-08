@@ -1,19 +1,37 @@
 export function timeAgo(isoDate) {
-  const now = Date.now();
-  const then = new Date(isoDate).getTime();
-  const diffSec = Math.floor((now - then) / 1000);
+  if (!isoDate) return '';
+  const d = isoDate instanceof Date ? isoDate : new Date(isoDate);
+  if (Number.isNaN(d.getTime())) return '';
 
-  if (diffSec < 60) {
-    return `${diffSec}s`;
-  }
+  const now = Date.now();
+  let diffSec = Math.floor((now - d.getTime()) / 1000);
+
+  if (diffSec < 0) diffSec = 0;
+
+  if (diffSec < 5) return 'Just now';
+
+  if (diffSec < 60) return `${diffSec}s`;
+
   const diffMin = Math.floor(diffSec / 60);
-  if (diffMin < 60) {
-    return `${diffMin} min${diffMin > 1 ? 's' : ''}`;
-  }
+  if (diffMin < 60) return `${diffMin}m`;
+
   const diffHr = Math.floor(diffMin / 60);
-  if (diffHr < 24) {
-    return `${diffHr} hr${diffHr > 1 ? 's' : ''}`;
+  if (diffHr < 24) return `${diffHr}h`;
+
+  const nowDate = new Date();
+  const y = new Date(nowDate);
+  y.setDate(nowDate.getDate() - 1);
+  if (isSameDay(d, y)) return 'Yesterday';
+
+  if (d.getFullYear() === nowDate.getFullYear()) {
+    return d.toLocaleDateString('en-PH', { month: 'short', day: 'numeric' });
   }
-  const diffDay = Math.floor(diffHr / 24);
-  return `${diffDay} d${diffDay > 1 ? 's' : ''}`;
+
+  return d.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function isSameDay(a, b) {
+  return a.getFullYear() === b.getFullYear()
+      && a.getMonth() === b.getMonth()
+      && a.getDate() === b.getDate();
 }

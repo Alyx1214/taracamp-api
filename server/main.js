@@ -10,12 +10,13 @@ import dbHelper from './modules/dbHelper.js';
 import redisClient from './modules/redisClient.js';
 import jwtHelper from './modules/jwtHelper.js';
 import paymentModule from './modules/payment.js';
+import notificationModule from './modules/notification.js';
 
 import buildUserRouter from './routes/user.js';
 import facilityRoutes from './routes/facility.js';
 import addonRoutes from './routes/addons.js';
 import buildReservationRouter from './routes/reservation.js';
-import paymentRoutes from './routes/payment.js';
+import buildPaymentRouter from './routes/payment.js';
 import notificationRoutes from './routes/notification.js';
 import dashboardRoutes from './routes/dashboard.js';
 import reviewRoutes from './routes/reviews.js';
@@ -43,22 +44,9 @@ app.use(cors({
   credentials: true
 }));
 
-app.post(
-  '/api/payment/webhook',
-  basicLimiter,
-  express.raw({ type: 'application/json' }),
-  asyncHandler(async (req, res) => {
-    const raw = Buffer.isBuffer(req.body)
-      ? req.body.toString('utf8')
-      : typeof req.body === 'string'
-        ? req.body
-        : JSON.stringify(req.body || {});
-    const response = await paymentModule.handleWebhook(dbHelper, req.headers, raw);
-    res.status(response.status).json(response);
-  })
-);
-
+app.use('/api/v1/payment/webhook', express.raw({ type: 'application/json' }));
 app.use(express.json());
+
 const userSocketMap = new Map();
 app.use('/api/v1', basicLimiter, (req, res, next) => {
   const r = express.Router();
@@ -66,7 +54,7 @@ app.use('/api/v1', basicLimiter, (req, res, next) => {
   r.use('/facility', facilityRoutes);
   r.use('/addons', addonRoutes);
   r.use('/reservation', buildReservationRouter(userSocketMap));
-  r.use('/payment', paymentRoutes);
+  r.use('/payment', buildPaymentRouter(userSocketMap));
   r.use('/notification', notificationRoutes);
   r.use('/dashboard', dashboardRoutes);
   r.use('/reviews', reviewRoutes);

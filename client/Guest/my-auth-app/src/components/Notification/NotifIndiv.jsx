@@ -1,5 +1,6 @@
 import React from 'react';
 import styles from './NotifIndiv.module.css';
+import { timeAgo } from '../../utils/timeAgo';
 
 export default function NotifIndiv({
   notif = {},
@@ -44,7 +45,7 @@ export default function NotifIndiv({
         <div className={styles.footerText}>Looking forward to seeing you soon!</div>
         <div className={styles.metaRow}>
           <span className={styles.metaSource}>{notif.source || 'Teachers Camp'}</span>
-          <span className={styles.metaTime}>{notif.time || new Date().toLocaleTimeString()}</span>
+          <span className={styles.metaTime}>{timeAgo(notif.time) || 'Just now'}</span>
         </div>
       </div>
     </div>

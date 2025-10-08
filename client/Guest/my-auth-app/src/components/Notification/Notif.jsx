@@ -1,46 +1,18 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom'; 
 import styles from './Notif.module.css';
 import NotifPreview from './NotifPreview';
 import NotifUpload from './NotifUpload';
 import NotifIndiv from './NotifIndiv';
-import { listNotifications, markAllNotificationsRead, markNotificationRead, } from '../../apis/notificationApi';
-
-// const dummyNotifications = [
-//   {
-//     _id: 'n1',
-//     title:
-//       "Congratulations, Camper! Payment Successful — your reservation is now confirmed. We can't wait to welcome you!",
-//     isRead: false,
-//     source: "Teachers' Camp",
-//     timeLabel: "30mins",
-//     kind: 'payment_success',
-//   },
-//   {
-//     _id: 'n2',
-//     title:
-//       "Congratulations, Camper!  You have successfully booked a reservation!",
-//     isRead: false,
-//     source: "Teachers' Camp",
-//     timeLabel: "5mins",
-//     kind: "booking_success", 
-//   },
-//   {
-//     _id: 'n3',
-//     title: "Mabuhay! Welcome to Teachers Camp!",
-//     message:
-//       "We’re thrilled to have you here! Whether you’re visiting for a seminar, retreat, or a well-deserved break, Teachers’ Camp offers a perfect blend of history, comfort, and inspiration. Explore our facilities, connect with fellow educators, and make the most of your stay. If you need any assistance, we’re here to help. Enjoy your experience!",
-//     isRead: true,
-//     source: "Teachers Camp System",
-//     timeLabel: "1 Hr",
-//   },
-// ];
+import { listNotifications, markAllNotificationsRead, markNotificationRead } from '../../apis/notificationApi';
 
 export default function Notif() {
+  const navigate = useNavigate();
+  const { search } = useLocation();                           
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState(null);
-  const [stage, setStage] = useState('list'); 
-
+  const [stage, setStage] = useState('list');
 
   useEffect(() => {
     let cancelled = false;
@@ -49,8 +21,56 @@ export default function Notif() {
         setLoading(true);
         const res = await listNotifications({ limit: 20 });
         const items = Array.isArray(res?.data) ? res.data : [];
-        if (!cancelled) setNotifications(items);
-      } catch (e) {
+        if (!cancelled) {
+          const normalized = items
+            .filter(Boolean)
+            .map((n) => {
+              const rawId = n?._id ?? n?.id ?? null;
+              const resolvedId = typeof rawId === 'string'
+                ? rawId
+                : rawId && typeof rawId.toString === 'function'
+                  ? rawId.toString()
+                  : '';
+
+              return {
+                ...n,
+                _id: resolvedId,
+                source: n?.source || "Teachers' Camp",
+                kind: n?.kind || null,
+                createdAt: n?.createdAt || n?.created_at || null,
+                timeLabel: n?.timeLabel ?? n?.time ?? null,
+              };
+            });
+
+          setNotifications(prev => {
+            const locals = prev.filter(x => typeof x?._id === 'string' && x._id.startsWith('local-'));
+            const deduped = [...normalized];
+
+            locals.forEach(local => {
+              const alreadyExists = normalized.some(serverItem =>
+                serverItem._id && serverItem._id === local._id
+              ) || normalized.some(serverItem =>
+                serverItem.kind === local.kind &&
+                !!serverItem.reservationId &&
+                !!local.reservationId &&
+                String(serverItem.reservationId) === String(local.reservationId)
+              );
+
+              if (!alreadyExists) {
+                deduped.unshift(local);
+              }
+            });
+
+            deduped.sort((a, b) => {
+              const aTime = new Date(a.createdAt || 0).getTime();
+              const bTime = new Date(b.createdAt || 0).getTime();
+              return bTime - aTime;
+            });
+
+            return deduped;
+          });
+        }
+      } catch {
         if (!cancelled) setNotifications([]);
       } finally {
         if (!cancelled) setLoading(false);
@@ -60,7 +80,49 @@ export default function Notif() {
     return () => { cancelled = true; };
   }, []);
 
-   async function markAll() {
+  // 👇 Detect redirect from Transactions and inject a local payment_success notification
+  useEffect(() => {
+    const sp = new URLSearchParams(search);
+    const isSuccess = sp.get('payment') === 'success' || sp.get('paid') === '1';
+    if (!isSuccess) return;
+
+    const reservationId = sp.get('reservationId') || null;
+    const localNotif = {
+      _id: `local-${Date.now()}`, // local unique id
+      title:
+        "Congratulations, Camper! Payment Successful — your reservation is now confirmed. We can't wait to welcome you!",
+      message: null,
+      kind: 'payment_success',
+      isRead: false,
+      source: "Teachers' Camp",
+      timeLabel: 'Just now',
+      reservationId,
+      createdAt: new Date(),
+    };
+
+    // Prepend to list but avoid duplicates if the real notification already exists
+    setNotifications(prev => {
+      const exists = prev.some(entry => {
+        if (entry.kind !== 'payment_success') return false;
+        if (reservationId) {
+          return String(entry.reservationId || '') === String(reservationId);
+        }
+        return !entry.reservationId;
+      });
+
+      if (exists) return prev;
+      return [localNotif, ...prev];
+    });
+
+    // Optional: auto-open the success view
+    setSelected(localNotif);
+    setStage('indiv');
+
+    // Clean the URL so it won't re-inject on refresh
+    navigate('.', { replace: true });
+  }, [search, navigate]);
+
+  async function markAll() {
     setNotifications(n => n.map(x => ({ ...x, isRead: true })));
     try {
       await markAllNotificationsRead();
@@ -91,13 +153,35 @@ export default function Notif() {
     }
   }
 
+  // Route based on what NotifPreview tells us, WITH reservation id.
+  function handlePreviewConfirm(payload) {
+    // payload: { action: 'transactions'|'upload', reservationId: string, clientType: string }
+    if (!payload || !payload.reservationId) return;
+
+    const { action, reservationId, clientType } = payload;
+
+    if (action === 'transactions') {
+      setSelected(null);
+      setStage('list');
+      navigate(`/transactions?reservationId=${encodeURIComponent(reservationId)}`);
+      return;
+    }
+
+    // If you want to keep the in-component upload stage, comment out the navigate and use the stage switch below.
+    // setStage('upload');
+
+    navigate(
+      `/notifications/upload?reservationId=${encodeURIComponent(reservationId)}&clientType=${encodeURIComponent(clientType || 'deped')}`
+    );
+  }
+
   if (selected && stage === 'preview') {
     return (
       <NotifPreview
         notif={selected}
         clientType="individual"
         onBack={() => { setSelected(null); setStage('list'); }}
-        onConfirm={() => { setStage('upload'); }}
+        onConfirm={handlePreviewConfirm}
         onCancel={() => { setSelected(null); }}
       />
     );
@@ -114,6 +198,7 @@ export default function Notif() {
     );
   }
 
+  // Only used if you keep internal stage-based upload instead of routing
   if (selected && stage === 'upload') {
     return (
       <NotifUpload
