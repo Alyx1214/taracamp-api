@@ -99,3 +99,10 @@
     cursor: default;
     box-shadow: none;
 }
+
+.pastDate {
+  color: #94a3b8; 
+  background-color: #f1f5f9; 
+  cursor: not-allowed;
+  opacity: 0.6;
+}
