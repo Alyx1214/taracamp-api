@@ -13,6 +13,7 @@ import {
 } from '../../apis/messageApi';
 
 let refreshingPromise = null;
+const MIN_UNREAD_REFRESH_MS = 1200;
 
 function getAccessToken() {
   return localStorage.getItem('accessToken');
@@ -64,7 +65,7 @@ async function callRefresh() {
   const rt = getRefreshToken();
   if (!rt) throw new Error('No refresh token');
 
-  refreshingPromise = fetch(`${API}/user/refresh-token`, {
+  refreshingPromise = fetch('/api/user/refresh-token', {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
@@ -429,95 +430,6 @@ function HeaderHome() {
     localStorage.clear();
     navigate('/auth/login');
   };
-
-  function humanizeType(t) {
-    if (!t) return null;
-    return String(t).toLowerCase().replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-  }
-
-  function categoryToClientType(cat) {
-    const c = String(cat || '').toLowerCase();
-    if (c === 'deped') return 'deped';
-    if (c === 'government') return 'gov';
-    if (c === 'private_group' || c === 'private-group' || c === 'private' || c.includes('priva')) return 'priva-group';
-    if (c === 'individual') return 'individual';
-    return 'individual';
-  }
-
-  async function fetchReservation(notif) {
-    const reservationId = notif?.reservationId;
-    if (!reservationId) throw new Error('Missing reservationId');
-
-    const res = await fetch(`${API}/reservation/get-reservation-by-id/${reservationId}`, {
-      method: 'GET',
-      headers: { Accept: 'application/json' },
-      credentials: 'include',
-    });
-
-    const ct = res.headers.get('content-type') || '';
-    if (!ct.includes('application/json')) {
-      const text = await res.text();
-      throw new Error(`Non-JSON response ${res.status} ${text.slice(0, 80)}`);
-    }
-
-    const json = await res.json();
-    if (!res.ok || json.error) throw new Error(json.error || `HTTP ${res.status}`);
-
-    const r = json.reservation || json;
-
-    return {
-      title: r.title,
-      body: r.message,
-      checkInDate: r.dateOfArrival,
-      checkOutDate: r.dateOfDeparture,
-      accommodationType: humanizeType(r.facilityType) || humanizeType(r?.facility?.type) || r.accommodationType,
-      numGuests: r?.numberOfGuests?.total ?? r.guests ?? r.pax,
-      source: r.source || "Teachers' Camp",
-      time: r.updatedAt || r.createdAt,
-      category: r.category || null,
-      clientType: categoryToClientType(r.category),
-    };
-  }
-
-  function openNotifDetail(notif) {
-    if (!notif?.reservationId) return;
-    if (notif?.id) markRead(notif.id);
-
-    // keep mobile route-based behavior
-    if (window.matchMedia('(max-width: 640px)').matches) {
-      setIsNotifOpen(false);
-      setNotifPane('list');
-      setSelectedNotif(null);
-      navigate(`/notifications/${notif.id}/preview`);
-      return;
-    }
-
-    (async () => {
-      try {
-        const data = await fetchReservation(notif);
-        const hydrated = { ...notif, __reservation: data };
-        setSelectedNotif(hydrated);
-
-        // enforce your rule: preview only for priva-group/individual, upload only for deped
-        const ct = data.clientType;
-        if (ct === 'deped') {
-          setUploadClientType('deped');
-          setNotifPane('upload');
-        } else if (ct === 'priva-group' || ct === 'individual') {
-          setNotifPane('preview');
-        } else {
-          // e.g., government: do not render preview or upload; bounce back to list
-          setNotifPane('list');
-        }
-        setIsNotifOpen(true);
-      } catch (e) {
-        console.error(e);
-        // if fetch fails, don't guess — back to list
-        setNotifPane('list');
-        setIsNotifOpen(true);
-      }
-    })();
-  }
 
   return (
     <header className={styles.headerContainer}>
