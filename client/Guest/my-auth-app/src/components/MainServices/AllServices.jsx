@@ -94,7 +94,7 @@ const AllServices = () => {
         ) : null}
 
         <button className={styles['check-btn']} onClick={() => handleCheck(item._id || item.id)}>
-          Check
+          View Details
         </button>
       </div>
     </div>
