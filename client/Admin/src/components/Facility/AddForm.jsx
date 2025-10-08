@@ -1,9 +1,11 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { FaArrowLeft, FaUpload } from "react-icons/fa";
 import { useNavigate, useLocation } from "react-router-dom";
 import styles from "./AddForm.module.css";
 import { createFacility } from "../../apis/facilityApi";
 import { createAddon } from "../../apis/addonsApi";
+
+const MAX_IMAGES = 5;
 
 const AddForm = () => {
   const navigate = useNavigate();
@@ -17,12 +19,13 @@ const AddForm = () => {
     unit: "",
     capacity: "",
     status: "Available",
-    images: [],
+    images: Array(MAX_IMAGES).fill(null),
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
 
+  const inputRefs = useRef([]);
   const facilityType = useMemo(() => {
     switch (category) {
       case "Dormitory":
@@ -39,16 +42,26 @@ const AddForm = () => {
   const isSpecialService = category === "Add-ons";
 
   const handleChange = (e) => {
-    const { name, value, files } = e.target;
-    if (files) {
-      if (name === 'images') {
-        setFormData((prev) => ({ ...prev, images: Array.from(files) }));
-      } else {
-        setFormData((prev) => ({ ...prev, [name]: files[0] }));
-      }
-    } else {
-      setFormData((prev) => ({ ...prev, [name]: value }));
-    }
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  // set single slot file
+  const handleSlotChange = (index, file) => {
+    setFormData((prev) => {
+      const imgs = Array.from(prev.images || Array(MAX_IMAGES).fill(null));
+      imgs[index] = file || null;
+      return { ...prev, images: imgs };
+    });
+  };
+
+  const removeImage = (index) => {
+    handleSlotChange(index, null);
+  };
+
+  const openSlot = (index) => {
+    const el = inputRefs.current[index];
+    if (el) el.click();
   };
 
   const handleSubmit = async (e) => {
@@ -70,10 +83,9 @@ const AddForm = () => {
           name: formData.name,
           facilityType,
           status: formData.status,
-          images: formData.images,
+          images: (formData.images || []).filter(Boolean),
         };
 
-        // Only attach capacity for actual facilities (not other services)
         if (!isSpecialService && formData.capacity) {
           payload.capacity = formData.capacity;
         }
@@ -88,11 +100,17 @@ const AddForm = () => {
       }
       setTimeout(() => navigate(-1), 800);
     } catch (err) {
-      setError(err?.data?.error || err.message || (isSpecialService ? "Failed to create service" : "Failed to create facility"));
+      setError(
+        err?.data?.error ||
+          err.message ||
+          (isSpecialService ? "Failed to create service" : "Failed to create facility")
+      );
     } finally {
       setSubmitting(false);
     }
   };
+
+  const selectedCount = (formData.images || []).filter(Boolean).length;
 
   return (
     <div className={styles.formContainer}>
@@ -100,7 +118,7 @@ const AddForm = () => {
         <span
           className={styles["add-form-back"]}
           onClick={() => navigate(-1)}
-          >
+        >
           &larr;
         </span>
         <h2 className={styles.title}>
@@ -110,22 +128,67 @@ const AddForm = () => {
 
       {!isSpecialService && (
         <>
-          <label className={styles.uploadBox}>
-            <FaUpload className={styles.uploadIcon} />
-            <p className={styles.uploadText}>Upload {category} Image</p>
-            <input
-              type="file"
-              name="images"
-              accept="image/png,image/jpeg"
-              multiple
-              onChange={handleChange}
-              hidden
-            />
-          </label>
-          {formData.images?.length > 0 && (
+          <div className={styles.uploadGrid}>
+            {/* Large slot (index 0) */}
+            {Array.from({ length: MAX_IMAGES }).map((_, idx) => {
+              const file = formData.images[idx];
+              const isLarge = idx === 0;
+              return (
+                <div
+                  key={idx}
+                  className={`${styles.uploadSlot} ${
+                    isLarge ? styles.uploadSlotLarge : styles.uploadSlotSmall
+                  }`}
+                  onClick={() => openSlot(idx)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && openSlot(idx)}
+                >
+                  {file ? (
+                    <div className={styles.uploadPreview}>
+                      <img
+                        src={URL.createObjectURL(file)}
+                        alt={file.name}
+                        className={styles.previewImg}
+                      />
+                      <button
+                        type="button"
+                        className={styles.removeImageBtn}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeImage(idx);
+                        }}
+                        aria-label={`Remove image ${idx + 1}`}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ) : (
+                    <div className={styles.uploadPlaceholder}>
+                      <FaUpload className={styles.uploadIcon} />
+                    </div>
+                  )}
+
+                  <input
+                    ref={(el) => (inputRefs.current[idx] = el)}
+                    type="file"
+                    accept="image/png,image/jpeg"
+                    onChange={(e) => {
+                      const f = e.target.files && e.target.files[0];
+                      handleSlotChange(idx, f || null);
+                    }}
+                    hidden
+                  />
+                </div>
+              );
+            })}
+          </div>
+
+          {selectedCount > 0 && (
             <div style={{ marginBottom: 16 }}>
               <small>
-                Selected ({formData.images.length}): {formData.images.map(f => f.name).join(', ')}
+                Selected ({selectedCount}):{" "}
+                {(formData.images || []).filter(Boolean).map((f) => f.name).join(", ")}
               </small>
             </div>
           )}
