@@ -60,11 +60,7 @@ export const FacilityStatus = {
 };
 
 export const ServiceType = {
-    MEETING: 'Meeting/Conference',
-    WEDDING: 'Wedding',
-    BIRTHDAY: 'Birthday Party',
-    TRAINING: 'Training/Seminar',
-    CORPORATE: 'Corporate Event',
-    ACCOMMODATION: 'Accommodation',
-    OTHER: 'Other',
+    EVENT: 'Event',
+    EVENT_AND_LODGING: 'Event and Lodging',
+    LODGING: 'Lodging',
 };

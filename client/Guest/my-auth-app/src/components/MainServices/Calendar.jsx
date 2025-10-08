@@ -86,7 +86,10 @@ const Calendar = ({
       return;
     }
 
-    if (onDateSelect) onDateSelect(formatDMonYYYY(chosen));
+    const ymd = `${y}-${String(m + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const formatted = formatDMonYYYY(chosen);
+
+    if (onDateSelect) onDateSelect({ date: chosen, ymd, formatted });
     if (onClose) onClose();
   };
 

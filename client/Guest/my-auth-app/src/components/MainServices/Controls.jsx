@@ -16,8 +16,8 @@ const Controls = ({ facilityType = 'All', onApplyFilters }) => {
   const lastAppliedFiltersRef = useRef(null);
 
   const toISODate = (d) => {
-    const date = new Date(d);
-    if (Number.isNaN(date)) return undefined;
+    const date = d instanceof Date ? new Date(d.getTime()) : new Date(d);
+    if (Number.isNaN(date.getTime())) return undefined;
     const y = date.getFullYear();
     const m = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
@@ -25,17 +25,13 @@ const Controls = ({ facilityType = 'All', onApplyFilters }) => {
   };
 
   const formatDate = (date) => {
-  const d = new Date(date);
-  const day = d.getDate();
-  const month = d.toLocaleDateString('en-US', { month: 'short' });
-  const year = d.getFullYear();
-  const dayName = d.toLocaleDateString('en-US', { weekday: 'long' });
+    const d = date instanceof Date ? date : new Date(date);
+    if (Number.isNaN(d.getTime())) return { formatted: '—', dayName: '' };
     return {
-      formatted: `${day} ${month} ${year}`,
-      dayName: dayName
+      formatted: `${d.getDate()} ${d.toLocaleDateString('en-US', { month: 'short' })} ${d.getFullYear()}`,
+      dayName: d.toLocaleDateString('en-US', { weekday: 'long' })
     };
   };
-
 
   useEffect(() => {
     if (!onApplyFilters) return;
@@ -77,16 +73,18 @@ const Controls = ({ facilityType = 'All', onApplyFilters }) => {
   const handleChildIncrease = () => {
     setChildren(children + 1);
   };
-
-  const handleCheckInDateSelect = (date) => {
-    setCheckInDate(date);
+  
+  const handleCheckInDateSelect = (picked) => {
+    setCheckInDate(picked.date); 
     setShowCheckInCalendar(false);
   };
 
-  const handleCheckOutDateSelect = (date) => {
-    setCheckOutDate(date);
+  const handleCheckOutDateSelect = (picked) => {
+    setCheckOutDate(picked.date); 
     setShowCheckOutCalendar(false);
   };
+
+
 
   const checkInDateInfo = formatDate(checkInDate);
   const checkOutDateInfo = formatDate(checkOutDate);

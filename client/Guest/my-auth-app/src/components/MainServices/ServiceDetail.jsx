@@ -504,7 +504,7 @@ const getCalendarData = (date) => {
                       onClick={() => {
                         setIsSelectingDeparture(false);
                         setShowCalendar(true);
-                        setArrivalDateError(''); // Clear error when clicking
+                        setArrivalDateError(''); 
                       }}
                       style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
                     >
@@ -556,17 +556,44 @@ const getCalendarData = (date) => {
                       ×
                     </button>
                   </div>
+
                   <Calendar
-                    currentDate={currentDate}
-                    onPrevMonth={handlePrevMonth}
-                    onNextMonth={handleNextMonth}
-                    calendarData={calendarData}
-                    onDateClick={handleDateClick}
+                    selectedDate={selectedArrivalDate || new Date()}
+                    onDateSelect={({ date, ymd, formatted }) => {
+                      // trust the calendar’s reserved/past filtering
+                      if (isSelectingDeparture) {
+                        if (selectedArrivalDate && new Date(ymd) <= new Date(selectedArrivalDate)) {
+                          setDepartureDateError('Departure date must be after arrival date');
+                          return;
+                        }
+                        setSelectedDepartureDate(ymd);
+                        setSelectedDepartureDateDisplay(`${formatted} - ${date.toLocaleString('default', { weekday: 'long' })}`);
+                        setDepartureDateError('');
+                        setIsSelectingDeparture(false);
+                      } else {
+                        // arrival
+                        if (selectedDepartureDate && new Date(ymd) >= new Date(selectedDepartureDate)) {
+                          setSelectedDepartureDate('');
+                          setSelectedDepartureDateDisplay(null);
+                          setArrivalDateError('Arrival date must be before departure date. Please reselect departure date.');
+                        } else {
+                          setArrivalDateError('');
+                        }
+                        setSelectedArrivalDate(ymd);
+                        setSelectedDate(`${formatted} - ${date.toLocaleString('default', { weekday: 'long' })}`);
+                      }
+                      setShowCalendar(false);
+                    }}
+                    onClose={() => {
+                      setShowCalendar(false);
+                      setIsSelectingDeparture(false);
+                    }}
+                    minDate={isSelectingDeparture ? selectedArrivalDate : null}
+                    reservedDates={Array.from(calendarData?.reservedSet ?? [])}
                   />
                 </div>
               </div>
             )}
-
             <div className={styles.imageGallery}>
               <div className={styles.mainImage}>
                 <img src={facility.gallery[0]} alt={facility.name} />
