@@ -1,0 +1,237 @@
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.modal-content {
+  background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%);
+  border-radius: 20px;
+  width: 100%;
+  max-width: 600px;
+  max-height: 80vh;
+  overflow: hidden;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+  position: relative;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 30px 40px 20px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.modal-title {
+  font-size: 28px;
+  font-weight: bold;
+  color: #6b4f3c;
+  margin: 0;
+  letter-spacing: 2px;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  font-size: 30px;
+  color: #6b4f3c;
+  cursor: pointer;
+  padding: 0;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+}
+
+.close-button:hover {
+  background-color: rgba(107, 79, 60, 0.1);
+  transform: rotate(90deg);
+}
+
+.reviews-container {
+  padding: 20px 40px 40px;
+  max-height: 60vh;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #6b4f3c transparent;
+}
+
+.reviews-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.reviews-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.reviews-container::-webkit-scrollbar-thumb {
+  background-color: #6b4f3c;
+  border-radius: 3px;
+}
+
+.reviewButton {
+  background: linear-gradient(135deg, #6b4f3c, #8b6f5c);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 25px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 5px 15px rgba(107, 79, 60, 0.3);
+}
+
+.reviewButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(107, 79, 60, 0.4);
+}
+
+.review-card {
+  background-color: rgba(255, 255, 255, 0.3);
+  border-radius: 15px;
+  padding: 25px;
+  margin-bottom: 20px;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: all 0.3s ease;
+}
+
+.review-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+}
+
+.review-card:last-child {
+  margin-bottom: 0;
+}
+
+.review-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.avatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #6b4f3c, #8b6f5c);
+  margin-right: 15px;
+  flex-shrink: 0;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+.review-info {
+  flex: 1;
+}
+
+.reviewer-name {
+  font-size: 18px;
+  font-weight: 600;
+  color: #2c2c2c;
+  margin: 0 0 8px 0;
+}
+
+.rating {
+  display: flex;
+  gap: 2px;
+}
+
+.star {
+  font-size: 18px;
+  transition: all 0.2s ease;
+}
+
+.star.filled {
+  color: #4CAF50;
+}
+
+.star.empty {
+  color: #ddd;
+}
+
+.review-text {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #555;
+  margin: 0;
+  text-align: justify;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .modal-content {
+    margin: 20px;
+    max-width: calc(100vw - 40px);
+  }
+  
+  .modal-header {
+    padding: 20px 25px 15px;
+  }
+  
+  .modal-title {
+    font-size: 24px;
+  }
+  
+  .reviews-container {
+    padding: 15px 25px 25px;
+  }
+  
+  .review-card {
+    padding: 20px;
+  }
+  
+  .reviewer-name {
+    font-size: 16px;
+  }
+  
+  .review-text {
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 480px) {
+  .modal-overlay {
+    padding: 10px;
+  }
+  
+  .modal-content {
+    margin: 10px;
+    max-width: calc(100vw - 20px);
+  }
+  
+  .modal-header {
+    padding: 15px 20px 10px;
+  }
+  
+  .modal-title {
+    font-size: 20px;
+    letter-spacing: 1px;
+  }
+  
+  .reviews-container {
+    padding: 10px 20px 20px;
+  }
+  
+  .review-card {
+    padding: 15px;
+  }
+  
+  .avatar {
+    width: 40px;
+    height: 40px;
+  }
+}
