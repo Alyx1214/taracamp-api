@@ -49,15 +49,13 @@ function Services() {
     [location.pathname]
   );
 
-  // ✅ put mapping inside the component, with useMemo (legal here)
   const facilityLabelToEnum = useMemo(
     () => ({
-      Dormitory: 'DORMITORY',
-      Cottage: 'COTTAGE',
-      Conference: 'CONFERENCE',
+      Dormitory: 'Dormitory',
+      Cottage: 'Cottage',
+      Conference: 'Conference',
       All: null,
       'Add-Ons': null,
-      'Other Service': 'OTHER_SERVICE',
     }),
     []
   );
@@ -224,7 +222,7 @@ function Services() {
                   facilities={facilities}
                   loading={loading}
                   searchAttempted={searchAttempted}
-                  loadError={loadError}   // ✅ now actually defined
+                  loadError={loadError}   
                 />
               }
             />

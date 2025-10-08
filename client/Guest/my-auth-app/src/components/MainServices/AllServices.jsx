@@ -89,7 +89,7 @@ const AllServices = ({
   };
 
   const handleCheck = (id) => {
-    navigate(`/facility/${id}`);
+    navigate(`/${facilityType}/${facilityName}/${id}`);
   };
 
   const ServiceCard = ({ item }) => (
