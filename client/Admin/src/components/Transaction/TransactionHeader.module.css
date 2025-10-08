@@ -1,32 +1,36 @@
 .transaction-header__container {
   display: flex;
   align-items: center;
-  justify-content: space-between; /* title left, button right */
+  justify-content: space-between; 
   gap: 1rem;
   padding: 0.5rem 0;
 }
 
 .transaction-header__title {
   margin: 0;
-  font-size: 1.75rem;
-  letter-spacing: 2px;
-  color: #174226; /* keep existing theme color or adjust */
+  font-weight: 700;
+  font-size: 50px;
+  color: #4F3718;
+  letter-spacing: 10px;
+  display: flex;
+  align-items: center;
+  gap: 30px;
+  margin-bottom: 0;
+  font-family: "Montserrat", sans-serif;
 }
 
-/* Generate Report button */
 .transaction-header__generate {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.6rem;
-  background: #4ca16b;
-  color: #fff;
+  background: #1E3C24;
+  color: #f5f5f5;
   border: none;
-  border-radius: 28px;
-  padding: 0.6rem 1rem;
-  font-weight: 700;
+  border-radius: 20px;
+  padding: 20px 40px;
+  font-size: 1.2rem;
+  display: flex;
+  align-items: center;
   cursor: pointer;
-  box-shadow: 0 6px 14px rgba(0,0,0,0.12);
-  transition: transform 0.12s ease, background 0.12s ease;
+  transition: all 0.2s ease-in-out;
+  font-family: "Montserrat", sans-serif;
 }
 
 .transaction-header__generate:hover {
@@ -35,5 +39,6 @@
 }
 
 .generate__icon {
-  font-size: 0.95rem;
+  font-size: 1.5rem;
+  margin-right: 10px;
 }
