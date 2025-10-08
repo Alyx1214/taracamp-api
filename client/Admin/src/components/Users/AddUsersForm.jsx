@@ -9,7 +9,7 @@ export default function AddUserForm({ onAddUser }) {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
-    role: "STAFF", 
+    role: "Staff", 
     password: "",
   });
 
@@ -91,10 +91,10 @@ export default function AddUserForm({ onAddUser }) {
             onChange={handleChange}
             className={styles["add-user-select"]}
           >
-            <option value="SUPERINTENDENT">Superintendent</option>
-            <option value="FRONTDESK">Front Desk</option>
-            <option value="ACCOUNTING">Accounting</option>
-            <option value="STAFF">Staff</option>
+            <option value="Superintendent">Superintendent</option>
+            <option value="Frontdesk">Front Desk</option>
+            <option value="Accounting">Accounting</option>
+            <option value="Staff">Staff</option>
           </select>
         </div>
 

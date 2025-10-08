@@ -1,0 +1,374 @@
+.popupOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.popupContainer {
+  background: white;
+  border-radius: 16px;
+  padding: 32px;
+  width: 100%;
+  max-width: 520px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+  position: relative;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.popupHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 32px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.popupHeader h2 {
+  margin: 0;
+  color: #1f2937;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.closeBtn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #6b7280;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.closeBtn:hover {
+  background-color: #f3f4f6;
+  color: #374151;
+}
+
+.popupContent {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* Service Types */
+.serviceTypes {
+  display: flex;
+  gap: 8px;
+  background-color: #f9fafb;
+  padding: 4px;
+  border-radius: 12px;
+}
+
+.serviceBtn {
+  flex: 1;
+  padding: 12px 16px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 14px;
+  font-weight: 500;
+  color: #6b7280;
+  text-align: center;
+}
+
+.serviceBtn:hover {
+  background-color: #e5e7eb;
+  color: #374151;
+}
+
+.serviceBtn.active {
+  background-color: #8b6c42;
+  color: white;
+  box-shadow: 0 2px 8px rgba(139, 108, 66, 0.3);
+}
+
+/* Date Section */
+.dateSection {
+  display: flex;
+  gap: 16px;
+}
+
+.dateInput {
+  flex: 1;
+}
+
+.dateInput label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+}
+
+.dateField {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-height: 56px;
+}
+
+.dateField:hover {
+  border-color: #d1d5db;
+}
+
+.dateField:focus-within {
+  border-color: #8b6c42;
+  box-shadow: 0 0 0 3px rgba(139, 108, 66, 0.1);
+}
+
+.calendarIcon {
+  font-size: 18px;
+  color: #8b6c42;
+  flex-shrink: 0;
+}
+
+.dateField input {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.dateField > div {
+  flex: 1;
+  pointer-events: none;
+}
+
+.dateValue {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 2px;
+}
+
+.dateDay {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+/* Guest Section */
+.guestSection {
+  display: flex;
+  gap: 16px;
+}
+
+.guestInput {
+  flex: 1;
+}
+
+.guestInput label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+}
+
+.counter {
+  display: flex;
+  align-items: center;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  background: white;
+  overflow: hidden;
+  transition: border-color 0.2s ease;
+  height: 56px;
+}
+
+.counter:hover {
+  border-color: #d1d5db;
+}
+
+.counter:focus-within {
+  border-color: #8b6c42;
+  box-shadow: 0 0 0 3px rgba(139, 108, 66, 0.1);
+}
+
+.counterBtn {
+  background: none;
+  border: none;
+  width: 44px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 18px;
+  font-weight: 500;
+  color: #6b7280;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.counterBtn:hover:not(:disabled) {
+  background-color: #f3f4f6;
+  color: #8b6c42;
+}
+
+.counterBtn:active:not(:disabled) {
+  background-color: #e5e7eb;
+}
+
+.counterBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.count {
+  flex: 1;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+  text-align: center;
+  background-color: #f9fafb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 52px;
+  min-width: 40px;
+}
+
+/* Search Button */
+.searchBtn {
+  width: 100%;
+  padding: 16px 24px;
+  background: linear-gradient(135deg, #2d5a3d 0%, #1e3f2b 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  box-shadow: 0 4px 12px rgba(45, 90, 61, 0.2);
+}
+
+.searchBtn:hover {
+  background: linear-gradient(135deg, #1e3f2b 0%, #0f1f15 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(45, 90, 61, 0.3);
+}
+
+.searchBtn:active {
+  transform: translateY(0);
+  box-shadow: 0 4px 12px rgba(45, 90, 61, 0.2);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .popupContainer {
+    padding: 24px;
+    margin: 10px;
+    max-width: calc(100vw - 20px);
+  }
+  
+  .dateSection,
+  .guestSection {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .popupHeader h2 {
+    font-size: 20px;
+  }
+  
+  .serviceTypes {
+    flex-direction: column;
+    gap: 0;
+    padding: 0;
+    background: none;
+  }
+  
+  .serviceBtn {
+    border: 2px solid #e5e7eb;
+    background: white;
+    margin-bottom: 8px;
+  }
+  
+  .serviceBtn:last-child {
+    margin-bottom: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .popupContainer {
+    padding: 20px;
+  }
+  
+  .dateField,
+  .counter {
+    min-height: 52px;
+    height: 52px;
+  }
+  
+  .counterBtn {
+    width: 40px;
+    height: 48px;
+  }
+  
+  .count {
+    height: 48px;
+  }
+  
+  .popupContent {
+    gap: 20px;
+  }
+}
+
+/* Focus states for accessibility */
+.serviceBtn:focus,
+.counterBtn:focus {
+  outline: 2px solid #8b6c42;
+  outline-offset: 2px;
+}
+
+.dateField:focus-within,
+.counter:focus-within {
+  outline: none;
+}
+
+/* Animation for popup entrance */
+@keyframes popupEnter {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.popupContainer {
+  animation: popupEnter 0.2s ease-out;
+}

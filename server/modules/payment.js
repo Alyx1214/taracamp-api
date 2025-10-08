@@ -333,34 +333,34 @@ const paymentModule = {
      * @returns {Promise<{ status: number, error: string|null, event: Object, updatedReservation?: { _id: ObjectId, status: ReservationStatus }, note?: string }>} Response data.
      */
     handleWebhook: async (dbHelper, headers, body) => {
-        const responseData = {
-            status: Status.INTERNAL_SERVER_ERROR,
-            error: 'Error handling webhook',
-        };
-        try {
-            const secret = process.env.PAYMONGO_WEBHOOK_SECRET;
-            const signatureHeader = headers?.['paymongo-signature'] || headers?.['PayMongo-Signature'];
+    const responseData = { status: Status.INTERNAL_SERVER_ERROR, error: 'Error handling webhook' };
+    try {
+        const secret = process.env.PAYMONGO_WEBHOOK_SECRET;
 
-            let rawBody = null;
-            if (typeof body === 'string') rawBody = body;
+        let rawBody;
+            if (Buffer.isBuffer(body)) rawBody = body.toString('utf8');
+            else if (typeof body === 'string') rawBody = body;
+            else rawBody = JSON.stringify(body || {});
 
-            if (secret && signatureHeader && rawBody !== null) {
-                const computed = crypto.createHmac('sha256', secret).update(rawBody).digest('hex');
-                if (!signatureHeader.includes(computed)) {
-                    responseData.status = Status.FORBIDDEN;
-                    responseData.error = 'Invalid webhook signature';
-                    return responseData;
-                }
+            const signatureHeader = headers?.['paymongo-signature']; 
+            if (process.env.PAYMONGO_WEBHOOK_SECRET && signatureHeader && rawBody) {
+            const computed = crypto.createHmac('sha256', process.env.PAYMONGO_WEBHOOK_SECRET)
+                                    .update(rawBody).digest('hex');
+            if (!signatureHeader.includes(computed)) {
+                responseData.status = Status.FORBIDDEN;
+                responseData.error = 'Invalid webhook signature';
+                return responseData;
             }
+        }
 
-            const event = typeof body === 'string' ? JSON.parse(body) : body;
-
+            const event = JSON.parse(rawBody);
             const eventType = event?.data?.attributes?.type || event?.type || '';
             const resource = event?.data?.attributes?.data;
             const resourceType = resource?.type;
             const resourceStatus = resource?.attributes?.status;
             let metadata = resource?.attributes?.metadata || {};
             let reservationId = metadata?.reservationId;
+            let reservationUserId = null;
 
             const isPaid = (
                 typeof eventType === 'string' && (
@@ -403,6 +403,7 @@ const paymentModule = {
                     if (!reservation) {
                         skippedReason = 'Reservation not found';
                     } else {
+                        reservationUserId = reservation?.userId ? String(reservation.userId) : null;
                         let totalPaid = 0;
                         try {
                             const successfulStatuses = ['paid', 'succeeded',];
@@ -490,13 +491,16 @@ const paymentModule = {
             responseData.status = Status.OK;
             responseData.error = null;
             responseData.event = event;
+            responseData.reservationId = reservationId ? String(reservationId) : null;   
+            responseData.isPaid = !!isPaid;                       
+            responseData.userId = reservationUserId;
             if (updatedReservation) {
-                responseData.updatedReservation = {
-                    _id: updatedReservation._id,
-                    status: updatedReservation.status,
-                };
+            responseData.updatedReservation = {
+                _id: updatedReservation._id,
+                status: updatedReservation.status,
+            };
             } else if (skippedReason) {
-                responseData.note = skippedReason;
+            responseData.note = skippedReason;
             }
         } catch (error) {
             console.error('Error processing webhook:', error);
@@ -558,6 +562,8 @@ const paymentModule = {
                 return responseData;
             }
 
+            const reservationUserId = reservation?.userId ? String(reservation.userId) : null;
+
             try {
                 await dbHelper.findOneAndUpdate('payment', { piId: id, }, {
                     $set: {
@@ -571,7 +577,10 @@ const paymentModule = {
             } catch (_) {}
 
             let updatedReservation = null;
-            if (String(intentStatus).toLowerCase() === 'succeeded') {
+            const normalizedStatus = String(intentStatus || '').toLowerCase();
+            const succeeded = normalizedStatus === 'succeeded';
+
+            if (succeeded) {
                 try {
                     const successfulStatuses = ['paid', 'succeeded',];
                     const paidRows = await dbHelper.findMany('payment', { reservationId, status: { $in: successfulStatuses, }, }, { sort: { createdAt: 1, }, });
@@ -594,6 +603,9 @@ const paymentModule = {
             if (updatedReservation) {
                 responseData.updatedReservation = { _id: updatedReservation._id, status: updatedReservation.status, };
             }
+            responseData.reservationId = reservationId ? String(reservationId) : null;
+            responseData.userId = reservationUserId;
+            responseData.isPaid = succeeded;
             return responseData;
         } catch (error) {
             console.error('Error reconciling payment intent:', error);
@@ -1095,4 +1107,3 @@ function fmtAmountOnly(num) {
     const n = Number(num);
     return Number.isFinite(n) ? n.toFixed(2) : '0.00';
 }
-

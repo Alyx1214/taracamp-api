@@ -392,76 +392,92 @@ const reservationModule = {
         };
         try {
             if (!reservationId) {
-                responseData.status = Status.BAD_REQUEST;
-                responseData.error = 'Reservation ID is required';
-                return responseData;
+            responseData.status = Status.BAD_REQUEST;
+            responseData.error = 'Reservation ID is required';
+            return responseData;
             }
 
-            const reservation = await dbHelper.findOne('reservation', { _id: reservationId, });
-            const facilityDoc = reservation?.facility ? await dbHelper.findOne('facility', { _id: reservation.facility, projection: { v: 0, } }) : null;
+            const reservation = await dbHelper.findOne('reservation', { _id: reservationId });
+            const facilityDoc = reservation?.facility
+            ? await dbHelper.findOne('facility', { _id: reservation.facility })
+            : null;
+
             if (!reservation) {
-                responseData.status = Status.NOT_FOUND;
-                responseData.error = 'Reservation not found';
-                return responseData;
+            responseData.status = Status.NOT_FOUND;
+            responseData.error = 'Reservation not found';
+            return responseData;
             }
 
             let url = null;
             try {
-                let loiPath = null;
-                if (reservation.letterOfIntentFileId) {
-                    const f = await dbHelper.findOne('file', { _id: reservation.letterOfIntentFileId, });
-                    loiPath = f?.path ?? null;
-                } else {
-                    const f = await dbHelper.findOne('file', { reservationId: reservationId, kind: FileKind.LETTER_OF_INTENT, });
-                    loiPath = f?.path ?? null;
-                }
-                if (loiPath) {
-                    [url,] = await bucket.file(loiPath).getSignedUrl({
-                        version: 'v4',
-                        expires: Date.now() + 1000 * 60 * 60,
-                        action: 'read',
-                    });
-                }
+            let loiPath = null;
+            if (reservation.letterOfIntentFileId) {
+                const f = await dbHelper.findOne('file', { _id: reservation.letterOfIntentFileId });
+                loiPath = f?.path ?? null;
+            } else {
+                const f = await dbHelper.findOne('file', { reservationId, kind: FileKind.LETTER_OF_INTENT });
+                loiPath = f?.path ?? null;
+            }
+            if (loiPath) {
+                [url] = await bucket.file(loiPath).getSignedUrl({
+                version: 'v4',
+                expires: Date.now() + 1000 * 60 * 60,
+                action: 'read',
+                });
+            }
             } catch (urlError) {
-                console.error('Error generating signed URL for LOI:', urlError);
-                responseData.status = Status.INTERNAL_SERVER_ERROR;
-                responseData.error = 'Error generating signed URL for LOI';
+            console.error('Error generating signed URL for LOI:', urlError);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Error generating signed URL for LOI';
             }
 
             let nonAvailabilityUrl = null;
             let hasNonAvailabilityCert = false;
             try {
-                let apprPath = null;
-                if (reservation.nonAvailabilityCertFileId) {
-                    const f = await dbHelper.findOne('file', { _id: reservation.nonAvailabilityCertFileId, });
-                    apprPath = f?.path ?? null;
-                } else {
-                    const f = await dbHelper.findOne('file', { reservationId: reservationId, kind: FileKind.NONAVAILABILITY_CERTIFICATE, });
-                    apprPath = f?.path ?? null;
-                }
-                hasNonAvailabilityCert = !!apprPath;
-                if (apprPath) {
-                    [nonAvailabilityUrl,] = await bucket.file(apprPath).getSignedUrl({
-                        version: 'v4',
-                        expires: Date.now() + 1000 * 60 * 60,
-                        action: 'read',
-                    });
-                }
+            let apprPath = null;
+            if (reservation.nonAvailabilityCertFileId) {
+                const f = await dbHelper.findOne('file', { _id: reservation.nonAvailabilityCertFileId });
+                apprPath = f?.path ?? null;
+            } else {
+                const f = await dbHelper.findOne('file', { reservationId, kind: FileKind.NONAVAILABILITY_CERTIFICATE });
+                apprPath = f?.path ?? null;
+            }
+            hasNonAvailabilityCert = !!apprPath;
+            if (apprPath) {
+                [nonAvailabilityUrl] = await bucket.file(apprPath).getSignedUrl({
+                version: 'v4',
+                expires: Date.now() + 1000 * 60 * 60,
+                action: 'read',
+                });
+            }
             } catch (urlError) {
-                console.error('Error generating signed URL for Non-Availability Certificate:', urlError);
+            console.error('Error generating signed URL for Non-Availability Certificate:', urlError);
             }
 
             const reservationObject = reservation.toObject();
             if (reservationObject.numberOfGuests) {
-                delete reservationObject.numberOfGuests.adult;
-                delete reservationObject.numberOfGuests.children;
-                delete reservationObject.numberOfGuests.pwds;
+            delete reservationObject.numberOfGuests.adult;
+            delete reservationObject.numberOfGuests.children;
+            delete reservationObject.numberOfGuests.pwds;
             }
+
+            const facilityIdStr =
+            (facilityDoc?._id && String(facilityDoc._id)) ||
+            (reservation.facility && String(reservation.facility)) ||
+            null;
+
+            reservationObject.facility = {
+            _id: facilityIdStr,
+            name: facilityDoc?.name ?? facilityDoc?.facilityName ?? null,
+            facilityType: facilityDoc?.facilityType ?? reservation.facilityType ?? null,
+            };
+
+            reservationObject.facilityType = reservationObject.facility.facilityType;
+            reservationObject.facilityName = reservationObject.facility.name;
 
             reservationObject.letterOfIntentFile = url;
             reservationObject.nonAvailabilityCertFile = nonAvailabilityUrl;
             reservationObject.hasNonAvailabilityCert = hasNonAvailabilityCert || !!reservation.nonAvailabilityCertFileId;
-            reservationObject.facilityType = facilityDoc?.facilityType ?? null;
 
             responseData.status = Status.OK;
             responseData.error = null;

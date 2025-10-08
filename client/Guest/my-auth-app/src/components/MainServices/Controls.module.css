@@ -1,0 +1,136 @@
+.controlsContainer {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 40px 132px 0px 132px;
+  max-width: 1200px;
+}
+
+.dateControl {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  border: 2px solid #e2e8f0;
+  border-radius: 20px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  min-width: 280px;
+}
+
+.dateControl:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.calendarIcon {
+  color: #64748b;
+  display: flex;
+  align-items: center;
+}
+
+.dateInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dateMain {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1e293b;
+  line-height: 1.2;
+}
+
+.dateDay {
+  font-size: 14px;
+  color: #64748b;
+  line-height: 1.2;
+}
+
+.guestControl {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border: 2px solid #e2e8f0;
+  border-radius: 16px;
+  background: white;
+  min-width: 280px;
+}
+
+.guestInfo {
+  display: flex;
+  flex-direction: column;
+}
+
+.guestLabel {
+  font-size: 16px;
+  font-weight: 500;
+  color: #1e293b;
+}
+
+.counterControls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.counterButton {
+  width: 32px;
+  height: 32px;
+  border: 1px solid #e2e8f0;
+  border-radius: 50%;
+  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #64748b;
+}
+
+.counterButton:hover:not(.disabled) {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
+.counterButton.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.counterValue {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1e293b;
+  min-width: 20px;
+  text-align: center;
+}
+
+.calendarDropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 1000;
+  margin-top: 8px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+@media (max-width: 768px) {
+  .controlsContainer {
+    flex-direction: column;
+    width: 100%;
+  }
+  
+  .dateControl,
+  .guestControl {
+    width: 100%;
+  }
+}

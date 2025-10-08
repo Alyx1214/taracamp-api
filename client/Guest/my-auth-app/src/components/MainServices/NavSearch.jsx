@@ -60,6 +60,9 @@ function MainServicesNavSearch({ onSearch, onClearSearch, onApplyFilters }) {
   return (
     <div className={styles.navAndSearchContainer}>
       <div className={styles.navTabs}>
+        <NavLink to={`${base}/all`} className={({ isActive }) => `${styles.navTab} ${isActive ? styles.activeTab : ''}`} end>
+          All
+        </NavLink>
         <NavLink to={`${base}/dormitories`} className={({ isActive }) => `${styles.navTab} ${isActive ? styles.activeTab : ''}`} end>
           Dormitory
         </NavLink>
@@ -132,7 +135,7 @@ function MainServicesNavSearch({ onSearch, onClearSearch, onApplyFilters }) {
                 <input
                   type="number"
                   id="capacity"
-                  placeholder="Guests"
+                  placeholder="No. of Guests"
                   className={styles.overlayInput}
                   value={capacity}
                   onChange={(e) => setCapacity(e.target.value)}

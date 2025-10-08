@@ -1,0 +1,265 @@
+.all-services {
+  max-width: 1200px;
+  margin: 0 auto;
+  font-family: 'Arial', sans-serif;
+  min-height: 90vh;
+}
+
+.service-section {
+  margin-bottom: 3rem;
+  padding: 0.5rem 0;
+}
+
+.section-title {
+  font-size: 3.5em;
+  font-weight: 700;
+  color: #538E5E;
+  text-align: left;
+  margin-bottom: 2rem;
+  text-transform: uppercase;
+  letter-spacing: 15px;
+  padding-bottom: 0.5rem;
+  border: none;
+}
+
+.services-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.service-card {
+  background: white;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  max-height: 100%;
+}
+
+.service-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+/* Match the gray placeholder image from the design */
+.service-image {
+  height: 200px;
+  overflow: hidden;
+  position: relative;
+  background-color: #888888;
+  flex-shrink: 0;
+}
+
+.service-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.service-card:hover .service-image img {
+  transform: scale(1.02);
+}
+
+/* Center the content like in the image */
+.service-info {
+  padding: 1rem;
+  text-align: center;
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Match the brown/dark title style */
+.service-info h3 {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #5d4037;
+  margin-bottom: 0.75rem;
+  line-height: 1.3;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+}
+
+/* Hide description to match the clean design */
+.service-info p:not(.capacity):not(.price) {
+  display: none;
+}
+
+/* Match the gray rate text style */
+.service-info p {
+  font-size: 0.95rem;
+  color: #757575;
+  line-height: 1.4;
+  margin-bottom: 0.75rem;
+  font-weight: 400;
+}
+
+.capacity {
+  font-weight: 400;
+  color: #757575;
+  font-size: 0.95rem;
+  margin-bottom: 0.75rem;
+  border: none;
+  padding: 0;
+}
+
+.price {
+  font-weight: 400;
+  color: #757575;
+  font-size: 0.95rem;
+  margin-bottom: 1.5rem;
+  border: none;
+  padding: 0;
+}
+
+/* Match the dark green rounded button */
+.check-btn {
+  background: #2e5d31;
+  color: white;
+  border: none;
+  padding: 0.75rem 2rem;
+  border-radius: 25px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: capitalize;
+  letter-spacing: 0.5px;
+  text-decoration: none;
+  display: inline-block;
+  text-align: center;
+  margin-top: auto;
+  min-width: 120px;
+  margin-bottom: 20px;
+}
+
+.check-btn:hover {
+  background: #1b3d1e;
+  transform: translateY(-1px);
+  text-decoration: none;
+  color: white;
+  box-shadow: 0 4px 12px rgba(46, 93, 49, 0.3);
+}
+
+.view-all-btn {
+  background: #538E5E;
+  color: white;
+  border: none;
+  padding: 1.1rem 10rem;
+  border-radius: 25px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: block;
+  margin: 0 auto;
+  text-transform: capitalize;
+  letter-spacing: 1px;
+  min-width: 200px;
+}
+
+.view-all-btn:hover {
+  background: #2e5d31;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(124, 179, 66, 0.3);
+}
+
+.error {
+  color: #d32f2f;
+  font-size: 1.1rem;
+  text-align: center;
+  padding: 2rem;
+  background: #ffebee;
+  border: 1px solid #ffcdd2;
+  border-radius: 8px;
+  font-weight: 500;
+}
+
+/* Loading state */
+.all-services p {
+  text-align: center;
+  font-size: 1.1rem;
+  color: #757575;
+  padding: 2rem;
+}
+
+/* Empty state messages */
+.services-grid p {
+  font-size: 0.95em;
+  color: #888;
+  margin-top: 0;
+  margin-bottom: 10px; 
+  padding: 0 10px;
+  /* grid-column: 1 / -1;
+  text-align: center;
+  color: #9e9e9e;
+  padding: 0;
+  background: white; */
+  /* border-radius: 12px;
+  border: 1px dashed #e0e0e0; */
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .all-services {
+    padding: 1rem;
+  }
+  
+  .service-section {
+    padding: 1rem 0;
+    margin-bottom: 2rem;
+  }
+  
+  .section-title {
+    font-size: 2rem;
+    text-align: center;
+  }
+  
+  .services-grid {
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 1rem;
+  }
+  
+  .service-info {
+    padding: 1rem;
+  }
+  
+  .service-info h3 {
+    font-size: 1.1rem;
+  }
+  
+  .check-btn {
+    padding: 0.6rem 1.5rem;
+    font-size: 0.85rem;
+  }
+  
+  .view-all-btn {
+    padding: 0.8rem 2rem;
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .section-title {
+    font-size: 1.5rem;
+  }
+  
+  .service-image {
+    height: 150px;
+  }
+  
+  .service-info h3 {
+    font-size: 1rem;
+  }
+  
+  .services-grid {
+    grid-template-columns: 1fr;
+  }
+}

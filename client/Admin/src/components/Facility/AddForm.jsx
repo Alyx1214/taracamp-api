@@ -97,7 +97,12 @@ const AddForm = () => {
   return (
     <div className={styles.formContainer}>
       <div className={styles.header}>
-        <FaArrowLeft className={styles.backArrow} onClick={() => navigate(-1)} />
+        <span
+          className={styles["add-form-back"]}
+          onClick={() => navigate(-1)}
+          >
+          &larr;
+        </span>
         <h2 className={styles.title}>
           {category.charAt(0).toUpperCase() + category.slice(1).toLowerCase()}
         </h2>

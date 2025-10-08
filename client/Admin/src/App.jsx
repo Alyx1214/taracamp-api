@@ -19,7 +19,7 @@ import Transaction from "./components/Transaction/Transaction.jsx";
 import TransactionDetails from "./components/Transaction/TransactionDetails.jsx";
 import PaymentDetails from "./components/Transaction/PaymentDetails.jsx";
 import CheckInOut from "./components/CheckInOut/CheckInOuts.jsx";
-import Reports from "./components/Report/Report.jsx";
+import Messages from "./components/Messages/Messages.jsx";
 import User from "./components/Users/Users.jsx";
 import AddUserForm from "./components/Users/AddUsersForm.jsx";
 
@@ -95,7 +95,7 @@ return (
 <Route path="user" element={<User />} />
 <Route path="users/add" element={<AddUserForm />} />
 <Route path="checkin" element={<CheckInOut />} />
-<Route path="reports" element={<Reports />} /> 
+<Route path="messages" element={<Messages />} />
 <Route path="/reservations/add" element={<AddReservation />} />
 <Route path="/reservation-form" element={<ReservationForm />} />
 <Route path="/reservation-step2" element={<ReservationFormStep2 />} />
