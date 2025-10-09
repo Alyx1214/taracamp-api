@@ -11,7 +11,7 @@ export default function CheckInOuts() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filters, setFilters] = useState({});
 
-  const columns = ["ID", "Name", "Email", "Service Type", "Date", "Actions"];
+  const columns = ["Name", "Email", "Service Type", "Date", "Actions"];
 
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);

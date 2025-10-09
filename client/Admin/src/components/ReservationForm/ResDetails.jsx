@@ -30,7 +30,7 @@ function ResDetails({ onClose }) {
           adults: a,
           children: c,
           pwds: p,
-          serviceType: mapServiceType(step2?.typeService) || 'MEETING/CONFERENCE',
+          serviceType: mapServiceType(step2?.typeService),
         });
         if (!abort) setQuote(data.amount);
       } catch {

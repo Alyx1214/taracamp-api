@@ -11,17 +11,18 @@ export function pickGuestType(t = {}) {
 }
 
 export function mapServiceType(label = '') {
-  const s = String(label || '').trim().toUpperCase();
-  const allowed = new Set([
-    'Meeting/Conference',
-    'Wedding',
-    'Birthday Party',
-    'Corporate Event',
-    'Training/Seminar',
-    'Accommodation',
-    'Other',
+  const trimmed = String(label || '').trim();
+  if (!trimmed) return 'Other';
+
+  const normalized = trimmed.toLowerCase();
+  const allowed = new Map([
+    ['event', 'Event'],
+    ['event and lodging', 'Event and Lodging'],
+    ['lodging', 'Lodging'],
+    ['other', 'Other'],
   ]);
-  return allowed.has(s) ? s : 'Other';
+
+  return allowed.get(normalized) || 'Other';
 }
 
 export function to24h(hour12, ampm) {

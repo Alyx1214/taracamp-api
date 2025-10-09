@@ -37,10 +37,12 @@ function MainServices() {
   const [loading, setLoading] = useState(false);
   const [searchAttempted, setSearchAttempted] = useState(false);
   const [error, setError] = useState(null);
+  const POPUP_KEY = 'servicesPopupShown';
   const [showPopup, setShowPopup] = useState(false);
-  const [hasShownPopup, setHasShownPopup] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const hasOpenedRef = React.useRef(false);
+  const initialPathRef = React.useRef(location.pathname);
 
   const facilityType = useMemo(() => {
     const p = location.pathname;
@@ -59,22 +61,38 @@ function MainServices() {
   }, [facilityType]);
 
   useEffect(() => {
+    if (!facilityType) return;
+    
     const isDetail =
       (location.pathname.includes('/all/') && location.pathname.split('/').length === 4) ||
       (location.pathname.includes('/dormitories/') && location.pathname.split('/').length > 4) ||
       (location.pathname.includes('/cottages/') && location.pathname.split('/').length > 4) ||
       (location.pathname.includes('/conference/') && location.pathname.split('/').length > 4);
 
-    if (!isDetail && facilityType && facilityType !== 'Add-Ons') {
-      if (!hasShownPopup) {
-        setShowPopup(true);
-        setHasShownPopup(true);
-      }
-    } else {
-      setShowPopup(false);
-    }
-  }, [facilityType, hasShownPopup, location.pathname]);
+    const alreadyShown = sessionStorage.getItem(POPUP_KEY) === '1';
 
+    if (isDetail || facilityType === 'Add-Ons') {
+      if (showPopup) setShowPopup(false);
+      return;
+    }
+
+    const isInitialPath = location.pathname === initialPathRef.current;
+
+    if (
+      isInitialPath &&
+      !hasOpenedRef.current &&
+      !alreadyShown
+    ) {
+      setShowPopup(true);
+      sessionStorage.setItem(POPUP_KEY, '1');
+      hasOpenedRef.current = true;
+    }
+  }, [facilityType, location.pathname, showPopup]);
+
+  useEffect(() => {
+    if (location.pathname === initialPathRef.current) return;
+    if (showPopup) setShowPopup(false);
+  }, [location.pathname, showPopup]);
 
   const handleApplyFilters = useCallback(async (filters = {}) => {
     setLoading(true);

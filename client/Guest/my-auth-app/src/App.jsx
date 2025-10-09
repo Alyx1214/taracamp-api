@@ -74,7 +74,7 @@ function AuthLayout() {
 function App() {
   const navigate = useNavigate();
   const handleReserveNow = () => {
-    navigate('/auth/login');
+    navigate('/services');
   };
 
   return (

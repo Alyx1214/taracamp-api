@@ -28,7 +28,7 @@ export default function Approved({ searchQuery = "" }) {
   const [err, setErr] = useState(null);
   const [cancellingId, setCancellingId] = useState(null);
 
-  const columns = useMemo(() => ["ID", "Name", "Email", "Service Type", "Date", "Actions"], []);
+  const columns = useMemo(() => ["Name", "Email", "Service Type", "Date", "Actions"], []);
 
   useEffect(() => {
     let cancelled = false;

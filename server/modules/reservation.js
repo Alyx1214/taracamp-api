@@ -1273,8 +1273,8 @@ const reservationModule = {
 
             const svcType = serviceType ||
             ((facilityDoc.facilityType === FacilityType.DORMITORY || facilityDoc.facilityType === FacilityType.COTTAGE)
-                ? ServiceType.ACCOMMODATION
-                : ServiceType.MEETING);
+                ? ServiceType.LODGING
+                : ServiceType.EVENT);
 
             const { amount, model, } = computeEstimate({
                 facilityDoc,

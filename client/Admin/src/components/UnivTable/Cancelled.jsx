@@ -25,7 +25,7 @@ export default function Cancelled({ searchQuery = "" }) {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState(null);
 
-  const columns = useMemo(() => ["ID", "Name", "Email", "Service Type", "Date", "Actions"], []);
+  const columns = useMemo(() => ["Name", "Email", "Service Type", "Date", "Actions"], []);
 
   useEffect(() => {
     let cancelled = false;
