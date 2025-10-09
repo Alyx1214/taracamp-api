@@ -1,5 +1,159 @@
-.otherserviceContainer {
-display: flex;
-flex-direction: column;
-gap: 10px;
+.otherServiceContainer {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  width: 100%;
+  margin-top: -10px;
+  font-family: "Poppins", sans-serif;
+}
+
+/* Main Box */
+.otherServiceBox {
+  position: relative;
+  background: #ffffff;
+  border: 2px solid #2e7d32;
+  border-radius: 14px;
+  padding: 45px 70px;
+  width: 100%;
+  max-width: 1600px;
+  box-shadow: 0 5px 14px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+/* ⋮ Menu Button */
+.menuWrapper {
+  position: absolute;
+  top: 18px;
+  right: 22px;
+}
+
+.menuButton {
+  background: transparent;
+  border: none;
+  font-size: 22px;
+  cursor: pointer;
+  color: #4b2e05;
+  transition: color 0.2s ease;
+}
+
+.menuButton:hover {
+  color: #2e7d32;
+}
+
+/* Dropdown */
+.menuDropdown {
+  position: absolute;
+  top: 30px;
+  right: 0;
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+  z-index: 10;
+  width: 120px;
+  overflow: hidden;
+}
+
+.menuDropdown button {
+  width: 100%;
+  background: none;
+  border: none;
+  text-align: left;
+  padding: 10px 14px;
+  font-size: 14px;
+  color: #333;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.menuDropdown button:hover {
+  background-color: #f2f2f2;
+}
+
+/* Header: Equipment | Price */
+.otherServiceHeader {
+  display: flex;
+  justify-content: space-between;
+  font-weight: 700;
+  color: #1e3c24;
+  border-bottom: 2px solid #ddd;
+  padding-bottom: 0.5px;
+  margin-bottom: 19px;
+  font-size: 22px;
+  letter-spacing: 0.6px;
+}
+
+/* List */
+.otherServiceList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  color: #1e3c24;
+}
+
+.otherServiceItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #eee;
+  padding: 16px 0;
+  font-size: 18px;
+  line-height: 1.7;
+}
+
+.otherServiceItem:last-child {
+  border-bottom: none;
+}
+
+.errorText {
+  color: red;
+  font-size: 14px;
+  margin: 10px 0;
+  text-align: center;
+}
+
+/* Hover effect */
+.otherServiceItem:hover {
+  background-color: #f9f9f9;
+  transition: background-color 0.2s ease;
+}
+
+/* Responsive design */
+@media (max-width: 992px) {
+  .otherServiceBox {
+    padding: 30px 40px;
+    width: 95%;
+  }
+
+  .otherServiceHeader {
+    font-size: 18px;
+  }
+
+  .otherServiceItem {
+    font-size: 15px;
+  }
+}
+
+@media (max-width: 600px) {
+  .otherServiceBox {
+    width: 95%;
+    padding: 25px;
+  }
+
+  .otherServiceHeader {
+    font-size: 16px;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .otherServiceItem {
+    font-size: 14px;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .otherServiceItem span:last-child {
+    margin-top: 4px;
+    color: #444;
+  }
 }
