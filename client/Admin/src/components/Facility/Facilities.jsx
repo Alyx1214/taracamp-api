@@ -12,44 +12,49 @@ import styles from "./Facilities.module.css";
 export default function Facilities() {
   const [activeTab, setActiveTab] = useState("Dormitory");
   const [searchQuery, setSearchQuery] = useState("");
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingData, setEditingData] = useState(null);
   const navigate = useNavigate();
 
-  const handleEdit = (id, type, facility) => {
-    if (!id) {
-      console.warn("No facility ID passed to edit — generating fallback ID");
-      id = "temp-id-001";
-    }
+  const handleEdit = (facility) => {
+    setIsEditing(true);
+    setEditingData(facility);
+  };
 
-    navigate(`/facilities/edit/${id}`, { state: { category: type, facility } });
+  const handleSaveChanges = (updatedData) => {
+    console.log("Updated Data:", updatedData);
+    setIsEditing(false);
+    setEditingData(null);
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setEditingData(null);
   };
 
   const renderContent = () => {
+    if (isEditing && activeTab === "Add-ons") {
+      return (
+        <OtherService
+          editable
+          onSave={handleSaveChanges}
+          onCancel={handleCancelEdit}
+          data={editingData}
+        />
+      );
+    }
+
     switch (activeTab) {
       case "Dormitory":
-        return (
-          <Dormitory
-            onEdit={(id, f) => handleEdit(id, "Dormitory", f)}
-            searchQuery={searchQuery}
-          />
-        );
+        return <Dormitory searchQuery={searchQuery} />;
       case "Cottage":
-        return (
-          <Cottages
-            onEdit={(id, f) => handleEdit(id, "Cottage", f)}
-            searchQuery={searchQuery}
-          />
-        );
+        return <Cottages searchQuery={searchQuery} />;
       case "Conference":
-        return (
-          <Conference
-            onEdit={(id, f) => handleEdit(id, "Conference", f)}
-            searchQuery={searchQuery}
-          />
-        );
+        return <Conference searchQuery={searchQuery} />;
       case "Add-ons":
         return (
           <OtherService
-            onEdit={(id, f) => handleEdit(id, "Add-ons", f)}
+            onEdit={handleEdit}
             searchQuery={searchQuery}
           />
         );
@@ -60,12 +65,14 @@ export default function Facilities() {
 
   return (
     <div className={styles.facilitiesContainer}>
-      <DormAddFaci activeTab={activeTab} />
+      {!isEditing && <DormAddFaci activeTab={activeTab} />}
 
-      <div className={styles.facilitiesControls}>
-        <FaciTypes activeTab={activeTab} setActiveTab={setActiveTab} />
-        <SearchFil onSearch={(q) => setSearchQuery(String(q || "").trim())} />
-      </div>
+      {!isEditing && (
+        <div className={styles.facilitiesControls}>
+          <FaciTypes activeTab={activeTab} setActiveTab={setActiveTab} />
+          <SearchFil onSearch={(q) => setSearchQuery(String(q || "").trim())} />
+        </div>
+      )}
 
       <div className={styles.facilitiesContent}>{renderContent()}</div>
     </div>
