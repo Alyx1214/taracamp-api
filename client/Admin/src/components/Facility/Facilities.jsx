@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import DormAddFaci from "./DormAddFaci";
 import FaciTypes from "./FaciTypes";
 import SearchFil from "../SearchFil/SearchFil";
@@ -10,11 +10,23 @@ import OtherService from "./OtherService";
 import styles from "./Facilities.module.css";
 
 export default function Facilities() {
-  const [activeTab, setActiveTab] = useState("Dormitory");
+  const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Initialize activeTab based on navigation state to prevent flash
+  const [activeTab, setActiveTab] = useState(() => {
+    return location.state?.activeTab || "Dormitory";
+  });
   const [searchQuery, setSearchQuery] = useState("");
   const [isEditing, setIsEditing] = useState(false);
   const [editingData, setEditingData] = useState(null);
-  const navigate = useNavigate();
+
+  // Handle activeTab from navigation state
+  useEffect(() => {
+    if (location.state?.activeTab) {
+      setActiveTab(location.state.activeTab);
+    }
+  }, [location.state]);
 
   const handleEdit = (facility) => {
     setIsEditing(true);

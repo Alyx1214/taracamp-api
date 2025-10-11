@@ -2,17 +2,19 @@ import { apiGet, apiPost } from './api';
 
 export function getFacilitiesByType(type) {
   const t = String(type || '').trim();
-  return apiGet(`/facility/get-facilities-by-type/${encodeURIComponent(t)}`);
+  return apiGet(`/facility/get-facilities-by-type/${encodeURIComponent(t)}?includeUnavailable=true`);
 }
 
 export function getAllFacilities() {
-  return apiGet('/facility/get-all-facilities');
+  return apiGet('/facility/get-all-facilities?includeUnavailable=true');
 }
 
 export function searchFacilities(params = {}) {
   const q = new URLSearchParams();
   const normalized = { ...params };
   if (normalized.type != null) normalized.type = String(normalized.type).trim();
+  // Always include unavailable facilities for admin
+  normalized.includeUnavailable = true;
   Object.entries(normalized).forEach(([k, v]) => {
     if (v !== undefined && v !== null && String(v).trim() !== '') q.append(k, v);
   });

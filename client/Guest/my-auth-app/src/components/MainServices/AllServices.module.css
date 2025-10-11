@@ -1,6 +1,5 @@
 .all-services {
-  margin: 0px 132px;
-  font-family: 'Arial', sans-serif;
+  margin: 10px 132px 60px 132px;
   min-height: 90vh;
 }
 
@@ -10,80 +9,73 @@
 }
 
 .section-title {
-  font-size: 3.5em;
-  font-weight: 700;
+  font-size: 3em;
   color: #538E5E;
-  text-align: left;
-  margin-bottom: 2rem;
-  text-transform: uppercase;
+  margin-bottom: 30px;
   letter-spacing: 15px;
-  padding-bottom: 0.5rem;
-  border: none;
+  font-weight: bold;
 }
 
 .services-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 2rem;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 30px;
+  justify-content: center;
+  padding: 0 10px;
+  row-gap: 50px;
 }
 
 .service-card {
-  background: white;
-  border-radius: 20px;
+  background-color: #f8f8f8;
+  border-radius: 15px;
+  box-shadow: 0 2px 8px rgba(0, 34, 10, 0.36);
   overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-  border: none;
+  text-align: center;
+  padding-bottom: 20px;
   display: flex;
   flex-direction: column;
-  max-height: 100%;
+  justify-content: space-between;
+  height: 100%;
 }
 
-.service-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-}
 
-/* Match the gray placeholder image from the design */
 .service-image {
+  width: 100%;
   height: 200px;
-  overflow: hidden;
-  position: relative;
-  background-color: #888888;
-  flex-shrink: 0;
+  background-color: #E6E6E6;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: #666;
+  font-style: italic;
+  background-size: cover;
+  background-position: center;
 }
 
 .service-image img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
-  transition: transform 0.3s ease;
+  object-fit: cover; 
+  display: block;
 }
 
-.service-card:hover .service-image img {
-  transform: scale(1.02);
-}
-
-/* Center the content like in the image */
 .service-info {
-  padding: 1rem;
+  padding: 20px;
   text-align: center;
   flex-grow: 1;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  justify-content: space-between;
 }
 
 /* Match the brown/dark title style */
 .service-info h3 {
-  font-size: 1.3rem;
-  font-weight: 700;
-  color: #5d4037;
-  margin-bottom: 0.75rem;
-  line-height: 1.3;
-  text-transform: uppercase;
-  letter-spacing: 1.5px;
+  font-size: 1.3em;
+  font-weight: bold;
+  color: #4F3718;
+  margin-top: 15px;
+  margin-bottom: 5px;
+  padding: 0 10px;
 }
 
 /* Hide description to match the clean design */
@@ -93,58 +85,53 @@
 
 /* Match the gray rate text style */
 .service-info p {
-  font-size: 0.95rem;
-  color: #757575;
-  line-height: 1.4;
-  margin-bottom: 0.75rem;
-  font-weight: 400;
+  font-size: 0.95em;
+  color: #888;
+  margin-top: 0;
+  margin-bottom: 10px;
+  padding: 0 10px;
 }
 
 .capacity {
-  font-weight: 400;
-  color: #757575;
-  font-size: 0.95rem;
-  margin-bottom: 0.75rem;
-  border: none;
-  padding: 0;
+  font-size: 0.95em;
+  color: #888;
+  margin-top: 0;
+  margin-bottom: 10px;
+  padding: 0 10px;
+  text-align: center;
+  display: flex;
+  justify-content: center;
 }
 
 .price {
-  font-weight: 400;
-  color: #757575;
-  font-size: 0.95rem;
-  margin-bottom: 1.5rem;
-  border: none;
-  padding: 0;
+  font-size: 0.95em;
+  color: #888;
+  margin-top: 0;
+  margin-bottom: 10px;
+  padding: 0 10px;
+  text-align: center;
+  display: flex;
+  justify-content: center;
 }
 
 /* Match the dark green rounded button */
 .check-btn {
-  background: #2e5d31;
+  background-color: #1E3C24;
   color: white;
   border: none;
-  padding: 0.75rem 2rem;
-  border-radius: 25px;
-  font-size: 0.9rem;
-  font-weight: 600;
+  border-radius: 20px;
+  padding: 10px 60px;
+  font-size: 1em;
   cursor: pointer;
-  transition: all 0.3s ease;
-  text-transform: capitalize;
-  letter-spacing: 0.5px;
-  text-decoration: none;
+  transition: background-color 0.3s ease;
+  align-self: center;
   display: inline-block;
-  text-align: center;
+  text-decoration: none;
   margin-top: auto;
-  min-width: 120px;
-  margin-bottom: 20px;
 }
 
 .check-btn:hover {
-  background: #1b3d1e;
-  transform: translateY(-1px);
-  text-decoration: none;
-  color: white;
-  box-shadow: 0 4px 12px rgba(46, 93, 49, 0.3);
+  background-color: #45a049;
 }
 
 .view-all-btn {
@@ -158,7 +145,7 @@
   cursor: pointer;
   transition: all 0.3s ease;
   display: block;
-  margin: 0 auto;
+  margin: 3rem auto 2rem auto;
   text-transform: capitalize;
   letter-spacing: 1px;
   min-width: 200px;
@@ -193,15 +180,15 @@
 .skeletonGrid {
   grid-column: 1 / -1;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 2rem;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 30px;
+  row-gap: 50px;
 }
 
 .skeletonCard {
   background: #f8f8f8;
-  border-radius: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 15px;
+  box-shadow: 0 2px 8px rgba(0, 34, 10, 0.36);
   overflow: hidden;
   height: 100%;
   display: flex;
@@ -257,48 +244,34 @@
 }
 
 /* Responsive design */
-@media (max-width: 768px) {
+@media (max-width: 992px) {
   .all-services {
-    padding: 1rem;
-  }
-  
-  .service-section {
-    padding: 1rem 0;
-    margin-bottom: 2rem;
+    margin: 10px 20px 60px 20px;
   }
   
   .section-title {
-    font-size: 2rem;
+    font-size: 2em;
+    letter-spacing: normal;
     text-align: center;
   }
   
   .services-grid {
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    gap: 1rem;
-  }
-  
-  .service-info {
-    padding: 1rem;
-  }
-  
-  .service-info h3 {
-    font-size: 1.1rem;
-  }
-  
-  .check-btn {
-    padding: 0.6rem 1.5rem;
-    font-size: 0.85rem;
-  }
-  
-  .view-all-btn {
-    padding: 0.8rem 2rem;
-    font-size: 1rem;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 576px) {
+  .all-services {
+    margin: 10px 10px 40px 10px;
+  }
+  
   .section-title {
-    font-size: 1.5rem;
+    font-size: 1.8em;
+    text-align: center;
+  }
+  
+  .service-card {
+    padding-bottom: 10px;
   }
   
   .service-image {
@@ -306,10 +279,15 @@
   }
   
   .service-info h3 {
-    font-size: 1rem;
+    font-size: 1.1em;
   }
   
-  .services-grid {
-    grid-template-columns: 1fr;
+  .service-info p {
+    font-size: 0.85em;
+  }
+  
+  .check-btn {
+    padding: 8px 20px;
+    font-size: 0.9em;
   }
 }

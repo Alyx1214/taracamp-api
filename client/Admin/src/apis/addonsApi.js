@@ -12,6 +12,10 @@ export function updateAddon(id, { name, price, unit }) {
   return apiPost(`/addons/update-addon/${encodeURIComponent(id)}`, body);
 }
 
+export function updateManyAddons(updates) {
+  return apiPost('/addons/update-many-addons', { updates });
+}
+
 export function searchAddons(params = {}) {
   return apiGet('/addons/search-addons', params);
 }

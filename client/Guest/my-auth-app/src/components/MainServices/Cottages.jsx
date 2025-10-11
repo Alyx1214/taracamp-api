@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import styles from './Cottages.module.css';
 import placeholderImage from '../../assets/conference.jpg';
 import { Link } from 'react-router-dom';
-import { getFacilitiesByType } from '../../apis/facilityApi';
 
 function MainServicesCottages({
   facilities,
@@ -10,71 +9,12 @@ function MainServicesCottages({
   searchAttempted,
   loadError,
 }) {
-  const [defaultCottages, setDefaultCottages] = useState([]);
-  const [fetchingDefault, setFetchingDefault] = useState(false);
-  const [fetchError, setFetchError] = useState(null);
+  const availableFacilities = Array.isArray(facilities) ? facilities : [];
+  const displayCottages = availableFacilities;
 
-  const filterAvailable = (list = []) =>
-    list.filter((item) => String(item?.status || '') !== 'Unavailable');
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadDefault() {
-      if (searchAttempted) return;
-      if (facilities && facilities.length > 0) return;
-
-      setFetchingDefault(true);
-      setFetchError(null);
-      try {
-        const data = await getFacilitiesByType('Cottage');
-
-        const payloadError = data?.error || data?.message;
-        const list = Array.isArray(data?.facilities) ? data.facilities : [];
-
-        if (payloadError) {
-          throw new Error(
-            typeof payloadError === 'string'
-              ? payloadError
-              : 'Invalid response while loading cottages.'
-          );
-        }
-        if (!Array.isArray(data?.facilities)) {
-          throw new Error('Response missing "facilities" array.');
-        }
-
-        if (!cancelled) setDefaultCottages(filterAvailable(list));
-      } catch (err) {
-        if (!cancelled) {
-          setDefaultCottages([]);
-          const msg =
-            err?.response?.data?.error ||
-            err?.response?.data?.message ||
-            err?.data?.error ||
-            err?.message ||
-            'Failed to load cottages.';
-          setFetchError(msg);
-        }
-      } finally {
-        if (!cancelled) setFetchingDefault(false);
-      }
-    }
-
-    loadDefault();
-    return () => { cancelled = true; };
-  }, [facilities, searchAttempted]);
-
-  const isLoading = Boolean(loading || fetchingDefault);
-
-  const availableFacilities = filterAvailable(Array.isArray(facilities) ? facilities : []);
-
-  const displayCottages = searchAttempted
-    ? availableFacilities
-    : (availableFacilities.length > 0 ? availableFacilities : defaultCottages);
-
-  const showError = !isLoading && Boolean(fetchError || loadError);
-  const showNoResult = !isLoading && !showError && searchAttempted && availableFacilities.length === 0;
-  const showEmptyDefault = !isLoading && !showError && !searchAttempted && (displayCottages?.length ?? 0) === 0;
+  const showError = !loading && Boolean(loadError);
+  const showNoResult = !loading && !showError && searchAttempted && availableFacilities.length === 0;
+  const showEmptyDefault = !loading && !showError && !searchAttempted && (displayCottages?.length ?? 0) === 0;
 
   const formatPeso = (n) => {
     const val = Number(n);
@@ -94,7 +34,7 @@ function MainServicesCottages({
       <h2 className={styles.sectionTitle}>COTTAGES / GUESTHOUSE</h2>
 
       <div className={styles.cottageGrid}>
-        {isLoading && (
+        {loading && (
           <div className={styles.skeletonGrid}>
             {Array.from({ length: 6 }).map((_, i) => (
               <div key={i} className={styles.skeletonCard}>
@@ -109,20 +49,20 @@ function MainServicesCottages({
           </div>
         )}
 
-        {!isLoading && showError && (
+        {!loading && showError && (
           <div className={styles.emptyState} role="alert">
             <div className={styles.emptyCard}>
               <svg className={styles.emptyIcon} viewBox="0 0 24 24" width="28" height="28" aria-hidden="true">
                 <path fill="currentColor" d="M11 15h2v2h-2v-2zm0-8h2v6h-2V7zm1-5C6.48 2 2 6.48 2 12s4.48 10 10 10
                   10-4.48 10-10S17.52 2 12 2z"/>
               </svg>
-              <h4 className={styles.emptyTitle}>Couldn’t load cottages</h4>
-              <p className={styles.emptyDesc}>{fetchError || loadError}</p>
+              <h4 className={styles.emptyTitle}>Couldn't load cottages</h4>
+              <p className={styles.emptyDesc}>{loadError}</p>
             </div>
           </div>
         )}
 
-        {!isLoading && !showError && showNoResult && (
+        {!loading && !showError && showNoResult && (
           <div className={styles.emptyState}>
             <div className={styles.emptyCard}>
               <svg className={styles.emptyIcon} viewBox="0 0 24 24" width="28" height="28" aria-hidden="true">
@@ -136,7 +76,7 @@ function MainServicesCottages({
           </div>
         )}
 
-        {!isLoading && !showError && showEmptyDefault && (
+        {!loading && !showError && showEmptyDefault && (
           <div className={styles.emptyState}>
             <div className={styles.emptyCard}>
               <svg className={styles.emptyIcon} viewBox="0 0 24 24" width="28" height="28" aria-hidden="true">
@@ -147,7 +87,7 @@ function MainServicesCottages({
           </div>
         )}
 
-        {!isLoading && !showError && !showNoResult && displayCottages.map((cottage, idx) => (
+        {!loading && !showError && !showNoResult && displayCottages.map((cottage, idx) => (
           <div key={cottage?._id ?? cottage?.id ?? idx} className={styles.cottageCard}>
             <div className={styles.cottageImagePlaceholder}>
               <img src={imgSrc(cottage)} alt={cottage?.name || 'Cottage'} />

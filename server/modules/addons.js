@@ -230,6 +230,94 @@ const addonsModule = {
     },
 
     /**
+     * Updates multiple add-ons in a single operation.
+     * @param {Object} dbHelper - The database helper for database operations.
+     * @param {Array} updates - Array of update objects with id, name, price, unit
+     * @param {Object} user - The user object containing the user ID and role.
+     * @returns {Object} Response data with status, error, and message on success.
+     */
+    updateManyAddons: async (dbHelper, updates, user) => {
+        const responseData = {
+            status: Status.INTERNAL_SERVER_ERROR,
+            error: 'Error updating add-ons',
+        };
+
+        try {
+            if (!user || !user.userId) {
+                responseData.status = Status.UNAUTHORIZED;
+                responseData.error = 'User not logged in';
+                return responseData;
+            }
+
+            if (user.role !== UserRole.CRMSTEAM && user.role !== UserRole.SUPERINTENDENT) {
+                responseData.status = Status.FORBIDDEN;
+                responseData.error = 'Only CRMS team and Superintendent can edit add-ons';
+                return responseData;
+            }
+
+            if (!Array.isArray(updates) || updates.length === 0) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'No updates provided';
+                return responseData;
+            }
+
+            for (const update of updates) {
+                const { id, name, price, unit, } = update;
+                
+                if (!id) {
+                    responseData.status = Status.BAD_REQUEST;
+                    responseData.error = 'Missing add-on ID';
+                    return responseData;
+                }
+
+                const addon = await dbHelper.findOne('addon', { _id: id, });
+                if (!addon) {
+                    responseData.status = Status.NOT_FOUND;
+                    responseData.error = 'Add-on not found';
+                    return responseData;
+                }
+
+                const updateData = {};
+                if (isPresent(name)) updateData.name = name;
+                if (isPresent(price)) {
+                    if (!isValidPrice(price)) {
+                        responseData.status = Status.BAD_REQUEST;
+                        responseData.error = 'Invalid price value';
+                        return responseData;
+                    }
+                    updateData.price = Number(String(price).replace(/,/g, '')) || 0;
+                }
+                if (isPresent(unit)) updateData.unit = unit;
+
+                const existing = await dbHelper.findOne('addon', {
+                    _id: { $ne: id, },
+                    name: updateData.name || addon.name,
+                    price: updateData.price || addon.price,
+                    unit: updateData.unit || addon.unit,
+                });
+
+                if (existing) {
+                    responseData.status = Status.BAD_REQUEST;
+                    responseData.error = 'Another add-on with the same details already exists';
+                    return responseData;
+                }
+
+                await dbHelper.updateOne('addon', { _id: id, }, { $set: updateData, });
+            }
+
+            responseData.status = Status.OK;
+            responseData.error = null;
+            responseData.message = 'Add-ons updated successfully';
+
+        } catch (error) {
+            console.error('Error updating add-ons:', error);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Error updating add-ons';
+        }
+        return responseData;
+    },
+
+    /**
      * Deletes an add-on by its ID.
      * @param {Object} dbHelper - The database helper for database operations.
      * @param {string} id - The ID of the add-on to be deleted.
@@ -360,4 +448,19 @@ function clampSkip(value, def = 0) {
     const n = Number(value);
     if (!Number.isFinite(n)) return def;
     return Math.max(0, Math.trunc(n));
+}
+
+function parseSort(spec) {
+    if (!spec) return null;
+    const parts = String(spec).split(',');
+    const result = {};
+    for (const part of parts) {
+        const trimmed = part.trim();
+        if (!trimmed) continue;
+        const isDesc = trimmed.startsWith('-');
+        const field = isDesc ? trimmed.slice(1) : trimmed;
+        if (!field) continue;
+        result[field] = isDesc ? -1 : 1;
+    }
+    return Object.keys(result).length > 0 ? result : null;
 }

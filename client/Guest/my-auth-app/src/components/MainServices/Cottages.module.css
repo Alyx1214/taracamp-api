@@ -75,6 +75,9 @@
   margin-top: 0;
   margin-bottom: 10px; 
   padding: 0 10px;
+  text-align: center;
+  display: flex;
+  justify-content: center;
 }
 
 .cottageInfo {
@@ -83,6 +86,9 @@
   margin-top: 0;
   margin-bottom: 10px;
   padding: 0 10px;
+  text-align: center;
+  display: flex;
+  justify-content: center;
 }
 
 .checkButton {

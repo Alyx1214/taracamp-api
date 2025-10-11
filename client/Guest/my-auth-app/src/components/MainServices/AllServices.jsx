@@ -1,6 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getAllFacilities } from '../../apis/facilityApi';
 import styles from './AllServices.module.css';
 
 const TYPE = Object.freeze({
@@ -18,49 +17,10 @@ const AllServices = ({
   loadError = null,
 }) => {
   const navigate = useNavigate();
-  const [defaultFacilities, setDefaultFacilities] = useState([]);
-  const [fetchingDefault, setFetchingDefault] = useState(false);
-  const [fetchError, setFetchError] = useState(null);
-
-  useEffect(() => {
-    let ignore = false;
-    async function loadDefault() {
-      if (searchAttempted) return;
-      if (Array.isArray(facilities) && facilities.length > 0) return;
-
-      setFetchingDefault(true);
-      setFetchError(null);
-      try {
-        const res = await getAllFacilities();
-        const list = Array.isArray(res?.facilities) ? res.facilities : [];
-        if (!ignore) setDefaultFacilities(list);
-      } catch (err) {
-        if (!ignore) {
-          setDefaultFacilities([]);
-          const message =
-            err?.response?.data?.error ||
-            err?.response?.data?.message ||
-            err?.data?.error ||
-            err?.message ||
-            'Failed to load facilities.';
-          setFetchError(message);
-        }
-      } finally {
-        if (!ignore) setFetchingDefault(false);
-      }
-    }
-
-    loadDefault();
-    return () => { ignore = true; };
-  }, [facilities, searchAttempted]);
-
-  const isLoading = Boolean(loading || fetchingDefault);
-  const errorMessage = loadError || fetchError;
-
+  const errorMessage = loadError;
+  const isLoading = loading;
   const facilitiesList = Array.isArray(facilities) ? facilities : [];
-  const source = searchAttempted
-    ? facilitiesList
-    : (facilitiesList.length > 0 ? facilitiesList : defaultFacilities);
+  const source = facilitiesList;
 
   // Split by type and cap each to 6
   const { dorms, cottages, conferences } = useMemo(() => {
@@ -84,12 +44,16 @@ const AllServices = ({
   }, [source]);
 
   const handleViewAll = (section) => {
-    // route shape up to you; query param keeps it simple
-    navigate(`/facilities?type=${encodeURIComponent(section)}`);
+    // Navigate to the specific section within the services page
+    const sectionPath = section.toLowerCase();
+    navigate(`/services/${sectionPath}`);
   };
 
-  const handleCheck = (id) => {
-    navigate(`/${facilityType}/${facilityName}/${id}`);
+  const handleCheck = (item) => {
+    const facilityType = item.facilityType?.toLowerCase() || 'facility';
+    const facilityName = encodeURIComponent(item.name || 'facility');
+    const facilityId = item._id || item.id;
+    navigate(`/services/${facilityType}/${facilityName}/${facilityId}`);
   };
 
   const ServiceCard = ({ item }) => (
@@ -116,7 +80,7 @@ const AllServices = ({
           <p className={styles.price}>Rate per person: ₱{item.ratePerPerson.toLocaleString()}</p>
         ) : null}
 
-        <button className={styles['check-btn']} onClick={() => handleCheck(item._id || item.id)}>
+        <button className={styles['check-btn']} onClick={() => handleCheck(item)}>
           View Details
         </button>
       </div>

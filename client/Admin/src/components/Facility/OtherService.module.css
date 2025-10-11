@@ -25,7 +25,7 @@
 .tableContainer {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
   position: relative;
   background: white;
   border: 1.8px solid #1e3c24;
@@ -33,13 +33,17 @@
   padding: 1.2rem 1.5rem;
   margin-top: -1rem;
   box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  max-width: 100vw;
 }
 
 /* Menu */
 .menuWrapper {
   position: absolute;
   top: 12px;
-  right: 16px;
+  right: 12px;
 }
 
 .cardMenu {
@@ -83,10 +87,11 @@
 .tableHeader,
 .tableItem {
   display: grid;
-  grid-template-columns: 920px 480px;
+  grid-template-columns: minmax(200px, 1fr) auto auto;
   width: 100%;
-  text-align: left;
   gap: 1rem;
+  min-width: 0;
+  align-items: center;
 }
 
 .tableHeader {
@@ -95,6 +100,25 @@
   border-bottom: 1px solid #ddd;
   padding-bottom: 1.2rem;
   font-size: 25px;
+  text-align: center;
+}
+
+.tableHeader span:first-child {
+  text-align: left;
+}
+
+.tableHeader span:nth-child(2) {
+  text-align: right;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.tableHeader span:last-child {
+  text-align: right;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
 }
 
 .tableList {
@@ -107,6 +131,34 @@
   padding: 0.4rem 0;
   font-size: 19px;
   color: #1e3c24;
+  min-width: 0;
+}
+
+.tableItem span:first-child {
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tableItem span:nth-child(2) {
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.tableItem span:last-child {
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
 }
 
 .tableItem:last-child {
@@ -116,20 +168,51 @@
 /* Pill Inputs */
 .priceWrapper {
   display: flex;
-  gap: 6px;
+  column-gap: 14px;
+  justify-content: flex-end;
+  align-items: center;
+  width: 100%;
 }
 
-.pricePill,
+.pricePill {
+  border: none;
+  outline: none;
+  font-size: 18px;
+  padding: 5px 10px;
+  border-radius: 20px;
+  background-color: #e9e9e9;
+  color: #1e3c24;
+  text-align: right;
+  min-width: 80px;
+  max-width: 120px;
+  width: auto;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
 .unitPill {
   border: none;
   outline: none;
   font-size: 18px;
-  padding: 5px 12px;
+  padding: 5px 8px;
   border-radius: 20px;
   background-color: #e9e9e9;
   color: #1e3c24;
-  text-align: center;
+  text-align: right;
+  min-width: 50px;
+  max-width: 80px;
   width: auto;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.priceHeader {
+  display: inline-flex;
+  justify-content: flex-end;
+  align-items: baseline;
+  column-gap: 50px;
+  width: 100%;
+  text-align: right;
 }
 
 .nameInput {
@@ -138,6 +221,46 @@
   background: transparent;
   font-size: 18px;
   width: 100%;
+}
+
+/* Action Buttons */
+.removeBtn {
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s ease;
+  margin: auto;
+}
+
+.removeBtn:hover {
+  background-color: #c82333;
+}
+
+.addBtn {
+  background-color: #28a745;
+  color: white;
+  border: none;
+  border-radius: 20px;
+  padding: 0.5rem 1rem;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  margin-top: 1rem;
+  transition: background-color 0.2s ease;
+  align-self: flex-start;
+}
+
+.addBtn:hover {
+  background-color: #218838;
 }
 
 /* Save Button */
@@ -157,5 +280,202 @@
 }
 
 .saveBtn:hover {
-  background-color: #eae6dc;
+  background-color: #4a3209;
+}
+
+.saveBtn:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+/* Loading and Error Messages */
+.loadingMessage {
+  text-align: center;
+  padding: 1rem;
+  color: #5a3d0e;
+  font-size: 1.2rem;
+  background-color: #f0f0f0;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+.errorMessage {
+  text-align: center;
+  padding: 1rem;
+  color: #d32f2f;
+  font-size: 1.2rem;
+  background-color: #ffebee;
+  border: 1px solid #ffcdd2;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+.noDataMessage {
+  text-align: center;
+  padding: 2rem;
+  color: #666;
+  font-size: 1.2rem;
+  font-style: italic;
+  grid-column: 1 / -1;
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+  .tableHeader,
+  .tableItem {
+    grid-template-columns: minmax(180px, 1fr) auto auto;
+    gap: 0.8rem;
+  }
+  
+  .pricePill {
+    font-size: 16px;
+    padding: 4px 8px;
+    min-width: 70px;
+    max-width: 100px;
+    text-align: right;
+  }
+  
+  .unitPill {
+    font-size: 16px;
+    padding: 4px 6px;
+    min-width: 45px;
+    max-width: 75px;
+    text-align: right;
+  }
+}
+
+@media (max-width: 1024px) {
+  .tableHeader,
+  .tableItem {
+    grid-template-columns: minmax(150px, 1fr) auto auto;
+    gap: 0.6rem;
+  }
+  
+  .pricePill {
+    font-size: 15px;
+    padding: 4px 6px;
+    min-width: 65px;
+    max-width: 90px;
+    text-align: right;
+  }
+  
+  .unitPill {
+    font-size: 15px;
+    padding: 4px 6px;
+    min-width: 40px;
+    max-width: 70px;
+    text-align: right;
+  }
+  
+  .menuWrapper {
+    right: 10px;
+  }
+}
+
+@media (max-width: 768px) {
+  .tableHeader,
+  .tableItem {
+    grid-template-columns: minmax(120px, 1fr) auto auto;
+    gap: 0.4rem;
+  }
+  
+  .pricePill {
+    font-size: 14px;
+    padding: 3px 5px;
+    min-width: 60px;
+    max-width: 80px;
+    text-align: right;
+  }
+  
+  .unitPill {
+    font-size: 14px;
+    padding: 3px 5px;
+    min-width: 35px;
+    max-width: 65px;
+    text-align: right;
+  }
+  
+  .tableHeader {
+    font-size: 20px;
+  }
+  
+  .tableItem {
+    font-size: 16px;
+  }
+  
+  .tableContainer {
+    padding: 1rem;
+  }
+  
+  .menuWrapper {
+    right: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .tableHeader,
+  .tableItem {
+    grid-template-columns: minmax(100px, 1fr) auto auto;
+    gap: 0.3rem;
+  }
+  
+  .pricePill {
+    font-size: 12px;
+    padding: 2px 4px;
+    min-width: 55px;
+    max-width: 75px;
+    text-align: right;
+  }
+  
+  .unitPill {
+    font-size: 12px;
+    padding: 2px 4px;
+    min-width: 30px;
+    max-width: 55px;
+    text-align: right;
+  }
+  
+  .tableHeader {
+    font-size: 18px;
+  }
+  
+  .tableItem {
+    font-size: 14px;
+  }
+  
+  .tableContainer {
+    padding: 0.8rem;
+  }
+  
+  .menuWrapper {
+    right: 6px;
+  }
+}
+
+/* High zoom level handling */
+@media (min-resolution: 2dppx) {
+  .pricePill {
+    min-width: 80px;
+    padding: 6px 10px;
+    text-align: right;
+  }
+  
+  .unitPill {
+    min-width: 50px;
+    padding: 6px 10px;
+    text-align: right;
+  }
+}
+
+/* Ensure minimum usable sizes for accessibility */
+.pricePill:focus {
+  min-width: 80px;
+  outline: 2px solid #1e3c24;
+  outline-offset: 2px;
+}
+
+.unitPill:focus {
+  min-width: 50px;
+  outline: 2px solid #1e3c24;
+  outline-offset: 2px;
 }

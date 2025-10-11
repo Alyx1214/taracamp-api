@@ -142,6 +142,7 @@ const facilityModule = {
     /**
      * Fetches all facilities.
      * @param {Object} dbHelper - The database helper for database operations.
+     * @param {Object} options - Query options including includeUnavailable flag
      * @returns {Object} Response data with status, error, and facilities on success.
      */
     getAllFacilities: async (dbHelper, options = {}) => {
@@ -151,9 +152,16 @@ const facilityModule = {
             facilities: [],
         };
         try {
-            const { limit, skip, sort, } = options || {};
+            const { limit, skip, sort, includeUnavailable } = options || {};
             const sortOption = sort ? parseSort(sort) : { name: 1, };
-            const facilities = await dbHelper.findMany('facility', {}, {
+            
+            // Build filter - exclude unavailable facilities by default unless explicitly requested
+            let filter = {};
+            if (includeUnavailable !== 'true' && includeUnavailable !== true) {
+                filter.status = { $ne: FacilityStatus.UNAVAILABLE };
+            }
+            
+            const facilities = await dbHelper.findMany('facility', filter, {
                 projection: { __v: 0, createdAt: 0, },
                 sort: sortOption,
                 limit: clampLimit(limit),
@@ -475,9 +483,10 @@ const facilityModule = {
      * Fetches facilities by their type.
      * @param {Object} dbHelper - The database helper for database operations.
      * @param {string} facilityType - The type of the facility to be fetched.
+     * @param {Object} options - Query options including includeUnavailable flag
      * @returns {Object} Response data with status, error, and facilities on success.
      */
-    getFacilitiesByType: async (dbHelper, facilityType) => {
+    getFacilitiesByType: async (dbHelper, facilityType, options = {}) => {
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
             error: 'Error fetching facilities by type',
@@ -497,9 +506,17 @@ const facilityModule = {
         }
 
         try {
+            const { includeUnavailable } = options;
+            
+            // Build filter - exclude unavailable facilities by default unless explicitly requested
+            let filter = { facilityType: facilityType };
+            if (includeUnavailable !== 'true' && includeUnavailable !== true) {
+                filter.status = { $ne: FacilityStatus.UNAVAILABLE };
+            }
+            
             const facilities = await dbHelper.find(
                 'facility',
-                { facilityType: facilityType, },
+                filter,
                 { status: 0, __v: 0, createdAt: 0, }
             );
 
@@ -604,11 +621,11 @@ const facilityModule = {
     /**
      * Searches facilities with optional filters, excluding those that have overlapping reservations.
      * @param {Object} dbHelper - Database helper.
-     * @param {Object} options - {type, query, minPrice, maxPrice, capacity, checkInDate, checkOutDate}
+     * @param {Object} options - {type, query, minPrice, maxPrice, capacity, checkInDate, checkOutDate, includeUnavailable}
      * @returns {Object} Response data with status, error, and facilities on success.
      */
     searchFacilities: async (dbHelper, options = {}) => {
-        const { type, query, minPrice, maxPrice, capacity, checkInDate, checkOutDate, } = options;
+        const { type, query, minPrice, maxPrice, capacity, checkInDate, checkOutDate, includeUnavailable } = options;
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
             error: 'Error searching facilities',
@@ -620,6 +637,11 @@ const facilityModule = {
             if (type) filter.facilityType = type.trim();
             if (query) filter.name = new RegExp(query.trim(), 'i');
             if (capacity) filter.capacity = { $gte: Number(capacity), };
+            
+            // Exclude unavailable facilities by default unless explicitly requested
+            if (includeUnavailable !== 'true' && includeUnavailable !== true) {
+                filter.status = { $ne: FacilityStatus.UNAVAILABLE };
+            }
 
             if (minPrice || maxPrice) {
                 filter.$or = [];

@@ -42,6 +42,15 @@ r.post('/update-addon/:id', asyncHandler(async (req, res) => {
   res.status(response.status).json(response);
 }));
 
+r.post('/update-many-addons', asyncHandler(async (req, res) => {
+  const response = await addonsModule.updateManyAddons(
+    dbHelper,
+    req.body.updates,
+    req.user
+  );
+  res.status(response.status).json(response);
+}));
+
 r.post('/delete-addon/:id', asyncHandler(async (req, res) => {
   const response = await addonsModule.deleteAddon(
     dbHelper,

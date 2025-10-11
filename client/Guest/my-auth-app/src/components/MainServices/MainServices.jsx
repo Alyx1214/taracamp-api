@@ -12,7 +12,7 @@ import MainServicesConference from './Conference';
 import MainServicesAddOns from './Add-Ons';
 import MainServicesServiceDetail from './ServiceDetail';
 import Controls from './Controls';
-import { searchFacilities } from '../../apis/facilityApi';
+import { searchFacilities, getAllFacilities } from '../../apis/facilityApi';
 import { searchAddons } from '../../apis/addonsApi';
 import AllServices from './AllServices';
 
@@ -36,6 +36,14 @@ function MainServices() {
   const [loading, setLoading] = useState(false);
   const [searchAttempted, setSearchAttempted] = useState(false);
   const [error, setError] = useState(null);
+  const [cachedData, setCachedData] = useState({
+    all: null,
+    dormitory: null,
+    cottage: null,
+    conference: null,
+    addons: null
+  });
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -49,11 +57,49 @@ function MainServices() {
     return '';
   }, [location.pathname]);
 
+  // Load initial data once when component mounts
   useEffect(() => {
-    setFacilities([]);
+    const loadInitialData = async () => {
+      if (initialLoadComplete) return;
+      
+      setLoading(true);
+      try {
+        const data = await getAllFacilities();
+        const allFacilities = Array.isArray(data?.facilities) ? data.facilities : [];
+        
+        // Cache data by type
+        const categorizedData = {
+          all: allFacilities,
+          dormitory: allFacilities.filter(f => f.facilityType === 'Dormitory'),
+          cottage: allFacilities.filter(f => f.facilityType === 'Cottage'),
+          conference: allFacilities.filter(f => f.facilityType === 'Conference'),
+          addons: null // Will be loaded separately when needed
+        };
+        
+        setCachedData(categorizedData);
+        setFacilities(allFacilities);
+        setInitialLoadComplete(true);
+      } catch (err) {
+        setError(err?.data?.error || 'Failed to load facilities');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadInitialData();
+  }, [initialLoadComplete]);
+
+  useEffect(() => {
+    if (!initialLoadComplete) return;
+    
+    // Set facilities based on current facility type
+    const cacheKey = facilityType === 'All' ? 'all' : facilityType?.toLowerCase();
+    const cachedFacilities = cachedData[cacheKey] || [];
+    
+    setFacilities(cachedFacilities);
     setSearchAttempted(false);
     setError(null);
-  }, [facilityType]);
+  }, [facilityType, cachedData, initialLoadComplete]);
 
 
   const handleApplyFilters = useCallback(async (filters = {}) => {
@@ -85,7 +131,16 @@ function MainServices() {
         };
 
         const data = await searchFacilities(params);
-        setFacilities(Array.isArray(data?.facilities) ? data.facilities : []);
+        const filteredFacilities = Array.isArray(data?.facilities) ? data.facilities : [];
+        setFacilities(filteredFacilities);
+        
+        // Update cache with filtered results
+        if (resolvedType) {
+          setCachedData(prev => ({
+            ...prev,
+            [resolvedType.toLowerCase()]: filteredFacilities
+          }));
+        }
       }
     } catch (err) {
       setFacilities([]);
