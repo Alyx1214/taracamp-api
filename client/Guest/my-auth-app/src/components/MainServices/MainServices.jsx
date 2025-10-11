@@ -15,7 +15,6 @@ import Controls from './Controls';
 import { searchFacilities } from '../../apis/facilityApi';
 import { searchAddons } from '../../apis/addonsApi';
 import AllServices from './AllServices';
-import PopupServices from './PopupServices';
 
 const LABEL_TO_ENUM = {
   Dormitory: 'Dormitory',
@@ -37,12 +36,8 @@ function MainServices() {
   const [loading, setLoading] = useState(false);
   const [searchAttempted, setSearchAttempted] = useState(false);
   const [error, setError] = useState(null);
-  const POPUP_KEY = 'servicesPopupShown';
-  const [showPopup, setShowPopup] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const hasOpenedRef = React.useRef(false);
-  const initialPathRef = React.useRef(location.pathname);
 
   const facilityType = useMemo(() => {
     const p = location.pathname;
@@ -60,39 +55,6 @@ function MainServices() {
     setError(null);
   }, [facilityType]);
 
-  useEffect(() => {
-    if (!facilityType) return;
-    
-    const isDetail =
-      (location.pathname.includes('/all/') && location.pathname.split('/').length === 4) ||
-      (location.pathname.includes('/dormitories/') && location.pathname.split('/').length > 4) ||
-      (location.pathname.includes('/cottages/') && location.pathname.split('/').length > 4) ||
-      (location.pathname.includes('/conference/') && location.pathname.split('/').length > 4);
-
-    const alreadyShown = sessionStorage.getItem(POPUP_KEY) === '1';
-
-    if (isDetail || facilityType === 'Add-Ons') {
-      if (showPopup) setShowPopup(false);
-      return;
-    }
-
-    const isInitialPath = location.pathname === initialPathRef.current;
-
-    if (
-      isInitialPath &&
-      !hasOpenedRef.current &&
-      !alreadyShown
-    ) {
-      setShowPopup(true);
-      sessionStorage.setItem(POPUP_KEY, '1');
-      hasOpenedRef.current = true;
-    }
-  }, [facilityType, location.pathname, showPopup]);
-
-  useEffect(() => {
-    if (location.pathname === initialPathRef.current) return;
-    if (showPopup) setShowPopup(false);
-  }, [location.pathname, showPopup]);
 
   const handleApplyFilters = useCallback(async (filters = {}) => {
     setLoading(true);
@@ -133,27 +95,6 @@ function MainServices() {
     }
   }, [facilityType]);
 
-  const handlePopupSubmit = useCallback((form) => {
-    const mapType = {
-      Dormitory: 'DORMITORY',
-      Cottage: 'COTTAGE',
-      Conference: 'CONFERENCE',
-    };
-    const enumType = mapType[form.serviceType] || null;
-
-    if (enumType === 'DORMITORY') navigate('/user/services/dormitories');
-    else if (enumType === 'COTTAGE') navigate('/user/services/cottages');
-    else if (enumType === 'CONFERENCE') navigate('/user/services/conference');
-    else navigate('/user/services/all');
-
-    handleApplyFilters({
-      type: enumType,
-      checkInDate: form.checkIn,
-      checkOutDate: form.checkOut,
-      capacity: form.adults + form.children, 
-      query: '', 
-    });
-  }, [handleApplyFilters, navigate]);
   
   async function handleSearch(query) {
     if (!query?.trim() || !facilityType) return;
@@ -237,7 +178,7 @@ function MainServices() {
                 />
               )}
             />
-            <Route index element={<Navigate to="dormitories" replace />} />
+            <Route index element={<Navigate to="all" replace />} />
             <Route
               path="dormitories"
               element={
@@ -285,11 +226,6 @@ function MainServices() {
           </Routes>
 
           {!isDetailViewOrAddOn && <MainServicesRates />}
-          <PopupServices
-            isOpen={showPopup}
-            onClose={() => setShowPopup(false)}
-            onSubmit={handlePopupSubmit}
-          />
         </div>
       </main>
 

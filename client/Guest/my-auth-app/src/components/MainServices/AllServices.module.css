@@ -189,6 +189,57 @@
   padding: 2rem;
 }
 
+/* Skeleton loading styles */
+.skeletonGrid {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.skeletonCard {
+  background: #f8f8f8;
+  border-radius: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.skelImg {
+  height: 200px;
+  background: linear-gradient(90deg, #e6e6e6, #dcdcdc, #e6e6e6);
+  background-size: 200% 100%;
+  animation: shimmer 1.2s infinite;
+}
+
+.skelBody {
+  padding: 20px;
+  display: grid;
+  gap: 10px;
+}
+
+.skelLine,
+.skelLineShort,
+.skelLineShorter {
+  height: 12px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, rgba(200,200,200,0.4), rgba(200,200,200,0.7), rgba(200,200,200,0.4));
+  background-size: 200% 100%;
+  animation: shimmer 1.2s infinite;
+}
+
+.skelLine { width: 70%; }
+.skelLineShort { width: 40%; }
+.skelLineShorter { width: 30%; }
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
 /* Empty state messages */
 .services-grid p {
   font-size: 0.95em;

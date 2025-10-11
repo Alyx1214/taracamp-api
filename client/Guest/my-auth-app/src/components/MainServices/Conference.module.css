@@ -12,7 +12,7 @@
 
 .conferenceGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
   gap: 30px;
   justify-content: center;
   padding: 0 10px;
@@ -106,7 +106,7 @@
     text-align: center;
   }
   .conferenceGrid {
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   }
 }
 
@@ -148,7 +148,7 @@
 .skeletonGrid {
   width: 100%;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
   gap: 30px;
   row-gap: 50px;
 }

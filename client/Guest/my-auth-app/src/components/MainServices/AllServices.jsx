@@ -126,7 +126,59 @@ const AllServices = ({
   if (isLoading) {
     return (
       <div className={styles['all-services']}>
-        <p>Loading facilities… try not to blink.</p>
+        <div className={styles.serviceSection}>
+          <h2 className={styles.sectionTitle}>DORMITORIES</h2>
+          <div className={styles.servicesGrid}>
+            <div className={styles.skeletonGrid}>
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className={styles.skeletonCard}>
+                  <div className={styles.skelImg} />
+                  <div className={styles.skelBody}>
+                    <span className={styles.skelLine} />
+                    <span className={styles.skelLineShort} />
+                    <span className={styles.skelLineShorter} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+        
+        <div className={styles.serviceSection}>
+          <h2 className={styles.sectionTitle}>COTTAGES</h2>
+          <div className={styles.servicesGrid}>
+            <div className={styles.skeletonGrid}>
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className={styles.skeletonCard}>
+                  <div className={styles.skelImg} />
+                  <div className={styles.skelBody}>
+                    <span className={styles.skelLine} />
+                    <span className={styles.skelLineShort} />
+                    <span className={styles.skelLineShorter} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+        
+        <div className={styles.serviceSection}>
+          <h2 className={styles.sectionTitle}>CONFERENCE HALLS</h2>
+          <div className={styles.servicesGrid}>
+            <div className={styles.skeletonGrid}>
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className={styles.skeletonCard}>
+                  <div className={styles.skelImg} />
+                  <div className={styles.skelBody}>
+                    <span className={styles.skelLine} />
+                    <span className={styles.skelLineShort} />
+                    <span className={styles.skelLineShorter} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
