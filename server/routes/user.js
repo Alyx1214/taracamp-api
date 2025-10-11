@@ -63,6 +63,11 @@ export default function buildUserRouter(userSocketMap) {
     res.status(response.status).json(response);
   }));
 
+  r.post('/verify-password-reset-code', asyncHandler(async (req, res) => {
+    const response = await userModule.verifyPasswordResetCode(dbHelper, req.body);
+    res.status(response.status).json(response);
+  }));
+
   r.post('/reset-password', asyncHandler(async (req, res) => {
     const response = await userModule.resetPassword(dbHelper, req.body);
     res.status(response.status).json(response);

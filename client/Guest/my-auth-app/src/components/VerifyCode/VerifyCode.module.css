@@ -1,21 +1,17 @@
-.resetPasswordLeftPanel {
+.verifyLeftPanel {
   padding: 2rem;
   color: white;
 }
 
-.resetPasswordLeftPanel h2 {
+.verifyLeftPanel h2 {
   font-size: 2rem;
   margin-bottom: 1.5rem;
   font-weight: bold;
 }
 
-.resetPasswordInfo p {
+.verifyInfo p {
   margin-bottom: 1rem;
   line-height: 1.6;
-}
-
-.resetPasswordInfo em {
-  font-style: italic;
 }
 
 .optionalText {
@@ -23,7 +19,7 @@
   opacity: 0.8;
 }
 
-.resetPasswordForm {
+.verifyForm {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -33,7 +29,7 @@
   margin: 0 auto;
 }
 
-.resetPasswordForm h2 {
+.verifyForm h2 {
   font-size: 1.8rem;
   margin-bottom: 0.5rem;
   color: #333;
@@ -41,54 +37,50 @@
 
 .formDescription {
   color: #666;
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
   line-height: 1.5;
+}
+
+.emailHint {
+  text-align: center;
+  margin-bottom: 1rem;
+  color: #4a4a4a;
+  font-size: 0.95rem;
+}
+
+.emailHint button {
+  font-weight: 600;
 }
 
 .message {
   padding: 0.75rem;
   margin-bottom: 1rem;
-  border-radius: 4px;
-  font-size: 0.9rem;
+  border-radius: 6px;
+  font-size: 0.95rem;
   text-align: center;
+  border: 1px solid transparent;
 }
 
 .success {
-  background-color: #d4edda;
-  color: #155724;
-  border: 1px solid #c3e6cb;
+  background-color: #e8f5e9;
+  color: #1b5e20;
+  border-color: #c8e6c9;
 }
 
 .error {
-  background-color: #f8d7da;
-  color: #721c24;
-  border: 1px solid #f5c6cb;
+  background-color: #fdecea;
+  color: #b71c1c;
+  border-color: #f5c6cb;
 }
 
 .inputGroup {
   margin-bottom: 1rem;
-  width: 100%;
   display: flex;
   justify-content: center;
-}
-
-.inputGroup input {
   width: 100%;
-  padding: 12px 15px;
-  border: 1px solid #ddd;
-  border-radius: 25px;
-  font-size: 1em;
-  box-sizing: border-box;
-  outline: none;
-  transition: border-color 0.3s ease;
 }
 
-.inputGroup input:focus {
-  border-color: #1E3C24;
-  box-shadow: 0 0 0 2px rgba(30, 60, 36, 0.1);
-}
-
-.resetPasswordBtn {
+.verifyBtn {
   width: 100%;
   padding: 12px 20px;
   background-color: #1E3C24;
@@ -101,35 +93,46 @@
   margin-top: 10px;
 }
 
-.resetPasswordBtn:hover {
+.verifyBtn:hover {
   background-color: #538E5E;
 }
 
-.resetPasswordBtn:disabled {
+.verifyBtn:disabled {
   background-color: #6c757d;
   cursor: not-allowed;
 }
 
-.emailHint {
-  margin-bottom: 1.5rem;
-  font-size: 0.95rem;
-  color: #4a4a4a;
+.resendRow {
+  margin-top: 0.75rem;
   text-align: center;
 }
 
-.secondaryLink {
-  margin-top: 1rem;
+.resendHint {
+  color: #6c757d;
+  font-size: 0.9rem;
+}
+
+.resendLink {
   background: none;
   border: none;
-  color: #1E3C24;
+  color: #007bff;
+  font-size: 0.95rem;
   cursor: pointer;
   text-decoration: underline;
+}
+
+.backLink {
+  background: none;
+  border: none;
+  color: #007bff;
   font-size: 0.95rem;
-  align-self: center;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
   font-weight: 600;
 }
 
-.secondaryLink:disabled {
+.backLink:disabled {
   color: #6c757d;
   cursor: not-allowed;
   text-decoration: none;

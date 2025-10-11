@@ -1,12 +1,24 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import AuthFormContainer from '../AuthFormContainer/AuthFormContainer';
-import './ResetPassword.module.css';
+import styles from './ResetPassword.module.css';
+import { resetPassword as resetPasswordApi } from '../../apis/userApi';
 
-const ResetPassword = () => {
+const ResetPassword = ({ email, resetToken, onBackToLogin, onResetComplete }) => {
   const [formData, setFormData] = useState({
     newPassword: '',
     confirmPassword: ''
   });
+  const [message, setMessage] = useState({ type: '', text: '' });
+  const [submitting, setSubmitting] = useState(false);
+  const timeoutRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -16,30 +28,67 @@ const ResetPassword = () => {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Handle password reset logic here
-    console.log('Reset password data:', formData);
+    if (!email || !resetToken) {
+      setMessage({ type: 'error', text: 'We lost your reset session. Please start over.' });
+      return;
+    }
+    if (!formData.newPassword || !formData.confirmPassword) {
+      setMessage({ type: 'error', text: 'Please fill out both password fields.' });
+      return;
+    }
+    if (formData.newPassword !== formData.confirmPassword) {
+      setMessage({ type: 'error', text: 'Passwords do not match.' });
+      return;
+    }
+
+    setSubmitting(true);
+    setMessage({ type: '', text: '' });
+    try {
+      const res = await resetPasswordApi({
+        email,
+        newPassword: formData.newPassword,
+        resetToken,
+      });
+      setMessage({ type: 'success', text: res?.message || 'Password reset successfully.' });
+      setFormData({ newPassword: '', confirmPassword: '' });
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      timeoutRef.current = setTimeout(() => {
+        onResetComplete?.();
+      }, 1200);
+    } catch (error) {
+      setMessage({ type: 'error', text: error?.data?.error || error?.message || 'Failed to reset password.' });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const leftPanelContent = (
-    <div className="reset-password-left-panel">
-      <h2>Baguio Teachers Camp</h2>
-      <div className="reset-password-info">
-        <p>Ready to log in? <em>Create your new password now and you'll be all set.</em></p>
-        <p className="optional-text">(Optional: Change the "Log In" button to say "Back to Login".)</p>
-      </div>
-    </div>
-  );
-
   const rightPanelContent = (
-    <div className="reset-password-form">
+    <div className={styles.resetPasswordForm}>
       <h2>Create a New Password</h2>
-      <p className="form-description">
+      <p className={styles.formDescription}>
         Enter and confirm your new password below. Make sure it's strong and unique.
       </p>
+      {email ? (
+        <p className={styles.emailHint}>Resetting password for <strong>{email}</strong></p>
+      ) : (
+        <p className={styles.emailHint}>Start over to request a new reset link.</p>
+      )}
+      {message.text ? (
+        <div
+          className={[
+            styles.message,
+            message.type === 'success' ? styles.success : styles.error,
+          ].join(' ')}
+        >
+          {message.text}
+        </div>
+      ) : null}
       <form onSubmit={handleSubmit}>
-        <div className="input-group">
+        <div className={styles.inputGroup}>
           <input
             type="password"
             name="newPassword"
@@ -47,9 +96,10 @@ const ResetPassword = () => {
             value={formData.newPassword}
             onChange={handleInputChange}
             required
+            disabled={submitting}
           />
         </div>
-        <div className="input-group">
+        <div className={styles.inputGroup}>
           <input
             type="password"
             name="confirmPassword"
@@ -57,20 +107,29 @@ const ResetPassword = () => {
             value={formData.confirmPassword}
             onChange={handleInputChange}
             required
+            disabled={submitting}
           />
         </div>
-        <button type="submit" className="reset-password-btn">
-          Set New Password
+        <button type="submit" className={styles.resetPasswordBtn} disabled={submitting || !email || !resetToken}>
+          {submitting ? 'Setting Password...' : 'Set New Password'}
         </button>
       </form>
+      <button
+        type="button"
+        className={styles.secondaryLink}
+        onClick={() => {
+          if (timeoutRef.current) clearTimeout(timeoutRef.current);
+          onBackToLogin?.();
+        }}
+        disabled={submitting}
+      >
+        Back to Login
+      </button>
     </div>
   );
 
   return (
-    <AuthFormContainer
-      leftContent={leftPanelContent}
-      rightContent={rightPanelContent}
-    />
+    <AuthFormContainer rightContent={rightPanelContent} />
   );
 };
 

@@ -90,9 +90,9 @@ const AddForm = () => {
           payload.capacity = formData.capacity;
         }
 
-        if (facilityType === "Conference") {
+        if (facilityType === "Conference" || facilityType === "Cottage") {
           payload.price = formData.rate;
-        } else if (facilityType === "Dormitory" || facilityType === "Cottage") {
+        } else if (facilityType === "Dormitory") {
           payload.ratePerPerson = formData.rate;
         }
         const res = await createFacility(payload);
@@ -209,7 +209,7 @@ const AddForm = () => {
           </label>
 
           <label>
-            {isSpecialService || facilityType === "Conference" ? "Price:" : "Rate per Person:"}
+            {isSpecialService || facilityType === "Conference" || facilityType === "Cottage" ? "Price:" : "Rate per Person:"}
             <input
               type="number"
               name="rate"

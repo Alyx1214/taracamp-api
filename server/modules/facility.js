@@ -36,8 +36,8 @@ const facilityModule = {
                 !isPresent(name) ||
                 !isPresent(facilityType) ||
                 !isPresent(capacity) ||
-                (facilityType === FacilityType.CONFERENCE && !isPresent(price)) ||
-                ((facilityType === FacilityType.DORMITORY || facilityType === FacilityType.COTTAGE) && !isPresent(ratePerPerson))
+                ((facilityType === FacilityType.CONFERENCE || facilityType === FacilityType.COTTAGE) && !isPresent(price)) ||
+                (facilityType === FacilityType.DORMITORY  && !isPresent(ratePerPerson))
             ) {
                 responseData.status = Status.BAD_REQUEST;
                 responseData.error = 'Missing required fields';
