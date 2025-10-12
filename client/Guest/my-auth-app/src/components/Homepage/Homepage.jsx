@@ -5,7 +5,6 @@ import LandingHero from '../LandingHero/LandingHero';
 import AccommodationsSection from '../LandingPage/Accommodations';
 import BoardLodgingSection from '../LandingPage/BoardLodgingSection';
 import FooterHome from '../FooterHome/FooterHome';
-import ReserveNow from '../BubbleButton/ReserveNow';
 import styles from './Homepage.module.css';
 
 function HomePage({ onReserveNow, isLoggedIn }) { 
@@ -17,14 +16,6 @@ function HomePage({ onReserveNow, isLoggedIn }) {
       <AccommodationsSection />
       <BoardLodgingSection />
       <FooterHome />
-
-      {/* Floating Reserve Button */}
-      <ReserveNow 
-        navigateTo="/services"
-        className={styles.floatingReserveBtn}
-      >
-        Reserve Now
-      </ReserveNow>
     </div>
   );
 }

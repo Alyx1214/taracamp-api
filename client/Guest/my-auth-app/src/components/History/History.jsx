@@ -112,13 +112,13 @@ function HistoryPage() {
         </section>
       </main>
 
-      {/* Floating Reserve Button */}
+      {/* Floating Reserve Button
       <ReserveNow
         navigateTo="/services"
         className={styles.floatingReserveBtn}
       >
         Reserve Now
-      </ReserveNow>
+      </ReserveNow> */}
 
       <Footer />
     </div>
