@@ -1127,7 +1127,7 @@ async function revokeAllRefreshTokensScan(userId) {
             COUNT: 200,
         });
         cursor = nextCursor;
-        if (keys && keys.length) {
+        if (keys && keys.length > 0) {
             await redisClient.del(...keys);
         }
     } while (cursor !== '0');

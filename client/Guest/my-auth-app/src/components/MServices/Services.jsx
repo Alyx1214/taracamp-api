@@ -29,6 +29,19 @@ function Services() {
   const [searchAttempted, setSearchAttempted] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
   const [loadError, setLoadError] = useState(null);   // ✅ you were passing this but never defined it
+  
+  // Shared filter state for synchronization between Controls and PopupServices
+  const [sharedFilters, setSharedFilters] = useState({
+    checkInDate: new Date(),
+    checkOutDate: (() => {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      return tomorrow;
+    })(),
+    adults: 1,
+    children: 0,
+    serviceType: 'Dormitory'
+  });
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -164,6 +177,14 @@ function Services() {
     }
   }, [facilityLabelToEnum, facilityType]);
 
+  // Function to update shared filters
+  const updateSharedFilters = useCallback((newFilters) => {
+    setSharedFilters(prev => ({
+      ...prev,
+      ...newFilters
+    }));
+  }, []);
+
   const handlePopupSubmit = (form) => {
     const mapType = {
       Dormitory: 'Dormitory',
@@ -171,6 +192,15 @@ function Services() {
       Conference: 'Conference',
     };
     const enumType = mapType[form.serviceType] || null;
+
+    // Update shared filters with popup data
+    updateSharedFilters({
+      checkInDate: new Date(form.checkIn),
+      checkOutDate: new Date(form.checkOut),
+      adults: form.adults,
+      children: form.children,
+      serviceType: form.serviceType
+    });
 
     if (enumType === 'Dormitory') navigate('/user/services/dormitories');
     else if (enumType === 'Cottage') navigate('/user/services/cottages');
@@ -212,6 +242,8 @@ function Services() {
             <Controls
               facilityType={facilityType || 'All'}
               onApplyFilters={handleApplyFilters}
+              sharedFilters={sharedFilters}
+              updateSharedFilters={updateSharedFilters}
             />
           )}
 
@@ -280,6 +312,8 @@ function Services() {
             isOpen={showPopup}
             onClose={() => setShowPopup(false)}
             onSubmit={handlePopupSubmit}
+            sharedFilters={sharedFilters}
+            updateSharedFilters={updateSharedFilters}
           />
         </div>
       </main>
