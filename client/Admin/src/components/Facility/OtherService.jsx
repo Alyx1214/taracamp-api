@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { FaEdit, FaTrash } from "react-icons/fa";
 import styles from "./OtherService.module.css";
-import { getAllAddons, createAddon, deleteAddon, updateManyAddons } from "../../apis/addonsApi";
+import { getAllAddons, createAddon, deleteAddon, updateManyAddons, searchAddons } from "../../apis/addonsApi";
 
 const cloneAddons = (addons) => addons.map(addon => ({ ...addon }));
 
-export default function OtherService({ onEdit, editable, onSave, onCancel }) {
+export default function OtherService({ onEdit, editable, onSave, onCancel, searchQuery }) {
   const [services, setServices] = useState([]);
   const [originalServices, setOriginalServices] = useState([]);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -13,13 +13,25 @@ export default function OtherService({ onEdit, editable, onSave, onCancel }) {
   const [error, setError] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const menuRef = useRef(null);
+  const searchTimeoutRef = useRef(null);
 
-  useEffect(() => {
-    const fetchAddons = async () => {
+  const debouncedSearch = useCallback((query) => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    
+    searchTimeoutRef.current = setTimeout(async () => {
       try {
         setLoading(true);
         setError(null);
-        const response = await getAllAddons();
+        
+        let response;
+        if (query && query.trim()) {
+          response = await searchAddons({ query: query.trim() });
+        } else {
+          response = await getAllAddons();
+        }
+        
         const addons = response.addons || response.data?.addons || [];
         
         if (response.status === 200 && addons.length >= 0) {
@@ -41,10 +53,17 @@ export default function OtherService({ onEdit, editable, onSave, onCancel }) {
       } finally {
         setLoading(false);
       }
-    };
-
-    fetchAddons();
+    }, 300);
   }, []);
+
+  useEffect(() => {
+    debouncedSearch(searchQuery);
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [searchQuery, debouncedSearch]);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -58,29 +77,19 @@ export default function OtherService({ onEdit, editable, onSave, onCancel }) {
 
   const handleInputChange = (index, field, value) => {
     const updated = [...services];
-    
-    // Handle price field with proper validation
     if (field === 'price') {
-      // Allow empty string for deletion
       if (value === '') {
         updated[index][field] = '';
         setServices(updated);
         return;
       }
-      
-      // Remove any non-numeric characters except decimal point
       const numericValue = value.replace(/[^0-9.]/g, '');
-      
-      // Ensure only one decimal point
       const parts = numericValue.split('.');
       let cleanValue = parts[0];
       if (parts.length > 1) {
         cleanValue += '.' + parts.slice(1).join('');
       }
-      
-      // Only update if we have a valid numeric value
       if (cleanValue && !isNaN(parseFloat(cleanValue))) {
-        // Format the price with P prefix and proper formatting
         const formattedPrice = `P${Number(cleanValue).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`;
         updated[index][field] = formattedPrice;
       } else if (numericValue === '') {
@@ -95,7 +104,7 @@ export default function OtherService({ onEdit, editable, onSave, onCancel }) {
 
   const handleAddNewItem = () => {
     const newItem = {
-      id: null, // New items don't have an ID
+      id: null,
       name: '',
       price: 'P0.00',
       unit: 'pc'
@@ -109,14 +118,11 @@ export default function OtherService({ onEdit, editable, onSave, onCancel }) {
   };
 
   const handleSave = async () => {
-    // Check authentication
     const token = localStorage.getItem('accessToken');
     if (!token) {
       setError('You must be logged in to edit add-ons');
       return;
     }
-    
-    // Validate all items before saving
     for (let i = 0; i < services.length; i++) {
       const item = services[i];
       if (!item.name || item.name.trim() === '') {
@@ -137,8 +143,6 @@ export default function OtherService({ onEdit, editable, onSave, onCancel }) {
     try {
       setLoading(true);
       setError(null);
-      
-      // Compare current services with original to find changes
       const changes = [];
       
       for (let i = 0; i < services.length; i++) {
@@ -146,7 +150,6 @@ export default function OtherService({ onEdit, editable, onSave, onCancel }) {
         const original = originalServices.find(orig => orig.id === current.id);
         
         if (current.id && original) {
-          // Existing addon - check for changes
           const currentPrice = parsePrice(current.price);
           const originalPrice = parsePrice(original.price);
           
@@ -164,7 +167,6 @@ export default function OtherService({ onEdit, editable, onSave, onCancel }) {
             });
           }
         } else if (!current.id) {
-          // New addon
           changes.push({
             type: 'create',
             data: {
@@ -175,8 +177,6 @@ export default function OtherService({ onEdit, editable, onSave, onCancel }) {
           });
         }
       }
-      
-      // Check for deleted addons
       for (const original of originalServices) {
         const stillExists = services.find(current => current.id === original.id);
         if (!stillExists) {
@@ -188,7 +188,6 @@ export default function OtherService({ onEdit, editable, onSave, onCancel }) {
       }
       
       if (changes.length === 0) {
-        // No changes to save, just refresh the data
         const response = await getAllAddons();
         const addons = response.addons || response.data?.addons || [];
         let formattedAddons = cloneAddons(services);
@@ -207,8 +206,6 @@ export default function OtherService({ onEdit, editable, onSave, onCancel }) {
         if (onSave) onSave(cloneAddons(formattedAddons));
         return;
       }
-      
-      // Separate changes by type
       const updates = changes.filter(c => c.type === 'update').map(c => ({
         id: c.id,
         name: c.data.name,
@@ -218,8 +215,6 @@ export default function OtherService({ onEdit, editable, onSave, onCancel }) {
       
       const creates = changes.filter(c => c.type === 'create');
       const deletes = changes.filter(c => c.type === 'delete');
-      
-      // Process batch updates
       if (updates.length > 0) {
         const response = await updateManyAddons(updates);
         if (response?.status !== 200) {
@@ -232,8 +227,6 @@ export default function OtherService({ onEdit, editable, onSave, onCancel }) {
           }
         }
       }
-      
-      // Process creates
       for (const change of creates) {
         const response = await createAddon(change.data);
         if (response.status !== 201) {
@@ -246,8 +239,6 @@ export default function OtherService({ onEdit, editable, onSave, onCancel }) {
           }
         }
       }
-      
-      // Process deletes
       for (const change of deletes) {
         const response = await deleteAddon(change.id);
         if (response.status !== 200) {
@@ -260,8 +251,6 @@ export default function OtherService({ onEdit, editable, onSave, onCancel }) {
           }
         }
       }
-      
-      // Refresh data after successful save
       const response = await getAllAddons();
       const addons = response.addons || response.data?.addons || [];
       let formattedAddons = cloneAddons(services);
@@ -274,12 +263,10 @@ export default function OtherService({ onEdit, editable, onSave, onCancel }) {
           unit: addon.unit
         }));
         setServices(formattedAddons);
-        setOriginalServices(cloneAddons(formattedAddons)); // Update original to reflect the saved state
+        setOriginalServices(cloneAddons(formattedAddons));
       }
-      
-      // Show success message
       setError(null);
-      setIsEditing(false); // Exit editing mode after successful save
+      setIsEditing(false);
       
       if (onSave) onSave(cloneAddons(formattedAddons));
       
@@ -290,30 +277,25 @@ export default function OtherService({ onEdit, editable, onSave, onCancel }) {
     }
   };
 
-  // Helper function to parse price string to number
   const parsePrice = (priceStr) => {
     if (!priceStr) return 0;
-    // Remove 'P' prefix, commas, and any whitespace, then convert to number
     const cleanPrice = priceStr.toString().replace(/[P,\s]/g, '');
     const parsed = parseFloat(cleanPrice);
     return isNaN(parsed) ? 0 : parsed;
   };
 
-  // Edit function to toggle editing mode
   const handleEdit = () => {
     setIsEditing(true);
     if (onEdit) onEdit();
   };
 
-  // Cancel function to exit editing mode
   const handleCancel = () => {
     setIsEditing(false);
-    setServices(cloneAddons(originalServices)); // Reset to original state
+    setServices(cloneAddons(originalServices));
     setError(null);
     if (onCancel) onCancel();
   };
 
-  //Editable
   if (editable || isEditing) {
     return (
       <div className={styles.container}>
@@ -407,7 +389,6 @@ export default function OtherService({ onEdit, editable, onSave, onCancel }) {
     );
   }
 
-  //Default
   return (
     <div className={styles.container}>
       {loading && (
