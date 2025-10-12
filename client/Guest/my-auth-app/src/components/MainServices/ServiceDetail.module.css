@@ -111,7 +111,7 @@
   position: relative;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   border-style: solid 1px #000000;
-  margin: 20px;
+  margin: 0;
 }
 
 .mainImage::before {
@@ -121,7 +121,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(135deg, rgba(107, 142, 114, 0.1) 0%, transparent 50%);
+  background: linear-gradient(135deg, rgba(107, 142, 114, 0.1) 0%, transparent 100%);
   opacity: 0;
   transition: opacity 0.3s ease;
   z-index: 1;
@@ -133,7 +133,6 @@
 
 .mainImage:hover {
   transform: scale(1.02);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
 }
 
 .mainImage img {

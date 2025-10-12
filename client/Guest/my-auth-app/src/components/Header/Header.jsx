@@ -75,7 +75,7 @@ function Header({ onReserveNow }) {
           </li>
           <li className={styles.mobileOnlyNavItem}>
             <button className={styles.reserveNowButtonMobile} onClick={() => { setIsMenuOpen(false); onReserveNow(); }}>
-              Reserve Now!
+              SignUp / Login
             </button>
           </li>
         </ul>
@@ -84,7 +84,7 @@ function Header({ onReserveNow }) {
       {/*show only after hero is scrolled past */}
       <div className={`${styles.desktopActions} ${!showReserve ? styles.hidden : ''}`}>
         <button className={styles.reserveNowButton} onClick={onReserveNow}>
-          Reserve Now!
+          SignUp / Login
         </button>
       </div>
       
