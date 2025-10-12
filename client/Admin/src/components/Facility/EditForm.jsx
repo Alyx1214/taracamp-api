@@ -11,6 +11,7 @@ const MAX_IMAGES = 5;
 const FACILITY_ENUM = {
   Dormitory: "Dormitory",
   Cottages: "Cottage",
+  Cottage: "Cottage", // Handle both "Cottages" and "Cottage"
   Conference: "Conference",
 };
 
@@ -93,6 +94,7 @@ export default function EditForm() {
         } else if (data.images && typeof data.images === "string") {
           previews[0] = data.images;
         }
+
 
         setForm({
           name: data.name || "",
@@ -211,10 +213,10 @@ export default function EditForm() {
           payload.image = (form.images || []).filter(Boolean)[0];
         }
 
-        if (facilityType === "Conference") {
+        if (facilityType === "Conference" || facilityType === "Cottage") {
           payload.capacity = form.capacity;
           payload.price = form.rate;
-        } else if (facilityType === "Dormitory" || facilityType === "Cottage") {
+        } else if (facilityType === "Dormitory") {
           payload.capacity = form.capacity;
           payload.ratePerPerson = form.rate;
         }
@@ -317,7 +319,7 @@ export default function EditForm() {
               </label>
 
               <label>
-                {(facilityType === "Conference" || isSpecialService) ? "Price" : "Rate per Person"}:
+                {(facilityType === "Conference" || facilityType === "Cottage" || isSpecialService) ? "Price" : "Rate per Person"}:
                 <input type="number" name="rate" value={form.rate} onChange={onChange} required />
               </label>
             </div>

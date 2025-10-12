@@ -2,7 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import HeaderHome from '../HeaderHome/HeaderHome'; 
 import LandingHero from '../LandingHero/LandingHero';
-import AccommodationsSection from '../LandingPage/Accommodations';
+import AccommodationsSection from './Accommodations';
 import BoardLodgingSection from '../LandingPage/BoardLodgingSection';
 import FooterHome from '../FooterHome/FooterHome';
 import styles from './Homepage.module.css';

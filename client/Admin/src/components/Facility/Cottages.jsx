@@ -40,7 +40,7 @@ export default function Cottages({ onEdit, searchQuery = "" }) {
           id: f._id ?? f.id,
           name: f.name ?? "Unnamed Cottage",
           capacity: f.capacity,
-          rate: f.ratePerPerson ?? f.price ?? 0,
+          rate: f.price ?? f.ratePerPerson ?? 0,
           images: Array.isArray(f.images) ? f.images : [],
         }));
 
