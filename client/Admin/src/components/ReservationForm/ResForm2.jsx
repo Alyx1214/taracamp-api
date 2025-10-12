@@ -30,12 +30,12 @@ function ReservationFormStep2() {
     typeService: '',
     timeArrivalHour: '',
     timeArrivalAMPM: 'AM',
-    customService: '',
     specialRequests: '',
   });
 
   const [facilityOptions, setFacilityOptions] = useState([]);
   const [specialOptions, setSpecialOptions] = useState([]);
+  const [selectedAddons, setSelectedAddons] = useState([]);
   const [loadingFacilities, setLoadingFacilities] = useState(false);
   const [loadingSpecials, setLoadingSpecials] = useState(false);
   const [err, setErr] = useState(null);
@@ -55,6 +55,9 @@ function ReservationFormStep2() {
     let hydrated = false;
     if (location.state?.step2) {
       setFormData(prev => ({ ...prev, ...location.state.step2, typeFacilities: prev.typeFacilities || location.state.step2.typeFacilities || ''}));
+      if (location.state.step2.selectedAddons) {
+        setSelectedAddons(location.state.step2.selectedAddons);
+      }
       hydrated = true;
     }
     if (location.state?.errorsStep2) setFieldErrors(location.state.errorsStep2);
@@ -65,6 +68,9 @@ function ReservationFormStep2() {
           const parsed = JSON.parse(saved);
           if (parsed && typeof parsed === 'object') {
             setFormData(prev => ({ ...prev, ...parsed }));
+            if (parsed.selectedAddons) {
+              setSelectedAddons(parsed.selectedAddons);
+            }
           }
         }
       } catch {}
@@ -73,9 +79,9 @@ function ReservationFormStep2() {
 
   useEffect(() => {
     try {
-      sessionStorage.setItem('reservation.step2', JSON.stringify(formData));
+      sessionStorage.setItem('reservation.step2', JSON.stringify({ ...formData, selectedAddons }));
     } catch {}
-  }, [formData]);
+  }, [formData, selectedAddons]);
 
   const minArrival = useMemo(() => {
     const d = new Date();
@@ -92,17 +98,17 @@ function ReservationFormStep2() {
     (async () => {
       try {
         setLoadingSpecials(true);
-        const json = await getAllSpecialServices();
+        const json = await getAllAddons();
         if (!active) return;
 
-        const arr = json?.specialServices ?? json?.data ?? json?.services ?? [];
-        const opts = arr.map((s, idx) => ({
-          value: String(s._id || s.id || `svc-${idx}`),
-          label: s.name || s.title || s.displayName || 'Service',
+        const arr = Array.isArray(json.addons) ? json.addons : [];
+        const opts = arr.map((s) => ({
+          value: String(s._id),
+          label: s.name,
         }));
         setSpecialOptions(opts);
       } catch (e) {
-        if (active) setErr({ message: e.message || 'Failed to load special services' });
+        if (active) setErr({ message: e.message || 'Failed to load add ons' });
       } finally {
         if (active) setLoadingSpecials(false);
       }
@@ -279,9 +285,15 @@ function ReservationFormStep2() {
       facilityLabelFromList: chosen.label,
       facilityCapacity: chosen.capacity,
       facilityRatePerPerson: chosen.ratePerPerson,
+      selectedAddons: selectedAddons,
     };
 
-    navigate(`/reservation-step3`, {
+    const isGroup = step1?.type?.groups || false;
+    
+    // Skip Step 3 for individual reservations, go directly to Step 4
+    const nextStep = isGroup ? `/reservation-step3` : `/reservation-step4`;
+    
+    navigate(nextStep, {
       state: { step1, step2, file },
     });
   };
@@ -297,6 +309,7 @@ function ReservationFormStep2() {
             <h1 className={styles.pageTitle}>RESERVATION FORM</h1>
           </div>
 
+          <div className={styles.mainContent}>
           <div className={styles.formCard}>
             <ErrorBanner err={err} onClose={() => setErr(null)} />
 
@@ -343,9 +356,9 @@ function ReservationFormStep2() {
                     className={`${styles.input} ${fieldErrors.typeFacilities ? styles.inputError : ''}`}
                   >
                     <option value="">Select a facility type</option>
-                    <option value="CONFERENCE">Conference Hall</option>
-                    <option value="DORMITORY">Dormitory</option>
-                    <option value="COTTAGE">Cottage/Guest House</option>
+                    <option value="Conference">Conference</option>
+                    <option value="Dormitory">Dormitory</option>
+                    <option value="Cottage">Cottage</option>
                   </select>
                   {fieldErrors.typeFacilities && (
                     <div className={styles.fieldError}>{fieldErrors.typeFacilities}</div>
@@ -405,29 +418,14 @@ function ReservationFormStep2() {
                     className={`${styles.input} ${fieldErrors.typeService ? styles.inputError : ''}`}
                   >
                     <option value="">Select a service type</option>
-                    <option value="Meeting/Conference">Meeting/Conference</option>
-                    <option value="Wedding">Wedding</option>
-                    <option value="Birthday Party">Birthday Party</option>
-                    <option value="Corporate Event">Corporate Event</option>
-                    <option value="Training/Seminar">Training/Seminar</option>
-                    <option value="Accommodation">Accommodation</option>
-                    <option value="Other">Other</option>
+                    <option value="Event">Event</option>
+                    <option value="Event and Lodging">Event and Lodging</option>
+                    <option value="Lodging">Lodging</option>
                   </select>
                   {fieldErrors.typeService && (
                     <div className={styles.fieldError}>{fieldErrors.typeService}</div>
                   )}
 
-                  {formData.typeService === 'Other' && (
-                    <input
-                      type="text"
-                      name="customService"
-                      value={formData.customService || ''}
-                      onChange={handleInputChange}
-                      placeholder="Please specify..."
-                      className={styles.input}
-                      style={{ marginTop: 8 }}
-                    />
-                  )}
                 </div>
 
                 <div className={styles.formGroup}>
@@ -470,7 +468,7 @@ function ReservationFormStep2() {
                     style={{ flex: 1 }}
                   >
                     <option value="">
-                      {loadingSpecials ? 'Loading options…' : 'Select a special service'}
+                      {loadingSpecials ? 'Loading options…' : 'Select add ons'}
                     </option>
                     {specialOptions.map(request => (
                       <option key={request.value} value={request.value}>
@@ -478,8 +476,64 @@ function ReservationFormStep2() {
                       </option>
                     ))}
                   </select>
-                  <button type="button" className={styles.addRequestButton}>+</button>
+                  <button
+                    type="button"
+                    className={styles.addRequestButton}
+                    onClick={() => {
+                      if (formData.specialRequests) {
+                        const selectedOption = specialOptions.find(opt => opt.value === formData.specialRequests);
+                        if (selectedOption && !selectedAddons.some(addon => addon.value === selectedOption.value)) {
+                          setSelectedAddons(prev => [...prev, selectedOption]);
+                          setFormData(prev => ({ ...prev, specialRequests: '' }));
+                        }
+                      }
+                    }}
+                    disabled={!formData.specialRequests || selectedAddons.some(addon => addon.value === formData.specialRequests)}
+                  >+</button>
                 </div>
+                {selectedAddons.length > 0 && (
+                  <div style={{ marginTop: 12 }}>
+                    <div style={{ fontSize: '14px', marginBottom: 8, color: '#666' }}>Selected Add-ons:</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                      {selectedAddons.map((addon) => (
+                        <div
+                          key={addon.value}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            backgroundColor: '#e8f4fd',
+                            border: '1px solid #b3d8f2',
+                            borderRadius: '16px',
+                            padding: '4px 12px',
+                            fontSize: '13px',
+                            gap: '6px'
+                          }}
+                        >
+                          <span>{addon.label}</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedAddons(prev => prev.filter(item => item.value !== addon.value));
+                            }}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              color: '#666',
+                              cursor: 'pointer',
+                              fontSize: '16px',
+                              lineHeight: '1',
+                              padding: '0',
+                              marginLeft: '2px'
+                            }}
+                            title="Remove addon"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className={styles.buttonContainer}>
@@ -503,6 +557,99 @@ function ReservationFormStep2() {
                 </button>
               </div>
             </form>
+          </div>
+
+           <div className={styles.summaryContainer}>
+              <div className={styles.summaryCard}>
+                <h3 className={styles.summaryTitle}>
+                  {chosenFacility?.label || formData.facilityName || 'Select Facility'}
+                </h3>
+
+                <div className={styles.summaryContent}>
+                  <div className={styles.summaryRow}>
+                    <span className={styles.summaryLabel}>Type of Facility:</span>
+                    <span className={styles.summaryValue}>
+                      {formData.typeFacilities || 'Not selected'}
+                    </span>
+                  </div>
+
+                  <div className={styles.summaryRow}>
+                    <span className={styles.summaryLabel}>Category:</span>
+                    <span className={styles.summaryValue}>
+                      {(() => {
+                        const categoryKey = Object.entries(step1?.category || {}).find(([, v]) => v)?.[0];
+                        if (!categoryKey) return 'Not selected';
+                        if (categoryKey === 'deped') return 'DepEd';
+                        if (categoryKey === 'pwds') return 'PWDs';
+                        return categoryKey.charAt(0).toUpperCase() + categoryKey.slice(1);
+                      })()}
+                    </span>
+                  </div>
+
+                  <div className={styles.summaryRow}>
+                    <span className={styles.summaryLabel}>Type:</span>
+                    <span className={styles.summaryValue}>
+                      {Object.entries(step1?.type || {}).find(([, v]) => v)?.[0]?.charAt(0).toUpperCase() + Object.entries(step1?.type || {}).find(([, v]) => v)?.[0]?.slice(1) || 'Not selected'}
+                    </span>
+                  </div>
+
+                  <div className={styles.summaryRow}>
+                    <span className={styles.summaryLabel}>Total Guest:</span>
+                    <span className={styles.summaryValue}>{totalGuests}</span>
+                  </div>
+
+                  <div className={styles.summaryRow}>
+                    <span className={styles.summaryLabel}>Date of Arrival:</span>
+                    <span className={styles.summaryValue}>
+                      {formData.dateArrival ? new Date(formData.dateArrival).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric'
+                      }) : 'Not selected'}
+                    </span>
+                  </div>
+
+                  <div className={styles.summaryRow}>
+                    <span className={styles.summaryLabel}>Date of Departure:</span>
+                    <span className={styles.summaryValue}>
+                      {formData.dateDeparture ? new Date(formData.dateDeparture).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric'
+                      }) : 'Not selected'}
+                    </span>
+                  </div>
+
+                  <div className={styles.summaryRow}>
+                    <span className={styles.summaryLabel}>Type of Service:</span>
+                    <span className={styles.summaryValue}>
+                      {formData.typeService || 'Not selected'}
+                    </span>
+                  </div>
+
+                  <div className={styles.summaryRow}>
+                    <span className={styles.summaryLabel}>Time of Arrival:</span>
+                    <span className={styles.summaryValue}>
+                      {formData.timeArrivalHour ? `${formData.timeArrivalHour}:00 ${formData.timeArrivalAMPM}` : 'Not selected'}
+                    </span>
+                  </div>
+
+                  <div className={styles.summaryRow}>
+                    <span className={styles.summaryLabel}>Add ons:</span>
+                    <span className={styles.summaryValue}>
+                      {selectedAddons.length > 0 ? selectedAddons.map(addon => addon.label).join(', ') : 'None'}
+                    </span>
+                  </div>
+
+                  <div className={styles.summaryRow}>
+                    <span className={styles.summaryLabel}>Emergency Contact Person:</span>
+                    <span className={styles.summaryValue}>
+                      {step1.emergencyContactPerson || 'Not provided'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>

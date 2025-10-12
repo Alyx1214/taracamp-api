@@ -5,13 +5,27 @@ import { getAllAddons, createAddon, deleteAddon, updateManyAddons, searchAddons 
 
 const cloneAddons = (addons) => addons.map(addon => ({ ...addon }));
 
+const SkeletonLoader = ({ count = 3 }) => {
+  return (
+    <>
+      {Array.from({ length: count }, (_, index) => (
+        <li key={index} className={`${styles.skeletonItem} ${styles.tableGridView}`}>
+          <div className={`${styles.skeletonText} ${styles.skeletonTextMedium}`}></div>
+          <div className={`${styles.skeletonText} ${styles.skeletonTextShort}`}></div>
+        </li>
+      ))}
+    </>
+  );
+};
+
 export default function OtherService({ onEdit, editable, onSave, onCancel, searchQuery }) {
   const [services, setServices] = useState([]);
   const [originalServices, setOriginalServices] = useState([]);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [hasInitiallyLoaded, setHasInitiallyLoaded] = useState(false);
   const menuRef = useRef(null);
   const searchTimeoutRef = useRef(null);
 
@@ -52,6 +66,7 @@ export default function OtherService({ onEdit, editable, onSave, onCancel, searc
         setOriginalServices([]);
       } finally {
         setLoading(false);
+        setHasInitiallyLoaded(true);
       }
     }, 300);
   }, []);
@@ -391,11 +406,6 @@ export default function OtherService({ onEdit, editable, onSave, onCancel, searc
 
   return (
     <div className={styles.container}>
-      {loading && (
-        <div className={styles.loadingMessage}>
-          Loading addons...
-        </div>
-      )}
       {error && (
         <div className={styles.errorMessage}>
           {error}
@@ -424,7 +434,9 @@ export default function OtherService({ onEdit, editable, onSave, onCancel, searc
         </div>
 
         <ul className={styles.tableList}>
-          {services.length > 0 ? (
+          {loading ? (
+            <SkeletonLoader count={3} />
+          ) : services.length > 0 ? (
             services.map((item, index) => (
               <li
                 key={index}
@@ -434,10 +446,12 @@ export default function OtherService({ onEdit, editable, onSave, onCancel, searc
                 <span className={styles.priceDisplay}>{item.price}/{item.unit}</span>
               </li>
             ))
-          ) : (
+          ) : hasInitiallyLoaded ? (
             <li className={styles.noDataMessage}>
               No add-ons found
             </li>
+          ) : (
+            <SkeletonLoader count={3} />
           )}
         </ul>
       </div>

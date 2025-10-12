@@ -11,6 +11,7 @@ function ReservationFormStep3() {
 
   const step1 = location.state?.step1 || {};
   const step2 = location.state?.step2 || {};
+  const isGroup = step1?.type?.groups || false;
 
   const [file, setFile] = useState(location.state?.file || null);
   const [fileError, setFileError] = useState('');
@@ -20,7 +21,11 @@ function ReservationFormStep3() {
     if (!step1 || !Object.keys(step1).length || !step2 || !Object.keys(step2).length) {
       navigate(`/reservation-step2`, { state: { step1, step2, file } });
     }
-  }, [step1, step2, navigate]);
+    // Redirect individuals directly to Step 4 since they don't need letter of intent
+    if (!isGroup) {
+      navigate(`/reservation-step4`, { state: { step1, step2, file } });
+    }
+  }, [step1, step2, navigate, isGroup]);
 
   useEffect(() => {
     try {
@@ -37,7 +42,7 @@ function ReservationFormStep3() {
   };
 
   const handleNext = () => {
-    if (!file) {
+    if (isGroup && !file) {
       setFileError('Letter of Intent is required.');
       return;
     }
@@ -85,7 +90,7 @@ function ReservationFormStep3() {
             <h1 className={styles.pageTitle}>RESERVATION FORM</h1>
           </div>
           <div className={styles.formCard}>
-            <div className={styles.formTitle}>Upload Letter of Intent <span className={styles.required}>*</span></div>
+            <div className={styles.formTitle}>Upload Letter of Intent<span className={styles.required}>*</span></div>
             <div className={styles.formSubtitle}>
               → Download this{' '}
               <a href={LETTER_TEMPLATE_URL} target="_blank" rel="noopener noreferrer" className={styles.letterLink}>
@@ -93,7 +98,7 @@ function ReservationFormStep3() {
               </a>{' '}
               for your reference and make sure your uploaded file covers all required information.
             </div>
-            <div className={styles.groupNote}>This section is only for group reservations.</div>
+            <div className={styles.groupNote}>This section is required for group reservations.</div>
             <div className={styles.uploadBox} onClick={handleBoxClick} role="button" tabIndex={0}>
               <input
                 type="file"
@@ -112,7 +117,13 @@ function ReservationFormStep3() {
               <button type="button" onClick={handlePrevious} className={styles.previousButton}>
                 Previous
               </button>
-              <button type="button" onClick={handleNext} className={styles.nextButton}>
+              <button
+                type="button"
+                onClick={handleNext}
+                className={styles.nextButton}
+                disabled={!file}
+                title={!file ? 'Upload the Letter of Intent to continue.' : undefined}
+              >
                 Next
               </button>
             </div>
