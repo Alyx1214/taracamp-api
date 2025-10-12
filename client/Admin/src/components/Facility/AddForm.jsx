@@ -186,7 +186,7 @@ const AddForm = () => {
                   <input
                     ref={(el) => (inputRefs.current[idx] = el)}
                     type="file"
-                    accept="image/png,image/jpeg"
+                    accept="image/png,image/jpeg,image/HEIC,image/heif"
                     onChange={(e) => {
                       const f = e.target.files && e.target.files[0];
                       handleSlotChange(idx, f || null);
