@@ -2,15 +2,16 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import Calendar from './Calendar'; 
 import styles from './Controls.module.css';
 
-const Controls = ({ facilityType = 'All', onApplyFilters }) => {
+const Controls = ({ facilityType = 'All', onApplyFilters, sharedFilters, updateSharedFilters }) => {
   const today = new Date();
   const tomorrow = new Date();
   tomorrow.setDate(today.getDate() + 1);
 
-  const [checkInDate, setCheckInDate] = useState(today);
-  const [checkOutDate, setCheckOutDate] = useState(tomorrow);
-  const [adults, setAdults] = useState(1);
-  const [children, setChildren] = useState(0);
+  // Use shared state if available, otherwise fall back to local state
+  const [checkInDate, setCheckInDate] = useState(sharedFilters?.checkInDate || today);
+  const [checkOutDate, setCheckOutDate] = useState(sharedFilters?.checkOutDate || tomorrow);
+  const [adults, setAdults] = useState(sharedFilters?.adults || 1);
+  const [children, setChildren] = useState(sharedFilters?.children || 0);
   const [showCheckInCalendar, setShowCheckInCalendar] = useState(false);
   const [showCheckOutCalendar, setShowCheckOutCalendar] = useState(false);
   const lastAppliedFiltersRef = useRef(null);
@@ -81,17 +82,37 @@ const Controls = ({ facilityType = 'All', onApplyFilters }) => {
     };
   }, [applyFiltersDebounced]);
 
+  // Sync with shared state changes
+  useEffect(() => {
+    if (sharedFilters) {
+      if (sharedFilters.checkInDate && sharedFilters.checkInDate !== checkInDate) {
+        setCheckInDate(sharedFilters.checkInDate);
+      }
+      if (sharedFilters.checkOutDate && sharedFilters.checkOutDate !== checkOutDate) {
+        setCheckOutDate(sharedFilters.checkOutDate);
+      }
+      if (sharedFilters.adults !== undefined && sharedFilters.adults !== adults) {
+        setAdults(sharedFilters.adults);
+      }
+      if (sharedFilters.children !== undefined && sharedFilters.children !== children) {
+        setChildren(sharedFilters.children);
+      }
+    }
+  }, [sharedFilters, checkInDate, checkOutDate, adults, children]);
+
   // Input validation and handlers
   const handleAdultChange = (e) => {
     const value = e.target.value;
     // Allow empty string for better typing experience
     if (value === '') {
       setAdults('');
+      updateSharedFilters?.({ adults: '' });
       return;
     }
     const num = parseInt(value, 10);
     if (!isNaN(num) && num >= 1) {
       setAdults(num);
+      updateSharedFilters?.({ adults: num });
     }
   };
 
@@ -100,11 +121,13 @@ const Controls = ({ facilityType = 'All', onApplyFilters }) => {
     // Allow empty string for better typing experience
     if (value === '') {
       setChildren('');
+      updateSharedFilters?.({ children: '' });
       return;
     }
     const num = parseInt(value, 10);
     if (!isNaN(num) && num >= 0) {
       setChildren(num);
+      updateSharedFilters?.({ children: num });
     }
   };
 
@@ -112,6 +135,7 @@ const Controls = ({ facilityType = 'All', onApplyFilters }) => {
     // Ensure minimum value on blur
     if (adults === '' || adults < 1) {
       setAdults(1);
+      updateSharedFilters?.({ adults: 1 });
     }
   };
 
@@ -119,32 +143,43 @@ const Controls = ({ facilityType = 'All', onApplyFilters }) => {
     // Ensure minimum value on blur
     if (children === '' || children < 0) {
       setChildren(0);
+      updateSharedFilters?.({ children: 0 });
     }
   };
 
   const handleAdultDecrease = () => {
-    if (adults > 1) setAdults(adults - 1);
+    if (adults > 1) {
+      setAdults(adults - 1);
+      updateSharedFilters?.({ adults: adults - 1 });
+    }
   };
 
   const handleAdultIncrease = () => {
     setAdults(adults + 1);
+    updateSharedFilters?.({ adults: adults + 1 });
   };
 
   const handleChildDecrease = () => {
-    if (children > 0) setChildren(children - 1);
+    if (children > 0) {
+      setChildren(children - 1);
+      updateSharedFilters?.({ children: children - 1 });
+    }
   };
 
   const handleChildIncrease = () => {
     setChildren(children + 1);
+    updateSharedFilters?.({ children: children + 1 });
   };
   
   const handleCheckInDateSelect = (picked) => {
     setCheckInDate(picked.date); 
+    updateSharedFilters?.({ checkInDate: picked.date });
     setShowCheckInCalendar(false);
   };
 
   const handleCheckOutDateSelect = (picked) => {
     setCheckOutDate(picked.date); 
+    updateSharedFilters?.({ checkOutDate: picked.date });
     setShowCheckOutCalendar(false);
   };
 

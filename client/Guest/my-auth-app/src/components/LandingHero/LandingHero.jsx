@@ -17,7 +17,7 @@ function LandingHero({ onReserveNow }) {
             recreation, Teachers' Camp welcomes you to a well-deserved retreat.
           </p>
           <button className={styles.heroReserveButton} onClick={onReserveNow}>
-            Reserve Now!
+            View Services
           </button>
         </div>
       </div>

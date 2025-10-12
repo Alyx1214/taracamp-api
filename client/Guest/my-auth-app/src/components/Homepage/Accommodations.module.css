@@ -4,6 +4,11 @@
   text-align: center;
 }
 
+/* Wrapper for AllServices component to override its default margins */
+.allServicesWrapper {
+  margin: 0 -132px; /* Counter AllServices default margin */
+}
+
 .sectionTitle {
   font-size: 2.5em;
   font-weight: bold;
@@ -219,8 +224,14 @@
 
 @media (max-width: 992px) {
   .skeletonGrid { grid-template-columns: repeat(2, 1fr); }
+  .allServicesWrapper {
+    margin: 0 -20px; /* Adjust for smaller screens */
+  }
 }
 @media (max-width: 576px) {
   .skeletonGrid { grid-template-columns: 1fr; }
+  .allServicesWrapper {
+    margin: 0 -10px; /* Adjust for mobile screens */
+  }
 }
 

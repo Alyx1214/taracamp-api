@@ -123,27 +123,29 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 16px;
-  border: 2px solid #e5e7eb;
-  border-radius: 12px;
+  padding: 16px 20px;
+  border: 2px solid #e2e8f0;
+  border-radius: 20px;
   background: white;
   cursor: pointer;
   transition: all 0.2s ease;
-  min-height: 56px;
+  min-height: 64px;
 }
 
 .dateField:hover {
-  border-color: #d1d5db;
+  border-color: #cbd5e1;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .dateField:focus-within {
-  border-color: #8b6c42;
-  box-shadow: 0 0 0 3px rgba(139, 108, 66, 0.1);
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 .calendarIcon {
-  font-size: 18px;
-  color: #8b6c42;
+  color: #64748b;
+  display: flex;
+  align-items: center;
   flex-shrink: 0;
 }
 
@@ -160,18 +162,22 @@
 .dateField > div {
   flex: 1;
   pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .dateValue {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
-  color: #1f2937;
-  margin-bottom: 2px;
+  color: #1e293b;
+  line-height: 1.2;
 }
 
 .dateDay {
-  font-size: 13px;
-  color: #6b7280;
+  font-size: 14px;
+  color: #64748b;
+  line-height: 1.2;
 }
 
 /* Guest Section */
@@ -195,46 +201,48 @@
 .counter {
   display: flex;
   align-items: center;
-  border: 2px solid #e5e7eb;
-  border-radius: 12px;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border: 2px solid #e2e8f0;
+  border-radius: 16px;
   background: white;
-  overflow: hidden;
   transition: border-color 0.2s ease;
-  height: 56px;
+  height: 64px;
 }
 
 .counter:hover {
-  border-color: #d1d5db;
+  border-color: #cbd5e1;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .counter:focus-within {
-  border-color: #8b6c42;
-  box-shadow: 0 0 0 3px rgba(139, 108, 66, 0.1);
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 .counterBtn {
-  background: none;
-  border: none;
-  width: 44px;
-  height: 52px;
+  width: 32px;
+  height: 32px;
+  border: 1px solid #e2e8f0;
+  border-radius: 50%;
+  background: white;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  font-size: 18px;
-  font-weight: 500;
-  color: #6b7280;
   transition: all 0.2s ease;
-  flex-shrink: 0;
+  color: #64748b;
+  font-size: 16px;
+  font-weight: 500;
 }
 
 .counterBtn:hover:not(:disabled) {
-  background-color: #f3f4f6;
-  color: #8b6c42;
+  border-color: #cbd5e1;
+  background: #f8fafc;
 }
 
 .counterBtn:active:not(:disabled) {
-  background-color: #e5e7eb;
+  background: #e2e8f0;
 }
 
 .counterBtn:disabled {
@@ -254,6 +262,36 @@
   justify-content: center;
   height: 52px;
   min-width: 40px;
+}
+
+.countInput {
+  width: 50px;
+  height: 32px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: white;
+  text-align: center;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1e293b;
+  outline: none;
+  transition: all 0.2s ease;
+  margin: 0 8px;
+}
+
+.countInput:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.countInput::-webkit-outer-spin-button,
+.countInput::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.countInput[type=number] {
+  -moz-appearance: textfield;
 }
 
 /* Search Button */

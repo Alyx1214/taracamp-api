@@ -102,7 +102,7 @@ export default function AccommodationsSection({ limit = 6 }) {
               <path fill="currentColor" d="M11 15h2v2h-2v-2zm0-8h2v6h-2V7zm1-5C6.48 2 2 6.48 2 12s4.48 10 10 10
                 10-4.48 10-10S17.52 2 12 2z"/>
             </svg>
-            <h4 className={styles.emptyTitle}>Couldn’t load accommodations</h4>
+            <h4 className={styles.emptyTitle}>Couldn't load accommodations</h4>
             <p className={styles.emptyDesc}>{state.error}</p>
           </div>
         </div>

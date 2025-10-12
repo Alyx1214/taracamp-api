@@ -73,7 +73,7 @@ main {
   display: flex;
   flex-wrap: wrap;
   max-width: 1200px;
-  margin: 130px auto;
+  margin: 130px auto 10px;
   align-items: flex-start;
   gap: 60px;
   background-color: #f5f5f5;

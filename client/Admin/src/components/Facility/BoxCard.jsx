@@ -95,7 +95,7 @@ export default function BoxCard({ facilities, onDelete, type, onEdit }) {
                 <p className={styles["card-rate"]}>
                   {type === "Add-ons"
                     ? "Price per Unit"
-                    : type === "Conference"
+                    : type === "Conference" || type === "Cottage"
                     ? "Price"
                     : "Rate per Person"}
                   : ₱ {facility.rate}

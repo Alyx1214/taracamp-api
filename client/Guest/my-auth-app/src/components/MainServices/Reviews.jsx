@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import styles from './Reviews.module.css';
 
-const Reviews = () => {
-  const [isModalOpen, setIsModalOpen] = useState(false);
+const Reviews = ({ facilityName = "Facility" }) => {
   const [reviews] = useState([
     {
       id: 1,
@@ -30,9 +29,6 @@ const Reviews = () => {
     }
   ]);
 
-  const openModal = () => setIsModalOpen(true);
-  const closeModal = () => setIsModalOpen(false);
-
   const renderStars = (rating) => {
     return [...Array(5)].map((_, index) => (
       <span 
@@ -45,44 +41,28 @@ const Reviews = () => {
   };
 
   return (
-    <>
-      <button 
-        onClick={openModal}
-        className={styles.reviewButton}
-      >
-        View Reviews
-      </button>
+    <div className={styles.reviewsContainer}>
+      <div className={styles.reviewsHeader}>
+        <h2 className={styles.reviewsTitle}>REVIEWS - {facilityName.toUpperCase()}</h2>
+      </div>
       
-      {isModalOpen && (
-        <div className={styles.modalOverlay} onClick={closeModal}>
-          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
-            <div className={styles.modalHeader}>
-              <h2 className={styles.modalTitle}>REVIEWS</h2>
-              <button className={styles.closeButton} onClick={closeModal}>
-                ×
-              </button>
-            </div>
-            
-            <div className={styles.reviewsContainer}>
-              {reviews.map((review) => (
-                <div key={review.id} className={styles.reviewCard}>
-                  <div className={styles.reviewHeader}>
-                    <div className={styles.avatar}></div>
-                    <div className={styles.reviewInfo}>
-                      <h3 className={styles.reviewerName}>{review.name}</h3>
-                      <div className={styles.rating}>
-                        {renderStars(review.rating)}
-                      </div>
-                    </div>
-                  </div>
-                  <p className={styles.reviewText}>{review.text}</p>
+      <div className={styles.reviewsList}>
+        {reviews.map((review) => (
+          <div key={review.id} className={styles.reviewCard}>
+            <div className={styles.reviewHeader}>
+              <div className={styles.avatar}></div>
+              <div className={styles.reviewInfo}>
+                <h3 className={styles.reviewerName}>{review.name}</h3>
+                <div className={styles.rating}>
+                  {renderStars(review.rating)}
                 </div>
-              ))}
+              </div>
             </div>
+            <p className={styles.reviewText}>{review.text}</p>
           </div>
-        </div>
-      )}
-    </>
+        ))}
+      </div>
+    </div>
   );
 };
 

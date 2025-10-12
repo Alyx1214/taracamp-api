@@ -207,11 +207,6 @@ function MainServices() {
             onApplyFilters={handleApplyFilters}
           />
 
-          {error && (
-            <div style={{ margin: '8px 0', color: 'crimson', fontSize: '0.95rem' }}>
-              {error}
-            </div>
-          )}
 
           {shouldShowControls && (
             <Controls

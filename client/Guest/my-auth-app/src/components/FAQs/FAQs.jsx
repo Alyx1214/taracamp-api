@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import HeaderHome from '../HeaderHome/HeaderHome';
 import FooterHome from '../FooterHome/FooterHome';  
-import ReserveNow from '../BubbleButton/ReserveNow';
+// import ReserveNow from '../BubbleButton/ReserveNow';
 import styles from './FAQs.module.css';
 
 function FAQsPage() {
@@ -113,13 +113,13 @@ function FAQsPage() {
         </section>
       </main>
 
-      {/* Floating Reserve Button */}
+      {/* Floating Reserve Button
       <ReserveNow
         navigateTo="/services"
         className={styles.floatingReserveBtn}
       >
         Reserve Now
-      </ReserveNow>
+      </ReserveNow> */}
 
       <FooterHome />
     </div>

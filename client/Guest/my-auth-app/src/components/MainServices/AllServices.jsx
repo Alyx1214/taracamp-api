@@ -22,7 +22,7 @@ const AllServices = ({
   const facilitiesList = Array.isArray(facilities) ? facilities : [];
   const source = facilitiesList;
 
-  // Split by type and cap each to 6
+  // Split by type and cap each to 3
   const { dorms, cottages, conferences } = useMemo(() => {
     const list = Array.isArray(source) ? source : [];
     const buckets = list.reduce((acc, item) => {
@@ -34,7 +34,7 @@ const AllServices = ({
 
     const byType = (t) => {
       const key = toKey(t);
-      return (buckets[key] || []).slice(0, 6);
+      return (buckets[key] || []).slice(0, 3);
     };
     return {
       dorms: byType(TYPE.DORMITORY),
@@ -44,9 +44,15 @@ const AllServices = ({
   }, [source]);
 
   const handleViewAll = (section) => {
-    // Navigate to the specific section within the services page
-    const sectionPath = section.toLowerCase();
-    navigate(`/services/${sectionPath}`);
+    // Map the section types to the correct route paths
+    const routeMap = {
+      [TYPE.DORMITORY]: 'dormitories',
+      [TYPE.COTTAGE]: 'cottages', 
+      [TYPE.CONFERENCE]: 'conference'
+    };
+    
+    const routePath = routeMap[section] || section.toLowerCase();
+    navigate(`/services/${routePath}`);
   };
 
   const handleCheck = (item) => {
@@ -90,59 +96,62 @@ const AllServices = ({
   if (isLoading) {
     return (
       <div className={styles['all-services']}>
-        <div className={styles.serviceSection}>
-          <h2 className={styles.sectionTitle}>DORMITORIES</h2>
-          <div className={styles.servicesGrid}>
-            <div className={styles.skeletonGrid}>
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className={styles.skeletonCard}>
-                  <div className={styles.skelImg} />
-                  <div className={styles.skelBody}>
-                    <span className={styles.skelLine} />
-                    <span className={styles.skelLineShort} />
-                    <span className={styles.skelLineShorter} />
-                  </div>
+        <section className={styles['service-section']}>
+          <h2 className={styles['section-title']}>DORMITORIES</h2>
+          <div className={styles['services-grid']}>
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className={styles.skeletonCard}>
+                <div className={styles.skelImg} />
+                <div className={styles.skelBody}>
+                  <span className={styles.skelLine} />
+                  <span className={styles.skelLineShort} />
+                  <span className={styles.skelLineShorter} />
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
           </div>
-        </div>
+          <button className={styles['view-all-btn']} onClick={() => handleViewAll(TYPE.DORMITORY)}>
+            View All
+          </button>
+        </section>
         
-        <div className={styles.serviceSection}>
-          <h2 className={styles.sectionTitle}>COTTAGES</h2>
-          <div className={styles.servicesGrid}>
-            <div className={styles.skeletonGrid}>
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className={styles.skeletonCard}>
-                  <div className={styles.skelImg} />
-                  <div className={styles.skelBody}>
-                    <span className={styles.skelLine} />
-                    <span className={styles.skelLineShort} />
-                    <span className={styles.skelLineShorter} />
-                  </div>
+        <section className={styles['service-section']}>
+          <h2 className={styles['section-title']}>COTTAGES / GUESTHOUSE</h2>
+          <div className={styles['services-grid']}>
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className={styles.skeletonCard}>
+                <div className={styles.skelImg} />
+                <div className={styles.skelBody}>
+                  <span className={styles.skelLine} />
+                  <span className={styles.skelLineShort} />
+                  <span className={styles.skelLineShorter} />
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
           </div>
-        </div>
+          <button className={styles['view-all-btn']} onClick={() => handleViewAll(TYPE.COTTAGE)}>
+            View All
+          </button>
+        </section>
         
-        <div className={styles.serviceSection}>
-          <h2 className={styles.sectionTitle}>CONFERENCE HALLS</h2>
-          <div className={styles.servicesGrid}>
-            <div className={styles.skeletonGrid}>
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className={styles.skeletonCard}>
-                  <div className={styles.skelImg} />
-                  <div className={styles.skelBody}>
-                    <span className={styles.skelLine} />
-                    <span className={styles.skelLineShort} />
-                    <span className={styles.skelLineShorter} />
-                  </div>
+        <section className={styles['service-section']}>
+          <h2 className={styles['section-title']}>CONFERENCES</h2>
+          <div className={styles['services-grid']}>
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className={styles.skeletonCard}>
+                <div className={styles.skelImg} />
+                <div className={styles.skelBody}>
+                  <span className={styles.skelLine} />
+                  <span className={styles.skelLineShort} />
+                  <span className={styles.skelLineShorter} />
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
           </div>
-        </div>
+          <button className={styles['view-all-btn']} onClick={() => handleViewAll(TYPE.CONFERENCE)}>
+            View All
+          </button>
+        </section>
       </div>
     );
   }

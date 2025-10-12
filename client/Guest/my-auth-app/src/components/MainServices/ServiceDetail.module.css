@@ -111,7 +111,7 @@
   position: relative;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   border-style: solid 1px #000000;
-  margin: 20px;
+  margin: 0;
 }
 
 .mainImage::before {
@@ -121,7 +121,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(135deg, rgba(107, 142, 114, 0.1) 0%, transparent 50%);
+  background: linear-gradient(135deg, rgba(107, 142, 114, 0.1) 0%, transparent 100%);
   opacity: 0;
   transition: opacity 0.3s ease;
   z-index: 1;
@@ -133,7 +133,6 @@
 
 .mainImage:hover {
   transform: scale(1.02);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
 }
 
 .mainImage img {
@@ -291,18 +290,23 @@
 }
 
 .readAllReviews {
-  background: none;
+  background: linear-gradient(135deg, #6b4f3c, #8b6f5c);
+  color: white;
   border: none;
-  color: #666;
-  text-decoration: underline;
+  padding: 10px 20px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
   cursor: pointer;
-  font-size: 1rem;
-  font-weight: 400;
-  transition: color 0.3s ease;
+  transition: all 0.3s ease;
+  box-shadow: 0 3px 10px rgba(107, 79, 60, 0.3);
+  text-decoration: none;
 }
 
 .readAllReviews:hover {
-  color: #333;
+  transform: translateY(-1px);
+  box-shadow: 0 5px 15px rgba(107, 79, 60, 0.4);
+  background: linear-gradient(135deg, #8b6f5c, #6b4f3c);
 }
 
 .reviewScores {
@@ -1224,4 +1228,69 @@
   background-color: #c0392b;
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(231, 76, 60, 0.3);
+}
+
+/* Dummy Reviews Styles */
+.dummyReviewsList {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.dummyReviewCard {
+  background-color: rgba(255, 255, 255, 0.3);
+  border-radius: 15px;
+  padding: 25px;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: all 0.3s ease;
+}
+
+.dummyReviewCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+}
+
+.dummyReviewCard:last-child {
+  margin-bottom: 0;
+}
+
+.dummyReviewHeader {
+  display: flex;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.dummyAvatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #6b4f3c, #8b6f5c);
+  margin-right: 15px;
+  flex-shrink: 0;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+.dummyReviewInfo {
+  flex: 1;
+}
+
+.dummyReviewerName {
+  font-size: 18px;
+  font-weight: 600;
+  color: #2c2c2c;
+  margin: 0 0 8px 0;
+}
+
+.dummyRating {
+  display: flex;
+  gap: 2px;
+}
+
+.dummyReviewText {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #555;
+  margin: 0;
+  text-align: justify;
 }

@@ -37,7 +37,7 @@ const facilityModule = {
                 !isPresent(facilityType) ||
                 !isPresent(capacity) ||
                 ((facilityType === FacilityType.CONFERENCE || facilityType === FacilityType.COTTAGE) && !isPresent(price)) ||
-                (facilityType === FacilityType.DORMITORY  && !isPresent(ratePerPerson))
+                (facilityType === FacilityType.DORMITORY && !isPresent(ratePerPerson))
             ) {
                 responseData.status = Status.BAD_REQUEST;
                 responseData.error = 'Missing required fields';
@@ -69,8 +69,8 @@ const facilityModule = {
             }
 
             if (
-                (facilityType === FacilityType.CONFERENCE && !isValidRate(price)) ||
-          ((facilityType === FacilityType.DORMITORY || facilityType === FacilityType.COTTAGE) && !isValidRate(ratePerPerson))
+                ((facilityType === FacilityType.CONFERENCE || facilityType === FacilityType.COTTAGE) && !isValidRate(price)) ||
+                (facilityType === FacilityType.DORMITORY && !isValidRate(ratePerPerson))
             ) {
                 responseData.status = Status.BAD_REQUEST;
                 responseData.error = 'Missing or invalid rate/price for this facility type';
@@ -117,10 +117,10 @@ const facilityModule = {
                 images: imageKeys,
             };
 
-            if (facilityType === FacilityType.CONFERENCE) {
+            if (facilityType === FacilityType.CONFERENCE || facilityType === FacilityType.COTTAGE) {
                 facilityData.price = Number(String(price).replace(/,/g, '')) || 0;
             }
-            if (facilityType === FacilityType.DORMITORY || facilityType === FacilityType.COTTAGE) {
+            if (facilityType === FacilityType.DORMITORY) {
                 facilityData.ratePerPerson = Number(String(ratePerPerson).replace(/,/g, '')) || 0;
             }
 
@@ -155,7 +155,6 @@ const facilityModule = {
             const { limit, skip, sort, includeUnavailable } = options || {};
             const sortOption = sort ? parseSort(sort) : { name: 1, };
             
-            // Build filter - exclude unavailable facilities by default unless explicitly requested
             let filter = {};
             if (includeUnavailable !== 'true' && includeUnavailable !== true) {
                 filter.status = { $ne: FacilityStatus.UNAVAILABLE };
@@ -316,13 +315,14 @@ const facilityModule = {
             }
 
             if (
-                (data.facilityType === FacilityType.CONFERENCE || facility.facilityType === FacilityType.CONFERENCE) &&
+                (data.facilityType === FacilityType.CONFERENCE || data.facilityType === FacilityType.COTTAGE || 
+                 facility.facilityType === FacilityType.CONFERENCE || facility.facilityType === FacilityType.COTTAGE) &&
         isPresent(data.price)
             ) {
                 const priceNum = Number(String(data.price).replace(/,/g, ''));
                 if (!isValidRate(priceNum)) {
                     responseData.status = Status.BAD_REQUEST;
-                    responseData.error = 'Invalid price for conference facility';
+                    responseData.error = 'Invalid price for conference/cottage facility';
                     return responseData;
                 }
                 updateData.price = priceNum;
@@ -330,14 +330,13 @@ const facilityModule = {
             }
 
             if (
-                ((data.facilityType === FacilityType.DORMITORY || data.facilityType === FacilityType.COTTAGE) ||
-          (facility.facilityType === FacilityType.DORMITORY || facility.facilityType === FacilityType.COTTAGE)) &&
+                (data.facilityType === FacilityType.DORMITORY || facility.facilityType === FacilityType.DORMITORY) &&
         isPresent(data.ratePerPerson)
             ) {
                 const rateNum = Number(String(data.ratePerPerson).replace(/,/g, ''));
                 if (!isValidRate(rateNum)) {
                     responseData.status = Status.BAD_REQUEST;
-                    responseData.error = 'Invalid rate per person for dormitory/cottage facility';
+                    responseData.error = 'Invalid rate per person for dormitory facility';
                     return responseData;
                 }
                 updateData.ratePerPerson = rateNum;
@@ -400,7 +399,7 @@ const facilityModule = {
             if (data.facilityType && data.facilityType === FacilityType.CONFERENCE) {
                 updateData.ratePerPerson = undefined;
             }
-            if (data.facilityType && (data.facilityType === FacilityType.DORMITORY || data.facilityType === FacilityType.COTTAGE)) {
+            if (data.facilityType && data.facilityType === FacilityType.DORMITORY) {
                 updateData.price = undefined;
             }
 
@@ -508,7 +507,6 @@ const facilityModule = {
         try {
             const { includeUnavailable } = options;
             
-            // Build filter - exclude unavailable facilities by default unless explicitly requested
             let filter = { facilityType: facilityType };
             if (includeUnavailable !== 'true' && includeUnavailable !== true) {
                 filter.status = { $ne: FacilityStatus.UNAVAILABLE };
@@ -637,8 +635,6 @@ const facilityModule = {
             if (type) filter.facilityType = type.trim();
             if (query) filter.name = new RegExp(query.trim(), 'i');
             if (capacity) filter.capacity = { $gte: Number(capacity), };
-            
-            // Exclude unavailable facilities by default unless explicitly requested
             if (includeUnavailable !== 'true' && includeUnavailable !== true) {
                 filter.status = { $ne: FacilityStatus.UNAVAILABLE };
             }
@@ -734,7 +730,7 @@ function isValidRate(rate) {
 
 function isValidImages(files) {
     const allowed = ['image/jpeg', 'image/png',];
-    const max = 5 * 1024 * 1024; // 5MB
+    const max = 25 * 1024 * 1024; // 25MB
     for (const f of files) {
         if (!allowed.includes(f.mimetype))
             return 'Invalid image type. Only JPEG and PNG are allowed';
