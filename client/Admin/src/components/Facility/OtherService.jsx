@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { FaEdit } from "react-icons/fa";
+import { FaEdit, FaTrash } from "react-icons/fa";
 import styles from "./OtherService.module.css";
 import { getAllAddons, createAddon, deleteAddon, updateManyAddons } from "../../apis/addonsApi";
 
@@ -13,19 +13,16 @@ export default function OtherService({ onEdit, editable, onSave, onCancel }) {
   const [error, setError] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const menuRef = useRef(null);
-  // Fetch addons from API
+
   useEffect(() => {
     const fetchAddons = async () => {
       try {
         setLoading(true);
         setError(null);
         const response = await getAllAddons();
-        
-        // Handle different possible response structures
         const addons = response.addons || response.data?.addons || [];
         
         if (response.status === 200 && addons.length >= 0) {
-          // Format the data to match the expected structure
           const formattedAddons = addons.map(addon => ({
             id: addon._id,
             name: addon.name,
@@ -83,7 +80,9 @@ export default function OtherService({ onEdit, editable, onSave, onCancel }) {
       
       // Only update if we have a valid numeric value
       if (cleanValue && !isNaN(parseFloat(cleanValue))) {
-        updated[index][field] = cleanValue;
+        // Format the price with P prefix and proper formatting
+        const formattedPrice = `P${Number(cleanValue).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`;
+        updated[index][field] = formattedPrice;
       } else if (numericValue === '') {
         updated[index][field] = '';
       }
@@ -99,7 +98,7 @@ export default function OtherService({ onEdit, editable, onSave, onCancel }) {
       id: null, // New items don't have an ID
       name: '',
       price: 'P0.00',
-      unit: ''
+      unit: 'pc'
     };
     setServices([...services, newItem]);
   };
@@ -324,18 +323,20 @@ export default function OtherService({ onEdit, editable, onSave, onCancel }) {
         </div>
 
         <div className={styles.tableContainer}>
-          <div className={styles.tableHeader}>
+          <div className={`${styles.tableHeader} ${styles.tableGridEdit}`}>
             <span>EQUIPMENTS</span>
-            <div className={styles.priceHeader}>
-              <span>PRICE</span>
-              <span>UNIT</span>
-            </div>
+            <span className={styles.priceLabel}>PRICE</span>
+            <span className={styles.unitLabel}>UNIT</span>
+            <span className={styles.actionLabel} aria-hidden="true"></span>
           </div>
 
           <ul className={styles.tableList}>
             {services.length > 0 ? (
               services.map((item, index) => (
-                <li key={index} className={styles.tableItem}>
+                <li
+                  key={index}
+                  className={`${styles.tableItem} ${styles.tableGridEdit}`}
+                >
                   <input
                     type="text"
                     className={styles.nameInput}
@@ -345,26 +346,32 @@ export default function OtherService({ onEdit, editable, onSave, onCancel }) {
                       handleInputChange(index, "name", e.target.value)
                     }
                   />
-                  <div className={styles.priceWrapper}>
-                    <input
-                      type="text"
-                      className={styles.pricePill}
-                      value={item.price}
-                      placeholder="P0.00"
-                      onChange={(e) =>
-                        handleInputChange(index, "price", e.target.value)
-                      }
-                    />
-                    <input
-                      type="text"
-                      className={styles.unitPill}
-                      value={item.unit}
-                      placeholder="unit"
-                      onChange={(e) =>
-                        handleInputChange(index, "unit", e.target.value)
-                      }
-                    />
-                  </div>
+                  <input
+                    type="text"
+                    className={styles.pricePill}
+                    value={item.price}
+                    placeholder="P0.00"
+                    onChange={(e) =>
+                      handleInputChange(index, "price", e.target.value)
+                    }
+                  />
+                  <input
+                    type="text"
+                    className={styles.unitInput}
+                    value={item.unit}
+                    placeholder="pc"
+                    onChange={(e) =>
+                      handleInputChange(index, "unit", e.target.value)
+                    }
+                  />
+                  <button
+                    type="button"
+                    className={styles.deleteBtn}
+                    onClick={() => handleRemoveItem(index)}
+                    title="Delete item"
+                  >
+                    <FaTrash />
+                  </button>
                 </li>
               ))
             ) : (
@@ -380,13 +387,22 @@ export default function OtherService({ onEdit, editable, onSave, onCancel }) {
             {error}
           </div>
         )}
-        <button 
-          className={styles.saveBtn} 
-          onClick={handleSave}
-          disabled={loading}
-        >
-          {loading ? 'SAVING...' : 'SAVE CHANGES'}
-        </button>
+        <div className={styles.buttonGroup}>
+          <button 
+            className={styles.cancelBtn} 
+            onClick={handleCancel}
+            disabled={loading}
+          >
+            CANCEL
+          </button>
+          <button 
+            className={styles.saveBtn} 
+            onClick={handleSave}
+            disabled={loading}
+          >
+            {loading ? 'SAVING...' : 'SAVE CHANGES'}
+          </button>
+        </div>
       </div>
     );
   }
@@ -421,20 +437,20 @@ export default function OtherService({ onEdit, editable, onSave, onCancel }) {
           )}
         </div>
 
-        <div className={styles.tableHeader}>
+        <div className={`${styles.tableHeader} ${styles.tableGridView}`}>
           <span>EQUIPMENTS</span>
-          <span>PRICE</span>
+          <span className={styles.priceLabel}>PRICE</span>
         </div>
 
         <ul className={styles.tableList}>
           {services.length > 0 ? (
             services.map((item, index) => (
-              <li key={index} className={styles.tableItem}>
+              <li
+                key={index}
+                className={`${styles.tableItem} ${styles.tableGridView}`}
+              >
                 <span>{item.name}</span>
-                <span>
-                  {item.price}
-                  <span className={styles.unit}>/{item.unit}</span>
-                </span>
+                <span className={styles.priceDisplay}>{item.price}/{item.unit}</span>
               </li>
             ))
           ) : (

@@ -43,13 +43,20 @@
 .menuWrapper {
   position: absolute;
   top: 12px;
-  right: 12px;
+  right: 8px;
 }
 
 .cardMenu {
   font-size: 1.7rem;
   cursor: pointer;
   color: #1e3c24;
+  border-radius: 20px;
+  padding: 4px 8px;
+  transition: background-color 0.2s ease;
+}
+
+.cardMenu:hover {
+  background-color: #f0f0f0;
 }
 
 .dropdownMenu {
@@ -58,10 +65,11 @@
   right: 0;
   background: #fdfcfb;
   border: 1px solid #dad7cd;
-  border-radius: 6px;
+  border-radius: 20px;
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
   min-width: 120px;
   z-index: 50;
+  padding: 6px;
 }
 
 .dropdownItem {
@@ -72,6 +80,7 @@
   cursor: pointer;
   color: #2c2c2c;
   transition: background-color 0.2s ease;
+  border-radius: 20px;
 }
 
 .dropdownItem:hover {
@@ -87,12 +96,21 @@
 .tableHeader,
 .tableItem {
   display: grid;
-  grid-template-columns: minmax(200px, 1fr) auto auto;
   width: 100%;
-  gap: 1rem;
+  gap: 0.5rem;
   min-width: 0;
   align-items: center;
 }
+
+.tableGridView {
+  grid-template-columns: minmax(200px, 1fr) max-content;
+}
+
+.tableGridEdit {
+  grid-template-columns: minmax(200px, 1fr) max-content max-content max-content;
+}
+
+.tableGridEdit .deleteBtn { justify-self: center; }
 
 .tableHeader {
   font-weight: bold;
@@ -107,18 +125,29 @@
   text-align: left;
 }
 
-.tableHeader span:nth-child(2) {
-  text-align: right;
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
+.priceLabel,
+.unitLabel,
+.actionLabel {
+  text-transform: uppercase;
+  font-size: 0.85em;
+  letter-spacing: 0.08em;
+  justify-self: end;
 }
 
-.tableHeader span:last-child {
+.priceLabel { 
   text-align: right;
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
+  margin-right: 40px;
+}
+
+.unitLabel { 
+  text-align: right; 
+  min-width: 60px;
+}
+
+.actionLabel {
+  justify-self: center;
+  text-align: center;
+  min-width: 36px;
 }
 
 .tableList {
@@ -128,10 +157,11 @@
 }
 
 .tableItem {
-  padding: 0.4rem 0;
+  padding: 0.6rem 0;
   font-size: 19px;
   color: #1e3c24;
   min-width: 0;
+  border-bottom: 1px solid #f0f0f0;
 }
 
 .tableItem span:first-child {
@@ -151,34 +181,16 @@
   align-items: center;
 }
 
-.tableItem span:last-child {
-  text-align: right;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-}
-
 .tableItem:last-child {
   border-bottom: none;
 }
 
 /* Pill Inputs */
-.priceWrapper {
-  display: flex;
-  column-gap: 14px;
-  justify-content: flex-end;
-  align-items: center;
-  width: 100%;
-}
-
 .pricePill {
   border: none;
   outline: none;
   font-size: 18px;
-  padding: 5px 10px;
+  padding: 8px 12px;
   border-radius: 20px;
   background-color: #e9e9e9;
   color: #1e3c24;
@@ -188,31 +200,34 @@
   width: auto;
   flex-shrink: 0;
   box-sizing: border-box;
+  height: 36px;
+  justify-self: end;
 }
 
-.unitPill {
+.unitInput {
   border: none;
   outline: none;
   font-size: 18px;
-  padding: 5px 8px;
+  padding: 8px 12px;
   border-radius: 20px;
   background-color: #e9e9e9;
   color: #1e3c24;
-  text-align: right;
-  min-width: 50px;
+  text-align: center;
+  min-width: 60px;
   max-width: 80px;
   width: auto;
   flex-shrink: 0;
   box-sizing: border-box;
+  height: 36px;
+  justify-self: end;
 }
 
-.priceHeader {
-  display: inline-flex;
-  justify-content: flex-end;
-  align-items: baseline;
-  column-gap: 50px;
-  width: 100%;
-  text-align: right;
+/* Price Display Styles */
+.priceDisplay {
+  font-weight: bold;
+  color: #1e3c24;
+  font-size: 18px;
+  margin-right: 40px;
 }
 
 .nameInput {
@@ -245,6 +260,26 @@
   background-color: #c82333;
 }
 
+.deleteBtn {
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s ease;
+  flex-shrink: 0;
+}
+
+.deleteBtn:hover {
+  background-color: #c82333;
+}
+
 .addBtn {
   background-color: #28a745;
   color: white;
@@ -263,6 +298,36 @@
   background-color: #218838;
 }
 
+/* Button Group */
+.buttonGroup {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+/* Cancel Button */
+.cancelBtn {
+  background-color: #dc3545;
+  color: white;
+  padding: 0.6rem 1.8rem;
+  border: none;
+  border-radius: 30px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.cancelBtn:hover {
+  background-color: #c82333;
+}
+
+.cancelBtn:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
 /* Save Button */
 .saveBtn {
   background-color: #5a3d0e;
@@ -271,11 +336,7 @@
   border: none;
   border-radius: 30px;
   font-weight: bold;
-  margin-top: 1.5rem;
   cursor: pointer;
-  display: block;
-  margin-left: auto;
-  margin-right: auto;
   transition: background-color 0.2s ease;
 }
 
@@ -322,78 +383,123 @@
 /* Responsive Design */
 @media (max-width: 1200px) {
   .tableHeader,
-  .tableItem {
-    grid-template-columns: minmax(180px, 1fr) auto auto;
-    gap: 0.8rem;
+  .tableItem { gap: 0.4rem; }
+
+  .tableGridView {
+    grid-template-columns: minmax(160px, 1fr) max-content max-content;
+  }
+
+  .tableGridEdit {
+    grid-template-columns: minmax(160px, 1fr) max-content max-content max-content max-content;
   }
   
   .pricePill {
     font-size: 16px;
-    padding: 4px 8px;
+    padding: 6px 10px;
     min-width: 70px;
     max-width: 100px;
+    height: 32px;
     text-align: right;
   }
   
-  .unitPill {
+  .unitInput {
     font-size: 16px;
-    padding: 4px 6px;
-    min-width: 45px;
-    max-width: 75px;
-    text-align: right;
+    padding: 6px 8px;
+    min-width: 50px;
+    max-width: 70px;
+    height: 32px;
+    text-align: center;
   }
+  
+  .deleteBtn {
+    width: 32px;
+    height: 32px;
+    font-size: 12px;
+  }
+  
+  .actionLabel { min-width: 32px; }
 }
 
 @media (max-width: 1024px) {
   .tableHeader,
-  .tableItem {
-    grid-template-columns: minmax(150px, 1fr) auto auto;
-    gap: 0.6rem;
+  .tableItem { gap: 0.3rem; }
+
+  .tableGridView {
+    grid-template-columns: minmax(150px, 1fr) max-content max-content;
+  }
+
+  .tableGridEdit {
+    grid-template-columns: minmax(150px, 1fr) max-content max-content max-content max-content;
   }
   
   .pricePill {
     font-size: 15px;
-    padding: 4px 6px;
+    padding: 6px 8px;
     min-width: 65px;
     max-width: 90px;
+    height: 30px;
     text-align: right;
   }
   
-  .unitPill {
+  .unitInput {
     font-size: 15px;
-    padding: 4px 6px;
-    min-width: 40px;
-    max-width: 70px;
-    text-align: right;
+    padding: 6px 6px;
+    min-width: 45px;
+    max-width: 65px;
+    height: 30px;
+    text-align: center;
   }
+  
+  .deleteBtn {
+    width: 30px;
+    height: 30px;
+    font-size: 11px;
+  }
+  
+  .actionLabel { min-width: 30px; }
   
   .menuWrapper {
-    right: 10px;
+    right: 6px;
   }
 }
 
 @media (max-width: 768px) {
   .tableHeader,
-  .tableItem {
-    grid-template-columns: minmax(120px, 1fr) auto auto;
-    gap: 0.4rem;
+  .tableItem { gap: 0.2rem; }
+
+  .tableGridView {
+    grid-template-columns: minmax(120px, 1fr) max-content max-content;
+  }
+
+  .tableGridEdit {
+    grid-template-columns: minmax(120px, 1fr) max-content max-content max-content max-content;
   }
   
   .pricePill {
     font-size: 14px;
-    padding: 3px 5px;
+    padding: 5px 6px;
     min-width: 60px;
     max-width: 80px;
+    height: 28px;
     text-align: right;
   }
   
-  .unitPill {
+  .unitInput {
     font-size: 14px;
-    padding: 3px 5px;
-    min-width: 35px;
-    max-width: 65px;
-    text-align: right;
+    padding: 5px 4px;
+    min-width: 40px;
+    max-width: 60px;
+    height: 28px;
+    text-align: center;
   }
+  
+  .deleteBtn {
+    width: 28px;
+    height: 28px;
+    font-size: 10px;
+  }
+  
+  .actionLabel { min-width: 28px; }
   
   .tableHeader {
     font-size: 20px;
@@ -408,32 +514,47 @@
   }
   
   .menuWrapper {
-    right: 8px;
+    right: 4px;
   }
 }
 
 @media (max-width: 480px) {
   .tableHeader,
-  .tableItem {
-    grid-template-columns: minmax(100px, 1fr) auto auto;
-    gap: 0.3rem;
+  .tableItem { gap: 0.15rem; }
+
+  .tableGridView {
+    grid-template-columns: minmax(100px, 1fr) max-content max-content;
+  }
+
+  .tableGridEdit {
+    grid-template-columns: minmax(100px, 1fr) max-content max-content max-content max-content;
   }
   
   .pricePill {
     font-size: 12px;
-    padding: 2px 4px;
+    padding: 4px 5px;
     min-width: 55px;
     max-width: 75px;
+    height: 26px;
     text-align: right;
   }
   
-  .unitPill {
+  .unitInput {
     font-size: 12px;
-    padding: 2px 4px;
-    min-width: 30px;
+    padding: 4px 3px;
+    min-width: 35px;
     max-width: 55px;
-    text-align: right;
+    height: 26px;
+    text-align: center;
   }
+  
+  .deleteBtn {
+    width: 26px;
+    height: 26px;
+    font-size: 9px;
+  }
+  
+  .actionLabel { min-width: 26px; }
   
   .tableHeader {
     font-size: 18px;
@@ -448,7 +569,7 @@
   }
   
   .menuWrapper {
-    right: 6px;
+    right: 3px;
   }
 }
 
@@ -460,22 +581,4 @@
     text-align: right;
   }
   
-  .unitPill {
-    min-width: 50px;
-    padding: 6px 10px;
-    text-align: right;
-  }
-}
-
-/* Ensure minimum usable sizes for accessibility */
-.pricePill:focus {
-  min-width: 80px;
-  outline: 2px solid #1e3c24;
-  outline-offset: 2px;
-}
-
-.unitPill:focus {
-  min-width: 50px;
-  outline: 2px solid #1e3c24;
-  outline-offset: 2px;
 }
