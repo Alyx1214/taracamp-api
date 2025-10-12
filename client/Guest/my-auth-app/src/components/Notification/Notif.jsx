@@ -39,6 +39,7 @@ export default function Notif() {
                 kind: n?.kind || null,
                 createdAt: n?.createdAt || n?.created_at || null,
                 timeLabel: n?.timeLabel ?? n?.time ?? null,
+                isRead: n?.isRead ?? false, // Ensure isRead is always defined
               };
             });
 
@@ -123,7 +124,10 @@ export default function Notif() {
   }, [search, navigate]);
 
   async function markAll() {
-    setNotifications(n => n.map(x => ({ ...x, isRead: true })));
+    // Only update notifications that are currently unread
+    setNotifications(n => n.map(x => 
+      x.isRead ? x : { ...x, isRead: true }
+    ));
     try {
       await markAllNotificationsRead();
     } catch (e) {
@@ -219,7 +223,7 @@ export default function Notif() {
     <div className={styles.notifContainer}>
       <div className={styles.headerRow}>
         <span className={styles.headerTitle}>Notifications</span>
-        {notifications.some(n => !n.isRead) && (
+        {notifications.length > 0 && (
           <button className={styles.markAllBtn} onClick={markAll}>
             Mark all as Read
           </button>

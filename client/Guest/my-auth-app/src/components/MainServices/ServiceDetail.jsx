@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import styles from './ServiceDetail.module.css';
 import placeholderImage from '../../assets/conference.jpg';
 import Calendar from './Calendar';
+import Reviews from './Reviews';
 import { getFacilityById, getAvailableDatesByFacility } from '../../apis/facilityApi';
 import { getReviewsByFacilityId } from '../../apis/reviewsApi';
 
@@ -65,6 +66,21 @@ function MainServicesServiceDetail() {
   const [currentReviewIndex, setCurrentReviewIndex] = useState(0);
   const [arrivalDateError, setArrivalDateError] = useState('');
   const [departureDateError, setDepartureDateError] = useState('');
+  const [isReviewsOpen, setIsReviewsOpen] = useState(false);
+  const [dummyReviews] = useState([
+    {
+      id: 1,
+      name: "John Doe",
+      rating: 3,
+      text: "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book."
+    },
+    {
+      id: 2,
+      name: "Jane Smith",
+      rating: 5,
+      text: "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book."
+    }
+  ]);
   const navigate = useNavigate();
   const { isLoggedIn } = useAuth();
 
@@ -463,6 +479,17 @@ const getCalendarData = (date) => {
     setCurrentReviewIndex(index);
   };
 
+  const renderStars = (rating) => {
+    return [...Array(5)].map((_, index) => (
+      <span 
+        key={index} 
+        className={`${styles.star} ${index < rating ? styles.filled : styles.empty}`}
+      >
+        ★
+      </span>
+    ));
+  };
+
   const currentReview = reviews[currentReviewIndex];
 
   const displayPrice = facility.facilityType === 'Conference' 
@@ -619,74 +646,101 @@ const getCalendarData = (date) => {
             <div className={styles.reviewsSection}>
               <div className={styles.reviewsHeader}>
                 <h3>Reviews</h3>
-                <button className={styles.readAllReviews}>Read all reviews</button>
-              </div>
-              <div className={styles.reviewScores}>
-                <div className={styles.scoreItem}>
-                  <span className={styles.scoreLabel}>Location</span>
-                  <span className={styles.scoreValue}>{averageRatings.location}</span>
-                </div>
-                <div className={styles.scoreItem}>
-                  <span className={styles.scoreLabel}>Service</span>
-                  <span className={styles.scoreValue}>{averageRatings.service}</span>
-                </div>
-                <div className={styles.scoreItem}>
-                  <span className={styles.scoreLabel}>Cleanliness</span>
-                  <span className={styles.scoreValue}>{averageRatings.cleanliness}</span>
-                </div>
+                <button 
+                  onClick={() => setIsReviewsOpen(!isReviewsOpen)}
+                  className={styles.readAllReviews}
+                >
+                  View Reviews
+                </button>
               </div>
               
-              {reviewsLoading ? (
-                <div className={styles.reviewContent}>
-                  <p>Loading reviews...</p>
-                </div>
-              ) : reviews.length > 0 && currentReview ? (
+              {isReviewsOpen ? (
+                <Reviews facilityName={facility.name} />
+              ) : (
                 <>
-                  <div className={styles.reviewContent}>
-                    <p className={styles.reviewText}>
-                      {currentReview.text}
-                    </p>
-                    <div className={styles.reviewMeta}>
-                      <span className={styles.reviewAuthor}>
-                        {currentReview.authorName || 'Anonymous'}
-                        {currentReview.isVerified && ' ✓'}
-                      </span>
+                  <div className={styles.reviewScores}>
+                    <div className={styles.scoreItem}>
+                      <span className={styles.scoreLabel}>Location</span>
+                      <span className={styles.scoreValue}>{averageRatings.location}</span>
+                    </div>
+                    <div className={styles.scoreItem}>
+                      <span className={styles.scoreLabel}>Service</span>
+                      <span className={styles.scoreValue}>{averageRatings.service}</span>
+                    </div>
+                    <div className={styles.scoreItem}>
+                      <span className={styles.scoreLabel}>Cleanliness</span>
+                      <span className={styles.scoreValue}>{averageRatings.cleanliness}</span>
                     </div>
                   </div>
                   
-                  <div className={styles.reviewNavigation}>
-                    <button 
-                      className={styles.navButton}
-                      onClick={handlePrevReview}
-                      aria-label="Previous review"
-                    >
-                      ❮
-                    </button>
-                    <div className={styles.reviewDots}>
-                      {reviews.map((_, index) => (
-                        <span 
-                          key={index}
-                          className={`${styles.dot} ${index === currentReviewIndex ? styles.active : ''}`}
-                          onClick={() => handleDotClick(index)}
-                          role="button"
-                          tabIndex={0}
-                          aria-label={`Go to review ${index + 1}`}
-                        ></span>
-                      ))}
+                  {reviewsLoading ? (
+                    <div className={styles.reviewContent}>
+                      <p>Loading reviews...</p>
                     </div>
-                    <button 
-                      className={styles.navButton}
-                      onClick={handleNextReview}
-                      aria-label="Next review"
-                    >
-                      ❯
-                    </button>
-                  </div>
+                  ) : reviews.length > 0 && currentReview ? (
+                    <>
+                      <div className={styles.reviewContent}>
+                        <p className={styles.reviewText}>
+                          {currentReview.text}
+                        </p>
+                        <div className={styles.reviewMeta}>
+                          <span className={styles.reviewAuthor}>
+                            {currentReview.authorName || 'Anonymous'}
+                            {currentReview.isVerified && ' ✓'}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <div className={styles.reviewNavigation}>
+                        <button 
+                          className={styles.navButton}
+                          onClick={handlePrevReview}
+                          aria-label="Previous review"
+                        >
+                          ❮
+                        </button>
+                        <div className={styles.reviewDots}>
+                          {reviews.map((_, index) => (
+                            <span 
+                              key={index}
+                              className={`${styles.dot} ${index === currentReviewIndex ? styles.active : ''}`}
+                              onClick={() => handleDotClick(index)}
+                              role="button"
+                              tabIndex={0}
+                              aria-label={`Go to review ${index + 1}`}
+                            ></span>
+                          ))}
+                        </div>
+                        <button 
+                          className={styles.navButton}
+                          onClick={handleNextReview}
+                          aria-label="Next review"
+                        >
+                          ❯
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <div className={styles.reviewContent}>
+                      <div className={styles.dummyReviewsList}>
+                        {dummyReviews.map((review) => (
+                          <div key={review.id} className={styles.dummyReviewCard}>
+                            <div className={styles.dummyReviewHeader}>
+                              <div className={styles.dummyAvatar}></div>
+                              <div className={styles.dummyReviewInfo}>
+                                <h3 className={styles.dummyReviewerName}>{review.name}</h3>
+                                <div className={styles.dummyRating}>
+                                  {renderStars(review.rating)}
+                                </div>
+                              </div>
+                            </div>
+                            <p className={styles.dummyReviewText}>{review.text}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </>
-              ) : (
-                <div className={styles.reviewContent}>
-                  <p>No reviews available yet.</p>
-                </div>
               )}
             </div>
           </div>
