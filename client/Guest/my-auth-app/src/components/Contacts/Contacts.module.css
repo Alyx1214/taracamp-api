@@ -93,9 +93,11 @@ main {
   width: 100%;
 }
 
-.interactiveMap {
-    height: 100%;
-    width: 100%;
+.googleMapIframe {
+  height: 100%;
+  width: 100%;
+  border: none;
+  border-radius: 20px;
 }
 
 

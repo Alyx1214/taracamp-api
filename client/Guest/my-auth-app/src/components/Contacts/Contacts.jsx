@@ -5,15 +5,6 @@ import ReserveNow from '../BubbleButton/ReserveNow';
 import styles from './Contacts.module.css';
 
 import contactsHeroBg from '../../assets/contactus.png';      
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
-import L from 'leaflet';
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
-  iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
-});
 
 function ContactsPage() {
   const handleEmailClick = () => {
@@ -29,11 +20,7 @@ function ContactsPage() {
     // TODO: Implement chat functionality
   };
 
-  const teachersCampPosition = [16.412063876257942, 120.60624646504405]; 
-
   const teachersCampAddress = "Teachers' Camp, Leonard Wood Road, Baguio City, Philippines";
-
-  const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${teachersCampPosition[0]},${teachersCampPosition[1]}`;
 
   return (
     <div className={styles.contactsPageContainer}>
@@ -63,21 +50,18 @@ function ContactsPage() {
               or phone to ensure a smooth and hassle-free experience.
             </p>
              <div className={styles.mapContainer}>
-              {/* Interactive Map */}
-              <MapContainer center={teachersCampPosition} zoom={15} scrollWheelZoom={false} className={styles.interactiveMap}>
-                <TileLayer
-                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                />
-                <Marker position={teachersCampPosition}>
-                  <Popup>
-                        <a href={googleMapsUrl} target="_blank" rel="noopener noreferrer" className={styles.mapLink}>
-                            Teachers' Camp <br /> Baguio City, Philippines <br />
-                        </a>
-                  </Popup>
-                </Marker>
-              </MapContainer>
-            </div>
+               {/* Google Maps Embed */}
+               <iframe 
+                 src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3827.2538304748477!2d120.60375737488593!3d16.411930084318307!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3391a15af37c8827%3A0x2b617e8ef98f7784!2sTeacher&#39;s%20Camp!5e0!3m2!1sen!2sph!4v1760273749046!5m2!1sen!2sph" 
+                 width="600" 
+                 height="450" 
+                 style={{border: 0}} 
+                 allowFullScreen="" 
+                 loading="lazy" 
+                 referrerPolicy="no-referrer-when-downgrade"
+                 className={styles.googleMapIframe}
+               ></iframe>
+             </div>
           </div>
 
           <div className={styles.contactDetailsColumn}>

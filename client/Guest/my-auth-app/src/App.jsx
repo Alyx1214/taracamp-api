@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import AuthFormContainer from './components/AuthFormContainer/AuthFormContainer';
 import AuthSidePanel from './components/AuthSidePanel/AuthSidePanel';
 import LoginForm from './components/LoginForm/LoginForm';
@@ -31,6 +31,23 @@ function AuthLayout() {
   const [resetEmail, setResetEmail] = useState('');
   const [resetToken, setResetToken] = useState('');
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Detect current route and set appropriate form state
+  useEffect(() => {
+    const path = location.pathname;
+    if (path === '/auth/signup') {
+      setAuthFormState('signup');
+    } else if (path === '/auth/login') {
+      setAuthFormState('login');
+    } else if (path === '/auth/forgot-password') {
+      setAuthFormState('forgot-password');
+    } else if (path === '/auth/verify-code') {
+      setAuthFormState('verify-code');
+    } else if (path === '/auth/reset-password') {
+      setAuthFormState('reset-password');
+    }
+  }, [location.pathname]);
 
   const toggleAuthForm = (state) => {
     setAuthFormState(state);

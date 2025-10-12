@@ -650,7 +650,7 @@ const getCalendarData = (date) => {
                   onClick={() => setIsReviewsOpen(!isReviewsOpen)}
                   className={styles.readAllReviews}
                 >
-                  View Reviews
+                  View All Reviews
                 </button>
               </div>
               

@@ -18,11 +18,12 @@
 
 .services-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  grid-template-columns: repeat(auto-fit, 350px);
   gap: 30px;
   justify-content: center;
   padding: 0 10px;
   row-gap: 50px;
+  justify-items: center;
 }
 
 .service-card {
@@ -35,7 +36,8 @@
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  height: 100%;
+  height: 400px;
+  width: 350px;
 }
 
 
@@ -177,20 +179,13 @@
 }
 
 /* Skeleton loading styles */
-.skeletonGrid {
-  grid-column: 1 / -1;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-  gap: 30px;
-  row-gap: 50px;
-}
-
 .skeletonCard {
   background: #f8f8f8;
   border-radius: 15px;
   box-shadow: 0 2px 8px rgba(0, 34, 10, 0.36);
   overflow: hidden;
-  height: 100%;
+  height: 400px;
+  width: 350px;
   display: flex;
   flex-direction: column;
 }
@@ -256,7 +251,12 @@
   }
   
   .services-grid {
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    grid-template-columns: repeat(auto-fit, 300px);
+  }
+  
+  .service-card {
+    width: 300px;
+    height: 380px;
   }
 }
 
@@ -270,7 +270,13 @@
     text-align: center;
   }
   
+  .services-grid {
+    grid-template-columns: repeat(auto-fit, 280px);
+  }
+  
   .service-card {
+    width: 280px;
+    height: 360px;
     padding-bottom: 10px;
   }
   

@@ -74,8 +74,8 @@ function Header({ onReserveNow }) {
             <a onClick={() => handleNavLinkClick('/', 'footer')} className={styles.navLink}>CONTACTS</a>
           </li>
           <li className={styles.mobileOnlyNavItem}>
-            <button className={styles.reserveNowButtonMobile} onClick={() => { setIsMenuOpen(false); onReserveNow(); }}>
-              SignUp / Login
+            <button className={styles.reserveNowButtonMobile} onClick={() => { setIsMenuOpen(false); navigate('/auth/signup'); }}>
+              Sign Up
             </button>
           </li>
         </ul>
@@ -83,8 +83,8 @@ function Header({ onReserveNow }) {
 
       {/*show only after hero is scrolled past */}
       <div className={`${styles.desktopActions} ${!showReserve ? styles.hidden : ''}`}>
-        <button className={styles.reserveNowButton} onClick={onReserveNow}>
-          SignUp / Login
+        <button className={styles.reserveNowButton} onClick={() => navigate('/auth/signup')}>
+          Sign Up 
         </button>
       </div>
       
