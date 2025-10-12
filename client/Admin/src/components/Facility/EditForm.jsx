@@ -223,7 +223,15 @@ export default function EditForm() {
       }
 
       setSuccess("Saved successfully");
-      setTimeout(() => navigate("/facilities"), 600);
+      
+      // Navigate back to the correct tab based on category
+      setTimeout(() => {
+        if (isSpecialService) {
+          navigate('/facilities', { state: { activeTab: 'Add-ons' } });
+        } else {
+          navigate('/facilities', { state: { activeTab: category } });
+        }
+      }, 600);
     } catch (err) {
       setError(err?.data?.error || err?.message || "Failed to save");
     } finally {
@@ -236,7 +244,13 @@ export default function EditForm() {
       <div className={styles.header}>
         <span
           className={styles["edit-form-back"]}
-          onClick={() => navigate(-1)}
+          onClick={() => {
+            if (isSpecialService) {
+              navigate('/facilities', { state: { activeTab: 'Add-ons' } });
+            } else {
+              navigate('/facilities', { state: { activeTab: category } });
+            }
+          }}
         >
           &larr;
         </span>
@@ -336,6 +350,20 @@ export default function EditForm() {
             </div>
 
             <div className={styles.actions}>
+              <button 
+                type="button" 
+                className={styles.cancelBtn} 
+                onClick={() => {
+                  if (isSpecialService) {
+                    navigate('/facilities', { state: { activeTab: 'Add-ons' } });
+                  } else {
+                    navigate('/facilities', { state: { activeTab: category } });
+                  }
+                }}
+                disabled={submitting}
+              >
+                Cancel
+              </button>
               <button type="submit" className={styles.saveBtn} disabled={submitting}>
                 {submitting ? "Saving..." : "Save Changes"}
               </button>

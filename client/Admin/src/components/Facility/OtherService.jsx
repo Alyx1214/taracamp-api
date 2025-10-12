@@ -1,137 +1,459 @@
-import React, { useEffect, useState } from "react";
-import styles from "./TableServices.module.css";
-import { getAllAddons, searchAddons } from "../../apis/addonsApi";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { FaEdit, FaTrash } from "react-icons/fa";
+import styles from "./OtherService.module.css";
+import { getAllAddons, createAddon, deleteAddon, updateManyAddons, searchAddons } from "../../apis/addonsApi";
 
-export default function OtherService({ searchQuery = "" }) {
+const cloneAddons = (addons) => addons.map(addon => ({ ...addon }));
+
+const SkeletonLoader = ({ count = 3 }) => {
+  return (
+    <>
+      {Array.from({ length: count }, (_, index) => (
+        <li key={index} className={`${styles.skeletonItem} ${styles.tableGridView}`}>
+          <div className={`${styles.skeletonText} ${styles.skeletonTextMedium}`}></div>
+          <div className={`${styles.skeletonText} ${styles.skeletonTextShort}`}></div>
+        </li>
+      ))}
+    </>
+  );
+};
+
+export default function OtherService({ onEdit, editable, onSave, onCancel, searchQuery }) {
   const [services, setServices] = useState([]);
-  const [state, setState] = useState({ loading: true, error: null });
+  const [originalServices, setOriginalServices] = useState([]);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [hasInitiallyLoaded, setHasInitiallyLoaded] = useState(false);
+  const menuRef = useRef(null);
+  const searchTimeoutRef = useRef(null);
+
+  const debouncedSearch = useCallback((query) => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    
+    searchTimeoutRef.current = setTimeout(async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        let response;
+        if (query && query.trim()) {
+          response = await searchAddons({ query: query.trim() });
+        } else {
+          response = await getAllAddons();
+        }
+        
+        const addons = response.addons || response.data?.addons || [];
+        
+        if (response.status === 200 && addons.length >= 0) {
+          const formattedAddons = addons.map(addon => ({
+            id: addon._id,
+            name: addon.name,
+            price: `P${Number(addon.price).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`,
+            unit: addon.unit
+          }));
+          setServices(formattedAddons);
+          setOriginalServices(cloneAddons(formattedAddons));
+        } else {
+          throw new Error(response.error || response.data?.error || 'Failed to fetch addons');
+        }
+      } catch (err) {
+        setError(err.message);
+        setServices([]);
+        setOriginalServices([]);
+      } finally {
+        setLoading(false);
+        setHasInitiallyLoaded(true);
+      }
+    }, 300);
+  }, []);
 
   useEffect(() => {
-    let cancelled = false;
+    debouncedSearch(searchQuery);
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [searchQuery, debouncedSearch]);
 
-    (async () => {
-      try {
-        setState({ loading: true, error: null });
-        const q = String(searchQuery || "").trim();
-        const res = q ? await searchAddons({ query: q }) : await getAllAddons();
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
-        if (cancelled) return;
+  const handleInputChange = (index, field, value) => {
+    const updated = [...services];
+    if (field === 'price') {
+      if (value === '') {
+        updated[index][field] = '';
+        setServices(updated);
+        return;
+      }
+      const numericValue = value.replace(/[^0-9.]/g, '');
+      const parts = numericValue.split('.');
+      let cleanValue = parts[0];
+      if (parts.length > 1) {
+        cleanValue += '.' + parts.slice(1).join('');
+      }
+      if (cleanValue && !isNaN(parseFloat(cleanValue))) {
+        const formattedPrice = `P${Number(cleanValue).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`;
+        updated[index][field] = formattedPrice;
+      } else if (numericValue === '') {
+        updated[index][field] = '';
+      }
+    } else {
+      updated[index][field] = value;
+    }
+    
+    setServices(updated);
+  };
 
-        // Treat payload-level error as failure
-        const payloadError = res?.error || res?.message;
-        if (payloadError) {
-          throw new Error(typeof payloadError === "string" ? payloadError : "Invalid response.");
-        }
+  const handleAddNewItem = () => {
+    const newItem = {
+      id: null,
+      name: '',
+      price: 'P0.00',
+      unit: 'pc'
+    };
+    setServices([...services, newItem]);
+  };
 
-        const list = Array.isArray(res?.addons) ? res.addons : [];
-        if (!Array.isArray(list)) {
-          throw new Error('Response missing "addons" list.');
-        }
+  const handleRemoveItem = (index) => {
+    const updated = services.filter((_, i) => i !== index);
+    setServices(updated);
+  };
 
-        const mapped = list.map((s) => ({
-          id: s._id ?? s.id,
-          name: s.name,
-          rate: s.price ?? 0,
-          unit: s.unit ?? "-",
-        }));
-
-        setServices(mapped);
-        setState({ loading: false, error: null });
-      } catch (e) {
-        if (!cancelled) {
-          const msg =
-            e?.response?.data?.error ||
-            e?.response?.data?.message ||
-            e?.data?.error ||
-            e?.message ||
-            "Failed to load add-ons.";
-          setState({ loading: false, error: msg });
+  const handleSave = async () => {
+    const token = localStorage.getItem('accessToken');
+    if (!token) {
+      setError('You must be logged in to edit add-ons');
+      return;
+    }
+    for (let i = 0; i < services.length; i++) {
+      const item = services[i];
+      if (!item.name || item.name.trim() === '') {
+        setError(`Item ${i + 1}: Name is required`);
+        return;
+      }
+      if (!item.unit || item.unit.trim() === '') {
+        setError(`Item ${i + 1}: Unit is required`);
+        return;
+      }
+      const price = parsePrice(item.price);
+      if (price < 0) {
+        setError(`Item ${i + 1}: Price must be a valid positive number`);
+        return;
+      }
+    }
+    
+    try {
+      setLoading(true);
+      setError(null);
+      const changes = [];
+      
+      for (let i = 0; i < services.length; i++) {
+        const current = services[i];
+        const original = originalServices.find(orig => orig.id === current.id);
+        
+        if (current.id && original) {
+          const currentPrice = parsePrice(current.price);
+          const originalPrice = parsePrice(original.price);
+          
+          if (current.name !== original.name || 
+              currentPrice !== originalPrice || 
+              current.unit !== original.unit) {
+            changes.push({
+              type: 'update',
+              id: current.id,
+              data: {
+                name: current.name,
+                price: currentPrice,
+                unit: current.unit
+              }
+            });
+          }
+        } else if (!current.id) {
+          changes.push({
+            type: 'create',
+            data: {
+              name: current.name,
+              price: parsePrice(current.price),
+              unit: current.unit
+            }
+          });
         }
       }
-    })();
+      for (const original of originalServices) {
+        const stillExists = services.find(current => current.id === original.id);
+        if (!stillExists) {
+          changes.push({
+            type: 'delete',
+            id: original.id
+          });
+        }
+      }
+      
+      if (changes.length === 0) {
+        const response = await getAllAddons();
+        const addons = response.addons || response.data?.addons || [];
+        let formattedAddons = cloneAddons(services);
+        
+        if (response.status === 200 && addons.length >= 0) {
+          formattedAddons = addons.map(addon => ({
+            id: addon._id,
+            name: addon.name,
+            price: `P${Number(addon.price).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`,
+            unit: addon.unit
+          }));
+          setServices(formattedAddons);
+          setOriginalServices(cloneAddons(formattedAddons));
+        }
+        
+        if (onSave) onSave(cloneAddons(formattedAddons));
+        return;
+      }
+      const updates = changes.filter(c => c.type === 'update').map(c => ({
+        id: c.id,
+        name: c.data.name,
+        price: c.data.price,
+        unit: c.data.unit
+      }));
+      
+      const creates = changes.filter(c => c.type === 'create');
+      const deletes = changes.filter(c => c.type === 'delete');
+      if (updates.length > 0) {
+        const response = await updateManyAddons(updates);
+        if (response?.status !== 200) {
+          if (response?.status === 401) {
+            throw new Error('Authentication failed. Please log in again.');
+          } else if (response?.status === 403) {
+            throw new Error('You do not have permission to edit add-ons.');
+          } else {
+            throw new Error(response?.error || response?.message || 'Failed to update addons');
+          }
+        }
+      }
+      for (const change of creates) {
+        const response = await createAddon(change.data);
+        if (response.status !== 201) {
+          if (response.status === 401) {
+            throw new Error('Authentication failed. Please log in again.');
+          } else if (response.status === 403) {
+            throw new Error('You do not have permission to create add-ons.');
+          } else {
+            throw new Error(response.error || 'Failed to create addon');
+          }
+        }
+      }
+      for (const change of deletes) {
+        const response = await deleteAddon(change.id);
+        if (response.status !== 200) {
+          if (response.status === 401) {
+            throw new Error('Authentication failed. Please log in again.');
+          } else if (response.status === 403) {
+            throw new Error('You do not have permission to delete add-ons.');
+          } else {
+            throw new Error(response.error || 'Failed to delete addon');
+          }
+        }
+      }
+      const response = await getAllAddons();
+      const addons = response.addons || response.data?.addons || [];
+      let formattedAddons = cloneAddons(services);
+      
+      if (response.status === 200 && addons.length >= 0) {
+        formattedAddons = addons.map(addon => ({
+          id: addon._id,
+          name: addon.name,
+          price: `P${Number(addon.price).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`,
+          unit: addon.unit
+        }));
+        setServices(formattedAddons);
+        setOriginalServices(cloneAddons(formattedAddons));
+      }
+      setError(null);
+      setIsEditing(false);
+      
+      if (onSave) onSave(cloneAddons(formattedAddons));
+      
+    } catch (err) {
+      setError(err.message || 'Failed to save changes');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    return () => { cancelled = true; };
-  }, [searchQuery]);
+  const parsePrice = (priceStr) => {
+    if (!priceStr) return 0;
+    const cleanPrice = priceStr.toString().replace(/[P,\s]/g, '');
+    const parsed = parseFloat(cleanPrice);
+    return isNaN(parsed) ? 0 : parsed;
+  };
 
+  const handleEdit = () => {
+    setIsEditing(true);
+    if (onEdit) onEdit();
+  };
 
-  const isLoading = state.loading;
-  const hasError = !isLoading && Boolean(state.error);
-  const isEmpty = !isLoading && !hasError && services.length === 0;
+  const handleCancel = () => {
+    setIsEditing(false);
+    setServices(cloneAddons(originalServices));
+    setError(null);
+    if (onCancel) onCancel();
+  };
+
+  if (editable || isEditing) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.headerRow}>
+          <span className={styles.backArrow} onClick={handleCancel}>←</span>
+          <h2>OTHER SERVICE</h2>
+        </div>
+
+        <div className={styles.tableContainer}>
+          <div className={`${styles.tableHeader} ${styles.tableGridEdit}`}>
+            <span>EQUIPMENTS</span>
+            <span className={styles.priceLabel}>PRICE</span>
+            <span className={styles.unitLabel}>UNIT</span>
+            <span className={styles.actionLabel} aria-hidden="true"></span>
+          </div>
+
+          <ul className={styles.tableList}>
+            {services.length > 0 ? (
+              services.map((item, index) => (
+                <li
+                  key={index}
+                  className={`${styles.tableItem} ${styles.tableGridEdit}`}
+                >
+                  <input
+                    type="text"
+                    className={styles.nameInput}
+                    value={item.name}
+                    placeholder="Enter equipment name"
+                    onChange={(e) =>
+                      handleInputChange(index, "name", e.target.value)
+                    }
+                  />
+                  <input
+                    type="text"
+                    className={styles.pricePill}
+                    value={item.price}
+                    placeholder="P0.00"
+                    onChange={(e) =>
+                      handleInputChange(index, "price", e.target.value)
+                    }
+                  />
+                  <input
+                    type="text"
+                    className={styles.unitInput}
+                    value={item.unit}
+                    placeholder="pc"
+                    onChange={(e) =>
+                      handleInputChange(index, "unit", e.target.value)
+                    }
+                  />
+                  <button
+                    type="button"
+                    className={styles.deleteBtn}
+                    onClick={() => handleRemoveItem(index)}
+                    title="Delete item"
+                  >
+                    <FaTrash />
+                  </button>
+                </li>
+              ))
+            ) : (
+              <li className={styles.noDataMessage}>
+                No add-ons found
+              </li>
+            )}
+          </ul>
+        </div>
+
+        {error && (
+          <div className={styles.errorMessage}>
+            {error}
+          </div>
+        )}
+        <div className={styles.buttonGroup}>
+          <button 
+            className={styles.cancelBtn} 
+            onClick={handleCancel}
+            disabled={loading}
+          >
+            CANCEL
+          </button>
+          <button 
+            className={styles.saveBtn} 
+            onClick={handleSave}
+            disabled={loading}
+          >
+            {loading ? 'SAVING...' : 'SAVE CHANGES'}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.container}>
-      <h2 className={styles.heading}>ADD-ONS</h2>
+      {error && (
+        <div className={styles.errorMessage}>
+          {error}
+        </div>
+      )}
+      <div className={styles.tableContainer}>
+        <div className={styles.menuWrapper} ref={menuRef}>
+          <div
+            className={styles.cardMenu}
+            onClick={() => setMenuOpen(!menuOpen)}
+          >
+            ⋮
+          </div>
+          {menuOpen && (
+            <div className={styles.dropdownMenu}>
+              <div className={styles.dropdownItem} onClick={handleEdit}>
+                <FaEdit className={styles.icon} /> Edit
+              </div>
+            </div>
+          )}
+        </div>
 
-      <div className={styles.tableWrapper}>
-        <table className={styles.table}>
-          <thead className={styles.thead}>
-            <tr>
-              <th className={styles.th}>EQUIPMENTS</th>
-              <th className={`${styles.th} ${styles.thRight}`}>PRICE</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading &&
-              Array.from({ length: 5 }).map((_, i) => (
-                <tr key={i} className={styles.skeletonRow}>
-                  <td className={styles.td}>
-                    <span className={styles.skelName} />
-                  </td>
-                  <td className={styles.td}>
-                    <span className={styles.skelPrice} />
-                  </td>
-                </tr>
-              ))
-            }
+        <div className={`${styles.tableHeader} ${styles.tableGridView}`}>
+          <span>EQUIPMENTS</span>
+          <span className={styles.priceLabel}>PRICE</span>
+        </div>
 
-            {hasError && (
-              <tr>
-                <td colSpan="2" className={styles.td}>
-                  <div className={styles.emptyState} role="alert">
-                    <div className={styles.emptyCard}>
-                      <svg className={styles.emptyIcon} viewBox="0 0 24 24" width="28" height="28" aria-hidden="true">
-                        <path fill="currentColor" d="M11 15h2v2h-2v-2zm0-8h2v6h-2V7zm1-5C6.48 2 2 6.48 2 12s4.48 10 10 10
-                          10-4.48 10-10S17.52 2 12 2z"/>
-                      </svg>
-                      <h4 className={styles.emptyTitle}>Couldn't load add-ons</h4>
-                      <p className={styles.emptyDesc}>{state.error}</p>
-                    </div>
-                  </div>
-                </td>
-              </tr>
-            )}
-
-            {isEmpty && (
-              <tr>
-                <td colSpan="2" className={styles.td}>
-                  <div className={styles.emptyState}>
-                    <div className={styles.emptyCard}>
-                      <svg className={styles.emptyIcon} viewBox="0 0 24 24" width="28" height="28" aria-hidden="true">
-                        <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 14h-2v-2h2v2zm0-4h-2V7h2v5z"/>
-                      </svg>
-                      <h4 className={styles.emptyTitle}>No add-ons found</h4>
-                    </div>
-                  </div>
-                </td>
-              </tr>
-            )}
-
-            {!isLoading && !hasError && !isEmpty &&
-              services.map((service, idx) => (
-                <tr key={service?.id ?? idx} className={styles.tr}>
-                  <td className={styles.td}>
-                    <span className={styles.equipmentName}>{service.name}</span>
-                  </td>
-                  <td className={styles.td}>
-                    <span className={styles.price}>₱{service.rate?.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
-                      {service.unit ? `/${service.unit}` : ''}
-                    </span>
-                  </td>
-                </tr>
-              ))
-            }
-          </tbody>
-        </table>
+        <ul className={styles.tableList}>
+          {loading ? (
+            <SkeletonLoader count={3} />
+          ) : services.length > 0 ? (
+            services.map((item, index) => (
+              <li
+                key={index}
+                className={`${styles.tableItem} ${styles.tableGridView}`}
+              >
+                <span>{item.name}</span>
+                <span className={styles.priceDisplay}>{item.price}/{item.unit}</span>
+              </li>
+            ))
+          ) : hasInitiallyLoaded ? (
+            <li className={styles.noDataMessage}>
+              No add-ons found
+            </li>
+          ) : (
+            <SkeletonLoader count={3} />
+          )}
+        </ul>
       </div>
     </div>
   );

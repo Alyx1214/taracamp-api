@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import Calendar from './Calendar'; 
 import styles from './Controls.module.css';
 
@@ -10,10 +10,11 @@ const Controls = ({ facilityType = 'All', onApplyFilters }) => {
   const [checkInDate, setCheckInDate] = useState(today);
   const [checkOutDate, setCheckOutDate] = useState(tomorrow);
   const [adults, setAdults] = useState(1);
-  const [children, setChildren] = useState(1);
+  const [children, setChildren] = useState(0);
   const [showCheckInCalendar, setShowCheckInCalendar] = useState(false);
   const [showCheckOutCalendar, setShowCheckOutCalendar] = useState(false);
   const lastAppliedFiltersRef = useRef(null);
+  const debounceTimeoutRef = useRef(null);
 
   const toISODate = (d) => {
     const date = d instanceof Date ? new Date(d.getTime()) : new Date(d);
@@ -33,10 +34,13 @@ const Controls = ({ facilityType = 'All', onApplyFilters }) => {
     };
   };
 
-  useEffect(() => {
+  // Debounced filter application to prevent rate limiting
+  const applyFiltersDebounced = useCallback(() => {
     if (!onApplyFilters) return;
 
-    const totalGuests = Number(adults) + Number(children);
+    const adultCount = adults === '' ? 1 : Number(adults);
+    const childCount = children === '' ? 0 : Number(children);
+    const totalGuests = adultCount + childCount;
     const nextFilters = {
       type: facilityType === 'All' ? null : facilityType,
       capacity: Number.isFinite(totalGuests) ? totalGuests : undefined,
@@ -57,6 +61,66 @@ const Controls = ({ facilityType = 'All', onApplyFilters }) => {
     lastAppliedFiltersRef.current = nextFilters;
     onApplyFilters(nextFilters);
   }, [adults, children, checkInDate, checkOutDate, facilityType, onApplyFilters]);
+
+  useEffect(() => {
+    // Clear existing timeout
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+
+    // Set new timeout for debounced execution
+    debounceTimeoutRef.current = setTimeout(() => {
+      applyFiltersDebounced();
+    }, 300); // 300ms debounce delay
+
+    // Cleanup timeout on unmount
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
+  }, [applyFiltersDebounced]);
+
+  // Input validation and handlers
+  const handleAdultChange = (e) => {
+    const value = e.target.value;
+    // Allow empty string for better typing experience
+    if (value === '') {
+      setAdults('');
+      return;
+    }
+    const num = parseInt(value, 10);
+    if (!isNaN(num) && num >= 1) {
+      setAdults(num);
+    }
+  };
+
+  const handleChildChange = (e) => {
+    const value = e.target.value;
+    // Allow empty string for better typing experience
+    if (value === '') {
+      setChildren('');
+      return;
+    }
+    const num = parseInt(value, 10);
+    if (!isNaN(num) && num >= 0) {
+      setChildren(num);
+    }
+  };
+
+  const handleAdultBlur = () => {
+    // Ensure minimum value on blur
+    if (adults === '' || adults < 1) {
+      setAdults(1);
+    }
+  };
+
+  const handleChildBlur = () => {
+    // Ensure minimum value on blur
+    if (children === '' || children < 0) {
+      setChildren(0);
+    }
+  };
 
   const handleAdultDecrease = () => {
     if (adults > 1) setAdults(adults - 1);
@@ -169,7 +233,14 @@ const Controls = ({ facilityType = 'All', onApplyFilters }) => {
               <line x1="5" y1="12" x2="19" y2="12" stroke="currentColor" strokeWidth="2"/>
             </svg>
           </button>
-          <span className={styles.counterValue}>{adults}</span>
+          <input
+            type="number"
+            className={styles.counterInput}
+            value={adults}
+            onChange={handleAdultChange}
+            onBlur={handleAdultBlur}
+            min="1"
+          />
           <button 
             className={styles.counterButton}
             onClick={handleAdultIncrease}
@@ -197,7 +268,14 @@ const Controls = ({ facilityType = 'All', onApplyFilters }) => {
               <line x1="5" y1="12" x2="19" y2="12" stroke="currentColor" strokeWidth="2"/>
             </svg>
           </button>
-          <span className={styles.counterValue}>{children}</span>
+          <input
+            type="number"
+            className={styles.counterInput}
+            value={children}
+            onChange={handleChildChange}
+            onBlur={handleChildBlur}
+            min="0"
+          />
           <button 
             className={styles.counterButton}
             onClick={handleChildIncrease}

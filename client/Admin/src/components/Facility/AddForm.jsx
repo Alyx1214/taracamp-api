@@ -90,15 +90,23 @@ const AddForm = () => {
           payload.capacity = formData.capacity;
         }
 
-        if (facilityType === "Conference") {
+        if (facilityType === "Conference" || facilityType === "Cottage") {
           payload.price = formData.rate;
-        } else if (facilityType === "Dormitory" || facilityType === "Cottage") {
+        } else if (facilityType === "Dormitory") {
           payload.ratePerPerson = formData.rate;
         }
         const res = await createFacility(payload);
         setSuccess(res.message || "Facility created successfully");
       }
-      setTimeout(() => navigate(-1), 800);
+      
+      // Navigate back to the correct tab based on category
+      setTimeout(() => {
+        if (isSpecialService) {
+          navigate('/facilities', { state: { activeTab: 'Add-ons' } });
+        } else {
+          navigate('/facilities', { state: { activeTab: category } });
+        }
+      }, 800);
     } catch (err) {
       setError(
         err?.data?.error ||
@@ -117,7 +125,13 @@ const AddForm = () => {
       <div className={styles.header}>
         <span
           className={styles["add-form-back"]}
-          onClick={() => navigate(-1)}
+          onClick={() => {
+            if (isSpecialService) {
+              navigate('/facilities', { state: { activeTab: 'Add-ons' } });
+            } else {
+              navigate('/facilities', { state: { activeTab: category } });
+            }
+          }}
         >
           &larr;
         </span>
@@ -209,7 +223,7 @@ const AddForm = () => {
           </label>
 
           <label>
-            {isSpecialService || facilityType === "Conference" ? "Price:" : "Rate per Person:"}
+            {isSpecialService || facilityType === "Conference" || facilityType === "Cottage" ? "Price:" : "Rate per Person:"}
             <input
               type="number"
               name="rate"
@@ -262,9 +276,26 @@ const AddForm = () => {
 
         {error && <p style={{ color: 'red' }}>{error}</p>}
         {success && <p style={{ color: 'green' }}>{success}</p>}
-        <button type="submit" className={styles.submitBtn} disabled={submitting}>
-          {isSpecialService ? 'Add Add-on' : `Add ${category.charAt(0).toUpperCase() + category.slice(1).toLowerCase()}`}
-        </button>
+        
+        <div className={styles.buttonContainer}>
+          <button 
+            type="button" 
+            className={styles.cancelBtn} 
+            onClick={() => {
+              if (isSpecialService) {
+                navigate('/facilities', { state: { activeTab: 'Add-ons' } });
+              } else {
+                navigate('/facilities', { state: { activeTab: category } });
+              }
+            }}
+            disabled={submitting}
+          >
+            Cancel
+          </button>
+          <button type="submit" className={styles.submitBtn} disabled={submitting}>
+            {isSpecialService ? 'Add Add-on' : `Add ${category.charAt(0).toUpperCase() + category.slice(1).toLowerCase()}`}
+          </button>
+        </div>
       </form>
     </div>
   );

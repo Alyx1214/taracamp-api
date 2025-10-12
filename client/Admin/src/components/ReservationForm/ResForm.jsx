@@ -20,6 +20,7 @@ function ReservationForm() {
     guestEmail: '',
     officeTelephoneNo: '',
     guests: { adult: '', children: '', pwds: '' }, 
+    emergencyContactPerson: '',
     emergencyContact: '',
   });
 
@@ -88,6 +89,7 @@ function ReservationForm() {
     if (!formData.groupAssociation?.trim()) e.groupAssociation = 'Required';
     if (!formData.homeAddress?.trim()) e.homeAddress = 'Required';
     if (!phoneOk) e.phoneNo = 'Enter a valid PH mobile (e.g., 09XXXXXXXXX or +639XXXXXXXXX).';
+    if (!formData.emergencyContactPerson?.trim()) e.emergencyContactPerson = 'Required';
     if (!emerOk) e.emergencyContact = 'Enter a valid PH mobile for emergency contact.';
     if (!emailOk) e.guestEmail = 'Enter a valid email address.';
     if (!hasCategory) e.category = 'Please select a category.';
@@ -131,8 +133,50 @@ function ReservationForm() {
             <ErrorBanner err={serverErr} onClose={() => setServerErr(null)} />
 
             <form onSubmit={(e) => e.preventDefault()}>
+              <div className={styles.checkboxGroupContainer}>
+                <div className={styles.checkboxGroup}>
+                  <label className={styles.label}>Select Category<span className={styles.requiredAsterisk}>*</span></label>
+                  <div className={styles.checkboxRow}>
+                    {['deped','government','pwds','private'].map(k => (
+                      <label className={styles.checkboxLabel} key={k}>
+                        <input
+                          type="checkbox"
+                          name={k}
+                          checked={formData.category[k]}
+                          onChange={() => handleCheckboxChange('category', k)}
+                          className={styles.checkbox}
+                        />
+                        {k === 'deped' ? 'DepEd' : k.charAt(0).toUpperCase() + k.slice(1)}
+                      </label>
+                    ))}
+                  </div>
+                  <p className={styles.noteText}>Note: A 20% discount applies only to DepEd, government employees, senior citizens and PWDs.</p>
+                  {errors.category && <div id="category-error" className={styles.fieldError} role="alert">{errors.category}</div>}
+                </div>
+
+                <div className={styles.checkboxGroup}>
+                  <label className={styles.label}>Type<span className={styles.requiredAsterisk}>*</span></label>
+                  <div className={styles.checkboxRow}>
+                    {['groups','individual'].map(k => (
+                      <label className={styles.checkboxLabel} key={k}>
+                        <input
+                          type="checkbox"
+                          name={k}
+                          checked={formData.type[k]}
+                          onChange={() => handleCheckboxChange('type', k)}
+                          className={styles.checkbox}
+                        />
+                        {k.charAt(0).toUpperCase() + k.slice(1)}
+                      </label>
+                    ))}
+                  </div>
+                  <p className={styles.noteText}>Note: Individuals may reserve dorms, guest houses, and cottages only. Halls are for group bookings.</p>
+                  {errors.type && <div id="type-error" className={styles.fieldError} role="alert">{errors.type}</div>}
+                </div>
+              </div>
+              
               <div className={styles.formGroup}>
-                <label className={styles.label} htmlFor="groupAssociation">Name of Guest/Group/Association <span className={styles.required}>*</span></label>
+                <label className={styles.label} htmlFor="groupAssociation">Name of Guest/Group/Association<span className={styles.requiredAsterisk}>*</span></label>
                 <input
                   id="groupAssociation"
                   type="text"
@@ -146,7 +190,7 @@ function ReservationForm() {
               </div>
 
               <div className={styles.formGroup}>
-                <label className={styles.label} htmlFor="homeAddress">Complete Home Address <span className={styles.required}>*</span></label>
+                <label className={styles.label} htmlFor="homeAddress">Complete Home Address<span className={styles.requiredAsterisk}>*</span></label>
                 <input
                   id="homeAddress"
                   type="text"
@@ -171,33 +215,33 @@ function ReservationForm() {
                 />
               </div>
               
-          <div className={styles.formGroup}>
-            <label className={styles.label} htmlFor="phoneNo">Phone No. <span className={styles.required}>*</span></label>
-            <input
-              id="phoneNo"
-              type="tel"
-              name="phoneNo"
-              value={formData.phoneNo}
-              onChange={handleInputChange}
-              className={`${styles.input} ${errors.phoneNo ? styles.inputError : ''}`}
-              aria-invalid={!!errors.phoneNo}
-            />
-            {errors.phoneNo && <div className={styles.fieldError}>{errors.phoneNo}</div>}
-          </div>
+              <div className={styles.formGroup}>
+                <label className={styles.label} htmlFor="phoneNo">Phone No.<span className={styles.requiredAsterisk}>*</span></label>
+                <input
+                  id="phoneNo"
+                  type="tel"
+                  name="phoneNo"
+                  value={formData.phoneNo}
+                  onChange={handleInputChange}
+                  className={`${styles.input} ${errors.phoneNo ? styles.inputError : ''}`}
+                  aria-invalid={!!errors.phoneNo}
+                />
+                {errors.phoneNo && <div className={styles.fieldError}>{errors.phoneNo}</div>}
+              </div>
 
-          <div className={styles.formGroup}>
-            <label className={styles.label} htmlFor="guestEmail">Guest Email</label>
-            <input
-              id="guestEmail"
-              type="email"
-              name="guestEmail"
-              value={formData.guestEmail}
-              onChange={handleInputChange}
-              className={`${styles.input} ${errors.guestEmail ? styles.inputError : ''}`}
-              aria-invalid={!!errors.guestEmail}
-            />
-            {errors.guestEmail && <div className={styles.fieldError}>{errors.guestEmail}</div>}
-          </div>
+              <div className={styles.formGroup}>
+                <label className={styles.label} htmlFor="guestEmail">Guest Email</label>
+                <input
+                  id="guestEmail"
+                  type="email"
+                  name="guestEmail"
+                  value={formData.guestEmail}
+                  onChange={handleInputChange}
+                  className={`${styles.input} ${errors.guestEmail ? styles.inputError : ''}`}
+                  aria-invalid={!!errors.guestEmail}
+                />
+                {errors.guestEmail && <div className={styles.fieldError}>{errors.guestEmail}</div>}
+              </div>
               <div className={styles.formGroup}>
                 <label className={styles.label} htmlFor="officeTelephoneNo">
                   Office Telephone No.
@@ -214,45 +258,6 @@ function ReservationForm() {
                 {errors.officeTelephoneNo && (
                   <div className={styles.fieldError}>{errors.officeTelephoneNo}</div>
                 )}
-              </div>
-              <div className={styles.checkboxGroupContainer}>
-                <div className={styles.checkboxGroup}>
-                  <label className={styles.label}>Select Category <span className={styles.required}>*</span></label>
-                  <div className={styles.checkboxRow}>
-                    {['deped','government','pwds','private'].map(k => (
-                      <label className={styles.checkboxLabel} key={k}>
-                        <input
-                          type="checkbox"
-                          name={k}
-                          checked={formData.category[k]}
-                          onChange={() => handleCheckboxChange('category', k)}
-                          className={styles.checkbox}
-                        />
-                        {k === 'deped' ? 'DepEd' : k.charAt(0).toUpperCase() + k.slice(1)}
-                      </label>
-                    ))}
-                  </div>
-                  {errors.category && <div id="category-error" className={styles.fieldError} role="alert">{errors.category}</div>}
-                </div>
-
-                <div className={styles.checkboxGroup}>
-                  <label className={styles.label}>Type <span className={styles.required}>*</span></label>
-                  <div className={styles.checkboxRow}>
-                    {['groups','individual'].map(k => (
-                      <label className={styles.checkboxLabel} key={k}>
-                        <input
-                          type="checkbox"
-                          name={k}
-                          checked={formData.type[k]}
-                          onChange={() => handleCheckboxChange('type', k)}
-                          className={styles.checkbox}
-                        />
-                        {k.charAt(0).toUpperCase() + k.slice(1)}
-                      </label>
-                    ))}
-                  </div>
-                  {errors.type && <div id="type-error" className={styles.fieldError} role="alert">{errors.type}</div>}
-                </div>
               </div>
 
               <div className={styles.formRow}>
@@ -271,7 +276,7 @@ function ReservationForm() {
                   {errors.guestsAdult && <div className={styles.fieldError}>{errors.guestsAdult}</div>}
                 </div>
                 <div className={styles.formGroup}>
-                  <label className={styles.label} htmlFor="children">Children (Under 12)</label>
+                  <label className={styles.label} htmlFor="children">Children (6yrs old below)</label>
                   <input
                     id="children"
                     type="number"
@@ -299,7 +304,7 @@ function ReservationForm() {
                   {errors.guestsPwds && <div className={styles.fieldError}>{errors.guestsPwds}</div>}
                 </div>
                 <div className={styles.formGroup}>
-                <label className={styles.label} htmlFor="guestsTotal">Total Guests <span className={styles.required}>*</span></label>
+                  <label className={styles.label} htmlFor="guestsTotal">Total Guests<span className={styles.requiredAsterisk}>*</span></label>
                 <input
                   id="guestsTotal"
                   type="number"
@@ -312,7 +317,20 @@ function ReservationForm() {
               </div>
 
               <div className={styles.formGroup}>
-                <label className={styles.label} htmlFor="emergencyContact">Person/s to be notified in case of emergency <span className={styles.required}>*</span></label>
+                <label className={styles.label} htmlFor="emergencyContactPerson">Person/s to be notified in case of emergency<span className={styles.requiredAsterisk}>*</span></label>
+                <input
+                  id="emergencyContactPerson"
+                  type="tel"
+                  name="emergencyContactPerson"
+                  value={formData.emergencyContactPerson}
+                  onChange={handleInputChange}
+                  className={`${styles.input} ${errors.emergencyContactPerson ? styles.inputError : ''}`}
+                  aria-invalid={!!errors.emergencyContactPerson}
+                />
+                {errors.emergencyContactPerson && <div className={styles.fieldError}>{errors.emergencyContactPerson}</div>}
+              </div>  
+              <div className={styles.formGroup}>
+                <label className={styles.label} htmlFor="emergencyContact">Emergency contact number<span className={styles.requiredAsterisk}>*</span></label>
                 <input
                   id="emergencyContact"
                   type="tel"

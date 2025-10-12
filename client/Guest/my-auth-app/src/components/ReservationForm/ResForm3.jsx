@@ -13,6 +13,7 @@ function ReservationFormStep3() {
   const { type, facilityName, id } = useParams();
   const step1 = location.state?.step1 || {};
   const step2 = location.state?.step2 || {};
+  const isGroup = String(type || '').toLowerCase() === 'group' || !!step1?.type?.group;
 
   const [file, setFile] = useState(location.state?.file || null);
   const [fileError, setFileError] = useState('');
@@ -39,14 +40,14 @@ function ReservationFormStep3() {
   };
 
   const handleNext = () => {
-    // Letter of Intent is only required for group reservations
-    if (!file && type === 'Group') {
+    if (isGroup && !file) {
       setFileError('Letter of Intent is required.');
       return;
     }
     setFileError('');
     navigate(`/reservation-step4/${type}/${facilityName}/${id}`, { state: { step1, step2, file } });
   };
+
 
   const handleBoxClick = () => {
     fileInputRef.current?.click();
@@ -98,9 +99,7 @@ function ReservationFormStep3() {
               for your reference and make sure your uploaded file covers all required information.
             </div>
             <div className={styles.groupNote}>This section is only for group reservations.</div>
-            {type === 'Group' && <div className={styles.groupNote}>This section is required for group reservations.</div>}
-            {type !== 'Group' && <div className={styles.groupNote}>This section is optional for individual 
-           reservations.</div>}
+            {isGroup && <div className={styles.groupNote}>This section is required for group reservations.</div>}
             <div className={styles.uploadBox} onClick={handleBoxClick} role="button" tabIndex={0}>
               <input
                 type="file"
@@ -119,7 +118,13 @@ function ReservationFormStep3() {
               <button type="button" onClick={handlePrevious} className={styles.previousButton}>
                 Previous
               </button>
-              <button type="button" onClick={handleNext} className={styles.nextButton}>
+              <button
+                type="button"
+                onClick={handleNext}
+                className={styles.nextButton}
+                disabled={isGroup && !file}
+                title={isGroup && !file ? 'Upload the Letter of Intent to continue.' : undefined}
+              >
                 Next
               </button>
             </div>

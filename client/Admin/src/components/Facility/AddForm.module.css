@@ -144,9 +144,14 @@
   outline: none;
 }
 
+.buttonContainer {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin: 1.25rem auto 0 auto;
+}
+
 .submitBtn {
-   display: block;             
-  margin: 1.25rem auto 0 auto;  
   background: #4ca16b;
   color: #fff;
   border: none;
@@ -156,4 +161,39 @@
   font-weight: 700;
   cursor: pointer;
   box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+  transition: background-color 0.2s ease;
+}
+
+.submitBtn:hover:not(:disabled) {
+  background: #3d8a5a;
+}
+
+.submitBtn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.cancelBtn {
+  background: #dc3545;
+  color: #fff;
+  border: 1px solid #dc3545;
+  border-radius: 28px;
+  padding: 0.9rem 2.5rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cancelBtn:hover:not(:disabled) {
+  background: #c82333;
+  border-color: #c82333;
+}
+
+.cancelBtn:disabled {
+  background: #ccc;
+  color: #666;
+  border-color: #ccc;
+  cursor: not-allowed;
 }

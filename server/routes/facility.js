@@ -18,7 +18,7 @@ r.get('/get-facility-by-id/:id', asyncHandler(async (req, res) => {
 }));
 
 r.get('/get-facilities-by-type/:id', asyncHandler(async (req, res) => {
-  const response = await facilityModule.getFacilitiesByType(dbHelper, req.params.id);
+  const response = await facilityModule.getFacilitiesByType(dbHelper, req.params.id, req.query);
   res.status(response.status).json(response);
 }));
 

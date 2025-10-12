@@ -291,7 +291,7 @@ function ReservationFormStep2() {
   useEffect(() => {
     if (isDormitory) {
       if (!formData.typeService) {
-        setFormData(prev => ({ ...prev, typeService: 'Accommodation' }));
+        setFormData(prev => ({ ...prev, typeService: 'Lodging' }));
         setAutoSetServiceForDorm(true);
       } else {
         setAutoSetServiceForDorm(false);

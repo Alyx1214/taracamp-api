@@ -140,7 +140,6 @@
 }
 
 .formRow input[type="text"] {
-  text-transform: uppercase;
   letter-spacing: 1px;
 }
 
@@ -159,7 +158,27 @@
 }
 
 .cancelBtn {
-  display: none;
+  background: #dc3545;
+  color: #fff;
+  border: 1px solid #dc3545;
+  border-radius: 28px;
+  padding: 14px 40px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cancelBtn:hover:not(:disabled) {
+  background: #c82333;
+  border-color: #c82333;
+}
+
+.cancelBtn:disabled {
+  background: #ccc;
+  color: #666;
+  border-color: #ccc;
+  cursor: not-allowed;
 }
 
 .saveBtn {
@@ -172,6 +191,17 @@
   font-weight: 700;
   cursor: pointer;
   box-shadow: 0 10px 20px rgba(0,0,0,0.12);
+  transition: background-color 0.2s ease;
+}
+
+.saveBtn:hover:not(:disabled) {
+  background: #4a2f08;
+}
+
+.saveBtn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  box-shadow: none;
 }
 
 .loadingText {

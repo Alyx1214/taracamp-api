@@ -21,15 +21,23 @@ import ReservationFormStep3 from './components/ReservationForm/ResForm3';
 import ReservationFormStep4 from './components/ReservationForm/ResDetails';
 import RequireAuth from './components/Utilities/RequireAuth'; 
 import backgroundImage from './assets/background-blur.png';
+import VerifyCode from './components/VerifyCode/VerifyCode';
+import ResetPassword from './components/ResetPassword/ResetPassword';
 import styles from './App.module.css';
 
 function AuthLayout() {
   const [authFormState, setAuthFormState] = useState('login');
   const [showTermsModal, setShowTermsModal] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetToken, setResetToken] = useState('');
   const navigate = useNavigate();
 
   const toggleAuthForm = (state) => {
     setAuthFormState(state);
+    if (state === 'login') {
+      setResetEmail('');
+      setResetToken('');
+    }
     navigate(`/auth/${state}`);
   };
 
@@ -42,7 +50,7 @@ function AuthLayout() {
       <div className={styles.authContainer}>
         <AuthSidePanel
           isLogin={authFormState === 'login'}
-          isForgotPassword={authFormState === 'forgot-password'}
+          isForgotPassword={['forgot-password', 'verify-code', 'reset-password'].includes(authFormState)}
           onToggleForm={toggleAuthForm}
         />
         <AuthFormContainer>
@@ -62,7 +70,35 @@ function AuthLayout() {
             />
           )}
           {authFormState === 'forgot-password' && (
-            <ForgotPasswordForm onBackToLogin={() => toggleAuthForm('login')} />
+            <ForgotPasswordForm
+              initialEmail={resetEmail}
+              onBackToLogin={() => toggleAuthForm('login')}
+              onCodeSent={(email) => {
+                setResetEmail(email);
+                setResetToken('');
+                setAuthFormState('verify-code');
+                navigate('/auth/verify-code');
+              }}
+            />
+          )}
+          {authFormState === 'verify-code' && (
+            <VerifyCode
+              email={resetEmail}
+              onBackToForgot={() => toggleAuthForm('forgot-password')}
+              onVerified={(token) => {
+                setResetToken(token);
+                setAuthFormState('reset-password');
+                navigate('/auth/reset-password');
+              }}
+            />
+          )}
+          {authFormState === 'reset-password' && (
+            <ResetPassword
+              email={resetEmail}
+              resetToken={resetToken}
+              onBackToLogin={() => toggleAuthForm('login')}
+              onResetComplete={() => toggleAuthForm('login')}
+            />
           )}
         </AuthFormContainer>
       </div>
@@ -74,7 +110,7 @@ function AuthLayout() {
 function App() {
   const navigate = useNavigate();
   const handleReserveNow = () => {
-    navigate('/auth/login');
+    navigate('/services');
   };
 
   return (

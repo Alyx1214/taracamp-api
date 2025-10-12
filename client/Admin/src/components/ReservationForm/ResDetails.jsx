@@ -15,6 +15,7 @@ function ResDetails({ onClose }) {
   const [err, setErr] = useState(null);
   const [quote, setQuote] = useState(null);
   const { step1 = {}, step2 = {}, file } = location.state || {};
+  const isGroup = step1?.type?.groups || false;
 
   useEffect(() => {
     const a = parseInt(step1?.guests?.adult || 0, 10) || 0;
@@ -30,7 +31,7 @@ function ResDetails({ onClose }) {
           adults: a,
           children: c,
           pwds: p,
-          serviceType: mapServiceType(step2?.typeService) || 'MEETING/CONFERENCE',
+          serviceType: mapServiceType(step2?.typeService),
         });
         if (!abort) setQuote(data.amount);
       } catch {
@@ -61,6 +62,7 @@ function ResDetails({ onClose }) {
       phone: step1.phoneNo || 'N/A',
       officeTel: step1.officeTelephoneNo || 'N/A',
       guests: String(guestsTotal),
+      emergencyContactPerson: step1.emergencyContactPerson || 'N/A',
       emergency: step1.emergencyContact || 'N/A',
       arrival: step2.dateArrival || 'N/A',
       departure: step2.dateDeparture || 'N/A',
@@ -85,7 +87,7 @@ function ResDetails({ onClose }) {
       if (!payload.dateOfArrival || !payload.dateOfDeparture)
         throw new Error('Arrival and departure dates are required.');
       if (!payload.timeOfArrival) throw new Error('Time of arrival is required.');
-      if (!file) throw new Error('Letter of Intent file is required.');
+      if (isGroup && !file) throw new Error('Letter of Intent file is required for group reservations.');
 
       const facilityForPost = typeof step2?.facilityIdFromList === 'string' ? step2.facilityIdFromList : '';
       const apiPayload = { ...payload, facility: facilityForPost };
@@ -110,6 +112,7 @@ function ResDetails({ onClose }) {
           guestType: 'type',
           telephone: 'phoneNo',
           officeTelephone: 'officeTelephoneNo',
+          emergencyContactPerson: 'emergencyContactPerson',
           emergencyContact: 'emergencyContact',
           numberOfAdults: 'guestsAdult',
           numberOfChildren: 'guestsChildren',
@@ -138,6 +141,7 @@ function ResDetails({ onClose }) {
         const e1 = {};
         const e2 = {};
         if (m.includes('invalid phone')) e1.phoneNo = 'Enter a valid PH mobile number.';
+        if (m.includes('emergency contact person')) e1.emergencyContactPerson = 'Emergency contact person is required.';
         if (m.includes('emergency')) e1.emergencyContact = 'Enter a valid PH mobile number.';
         if (m.includes('at least one guest')) e1.guestsAdult = 'Enter at least one guest.';
         if (m.includes('invalid date range')) {
@@ -194,6 +198,7 @@ function ResDetails({ onClose }) {
                 <tr><td>Phone No.</td><td>:</td><td>{data.phone}</td></tr>
                 <tr><td>Office Telephone No.</td><td>:</td><td>{data.officeTel}</td></tr>
                 <tr><td>Number of Guests</td><td>:</td><td>{data.guests}</td></tr>
+                <tr><td>Emergency Contact Person</td><td>:</td><td>{data.emergencyContactPerson}</td></tr>
                 <tr><td>Emergency Contact</td><td>:</td><td>{data.emergency}</td></tr>
                 <tr><td>Date of Arrival</td><td>:</td><td>{data.arrival}</td></tr>
                 <tr><td>Date of Departure</td><td>:</td><td>{data.departure}</td></tr>

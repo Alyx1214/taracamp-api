@@ -50,8 +50,6 @@ export default function Users() {
         query.limit = query.limit ?? 100;
         query.sort = query.sort ?? "createdAt:desc";
 
-        // Compatibility: older API returns [] when no filters are provided.
-        // Ensure we include a minimal filter in the All tab to fetch records.
         const hasAnyFilter = [
           'email','name','role','id','createdFrom','createdTo','lastLoggedFrom','lastLoggedTo','search'
         ].some((k) => Boolean(query[k]));

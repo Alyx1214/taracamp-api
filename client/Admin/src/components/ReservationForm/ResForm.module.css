@@ -65,6 +65,11 @@
   font-size: 0.95em;
 }
 
+.noteText {
+  font-size: 0.85em;
+  color: #858585;
+}
+
 .input {
   width: 100%;
   padding: 10px 13px;
@@ -159,18 +164,45 @@
   transform: translateY(-2px);
 }
 
+/* Responsive adjustments */
 @media (max-width: 768px) {
-  .pageTitle { font-size: 2em; }
-  .formCard { padding: 20px; }
-  .formRow { flex-direction: column; gap: 0; }
-  .formRow .formGroup { width: 100%; }
-  .checkboxGroupContainer { flex-direction: column; gap: 15px; }
-  .checkboxRow { flex-direction: column; gap: 5px; }
-  .buttonContainer { justify-content: center; }
+  .pageTitle {
+    font-size: 2em;
+  }
+  .formCard {
+    padding: 20px;
+  }
+  .formRow {
+    flex-direction: column;
+    gap: 0;
+  }
+  .formRow .formGroup {
+    width: 100%;
+  }
+  .checkboxGroupContainer {
+    flex-direction: column;
+    gap: 15px;
+  }
+  .checkboxRow {
+    flex-direction: column;
+    gap: 5px;
+  }
+  .buttonContainer {
+    justify-content: center;
+  }
 }
 
-.fieldError { color: #d32f2f; font-size: 0.85rem; margin-top: 4px; }
-.inputError { border-color: #d32f2f; outline: none; }
-.required {
-  color: red;
+.fieldError {
+  color: #d32f2f;   
+  font-size: 0.85rem;
+  margin-top: 4px;
+}
+
+.inputError {
+  border-color: #d32f2f;
+  outline: none;
+}
+.requiredAsterisk {
+  color: #d32f2f;
+  margin-left: 4px;
 }

@@ -106,3 +106,73 @@
     transform: translateY(0);
   }
 }
+
+.menuWrapper {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+}
+
+.dotsIcon {
+  font-size: 1.8rem;
+  cursor: pointer;
+  color: #1e3c24;
+  transition: opacity 0.2s ease;
+}
+
+.dotsIcon:hover {
+  opacity: 0.7;
+}
+
+.menuDropdown {
+  position: absolute;
+  top: 28px;
+  right: 0;
+  background-color: #fdfcfb;
+  border: 1px solid #dad7cd;
+  border-radius: 6px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
+  z-index: 20;
+  min-width: 130px;
+  overflow: hidden;
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+.menuItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: transparent;
+  border: none;
+  width: 100%;
+  cursor: pointer;
+  color: #1e3c24;
+  font-size: 0.95rem;
+  font-weight: 500;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.menuItem:hover {
+  background-color: #eae6dc;
+}
+
+.menuIcon {
+  font-size: 1.3rem;
+  color: #1e3c24;
+}
+
+.menuItem:hover .menuIcon {
+  color: #5a3d0e;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

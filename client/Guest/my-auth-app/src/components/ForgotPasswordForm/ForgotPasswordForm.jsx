@@ -1,12 +1,16 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import commonStyles from '../AuthFormContainer/AuthFormContainer.module.css';
 import styles from './ForgotPasswordForm.module.css'; 
 import { forgotPassword } from '../../apis/userApi';
 
-function ForgotPasswordForm({ onBackToLogin }) {
-  const [email, setEmail] = useState('');
+function ForgotPasswordForm({ onBackToLogin, onCodeSent, initialEmail = '' }) {
+  const [email, setEmail] = useState(initialEmail);
   const [message, setMessage] = useState(''); 
-  const API = import.meta.env.VITE_API_URL;
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    setEmail(initialEmail || '');
+  }, [initialEmail]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -17,11 +21,15 @@ function ForgotPasswordForm({ onBackToLogin }) {
       return;
     }
 
-  try {
+    setSubmitting(true);
+    try {
       const res = await forgotPassword({ email });
       setMessage(res?.message || 'If an account with that email exists, a password reset link has been sent.');
+      onCodeSent?.(email);
     } catch (error) {
-      setMessage(error?.message || 'Failed to send reset email.');
+      setMessage(error?.data?.error || error?.message || 'Failed to send reset email.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -39,8 +47,8 @@ function ForgotPasswordForm({ onBackToLogin }) {
           required
         />
         {message && <p className={styles.message}>{message}</p>} 
-        <button type="submit" className={commonStyles.formButton}>
-          Send Reset Link
+        <button type="submit" className={commonStyles.formButton} disabled={submitting}>
+          {submitting ? 'Sending...' : 'Send Reset Code'}
         </button>
       </form>
     </div>

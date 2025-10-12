@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import styles from './Dormitories.module.css';
 import dormitoryPlaceholder from '../../assets/conference.jpg';
 import { Link } from 'react-router-dom';
-import { getFacilitiesByType } from '../../apis/facilityApi';
 
 function MainServicesDormitories({
   facilities,
@@ -10,69 +9,12 @@ function MainServicesDormitories({
   searchAttempted,
   loadError, 
 }) {
-  const [defaultDorms, setDefaultDorms] = useState([]);
-  const [fetchingDefault, setFetchingDefault] = useState(false);
-  const [fetchError, setFetchError] = useState(null);
+  const availableFacilities = Array.isArray(facilities) ? facilities : [];
+  const displayDorms = availableFacilities;
 
-  const filterAvailable = (list = []) =>
-    list.filter((item) => String(item?.status || '') !== 'Unavailable');
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadDefault() {
-      if (searchAttempted) return;
-      if (facilities && facilities.length > 0) return;
-
-      setFetchingDefault(true);
-      setFetchError(null);
-      try {
-        const data = await getFacilitiesByType('Dormitory');
-
-        const payloadError = data?.error || data?.message;
-        const list = Array.isArray(data?.facilities) ? data.facilities : [];
-
-        if (payloadError) {
-          throw new Error(typeof payloadError === 'string'
-            ? payloadError
-            : 'Invalid response while loading dormitories.');
-        }
-        if (!Array.isArray(data?.facilities)) {
-          throw new Error('Response missing "facilities" array.');
-        }
-
-        if (!cancelled) setDefaultDorms(filterAvailable(list));
-      } catch (err) {
-        if (!cancelled) {
-          setDefaultDorms([]);
-          const msg =
-            err?.response?.data?.error ||
-            err?.response?.data?.message ||
-            err?.data?.error ||
-            err?.message ||
-            'Failed to load dormitories.';
-          setFetchError(msg);
-        }
-      } finally {
-        if (!cancelled) setFetchingDefault(false);
-      }
-    }
-
-    loadDefault();
-    return () => { cancelled = true; };
-  }, [facilities, searchAttempted]);
-
-  const isLoading = Boolean(loading || fetchingDefault);
-
-  const availableFacilities = filterAvailable(Array.isArray(facilities) ? facilities : []);
-
-  const displayDorms = searchAttempted
-    ? availableFacilities
-    : (availableFacilities.length > 0 ? availableFacilities : defaultDorms);
-
-  const showError = !isLoading && Boolean(fetchError || loadError);
-  const showNoResult = !isLoading && !showError && searchAttempted && availableFacilities.length === 0;
-  const showEmptyDefault = !isLoading && !showError && !searchAttempted && (displayDorms?.length ?? 0) === 0;
+  const showError = !loading && Boolean(loadError);
+  const showNoResult = !loading && !showError && searchAttempted && availableFacilities.length === 0;
+  const showEmptyDefault = !loading && !showError && !searchAttempted && (displayDorms?.length ?? 0) === 0;
 
   const imgSrc = (d) => d?.images[0] || dormitoryPlaceholder;
   const formatPeso = (n) => {
@@ -92,7 +34,7 @@ function MainServicesDormitories({
       <h2 className={styles.sectionTitle}>DORMITORIES</h2>
 
       <div className={styles.dormitoryGrid}>
-        {isLoading && (
+        {loading && (
           <div className={styles.skeletonGrid}>
             {Array.from({ length: 6 }).map((_, i) => (
               <div key={i} className={styles.skeletonCard}>
@@ -107,20 +49,20 @@ function MainServicesDormitories({
           </div>
         )}
 
-        {!isLoading && showError && (
+        {!loading && showError && (
           <div className={styles.emptyState} role="alert">
             <div className={styles.emptyCard}>
               <svg className={styles.emptyIcon} viewBox="0 0 24 24" width="28" height="28" aria-hidden="true">
                 <path fill="currentColor" d="M11 15h2v2h-2v-2zm0-8h2v6h-2V7zm1-5C6.48 2 2 6.48 2 12s4.48 10 10 10
                   10-4.48 10-10S17.52 2 12 2z"/>
               </svg>
-              <h4 className={styles.emptyTitle}>Couldn’t load dormitories</h4>
-              <p className={styles.emptyDesc}>{fetchError || loadError}</p>
+              <h4 className={styles.emptyTitle}>Couldn't load dormitories</h4>
+              <p className={styles.emptyDesc}>{loadError}</p>
             </div>
           </div>
         )}
 
-        {!isLoading && !showError && showNoResult && (
+        {!loading && !showError && showNoResult && (
           <div className={styles.emptyState}>
             <div className={styles.emptyCard}>
               <svg className={styles.emptyIcon} viewBox="0 0 24 24" width="28" height="28" aria-hidden="true">
@@ -134,7 +76,7 @@ function MainServicesDormitories({
           </div>
         )}
 
-        {!isLoading && !showError && showEmptyDefault && (
+        {!loading && !showError && showEmptyDefault && (
           <div className={styles.emptyState}>
             <div className={styles.emptyCard}>
               <svg className={styles.emptyIcon} viewBox="0 0 24 24" width="28" height="28" aria-hidden="true">
@@ -145,7 +87,7 @@ function MainServicesDormitories({
           </div>
         )}
 
-        {!isLoading && !showError && !showNoResult && displayDorms.map((dorm, idx) => (
+        {!loading && !showError && !showNoResult && displayDorms.map((dorm, idx) => (
           <div key={dorm?._id ?? dorm?.id ?? idx} className={styles.dormitoryCard}>
             <div className={styles.dormitoryImagePlaceholder}>
               <img src={imgSrc(dorm)} alt={dorm?.name || 'Dormitory'} />

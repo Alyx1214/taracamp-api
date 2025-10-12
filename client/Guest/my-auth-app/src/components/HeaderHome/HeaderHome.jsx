@@ -5,6 +5,7 @@ import mountainLogo from '../../assets/logo.png';
 import Notif from '../Notification/Notif';
 import { countUnreadNotifications } from '../../apis/notificationApi';
 import Message, { MessageSkeleton } from '../Message/Message';
+import { tryRefresh, clearTokens } from '../../apis/api';
 import {
   listMessages,
   countUnreadMessages,
@@ -17,13 +18,6 @@ const MIN_UNREAD_REFRESH_MS = 1200;
 
 function getAccessToken() {
   return localStorage.getItem('accessToken');
-}
-function getRefreshToken() {
-  return localStorage.getItem('refreshToken');
-}
-function setTokens({ accessToken, refreshToken }) {
-  if (accessToken) localStorage.setItem('accessToken', accessToken);
-  if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
 }
 
 function getMessageTimestamp(message) {
@@ -62,23 +56,15 @@ function sortMessagesAscending(messages = []) {
 
 async function callRefresh() {
   if (refreshingPromise) return refreshingPromise;
-  const rt = getRefreshToken();
-  if (!rt) throw new Error('No refresh token');
 
-  refreshingPromise = fetch('/api/user/refresh-token', {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ refreshToken: rt }),
-  })
-    .then(async (res) => {
-      const json = await res.json().catch(() => ({}));
-      const ok = res.ok && (json?.accessToken || json?.status === 200);
-      if (!ok) throw new Error(json?.error || `HTTP ${res.status}`);
-      setTokens({ accessToken: json.accessToken, refreshToken: json.refreshToken });
-      return json.accessToken;
+  refreshingPromise = tryRefresh()
+    .then((token) => {
+      if (!token) throw new Error('Unable to refresh access token');
+      return token;
     })
-    .finally(() => { refreshingPromise = null; });
+    .finally(() => {
+      refreshingPromise = null;
+    });
 
   return refreshingPromise;
 }
@@ -94,15 +80,19 @@ async function authFetch(url, opts = {}, didRetry = false) {
   const res = await fetch(url, { credentials: 'include', ...opts, headers });
   if (res.status !== 401 || didRetry) return res;
 
+  let newToken;
   try {
-    await callRefresh();
+    newToken = await callRefresh();
   } catch {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
+    clearTokens();
     throw new Error('Unauthorized');
   }
 
-  const newToken = getAccessToken();
+  if (!newToken) {
+    clearTokens();
+    throw new Error('Unauthorized');
+  }
+
   const retryHeaders = {
     'Content-Type': 'application/json',
     ...(opts.headers || {}),
@@ -428,7 +418,7 @@ function HeaderHome() {
 
   const handleLogoutClick = () => {
     localStorage.clear();
-    navigate('/auth/login');
+    navigate('/');
   };
 
   return (

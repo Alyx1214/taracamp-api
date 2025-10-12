@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import HeaderHome from '../HeaderHome/HeaderHome';
 import FooterHome from '../FooterHome/FooterHome';
@@ -16,7 +16,6 @@ import AllServices from '../MainServices/AllServices';
 import Controls from '../MainServices/Controls';
 import PopupServices from '../MainServices/PopupServices';
 
-// ✅ plain helper is fine at module scope (not a hook)
 const toISO = (d) => {
   if (!d) return undefined;
   const x = new Date(d);
@@ -71,13 +70,28 @@ function Services() {
     [location.pathname]
   );
 
+  const hasShownPopupRef = useRef(false);
+
   useEffect(() => {
-    if (!isDetailViewOrAddOns && facilityType && facilityType !== 'Add-Ons') {
-      setShowPopup(true);
-    } else {
+    const isAddOnsTab = facilityType === 'Add-Ons';
+
+    if (isDetailViewOrAddOns || isAddOnsTab) {
+      if (showPopup) setShowPopup(false);
+      return;
+    }
+
+    if (!hasShownPopupRef.current) {
+      if (facilityType && facilityType !== 'Add-Ons') {
+        setShowPopup(true);
+        hasShownPopupRef.current = true;
+      }
+      return;
+    }
+
+    if (facilityType && facilityType !== 'All' && showPopup) {
       setShowPopup(false);
     }
-  }, [facilityType, isDetailViewOrAddOns]);
+  }, [facilityType, isDetailViewOrAddOns, showPopup]);
 
   const handleSearch = async (query) => {
     if (!query?.trim() || (!facilityType && facilityType !== 'All')) return;

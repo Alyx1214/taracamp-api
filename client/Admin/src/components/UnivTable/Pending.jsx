@@ -31,7 +31,7 @@ export default function Pending({ searchQuery = "" }) {
   const [selectedRow, setSelectedRow] = useState(null);
   const [declining, setDeclining] = useState(false);
 
-  const columns = useMemo(() => ["ID", "Name", "Email", "Service Type", "Date", "Actions"], []);
+  const columns = useMemo(() => ["Name", "Email", "Service Type", "Date", "Actions"], []);
 
   useEffect(() => {
     let cancelled = false;

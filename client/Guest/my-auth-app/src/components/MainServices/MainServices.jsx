@@ -12,10 +12,9 @@ import MainServicesConference from './Conference';
 import MainServicesAddOns from './Add-Ons';
 import MainServicesServiceDetail from './ServiceDetail';
 import Controls from './Controls';
-import { searchFacilities } from '../../apis/facilityApi';
+import { searchFacilities, getAllFacilities } from '../../apis/facilityApi';
 import { searchAddons } from '../../apis/addonsApi';
 import AllServices from './AllServices';
-import PopupServices from './PopupServices';
 
 const LABEL_TO_ENUM = {
   Dormitory: 'Dormitory',
@@ -37,8 +36,14 @@ function MainServices() {
   const [loading, setLoading] = useState(false);
   const [searchAttempted, setSearchAttempted] = useState(false);
   const [error, setError] = useState(null);
-  const [showPopup, setShowPopup] = useState(false);
-  const [hasShownPopup, setHasShownPopup] = useState(false);
+  const [cachedData, setCachedData] = useState({
+    all: null,
+    dormitory: null,
+    cottage: null,
+    conference: null,
+    addons: null
+  });
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -52,28 +57,49 @@ function MainServices() {
     return '';
   }, [location.pathname]);
 
+  // Load initial data once when component mounts
   useEffect(() => {
-    setFacilities([]);
+    const loadInitialData = async () => {
+      if (initialLoadComplete) return;
+      
+      setLoading(true);
+      try {
+        const data = await getAllFacilities();
+        const allFacilities = Array.isArray(data?.facilities) ? data.facilities : [];
+        
+        // Cache data by type
+        const categorizedData = {
+          all: allFacilities,
+          dormitory: allFacilities.filter(f => f.facilityType === 'Dormitory'),
+          cottage: allFacilities.filter(f => f.facilityType === 'Cottage'),
+          conference: allFacilities.filter(f => f.facilityType === 'Conference'),
+          addons: null // Will be loaded separately when needed
+        };
+        
+        setCachedData(categorizedData);
+        setFacilities(allFacilities);
+        setInitialLoadComplete(true);
+      } catch (err) {
+        setError(err?.data?.error || 'Failed to load facilities');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadInitialData();
+  }, [initialLoadComplete]);
+
+  useEffect(() => {
+    if (!initialLoadComplete) return;
+    
+    // Set facilities based on current facility type
+    const cacheKey = facilityType === 'All' ? 'all' : facilityType?.toLowerCase();
+    const cachedFacilities = cachedData[cacheKey] || [];
+    
+    setFacilities(cachedFacilities);
     setSearchAttempted(false);
     setError(null);
-  }, [facilityType]);
-
-  useEffect(() => {
-    const isDetail =
-      (location.pathname.includes('/all/') && location.pathname.split('/').length === 4) ||
-      (location.pathname.includes('/dormitories/') && location.pathname.split('/').length > 4) ||
-      (location.pathname.includes('/cottages/') && location.pathname.split('/').length > 4) ||
-      (location.pathname.includes('/conference/') && location.pathname.split('/').length > 4);
-
-    if (!isDetail && facilityType && facilityType !== 'Add-Ons') {
-      if (!hasShownPopup) {
-        setShowPopup(true);
-        setHasShownPopup(true);
-      }
-    } else {
-      setShowPopup(false);
-    }
-  }, [facilityType, hasShownPopup, location.pathname]);
+  }, [facilityType, cachedData, initialLoadComplete]);
 
 
   const handleApplyFilters = useCallback(async (filters = {}) => {
@@ -105,7 +131,16 @@ function MainServices() {
         };
 
         const data = await searchFacilities(params);
-        setFacilities(Array.isArray(data?.facilities) ? data.facilities : []);
+        const filteredFacilities = Array.isArray(data?.facilities) ? data.facilities : [];
+        setFacilities(filteredFacilities);
+        
+        // Update cache with filtered results
+        if (resolvedType) {
+          setCachedData(prev => ({
+            ...prev,
+            [resolvedType.toLowerCase()]: filteredFacilities
+          }));
+        }
       }
     } catch (err) {
       setFacilities([]);
@@ -115,27 +150,6 @@ function MainServices() {
     }
   }, [facilityType]);
 
-  const handlePopupSubmit = useCallback((form) => {
-    const mapType = {
-      Dormitory: 'DORMITORY',
-      Cottage: 'COTTAGE',
-      Conference: 'CONFERENCE',
-    };
-    const enumType = mapType[form.serviceType] || null;
-
-    if (enumType === 'DORMITORY') navigate('/user/services/dormitories');
-    else if (enumType === 'COTTAGE') navigate('/user/services/cottages');
-    else if (enumType === 'CONFERENCE') navigate('/user/services/conference');
-    else navigate('/user/services/all');
-
-    handleApplyFilters({
-      type: enumType,
-      checkInDate: form.checkIn,
-      checkOutDate: form.checkOut,
-      capacity: form.adults + form.children, 
-      query: '', 
-    });
-  }, [handleApplyFilters, navigate]);
   
   async function handleSearch(query) {
     if (!query?.trim() || !facilityType) return;
@@ -219,7 +233,7 @@ function MainServices() {
                 />
               )}
             />
-            <Route index element={<Navigate to="dormitories" replace />} />
+            <Route index element={<Navigate to="all" replace />} />
             <Route
               path="dormitories"
               element={
@@ -267,11 +281,6 @@ function MainServices() {
           </Routes>
 
           {!isDetailViewOrAddOn && <MainServicesRates />}
-          <PopupServices
-            isOpen={showPopup}
-            onClose={() => setShowPopup(false)}
-            onSubmit={handlePopupSubmit}
-          />
         </div>
       </main>
 
