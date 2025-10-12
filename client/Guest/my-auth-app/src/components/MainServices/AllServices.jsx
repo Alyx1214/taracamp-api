@@ -52,14 +52,14 @@ const AllServices = ({
     };
     
     const routePath = routeMap[section] || section.toLowerCase();
-    navigate(`/services/${routePath}`);
+    navigate(`/user/services/${routePath}`);
   };
 
   const handleCheck = (item) => {
     const facilityType = item.facilityType?.toLowerCase() || 'facility';
     const facilityName = encodeURIComponent(item.name || 'facility');
     const facilityId = item._id || item.id;
-    navigate(`/services/${facilityType}/${facilityName}/${facilityId}`);
+    navigate(`/user/services/${facilityType}/${facilityName}/${facilityId}`);
   };
 
   const ServiceCard = ({ item }) => (

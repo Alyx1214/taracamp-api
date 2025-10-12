@@ -729,13 +729,13 @@ function isValidRate(rate) {
 }
 
 function isValidImages(files) {
-    const allowed = ['image/jpeg', 'image/png',];
+    const allowed = ['image/jpeg', 'image/png', ];
     const max = 25 * 1024 * 1024; // 25MB
     for (const f of files) {
         if (!allowed.includes(f.mimetype))
             return 'Invalid image type. Only JPEG and PNG are allowed';
         if (f.size > max)
-            return 'Image size exceeds the 5MB limit';
+            return 'Image size exceeds the 25MB limit';
     }
     return null;
 }

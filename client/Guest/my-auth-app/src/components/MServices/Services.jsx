@@ -14,7 +14,6 @@ import MainServicesServiceDetail from '../MainServices/ServiceDetail';
 import { searchFacilities } from '../../apis/facilityApi';
 import AllServices from '../MainServices/AllServices';
 import Controls from '../MainServices/Controls';
-import PopupServices from '../MainServices/PopupServices';
 
 const toISO = (d) => {
   if (!d) return undefined;
@@ -27,21 +26,7 @@ function Services() {
   const [facilities, setFacilities] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchAttempted, setSearchAttempted] = useState(false);
-  const [showPopup, setShowPopup] = useState(false);
   const [loadError, setLoadError] = useState(null);   // ✅ you were passing this but never defined it
-  
-  // Shared filter state for synchronization between Controls and PopupServices
-  const [sharedFilters, setSharedFilters] = useState({
-    checkInDate: new Date(),
-    checkOutDate: (() => {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      return tomorrow;
-    })(),
-    adults: 1,
-    children: 0,
-    serviceType: 'Dormitory'
-  });
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -83,28 +68,6 @@ function Services() {
     [location.pathname]
   );
 
-  const hasShownPopupRef = useRef(false);
-
-  useEffect(() => {
-    const isAddOnsTab = facilityType === 'Add-Ons';
-
-    if (isDetailViewOrAddOns || isAddOnsTab) {
-      if (showPopup) setShowPopup(false);
-      return;
-    }
-
-    if (!hasShownPopupRef.current) {
-      if (facilityType && facilityType !== 'Add-Ons') {
-        setShowPopup(true);
-        hasShownPopupRef.current = true;
-      }
-      return;
-    }
-
-    if (facilityType && facilityType !== 'All' && showPopup) {
-      setShowPopup(false);
-    }
-  }, [facilityType, isDetailViewOrAddOns, showPopup]);
 
   const handleSearch = async (query) => {
     if (!query?.trim() || (!facilityType && facilityType !== 'All')) return;
@@ -178,44 +141,6 @@ function Services() {
     }
   }, [facilityLabelToEnum, facilityType]);
 
-  // Function to update shared filters
-  const updateSharedFilters = useCallback((newFilters) => {
-    setSharedFilters(prev => ({
-      ...prev,
-      ...newFilters
-    }));
-  }, []);
-
-  const handlePopupSubmit = (form) => {
-    const mapType = {
-      Dormitory: 'Dormitory',
-      Cottage: 'Cottage',
-      Conference: 'Conference',
-    };
-    const enumType = mapType[form.serviceType] || null;
-
-    // Update shared filters with popup data
-    updateSharedFilters({
-      checkInDate: new Date(form.checkIn),
-      checkOutDate: new Date(form.checkOut),
-      adults: form.adults,
-      children: form.children,
-      serviceType: form.serviceType
-    });
-
-    if (enumType === 'Dormitory') navigate('/user/services/dormitories');
-    else if (enumType === 'Cottage') navigate('/user/services/cottages');
-    else if (enumType === 'Conference') navigate('/user/services/conference');
-    else navigate('/user/services/all');
-
-    handleApplyFilters({
-      type: enumType,
-      checkInDate: form.checkIn,
-      checkOutDate: form.checkOut,
-      capacity: form.adults + form.children,
-      query: '',
-    });
-  };
 
   const shouldShowControls = !isDetailViewOrAddOns;
 
@@ -243,8 +168,6 @@ function Services() {
             <Controls
               facilityType={facilityType || 'All'}
               onApplyFilters={handleApplyFilters}
-              sharedFilters={sharedFilters}
-              updateSharedFilters={updateSharedFilters}
             />
           )}
 
@@ -309,13 +232,6 @@ function Services() {
           </Routes>
 
           {!isDetailViewOrAddOns && <MainServicesRates />}
-          <PopupServices
-            isOpen={showPopup}
-            onClose={() => setShowPopup(false)}
-            onSubmit={handlePopupSubmit}
-            sharedFilters={sharedFilters}
-            updateSharedFilters={updateSharedFilters}
-          />
         </div>
       </main>
 
