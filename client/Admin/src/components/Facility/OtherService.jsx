@@ -132,165 +132,114 @@ export default function OtherService({ onEdit, editable, onSave, onCancel, searc
     setServices(updated);
   };
 
-  const handleSave = async () => {
-    const token = localStorage.getItem('accessToken');
-    if (!token) {
-      setError('You must be logged in to edit add-ons');
+const handleSave = async () => {
+  const token = localStorage.getItem('accessToken');
+  if (!token) {
+    setError('You must be logged in to edit add-ons');
+    return;
+  }
+
+  // === Validation ===
+  for (let i = 0; i < services.length; i++) {
+    const item = services[i];
+    if (!item.name?.trim()) {
+      setError(`Item ${i + 1}: Name is required`);
       return;
     }
+    if (!item.unit?.trim()) {
+      setError(`Item ${i + 1}: Unit is required`);
+      return;
+    }
+    const price = parsePrice(item.price);
+    if (price < 0) {
+      setError(`Item ${i + 1}: Price must be a valid positive number`);
+      return;
+    }
+  }
+
+  try {
+    setLoading(true);
+    setError(null);
+
+    const changes = [];
+
+    // === Detect changes ===
     for (let i = 0; i < services.length; i++) {
-      const item = services[i];
-      if (!item.name || item.name.trim() === '') {
-        setError(`Item ${i + 1}: Name is required`);
-        return;
-      }
-      if (!item.unit || item.unit.trim() === '') {
-        setError(`Item ${i + 1}: Unit is required`);
-        return;
-      }
-      const price = parsePrice(item.price);
-      if (price < 0) {
-        setError(`Item ${i + 1}: Price must be a valid positive number`);
-        return;
-      }
-    }
-    
-    try {
-      setLoading(true);
-      setError(null);
-      const changes = [];
-      
-      for (let i = 0; i < services.length; i++) {
-        const current = services[i];
-        const original = originalServices.find(orig => orig.id === current.id);
-        
-        if (current.id && original) {
-          const currentPrice = parsePrice(current.price);
-          const originalPrice = parsePrice(original.price);
-          
-          if (current.name !== original.name || 
-              currentPrice !== originalPrice || 
-              current.unit !== original.unit) {
-            changes.push({
-              type: 'update',
-              id: current.id,
-              data: {
-                name: current.name,
-                price: currentPrice,
-                unit: current.unit
-              }
-            });
-          }
-        } else if (!current.id) {
+      const current = services[i];
+      const original = originalServices.find(o => o.id === current.id);
+      const currentPrice = parsePrice(current.price);
+
+      if (original) {
+        const originalPrice = parsePrice(original.price);
+        if (
+          current.name !== original.name ||
+          currentPrice !== originalPrice ||
+          current.unit !== original.unit
+        ) {
           changes.push({
-            type: 'create',
-            data: {
-              name: current.name,
-              price: parsePrice(current.price),
-              unit: current.unit
-            }
+            type: 'update',
+            id: current.id,
+            data: { name: current.name, price: currentPrice, unit: current.unit }
           });
         }
+      } else {
+        changes.push({
+          type: 'create',
+          data: { name: current.name, price: currentPrice, unit: current.unit }
+        });
       }
-      for (const original of originalServices) {
-        const stillExists = services.find(current => current.id === original.id);
-        if (!stillExists) {
-          changes.push({
-            type: 'delete',
-            id: original.id
-          });
-        }
-      }
-      
-      if (changes.length === 0) {
-        const response = await getAllAddons();
-        const addons = response.addons || response.data?.addons || [];
-        let formattedAddons = cloneAddons(services);
-        
-        if (response.status === 200 && addons.length >= 0) {
-          formattedAddons = addons.map(addon => ({
-            id: addon._id,
-            name: addon.name,
-            price: `P${Number(addon.price).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`,
-            unit: addon.unit
-          }));
-          setServices(formattedAddons);
-          setOriginalServices(cloneAddons(formattedAddons));
-        }
-        
-        if (onSave) onSave(cloneAddons(formattedAddons));
-        return;
-      }
-      const updates = changes.filter(c => c.type === 'update').map(c => ({
-        id: c.id,
-        name: c.data.name,
-        price: c.data.price,
-        unit: c.data.unit
-      }));
-      
-      const creates = changes.filter(c => c.type === 'create');
-      const deletes = changes.filter(c => c.type === 'delete');
-      if (updates.length > 0) {
-        const response = await updateManyAddons(updates);
-        if (response?.status !== 200) {
-          if (response?.status === 401) {
-            throw new Error('Authentication failed. Please log in again.');
-          } else if (response?.status === 403) {
-            throw new Error('You do not have permission to edit add-ons.');
-          } else {
-            throw new Error(response?.error || response?.message || 'Failed to update addons');
-          }
-        }
-      }
-      for (const change of creates) {
-        const response = await createAddon(change.data);
-        if (response.status !== 201) {
-          if (response.status === 401) {
-            throw new Error('Authentication failed. Please log in again.');
-          } else if (response.status === 403) {
-            throw new Error('You do not have permission to create add-ons.');
-          } else {
-            throw new Error(response.error || 'Failed to create addon');
-          }
-        }
-      }
-      for (const change of deletes) {
-        const response = await deleteAddon(change.id);
-        if (response.status !== 200) {
-          if (response.status === 401) {
-            throw new Error('Authentication failed. Please log in again.');
-          } else if (response.status === 403) {
-            throw new Error('You do not have permission to delete add-ons.');
-          } else {
-            throw new Error(response.error || 'Failed to delete addon');
-          }
-        }
-      }
-      const response = await getAllAddons();
-      const addons = response.addons || response.data?.addons || [];
-      let formattedAddons = cloneAddons(services);
-      
-      if (response.status === 200 && addons.length >= 0) {
-        formattedAddons = addons.map(addon => ({
-          id: addon._id,
-          name: addon.name,
-          price: `P${Number(addon.price).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`,
-          unit: addon.unit
-        }));
-        setServices(formattedAddons);
-        setOriginalServices(cloneAddons(formattedAddons));
-      }
-      setError(null);
-      setIsEditing(false);
-      
-      if (onSave) onSave(cloneAddons(formattedAddons));
-      
-    } catch (err) {
-      setError(err.message || 'Failed to save changes');
-    } finally {
-      setLoading(false);
     }
-  };
+
+    // === Detect deleted items ===
+    for (const original of originalServices) {
+      if (!services.some(current => current.id === original.id)) {
+        changes.push({ type: 'delete', id: original.id });
+      }
+    }
+
+    // === Apply changes ===
+    for (const change of changes) {
+      let response;
+      if (change.type === 'update') {
+        response = await updateManyAddons([{
+          id: change.id,
+          ...change.data
+        }]);
+      } else if (change.type === 'create') {
+        response = await createAddon(change.data);
+      } else if (change.type === 'delete') {
+        response = await deleteAddon(change.id);
+      }
+
+      if (response?.status && response.status >= 400) {
+        throw new Error(response.error || response.message || 'Failed to save changes');
+      }
+    }
+
+    // === Refresh list ===
+    const response = await getAllAddons();
+    const addons = response.addons || response.data?.addons || [];
+    const formattedAddons = addons.map(addon => ({
+      id: addon._id,
+      name: addon.name,
+      price: `P${Number(addon.price).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`,
+      unit: addon.unit
+    }));
+
+    setServices(formattedAddons);
+    setOriginalServices(cloneAddons(formattedAddons));
+    setError(null);
+    setIsEditing(false); 
+    setMenuOpen(false);
+
+    if (onSave) onSave(cloneAddons(formattedAddons));
+
+  } catch (err) {
+    setError(err.message || 'Failed to save changes');
+  } finally {
+    setLoading(false);
+  }
+};
 
   const parsePrice = (priceStr) => {
     if (!priceStr) return 0;
@@ -308,6 +257,7 @@ export default function OtherService({ onEdit, editable, onSave, onCancel, searc
     setIsEditing(false);
     setServices(cloneAddons(originalServices));
     setError(null);
+    setMenuOpen(false);
     if (onCancel) onCancel();
   };
 
@@ -352,15 +302,18 @@ export default function OtherService({ onEdit, editable, onSave, onCancel, searc
                       handleInputChange(index, "price", e.target.value)
                     }
                   />
-                  <input
-                    type="text"
+                  <select
                     className={styles.unitInput}
                     value={item.unit}
-                    placeholder="pc"
-                    onChange={(e) =>
-                      handleInputChange(index, "unit", e.target.value)
-                    }
-                  />
+                    onChange={(e) => handleInputChange(index, "unit", e.target.value)}
+                    >
+                      <option value="day">day</option>
+                      <option value="pc">pc</option>
+                      <option value="watts">watts</option>
+                      <option value="mins">mins</option>
+                      <option value="cert">cert</option>
+                  </select>
+
                   <button
                     type="button"
                     className={styles.deleteBtn}
