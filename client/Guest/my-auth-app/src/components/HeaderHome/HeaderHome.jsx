@@ -471,9 +471,14 @@ function HeaderHome() {
                   </>
                 )}
               </button>
-              {isNotifOpen && (
-                <div className={styles.preview}>
-                  <Notif onMarkAllAsRead={() => setUnreadCount(0)} />
+              {isMobile && isNotifOpen && (
+                <div className={styles.fullscreenOverlay}>
+                  <div className={styles.fullscreenContent}>
+                    <div className={styles.overlayHeader}>
+                      <button onClick={() => setIsNotifOpen(false)}>✕</button>
+                    </div>
+                    <Notif onMarkAllAsRead={() => setUnreadCount(0)} />
+                  </div>
                 </div>
               )}
             </div>
@@ -498,62 +503,83 @@ function HeaderHome() {
                 )}
               </button>
               {isMobile && isMsgOpen && (
-                <div className={styles.preview} role="dialog" aria-label="Messages">
-                  <div className={styles.msgHeaderRow}>
-                    <span className={styles.msgHeaderTitle}>Messages</span>
-                    <button
-                      className={styles.markAllBtn}
-                      onClick={() => {
-                        setMessages(arr => arr.map(m => ({ ...m, isRead: true })));
-                        setMsgUnreadCount(0);
-                      }}
-                    >
-                      Mark all as Read
-                    </button>
-                  </div>
-                  <div className={styles.msgList} ref={msgListRef} onScroll={handleMessageListScroll}>
-                    {msgLoading ? (
-                      <>
-                        <MessageSkeleton compact />
-                        <MessageSkeleton isUser compact />
-                        <MessageSkeleton compact />
-                      </>
-                    ) : messages.length === 0 ? (
-                      <div className={styles.msgEmpty}>No messages yet.</div>
-                    ) : (
-                      messages.map(m => (
-                        <div key={m._id} className={m.isRead ? styles.msgItemRead : styles.msgItem}>
-                          <div className={styles.msgMetaRow}>
-                            <span className={styles.msgTime}>{m.timeLabel}</span>
+                <div className={styles.fullscreenOverlay} role="dialog" aria-label="Messages">
+                  <div className={styles.fullscreenContent}>
+                    {/* Header Bar */}
+                    <div className={styles.overlayHeader}>
+                      <span className={styles.msgHeaderTitle}>Messages</span>
+                      <div className={styles.headerActions}>
+                        <button
+                          className={styles.markAllBtn}
+                          onClick={() => {
+                            setMessages(arr => arr.map(m => ({ ...m, isRead: true })));
+                            setMsgUnreadCount(0);
+                          }}
+                        >
+                          Mark all as Read
+                        </button>
+                        <button
+                          className={styles.closeBtn}
+                          onClick={() => setIsMsgOpen(false)}
+                          aria-label="Close messages"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Message List */}
+                    <div className={styles.msgList} ref={msgListRef} onScroll={handleMessageListScroll}>
+                      {msgLoading ? (
+                        <>
+                          <MessageSkeleton compact />
+                          <MessageSkeleton isUser compact />
+                          <MessageSkeleton compact />
+                        </>
+                      ) : messages.length === 0 ? (
+                        <div className={styles.msgEmpty}>No messages yet.</div>
+                      ) : (
+                        messages.map(m => (
+                          <div key={m._id} className={m.isRead ? styles.msgItemRead : styles.msgItem}>
+                            <div className={styles.msgMetaRow}>
+                              <span className={styles.msgTime}>{m.timeLabel}</span>
+                            </div>
+                            <Message sender={m.sender} text={m.text} isUser={m.isUser} role={m.role} />
                           </div>
-                          <Message sender={m.sender} text={m.text} isUser={m.isUser} role={m.role} />
-                        </div>
-                      ))
-                    )}
-                  </div>
-                  <div className={styles.msgTypingRow}>
-                    <input
-                      type="text"
-                      className={styles.msgInput}
-                      placeholder="Type a message…"
-                      value={msgDraft}
-                      onChange={(e) => setMsgDraft(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSendMessage(); } }}
-                      disabled={msgSending}
-                      aria-label="Message input"
-                    />
-                    <button
-                      className={styles.msgSendBtn}
-                      onClick={handleSendMessage}
-                      disabled={msgSending || !msgDraft.trim()}
-                      aria-label="Send message"
-                      title="Send"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <line x1="22" y1="2" x2="11" y2="13"></line>
-                        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-                      </svg>
-                    </button>
+                        ))
+                      )}
+                    </div>
+
+                    {/* Input Bar */}
+                    <div className={styles.msgTypingRow}>
+                      <input
+                        type="text"
+                        className={styles.msgInput}
+                        placeholder="Type a message…"
+                        value={msgDraft}
+                        onChange={(e) => setMsgDraft(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleSendMessage();
+                          }
+                        }}
+                        disabled={msgSending}
+                        aria-label="Message input"
+                      />
+                      <button
+                        className={styles.msgSendBtn}
+                        onClick={handleSendMessage}
+                        disabled={msgSending || !msgDraft.trim()}
+                        aria-label="Send message"
+                        title="Send"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <line x1="22" y1="2" x2="11" y2="13"></line>
+                          <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                        </svg>
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
