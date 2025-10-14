@@ -453,54 +453,84 @@ function HeaderHome() {
           <div className={styles.mobileUserIcons}>
             {/* Notifications */}
             <div className={styles.accountIconWrapper} ref={notifMenuRef}>
-              <button className={styles.iconButton} onClick={handleNotificationsClick}>
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none"
-                    stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-                    className="feather feather-bell">
-                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-                  <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-                </svg>
-                {unreadCount > 0 && <span className={styles.badge}>{unreadCount}</span>}
+              <button
+                className={`${styles.iconButton} ${isMobile ? styles.mobileNavButton : ''}`}
+                onClick={handleNotificationsClick}
+              >
+                {isMobile ? (
+                  'NOTIFICATIONS'
+                ) : (
+                  <>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none"
+                      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                      className="feather feather-bell">
+                      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                      <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                    </svg>
+                    {unreadCount > 0 && <span className={styles.badge}>{unreadCount}</span>}
+                  </>
+                )}
               </button>
-              {isNotifOpen && (
-                <div className={styles.preview}>
-                  <Notif onMarkAllAsRead={() => setUnreadCount(0)} />
+              {isMobile && isNotifOpen && (
+                <div className={styles.fullscreenOverlay}>
+                  <div className={styles.fullscreenContent}>
+                    <div className={styles.overlayHeader}>
+                      <button onClick={() => setIsNotifOpen(false)}>✕</button>
+                    </div>
+                    <Notif onMarkAllAsRead={() => setUnreadCount(0)} />
+                  </div>
                 </div>
               )}
             </div>
 
             {/* Messages */}
             <div className={styles.accountIconWrapper} ref={msgMenuRef}>
-              <button className={styles.iconButton} onClick={handleMessagesClick}>
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none"
-                    stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-                    className="feather feather-message-square">
-                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 1 1 2-2h14a2 2 0 0 1 2 2z"></path>
-                </svg>
-                {msgUnreadCount > 0 && <span className={styles.badge}>{msgUnreadCount}</span>}
+              <button
+                className={`${styles.iconButton} ${isMobile ? styles.mobileNavButton : ''}`}
+                onClick={handleMessagesClick}
+              >
+                {isMobile ? (
+                  'MESSAGES'
+                ) : (
+                  <>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none"
+                      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                      className="feather feather-message-square">
+                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 1 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                    {msgUnreadCount > 0 && <span className={styles.badge}>{msgUnreadCount}</span>}
+                  </>
+                )}
               </button>
               {isMobile && isMsgOpen && (
-                <div className={styles.preview} role="dialog" aria-label="Messages">
-                  <div className={styles.msgHeaderRow}>
-                    <span className={styles.msgHeaderTitle}>Messages</span>
-                    <button
-                      className={styles.markAllBtn}
-                      onClick={() => {
-                        setMessages(arr => arr.map(m => ({ ...m, isRead: true })));
-                        setMsgUnreadCount(0);
-                        // api('/api/message/mark-all-read', { method: 'POST' }).catch(()=>{});
-                      }}
-                    >
-                      Mark all as Read
-                    </button>
-                  </div>
+                <div className={styles.fullscreenOverlay} role="dialog" aria-label="Messages">
+                  <div className={styles.fullscreenContent}>
+                    {/* Header Bar */}
+                    <div className={styles.overlayHeader}>
+                      <span className={styles.msgHeaderTitle}>Messages</span>
+                      <div className={styles.headerActions}>
+                        <button
+                          className={styles.markAllBtn}
+                          onClick={() => {
+                            setMessages(arr => arr.map(m => ({ ...m, isRead: true })));
+                            setMsgUnreadCount(0);
+                          }}
+                        >
+                          Mark all as Read
+                        </button>
+                        <button
+                          className={styles.closeBtn}
+                          onClick={() => setIsMsgOpen(false)}
+                          aria-label="Close messages"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
 
-                  <div
-                    className={styles.msgList}
-                    ref={msgListRef}
-                    onScroll={handleMessageListScroll}
-                  >
-                   {msgLoading ? (
+                    {/* Message List */}
+                    <div className={styles.msgList} ref={msgListRef} onScroll={handleMessageListScroll}>
+                      {msgLoading ? (
                         <>
                           <MessageSkeleton compact />
                           <MessageSkeleton isUser compact />
@@ -509,39 +539,47 @@ function HeaderHome() {
                       ) : messages.length === 0 ? (
                         <div className={styles.msgEmpty}>No messages yet.</div>
                       ) : (
-                      messages.map(m => (
-                        <div key={m._id} className={m.isRead ? styles.msgItemRead : styles.msgItem}>
-                          <div className={styles.msgMetaRow}>
-                            <span className={styles.msgTime}>{m.timeLabel}</span>
+                        messages.map(m => (
+                          <div key={m._id} className={m.isRead ? styles.msgItemRead : styles.msgItem}>
+                            <div className={styles.msgMetaRow}>
+                              <span className={styles.msgTime}>{m.timeLabel}</span>
+                            </div>
+                            <Message sender={m.sender} text={m.text} isUser={m.isUser} role={m.role} />
                           </div>
-                          <Message sender={m.sender} text={m.text} isUser={m.isUser} role={m.role} />
-                        </div>
-                      ))
-                    )}
-                  </div>
-                  <div className={styles.msgTypingRow}>
-                    <input
-                      type="text"
-                      className={styles.msgInput}
-                      placeholder="Type a message…"
-                      value={msgDraft}
-                      onChange={(e) => setMsgDraft(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSendMessage(); } }}
-                      disabled={msgSending}
-                      aria-label="Message input"
-                    />
-                    <button
-                      className={styles.msgSendBtn}
-                      onClick={handleSendMessage}
-                      disabled={msgSending || !msgDraft.trim()}
-                      aria-label="Send message"
-                      title="Send"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <line x1="22" y1="2" x2="11" y2="13"></line>
-                        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-                      </svg>
-                    </button>
+                        ))
+                      )}
+                    </div>
+
+                    {/* Input Bar */}
+                    <div className={styles.msgTypingRow}>
+                      <input
+                        type="text"
+                        className={styles.msgInput}
+                        placeholder="Type a message…"
+                        value={msgDraft}
+                        onChange={(e) => setMsgDraft(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleSendMessage();
+                          }
+                        }}
+                        disabled={msgSending}
+                        aria-label="Message input"
+                      />
+                      <button
+                        className={styles.msgSendBtn}
+                        onClick={handleSendMessage}
+                        disabled={msgSending || !msgDraft.trim()}
+                        aria-label="Send message"
+                        title="Send"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <line x1="22" y1="2" x2="11" y2="13"></line>
+                          <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                        </svg>
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
@@ -549,13 +587,20 @@ function HeaderHome() {
 
             {/* Account */}
             <div className={styles.accountIconWrapper} ref={accountMenuRef}>
-              <button className={styles.iconButton} onClick={handleProfileClick}>
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none"
+              <button
+                className={`${styles.iconButton} ${isMobile ? styles.mobileNavButton : ''}`}
+                onClick={handleProfileClick}
+              >
+                {isMobile ? (
+                  'ACCOUNT'
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none"
                     stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
                     className="feather feather-user">
-                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                  <circle cx="12" cy="7" r="4"></circle>
-                </svg>
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="12" cy="7" r="4"></circle>
+                  </svg>
+                )}
               </button>
               {isAccountMenuOpen && (
                 <div className={styles.preview}>
