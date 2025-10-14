@@ -2,11 +2,13 @@
   min-height: calc(109vh - 70px);
   background-size: cover;
   background-position: center;
+  background-repeat: no-repeat;
   display: flex;
   align-items: center;
   justify-content: center;
   color: #F5F5F5;
   text-shadow: 2px 2px 10px rgba(0, 0, 0, 0.5);
+  transition: background-image 0.3s ease-in-out;
 }
 
 .heroContent {
@@ -66,6 +68,17 @@
     0 4px 20px rgba(255, 255, 255, 0.347), 
     0 0 15px rgba(46, 75, 47, 0.4); 
   transition: all 0.4s ease-in-out; 
+}
+
+.heroReserveButton:focus {
+  outline: 3px solid #007bff;
+  outline-offset: 2px;
+  background-color: #1E3C24;
+  color: #F5F5F5;
+}
+
+.heroReserveButton:focus:not(:focus-visible) {
+  outline: none;
 }
 
 @media (max-width: 992px) {

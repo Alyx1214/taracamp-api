@@ -729,7 +729,7 @@ function isValidRate(rate) {
 }
 
 function isValidImages(files) {
-    const allowed = ['image/jpeg', 'image/png', ];
+    const allowed = ['image/jpeg', 'image/png'];
     const max = 25 * 1024 * 1024; // 25MB
     for (const f of files) {
         if (!allowed.includes(f.mimetype))

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styles from './ServicesSection.module.css';
+import OptimizedImage from '../OptimizedImage/OptimizedImage';
 import conferenceImage from '../../assets/conference.jpg';
 import lodgingImage from '../../assets/lodging.jpg';
 import eventsImage from '../../assets/events.jpg';
@@ -35,50 +36,15 @@ const servicesData = [
 
 function ServicesSection() {
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const navigate = useNavigate(); // Initialize useNavigate 
-
-  // Effect to preload images and manage loading state
-  useEffect(() => {
-    let imagesLoadedCount = 0;
-    const totalImages = servicesData.length;
-
-    const handleImageLoad = () => {
-      imagesLoadedCount++;
-      if (imagesLoadedCount === totalImages) {
-        setTimeout(() => {
-          setLoading(false);
-        }, 500); // Small delay to show spinner
-      }
-    };
-
-    const handleImageError = (e) => {
-      console.error('Failed to load image:', e.target.src);
-      imagesLoadedCount++;
-      if (imagesLoadedCount === totalImages) {
-          setTimeout(() => {
-           setLoading(false);
-         }, 500);
-      }
-    };
-
-    servicesData.forEach(service => {
-      const img = new Image();
-      img.src = service.image;
-      img.onload = handleImageLoad;
-      img.onerror = handleImageError;
-    });
-  }, []);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    if (!loading) {
-      const interval = setInterval(() => {
-        setCurrentSlide((prevSlide) => (prevSlide + 1) % servicesData.length);
-      }, 5000);
+    const interval = setInterval(() => {
+      setCurrentSlide((prevSlide) => (prevSlide + 1) % servicesData.length);
+    }, 4000);
 
-      return () => clearInterval(interval); 
-    }
-  }, [loading, servicesData.length]); 
+    return () => clearInterval(interval); 
+  }, []); 
 
   const goToNextSlide = () => {
     setCurrentSlide((prevSlide) => (prevSlide + 1) % servicesData.length);
@@ -88,7 +54,6 @@ function ServicesSection() {
     setCurrentSlide((prevSlide) => (prevSlide - 1 + servicesData.length) % servicesData.length);
   };
 
-
   const goToSlide = (index) => {
     setCurrentSlide(index);
   };
@@ -97,29 +62,55 @@ function ServicesSection() {
     navigate('/services'); 
   };
 
+  const handleKeyDown = (event) => {
+    if (event.key === 'ArrowLeft') {
+      goToPrevSlide();
+    } else if (event.key === 'ArrowRight') {
+      goToNextSlide();
+    }
+  };
+
   return (
     <section className={styles.servicesSection} id="services-section">
       <h2 className={styles.sectionTitle}>DISCOVER OUR SERVICES</h2>
       
-      <div className={styles.carouselOuterWrapper}>
-        <button className={`${styles.carouselArrow} ${styles.leftArrow}`} onClick={goToPrevSlide} disabled={loading}>
+      <div 
+        className={styles.carouselOuterWrapper}
+        onKeyDown={handleKeyDown}
+        tabIndex={0}
+        role="region"
+        aria-label="Services carousel"
+      >
+        <button 
+          className={`${styles.carouselArrow} ${styles.leftArrow}`} 
+          onClick={goToPrevSlide}
+          aria-label="Previous service"
+        >
           &lt;
         </button>
 
         <div className={styles.carouselContainer}>
-          {loading && (
-            <div className={styles.loadingSpinner}>
-            </div>
-          )}
-
-          <div className={`${styles.carouselContentWrapper} ${loading ? styles.hiddenContent : ''}`}>
+          <div className={styles.carouselContentWrapper}>
             {servicesData.map((service, index) => (
               <div
                 key={service.id}
                 className={`${styles.serviceCard} ${index === currentSlide ? styles.active : ''}`}
-                style={{ backgroundImage: `url(${service.image})` }}
-                onClick={handleCardClick} 
+                onClick={handleCardClick}
+                role="button"
+                tabIndex={index === currentSlide ? 0 : -1}
+                aria-label={`${service.title} service. Click to view more services.`}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleCardClick();
+                  }
+                }}
               >
+                <OptimizedImage
+                  src={service.image}
+                  alt={`${service.title} facilities at Baguio Teachers Camp`}
+                  className={styles.serviceImage}
+                />
                 <div className={styles.cardOverlay}>
                   <h3 className={styles.cardTitle}>{service.title}</h3>
                 </div>
@@ -131,22 +122,27 @@ function ServicesSection() {
           </div>
         </div>
 
-        <button className={`${styles.carouselArrow} ${styles.rightArrow}`} onClick={goToNextSlide} disabled={loading}>
+        <button 
+          className={`${styles.carouselArrow} ${styles.rightArrow}`} 
+          onClick={goToNextSlide}
+          aria-label="Next service"
+        >
           &gt;
         </button>
       </div>
 
-      {!loading && (
-        <div className={styles.carouselDots}>
-          {servicesData.map((_, index) => (
-            <span
-              key={index}
-              className={`${styles.dot} ${index === currentSlide ? styles.activeDot : ''}`}
-              onClick={() => goToSlide(index)}
-            ></span>
-          ))}
-        </div>
-      )}
+      <div className={styles.carouselDots} role="tablist" aria-label="Service navigation">
+        {servicesData.map((_, index) => (
+          <button
+            key={index}
+            className={`${styles.dot} ${index === currentSlide ? styles.activeDot : ''}`}
+            onClick={() => goToSlide(index)}
+            role="tab"
+            aria-selected={index === currentSlide}
+            aria-label={`Go to service ${index + 1}`}
+          ></button>
+        ))}
+      </div>
     </section>
   );
 }
