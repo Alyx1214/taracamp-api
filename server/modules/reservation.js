@@ -13,12 +13,13 @@ const reservationModule = {
      * Adds a reservation to the database.
      * @param {Object} dbHelper - The database helper object.
      * @param {Object} data - The reservation data.
-     * @param {Object} file - The Letter of Intent file.
+     * @param {Object} letterOfIntentFile - The Letter of Intent file.
+     * @param {Object} seniorCitizenIdFile - The Senior Citizen ID file.
      * @param {Object} user - The logged-in user.
      * @param {Object} userSocketMap - The map of user sockets.
      * @return {Promise<Object>} A promise that resolves to an object with the status, error, message, reservationId, and reservation properties.
      */
-    addReservation: async (dbHelper, data, file, user) => {
+    addReservation: async (dbHelper, data, letterOfIntentFile, seniorCitizenIdFile, user) => {
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
             error: 'Error on booking reservation',
@@ -27,7 +28,7 @@ const reservationModule = {
         try {
             const {
                 guestName, homeAddress, officeAddress, category, guestType,
-                telephone, officeTelephone, numberOfAdults, numberOfChildren, numberOfPwds,
+                telephone, officeTelephone, numberOfAdults, numberOfChildren, numberOfPwds, numberOfSeniorCitizens,
                 emergencyContact, emergencyContactPerson, dateOfArrival, dateOfDeparture, facility,
                 serviceType, timeOfArrival, addOns, otherRequests, guestEmail, numberOfRooms,
             } = data;
@@ -152,7 +153,8 @@ const reservationModule = {
             if (
                 !isNonNegativeInteger(numberOfAdults) ||
                 !isNonNegativeInteger(numberOfChildren) ||
-                !isNonNegativeInteger(numberOfPwds)
+                !isNonNegativeInteger(numberOfPwds) ||
+                !isNonNegativeInteger(numberOfSeniorCitizens)
             ) {
                 responseData.status = Status.BAD_REQUEST;
                 responseData.error = 'Guest counts must be non-negative integers';
@@ -162,7 +164,8 @@ const reservationModule = {
             const adults = parseInt(numberOfAdults) || 0;
             const children = parseInt(numberOfChildren) || 0;
             const pwds = parseInt(numberOfPwds) || 0;
-            const total = adults + children + pwds;
+            const seniorCitizens = parseInt(numberOfSeniorCitizens) || 0;
+            const total = adults + children + pwds + seniorCitizens;
 
             if (total <= 0) {
                 responseData.status = Status.BAD_REQUEST;
@@ -259,25 +262,27 @@ const reservationModule = {
             }
 
             let loiFileDoc = null;
-            if (file) {
+            let seniorCitizenIdFileDoc = null;
+            
+            if (letterOfIntentFile) {
                 try {
-                    const filename = `letter_of_intent/${Date.now()}_${file.originalname.replace(/\s/g, '_')}`;
+                    const filename = `letter_of_intent/${Date.now()}_${letterOfIntentFile.originalname.replace(/\s/g, '_')}`;
                     const blob = bucket.file(filename);
                     await new Promise((resolve, reject) => {
                         const stream = blob.createWriteStream({
                             resumable: false,
-                            contentType: file.mimetype,
+                            contentType: letterOfIntentFile.mimetype,
                         });
                         stream.on('error', reject);
                         stream.on('finish', resolve);
-                        stream.end(file.buffer);
+                        stream.end(letterOfIntentFile.buffer);
                     });
 
                     try {
                         loiFileDoc = await dbHelper.create('file', {
                             path: filename,
-                            mimetype: file.mimetype,
-                            size: file.size,
+                            mimetype: letterOfIntentFile.mimetype,
+                            size: letterOfIntentFile.size,
                             kind: FileKind.LETTER_OF_INTENT,
                             userId: user.userId,
                             createdAt: new Date(),
@@ -293,11 +298,58 @@ const reservationModule = {
                 }
             }
 
+            if (seniorCitizens > 0 && !seniorCitizenIdFile) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Senior Citizen ID file is required when there are senior citizens in the reservation';
+                return responseData;
+            }
+            
+            if (seniorCitizenIdFile && seniorCitizens <= 0) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Senior Citizen ID file should only be uploaded when there are senior citizens in the reservation';
+                return responseData;
+            }
+            
+            if (seniorCitizenIdFile) {
+                try {
+                    const filename = `senior_citizen_id/${Date.now()}_${seniorCitizenIdFile.originalname.replace(/\s/g, '_')}`;
+                    const blob = bucket.file(filename);
+                    await new Promise((resolve, reject) => {
+                        const stream = blob.createWriteStream({
+                            resumable: false,
+                            contentType: seniorCitizenIdFile.mimetype,
+                        });
+                        stream.on('error', reject);
+                        stream.on('finish', resolve);
+                        stream.end(seniorCitizenIdFile.buffer);
+                    });
+
+                    try {
+                        seniorCitizenIdFileDoc = await dbHelper.create('file', {
+                            path: filename,
+                            mimetype: seniorCitizenIdFile.mimetype,
+                            size: seniorCitizenIdFile.size,
+                            kind: FileKind.SENIOR_CITIZEN_ID,
+                            userId: user.userId,
+                            createdAt: new Date(),
+                        });
+                    } catch (createFileErr) {
+                        console.error('Error creating file record for Senior Citizen ID:', createFileErr);
+                        responseData.status = Status.INTERNAL_SERVER_ERROR;
+                    }
+                } catch (err) {
+                    responseData.status = Status.INTERNAL_SERVER_ERROR;
+                    responseData.error = 'Senior Citizen ID upload failed: ' + err.message;
+                    return responseData;
+                }
+            }
+
             const { amount: totalEstimatedAmount, } = computeEstimate({
                 facilityDoc,
                 adults,
                 children,
                 pwds,
+                seniorCitizens,
                 serviceType,
                 addonsTotal,
             });
@@ -325,6 +377,7 @@ const reservationModule = {
                     adult: adults,
                     children: children,
                     pwds: pwds,
+                    seniorCitizen: seniorCitizens,
                 },
                 numberOfRooms: facilityDoc.facilityType === FacilityType.DORMITORY ? parseInt(numberOfRooms) : undefined,
                 emergencyContact,
@@ -337,6 +390,7 @@ const reservationModule = {
                 addOns: addonIds,
                 otherRequests,
                 letterOfIntentFileId: loiFileDoc?._id ?? undefined,
+                seniorCitizenIdFileId: seniorCitizenIdFileDoc?._id ?? undefined,
                 status: initialStatus,
                 totalEstimatedAmount,
                 reservationCode,
@@ -355,6 +409,14 @@ const reservationModule = {
                 }
             }
 
+            if (seniorCitizenIdFileDoc?._id) {
+                try {
+                    await dbHelper.findOneAndUpdate('file', { _id: seniorCitizenIdFileDoc._id, }, { reservationId: reservation._id, });
+                } catch (e) {
+                    console.warn('Failed to backfill reservationId on Senior Citizen ID file:', e?.message);
+                }
+            }
+
             const reservationObject = reservation.toObject();
             delete reservationObject.letterOfIntentUrl;
             delete reservationObject.__v;
@@ -364,6 +426,7 @@ const reservationModule = {
                 delete reservationObject.numberOfGuests.adult;
                 delete reservationObject.numberOfGuests.children;
                 delete reservationObject.numberOfGuests.pwds;
+                delete reservationObject.numberOfGuests.seniorCitizen;
             }
 
             responseData.status = Status.CREATED;
@@ -459,6 +522,7 @@ const reservationModule = {
             delete reservationObject.numberOfGuests.adult;
             delete reservationObject.numberOfGuests.children;
             delete reservationObject.numberOfGuests.pwds;
+            delete reservationObject.numberOfGuests.seniorCitizen;
             }
 
             const facilityIdStr =
@@ -1238,7 +1302,7 @@ const reservationModule = {
         };
 
         try {
-            const { facility, adults = 0, children = 0, pwds = 0, serviceType, addOns, } = params;
+            const { facility, adults = 0, children = 0, pwds = 0, seniorCitizens = 0, serviceType, addOns, } = params;
 
             if (!facility) {
                 responseData.status = Status.BAD_REQUEST;
@@ -1281,6 +1345,7 @@ const reservationModule = {
                 adults: Number(adults) || 0,
                 children: Number(children) || 0,
                 pwds: Number(pwds) || 0,
+                seniorCitizens: Number(seniorCitizens) || 0,
                 serviceType: svcType,
                 addonsTotal,
             });
@@ -1511,7 +1576,7 @@ function isPresent(value) {
     return true;
 }
 
-function computeEstimate({ facilityDoc, adults = 0, children = 0, pwds = 0, serviceType, addonsTotal = 0, }) {
+function computeEstimate({ facilityDoc, adults = 0, children = 0, pwds = 0, seniorCitizens = 0, serviceType, addonsTotal = 0, }) {
     const isAccommodation =
     serviceType === ServiceType.ACCOMMODATION ||
     facilityDoc?.facilityType === FacilityType.DORMITORY ||

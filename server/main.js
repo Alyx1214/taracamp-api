@@ -30,7 +30,7 @@ const __dirname = path.dirname(__filename);
 
 dotenv.config({ path: path.resolve(__dirname, '.env') });
 
-const port = process.env.PORT || 8080;
+const port = process.env.PORT || 3000;
 const dbConnectionString = process.env.DB_CONN;
 
 dbHelper.connect(dbConnectionString);

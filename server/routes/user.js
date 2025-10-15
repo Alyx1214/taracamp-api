@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import asyncHandler from '../middleware/asyncHandler.js';
 import { authenticateJWT } from '../middleware/auth.js';
+import { registrationLimiter, loginLimiter, basicLimiter } from '../middleware/limiter.js';
 import dbHelper from '../modules/dbHelper.js';
 import userModule from '../modules/user.js';
 import profileModule from '../modules/profile.js';
@@ -11,20 +12,24 @@ import { Status } from '../constants.js';
 export default function buildUserRouter(userSocketMap) {
   const r = Router();
 
-  r.post('/register', asyncHandler(async (req, res) => {
+  r.post('/register', registrationLimiter, asyncHandler(async (req, res) => {
     const result = await userModule.register(dbHelper, req.body);
-    if (result.status === Status.CREATED) {
-      await notificationModule.createAndNotifyUser(dbHelper, {
+    
+    res.status(result.status).json(result);
+    
+    if (result.status === Status.CREATED && result.userId) {
+      notificationModule.createAndNotifyUser(dbHelper, {
         userId: result.userId,
         title: 'Welcome to Teachers Camp!',
         message: 'Thank you for joining Teachers Camp. We\'re thrilled to have you aboard - let\'s make some memories!',
         kind: 'welcome',
-      }, userSocketMap);
+      }, userSocketMap).catch(error => {
+        console.error('Failed to create welcome notification:', error);
+      });
     }
-    res.status(result.status).json(result);
   }));
 
-  r.post('/login', asyncHandler(async (req, res) => {
+  r.post('/login', loginLimiter, asyncHandler(async (req, res) => {
     const response = await userModule.login(dbHelper, req.body);
     res.status(response.status).json(response);
   }));
@@ -88,7 +93,12 @@ export default function buildUserRouter(userSocketMap) {
   }));
 
   r.get('/get-all-users-by-role/:role', asyncHandler(async (req, res) => {
-    const response = await userModule.getAllUsersByRole(dbHelper, req.params.role, req.user);
+    const options = {
+      limit: req.query.limit,
+      skip: req.query.skip,
+      sort: req.query.sort
+    };
+    const response = await userModule.getAllUsersByRole(dbHelper, req.params.role, req.user, options);
     res.status(response.status).json(response);
   }));
 
@@ -97,7 +107,7 @@ export default function buildUserRouter(userSocketMap) {
     res.status(response.status).json(response);
   }));
 
-  r.post('/add-user', asyncHandler(async (req, res) => {
+  r.post('/add-user', basicLimiter, asyncHandler(async (req, res) => {
     const response = await userModule.addUser(dbHelper, req.body, req.user);
     res.status(response.status).json(response);
   }));

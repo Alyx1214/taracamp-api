@@ -4,15 +4,26 @@ import { UserRole, Category, GuestType, ReservationStatus, FacilityType, Facilit
 
 function sanitizeObject(obj) {
     if (typeof obj === 'string') {
-        return sanitizeHtml(obj, { allowedTags: [], allowedAttributes: {}, });
+        return sanitizeHtml(obj.trim(), { 
+            allowedTags: [], 
+            allowedAttributes: {},
+            disallowedTagsMode: 'discard'
+        });
+    }
+    if (obj instanceof Date) {
+        return obj;
     }
     if (Array.isArray(obj)) return obj.map(sanitizeObject);
     if (typeof obj === 'object' && obj !== null) {
+        const sanitized = {};
         for (const key of Object.keys(obj)) {
-            if (['password', 'verificationCode', 'letterOfIntentFile', 'approvalDocumentFile'].includes(key)) continue;
-            obj[key] = sanitizeObject(obj[key]);
+            if (['password', 'verificationCode', 'letterOfIntentFile', 'approvalDocumentFile', 'resetTokenHash', 'verificationCodeHash'].includes(key)) {
+                sanitized[key] = obj[key];
+                continue;
+            }
+            sanitized[key] = sanitizeObject(obj[key]);
         }
-        return obj;
+        return sanitized;
     }
     return obj;
 }
@@ -21,20 +32,27 @@ const dbHelper = {
     connect: async (connectionString) => {
         try {
             const UserSchema = new mongoose.Schema({
-                email: { type: String, required: false, unique: true, },
-                name: { type: String, required: true, },
+                email: { type: String, required: false, unique: true, index: true, },
+                name: { type: String, required: true, index: true, },
                 password: { type: String, required: false, },
                 googleId: { type: String, required: false, unique: true, sparse: true, },
                 facebookId: { type: String, required: false, unique: true, sparse: true, },
-                role: { type: String, enum: Object.values(UserRole), required: true, default: UserRole.GUEST, },
-                createdAt: { type: Date, default: Date.now, },
+                role: { type: String, enum: Object.values(UserRole), required: true, default: UserRole.GUEST, index: true, },
+                createdAt: { type: Date, default: Date.now, index: true, },
                 updatedAt: { type: Date, required: false, },
-                lastLoggedIn: { type: Date, required: false, },
+                lastLoggedIn: { type: Date, required: false, index: true, },
                 verificationCodeHash: { type: String, required: false, },
                 verificationCodeExpiry: { type: Date, required: false, },
                 resetTokenHash: { type: String, required: false, },
                 resetTokenExpiry: { type: Date, required: false, },
             });
+
+            // Add compound indexes for search optimization
+            UserSchema.index({ email: 1, role: 1 });
+            UserSchema.index({ name: 1, role: 1 });
+            UserSchema.index({ createdAt: -1, role: 1 });
+            UserSchema.index({ lastLoggedIn: -1, role: 1 });
+            UserSchema.index({ email: 'text', name: 'text', role: 'text' });
 
             const ProfileSchema = new mongoose.Schema({
                 about: { type: String, required: false, },
@@ -74,6 +92,7 @@ const dbHelper = {
                     adult: { type: Number, required: true, },
                     children: { type: Number, required: false, },
                     pwds: { type: Number, required: false, },
+                    seniorCitizen: { type: Number, required: false, },
                 },
                 numberOfRooms: { type: Number, required: false, },
                 emergencyContact: { type: String, required: true, },
@@ -84,6 +103,7 @@ const dbHelper = {
                 facility: { type: mongoose.Schema.Types.ObjectId, ref: 'facility', required: true, },
                 serviceType: { type: String, enum: Object.values(ServiceType), required: true, },
                 letterOfIntentFileId: { type: mongoose.Schema.Types.ObjectId, ref: 'file', required: false },
+                seniorCitizenIdFileId: { type: mongoose.Schema.Types.ObjectId, ref: 'file', required: false },
                 nonAvailabilityCertFileId: { type: mongoose.Schema.Types.ObjectId, ref: 'file', required: false },
                 nonAvailabilityCertFileUploadedAt: { type: Date, required: false, },
                 status: { type: String, enum: Object.values(ReservationStatus), default: ReservationStatus.PENDING, required: true, },
@@ -193,8 +213,9 @@ const dbHelper = {
         return await mongoose.model(collectionName).find(query, projection);
     },
 
-    findOne: async (collectionName, query) => {
-        return await mongoose.model(collectionName).findOne(query);
+    findOne: async (collectionName, query, options = {}) => {
+        const { projection = null } = options;
+        return await mongoose.model(collectionName).findOne(query, projection);
     },
 
     findMany: async (collectionName, query = {}, options = {}) => {
@@ -241,6 +262,40 @@ const dbHelper = {
 
     deleteMany: async (collectionName, query) => {
         return await mongoose.model(collectionName).deleteMany(query);
+    },
+
+    withTransaction: async (callback) => {
+        const session = await mongoose.startSession();
+        try {
+            await session.withTransaction(async () => {
+                await callback(session);
+            });
+        } finally {
+            await session.endSession();
+        }
+    },
+
+    createWithTransaction: async (collectionName, document, session) => {
+        const sanitizedDoc = sanitizeObject({ ...document, });
+        return await mongoose.model(collectionName).create([sanitizedDoc], { session });
+    },
+
+    findOneWithTransaction: async (collectionName, query, options = {}, session) => {
+        const { projection = null } = options;
+        return await mongoose.model(collectionName).findOne(query, projection).session(session);
+    },
+
+    updateOneWithTransaction: async (collectionName, query, update, session) => {
+        if (update && update.$set) {
+            update.$set = sanitizeObject({ ...update.$set, });
+        } else if (update) {
+            update = sanitizeObject({ ...update, });
+        }
+        return await mongoose.model(collectionName).findOneAndUpdate(query, update, { 
+            new: true, 
+            runValidators: true,
+            session 
+        });
     },
 };
 

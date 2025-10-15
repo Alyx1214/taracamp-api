@@ -1,5 +1,6 @@
 import { Storage, } from '@google-cloud/storage';
 import { Status, FacilityType, FacilityStatus, UserRole, ReservationStatus, } from '../constants.js';
+import redisClient from './redisClient.js';
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -131,6 +132,9 @@ const facilityModule = {
             responseData.message = 'Facility added successfully';
             responseData.facilityId = facility._id.toString();
             responseData.imageUrls = imageUrls;
+
+            // Invalidate facilities cache
+            await invalidateFacilitiesCache();
         } catch (error) {
             console.error('Error adding facility:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
@@ -140,7 +144,7 @@ const facilityModule = {
     },
 
     /**
-     * Fetches all facilities.
+     * Fetches all facilities with optimized performance.
      * @param {Object} dbHelper - The database helper for database operations.
      * @param {Object} options - Query options including includeUnavailable flag
      * @returns {Object} Response data with status, error, and facilities on success.
@@ -150,35 +154,122 @@ const facilityModule = {
             status: Status.INTERNAL_SERVER_ERROR,
             error: 'Error fetching facilities',
             facilities: [],
+            pagination: {},
         };
         try {
             const { limit, skip, sort, includeUnavailable } = options || {};
             const sortOption = sort ? parseSort(sort) : { name: 1, };
+            const limitValue = clampLimit(limit);
+            const skipValue = clampSkip(skip);
             
             let filter = {};
             if (includeUnavailable !== 'true' && includeUnavailable !== true) {
                 filter.status = { $ne: FacilityStatus.UNAVAILABLE };
             }
             
-            const facilities = await dbHelper.findMany('facility', filter, {
-                projection: { __v: 0, createdAt: 0, },
+            // Create cache key based on query parameters
+            const cacheKey = `facilities:${JSON.stringify({
+                filter,
                 sort: sortOption,
-                limit: clampLimit(limit),
-                skip: clampSkip(skip),
+                limit: limitValue,
+                skip: skipValue,
+                includeUnavailable
+            })}`;
+            
+            // Try to get from cache first
+            try {
+                const cached = await redisClient.get(cacheKey);
+                if (cached) {
+                    const cachedData = JSON.parse(cached);
+                    responseData.status = Status.OK;
+                    responseData.error = null;
+                    responseData.facilities = cachedData.facilities;
+                    responseData.pagination = cachedData.pagination;
+                    return responseData;
+                }
+            } catch (cacheError) {
+                console.warn('Redis cache read error:', cacheError.message);
+            }
+            
+            // Get total count for pagination metadata
+            const totalCount = await dbHelper.count('facility', filter);
+            
+            // Optimized database query with better projection
+            const facilities = await dbHelper.findMany('facility', filter, {
+                projection: { 
+                    __v: 0, 
+                    createdAt: 0,
+                    updatedAt: 0,
+                },
+                sort: sortOption,
+                limit: limitValue,
+                skip: skipValue,
             });
 
-            const withSigned = await Promise.all(
-                facilities.map(async (f) => {
-                    const obj = f.toObject ? f.toObject() : f;
-                    obj.name = toTitleCase(String(obj.name || ''));
-                    obj.images = await getSignedReadUrls(Array.isArray(obj.images) ? obj.images : []);
-                    return obj;
-                })
-            );
+            // Batch process all image URLs at once for better performance
+            const allImageKeys = [];
+            const facilityImageMap = new Map();
+            
+            facilities.forEach((facility, index) => {
+                const images = Array.isArray(facility.images) ? facility.images : [];
+                if (images.length > 0) {
+                    facilityImageMap.set(index, images);
+                    allImageKeys.push(...images);
+                }
+            });
+
+            // Generate all signed URLs in a single batch operation
+            const allSignedUrls = allImageKeys.length > 0 
+                ? await getSignedReadUrlsBatch(allImageKeys) 
+                : [];
+
+            // Map signed URLs back to facilities
+            let urlIndex = 0;
+            const withSigned = facilities.map((facility, index) => {
+                const obj = facility.toObject ? facility.toObject() : facility;
+                obj.name = toTitleCase(String(obj.name || ''));
+                
+                const facilityImages = facilityImageMap.get(index);
+                if (facilityImages && facilityImages.length > 0) {
+                    obj.images = allSignedUrls.slice(urlIndex, urlIndex + facilityImages.length);
+                    urlIndex += facilityImages.length;
+                } else {
+                    obj.images = [];
+                }
+                
+                return obj;
+            });
+
+            // Calculate pagination metadata
+            const totalPages = Math.ceil(totalCount / limitValue);
+            const currentPage = Math.floor(skipValue / limitValue) + 1;
+            const hasNextPage = currentPage < totalPages;
+            const hasPrevPage = currentPage > 1;
+
+            const paginationData = {
+                totalCount,
+                totalPages,
+                currentPage,
+                limit: limitValue,
+                skip: skipValue,
+                hasNextPage,
+                hasPrevPage,
+            };
 
             responseData.status = Status.OK;
             responseData.error = null;
             responseData.facilities = withSigned;
+            responseData.pagination = paginationData;
+
+            // Cache the result for 5 minutes (300 seconds)
+            try {
+                await redisClient.setEx(cacheKey, 300, JSON.stringify({
+                    facilities: withSigned,
+                    pagination: paginationData
+                }));
+            } catch (cacheError) {
+                console.warn('Redis cache write error:', cacheError.message);
+            }
         } catch (error) {
             console.error('Error fetching facilities:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
@@ -411,6 +502,9 @@ const facilityModule = {
             responseData.error = null;
             responseData.message = 'Facility updated successfully';
             responseData.facilityId = id;
+
+            // Invalidate facilities cache
+            await invalidateFacilitiesCache();
         } catch (error) {
             console.error('Error editing facility:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
@@ -470,6 +564,9 @@ const facilityModule = {
             responseData.error = null;
             responseData.message = 'Facility deleted successfully';
             responseData.facilityId = id;
+
+            // Invalidate facilities cache
+            await invalidateFacilitiesCache();
         } catch (error) {
             console.error('Error deleting facility:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
@@ -770,6 +867,19 @@ async function getSignedReadUrls(keys, expiresInMs = 60 * 60 * 1000) {
     return urls;
 }
 
+async function getSignedReadUrlsBatch(keys, expiresInMs = 60 * 60 * 1000) {
+    // Process all URLs in parallel for better performance
+    const urlPromises = keys.map(key => 
+        bucket.file(key).getSignedUrl({
+            version: 'v4',
+            action: 'read',
+            expires: Date.now() + expiresInMs,
+        }).then(([url]) => url)
+    );
+    
+    return await Promise.all(urlPromises);
+}
+
 async function deleteImages(keys) {
     for (const key of keys) {
         try {
@@ -856,4 +966,16 @@ function calculateAverageRatings(reviews) {
         cleanliness: Math.round((totals.cleanliness / count) * 10) / 10,
         overall: Math.round((totals.overall / count) * 10) / 10
     };
+}
+
+async function invalidateFacilitiesCache() {
+    try {
+        // Get all cache keys that start with 'facilities:'
+        const keys = await redisClient.keys('facilities:*');
+        if (keys.length > 0) {
+            await redisClient.del(keys);
+        }
+    } catch (error) {
+        console.warn('Error invalidating facilities cache:', error.message);
+    }
 }
