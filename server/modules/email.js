@@ -5,25 +5,22 @@ const transporter = nodemailer.createTransport({
     service: 'gmail',
     host: 'smtp.gmail.com',
     port: 587,
-    secure: false, // true for 465, false for other ports
+    secure: false,
     auth: {
         user: process.env.EMAIL_ADDRESS,
         pass: process.env.EMAIL_PASSWORD,
     },
-    // Connection timeout settings
-    connectionTimeout: 60000, // 60 seconds
-    greetingTimeout: 30000, // 30 seconds
-    socketTimeout: 60000, // 60 seconds
-    // Retry settings
+    connectionTimeout: 60000,
+    greetingTimeout: 30000,
+    socketTimeout: 60000,
     pool: true,
     maxConnections: 5,
     maxMessages: 100,
-    rateLimit: 14, // max 14 emails per second
-    // Additional reliability settings
+    rateLimit: 14,
     tls: {
         rejectUnauthorized: false
     },
-    debug: process.env.NODE_ENV === 'development', // Enable debug logging in development
+    debug: process.env.NODE_ENV === 'development', 
 });
 
 const emailModule = {
@@ -34,7 +31,7 @@ const emailModule = {
         };
         
         const maxRetries = 3;
-        const retryDelay = 2000; // 2 seconds
+        const retryDelay = 2000;
         
         try {
             const mailOptions = {
@@ -45,7 +42,6 @@ const emailModule = {
                 html: `<p>Your verification code for password reset is: <strong>${verificationCode}</strong>.</p><p>This code is valid for 10 minutes.</p>`,
             };
 
-            // Verify the connection before sending
             await transporter.verify();
             
             const result = await transporter.sendMail(mailOptions);
@@ -59,22 +55,17 @@ const emailModule = {
         } catch (error) {
             console.error(`Error on sending verification code (attempt ${retryCount + 1}):`, error);
             
-            // Check if it's a timeout error and we haven't exceeded max retries
             if ((error.code === 'ETIMEDOUT' || error.code === 'ECONNRESET' || error.code === 'ENOTFOUND') && retryCount < maxRetries) {
                 console.log(`Retrying email send in ${retryDelay}ms... (attempt ${retryCount + 2}/${maxRetries + 1})`);
                 
-                // Wait before retrying
                 await new Promise(resolve => setTimeout(resolve, retryDelay * (retryCount + 1)));
                 
-                // Recursive retry
                 return await emailModule.sendVerificationCode(email, verificationCode, retryCount + 1);
             }
             
-            // If all retries failed or it's a different error
             responseData.status = Status.INTERNAL_SERVER_ERROR;
             responseData.error = 'Error on sending verification code';
             
-            // Provide more specific error messages
             if (error.code === 'ETIMEDOUT') {
                 responseData.error = 'Email service timeout - please try again later';
             } else if (error.code === 'EAUTH') {

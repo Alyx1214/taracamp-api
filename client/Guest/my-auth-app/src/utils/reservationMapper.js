@@ -60,7 +60,7 @@ export function buildReservationPayload(step1 = {}, step2 = {}, facilityId) {
     serviceType: mapServiceType(
       String(step2?.typeService || '') === 'Other' ? 'Other' : step2?.typeService
     ),
-    timeOfArrival: to24h(step2.timeArrivalHour, step2.timeArrivalAMPM || 'AM'),
+    timeOfArrival: to24h(step2.timeArrivalHour || '02', step2.timeArrivalAMPM || 'PM'),
     otherRequests: step2.specialRequests || ''
   };
 }

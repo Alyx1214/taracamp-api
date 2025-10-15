@@ -333,7 +333,7 @@
     /* Mobile-only nav item */
     .mobileOnlyNavItem {
       display: block;
-      margin-top: 20px;
+      margin-top: 0;
       width: 100%;
       text-align: center;
     }
@@ -365,6 +365,27 @@
     }
     .mobileUserIcons .accountDropdownMenu {
       width: 100%;
+    }
+
+    .mobileNavButton {
+      background: none;
+      border: none;
+      color: #F5F5F5;
+      text-decoration: none;
+      font-size: 1.3em;
+      font-weight: 500;
+      padding: 5px 0;
+      transition: color 0.3s ease, border-bottom 0.3s ease;
+      cursor: pointer;
+      width: 100%;
+      text-align: center;
+      display: block;
+      font-family: 'Montserrat', sans-serif;
+    }
+
+    .mobileNavButton:hover {
+      color: #46ef65;
+      border-bottom: 2px solid #46ef65;
     }
 
     .accountDropdownMenu {
@@ -432,3 +453,70 @@
       height: 25px;
     }
   }
+
+  /* Fullscreen overlay (for mobile) */
+.fullscreenOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0,0,0,0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+/* Popup container */
+.fullscreenPopup {
+  background: #fff;
+  color: #1e3c24;
+  width: 90%;
+  height: 90%;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.25);
+}
+
+/* Header inside popup */
+.fullscreenHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #1e3c24;
+  color: #f5f5f5;
+  font-weight: 600;
+  padding: 15px 20px;
+  font-size: 1.2em;
+}
+
+/* Close button */
+.closeButton {
+  background: none;
+  border: none;
+  color: #f5f5f5;
+  font-size: 1.5em;
+  cursor: pointer;
+  line-height: 1;
+  transition: color 0.2s ease;
+}
+.closeButton:hover {
+  color: #46ef65;
+}
+
+/* Content scroll area */
+.fullscreenContent {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+/* Optional: only trigger on small screens */
+@media (min-width: 993px) {
+  .fullscreenOverlay {
+    display: none;
+  }
+}

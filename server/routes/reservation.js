@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import asyncHandler from '../middleware/asyncHandler.js';
 import { authenticateJWT } from '../middleware/auth.js';
-import { uploadLetter, uploadNonavailabilityCert } from '../middleware/uploads.js';
+import { uploadLetter, uploadNonavailabilityCert, uploadSeniorCitizenId } from '../middleware/uploads.js';
 import dbHelper from '../modules/dbHelper.js';
 import reservationModule from '../modules/reservation.js';
 import notificationModule from '../modules/notification.js';
@@ -9,9 +9,15 @@ import notificationModule from '../modules/notification.js';
 export default function buildReservationRouter(userSocketMap) {
   const r = Router();
   const runUpload = (req, res) =>
-    new Promise((resolve, reject) =>
-      uploadLetter(req, res, err => (err ? reject(err) : resolve()))
-    );
+    new Promise((resolve, reject) => {
+      const uploadFields = [
+        { name: 'letterOfIntentFile', maxCount: 1 },
+        { name: 'seniorCitizenIdFile', maxCount: 1 }
+      ];
+      
+      const upload = multer({ storage: multer.memoryStorage() }).fields(uploadFields);
+      upload(req, res, err => (err ? reject(err) : resolve()));
+    });
 
   r.get('/get-reservation-by-id/:id', asyncHandler(async (req, res) => {
     const response = await reservationModule.getReservationById(dbHelper, req.params.id);
@@ -54,8 +60,9 @@ export default function buildReservationRouter(userSocketMap) {
     await runUpload(req, res);
 
     const data = req.body;
-    const file = req.file;
-    const response = await reservationModule.addReservation(dbHelper, data, file, req.user);
+    const letterOfIntentFile = req.files?.letterOfIntentFile?.[0] || null;
+    const seniorCitizenIdFile = req.files?.seniorCitizenIdFile?.[0] || null;
+    const response = await reservationModule.addReservation(dbHelper, data, letterOfIntentFile, seniorCitizenIdFile, req.user);
 
     res.status(response.status).json(response);
 

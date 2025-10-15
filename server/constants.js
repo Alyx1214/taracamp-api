@@ -23,6 +23,7 @@ export const UserRole = {
 export const FileKind = {
     LETTER_OF_INTENT: 'Letter of Intent',
     NONAVAILABILITY_CERTIFICATE: 'Non-availability Certificate',
+    SENIOR_CITIZEN_ID: 'Senior Citizen ID',
 }
 
 export const Category = {

@@ -7,6 +7,19 @@ import redisClient from './redisClient.js';
 import { v4 as uuidv4, } from 'uuid';
 import crypto from 'crypto';
 
+// Helper function to invalidate user search cache
+async function invalidateUserSearchCache() {
+    try {
+        const pattern = 'search_users:*';
+        const keys = await redisClient.keys(pattern);
+        if (keys && keys.length > 0) {
+            await redisClient.del(...keys);
+        }
+    } catch (cacheError) {
+        console.warn('Failed to invalidate user search cache:', cacheError);
+    }
+}
+
 const userModule = {
     /**
      * Registers a new user.
@@ -21,17 +34,23 @@ const userModule = {
         };
 
         try {
-            let { email, firstName, lastName, password, } = data;
+            const { email, firstName, lastName, password } = data;
+            
+            const validationErrors = [];
+            if (!isPresent(email)) validationErrors.push('Email is required');
+            if (!isPresent(firstName)) validationErrors.push('First name is required');
+            if (!isPresent(lastName)) validationErrors.push('Last name is required');
+            if (!isPresent(password)) validationErrors.push('Password is required');
 
-            if (!isPresent(email) || !isPresent(firstName) || !isPresent(lastName) || !isPresent(password)) {
+            if (validationErrors.length > 0) {
                 responseData.status = Status.BAD_REQUEST;
-                responseData.error = 'Missing required fields';
+                responseData.error = validationErrors.join(', ');
                 return responseData;
             }
 
-            const name = `${firstName} ${lastName}`.replace(/\s+/g, ' ');
-
-            if (!isValidEmail(email.toLowerCase())) {
+            const normalizedEmail = email.toLowerCase().trim();
+            
+            if (!isValidEmail(normalizedEmail)) {
                 responseData.status = Status.BAD_REQUEST;
                 responseData.error = 'Invalid email address';
                 return responseData;
@@ -39,62 +58,72 @@ const userModule = {
 
             if (!isValidPassword(password)) {
                 responseData.status = Status.BAD_REQUEST;
-                responseData.error = 'Invalid password';
+                responseData.error = 'Password must be 8-128 characters long';
                 return responseData;
             }
 
             if (!isValidName(firstName) || !isValidName(lastName)) {
                 responseData.status = Status.BAD_REQUEST;
-                responseData.error = 'Invalid name';
+                responseData.error = 'Invalid name format';
                 return responseData;
             }
 
-            const emailExists = await dbHelper.findOne('user', { email, });
-            if (emailExists) {
-                responseData.status = Status.BAD_REQUEST;
-                responseData.error = 'Email already exists';
-                return responseData;
-            }
+            const name = `${firstName.trim()} ${lastName.trim()}`.replace(/\s+/g, ' ');
+            const hashedPassword = await hashPassword(password);
 
-            const userCreated = await dbHelper.create('user', {
-                email,
-                name,
-                password: await hashPassword(password),
-                role: UserRole.GUEST,
-                createdAt: Date.now(),
-                lastLoggedIn: null,
+            let userCreated;
+            await dbHelper.withTransaction(async (session) => {
+                const emailExists = await dbHelper.findOneWithTransaction('user', 
+                    { email: normalizedEmail }, 
+                    { projection: { _id: 1, email: 1 } },
+                    session
+                );
+                
+                if (emailExists) {
+                    throw new Error('EMAIL_EXISTS');
+                }
+
+                const userData = {
+                    email: normalizedEmail,
+                    name,
+                    password: hashedPassword,
+                    role: UserRole.GUEST,
+                    createdAt: new Date(),
+                    lastLoggedIn: null,
+                };
+
+                const result = await dbHelper.createWithTransaction('user', userData, session);
+                userCreated = result[0];
+                
+                if (!userCreated || !userCreated._id) {
+                    throw new Error('Failed to create user - no ID returned');
+                }
             });
-
-            // Uncomment if you want automatic login after registration
-            // Generate tokens with JTI (consistent with login)
-            // const jti = uuidv4();
-            // const safeUser = {
-            //     _id: userCreated._id.toString(),
-            //     email: userCreated.email,
-            //     role: userCreated.role,
-            //     jti
-            // };
-
-            // const accessToken = jwtHelper.generateAccessToken(safeUser);
-            // const refreshToken = jwtHelper.generateRefreshToken(safeUser);
-            // const userId = userCreated._id.toString();
-
-            // await redisClient.set(`rt:${userId}:${jti}`, refreshToken, { EX: 7 * 24 * 60 * 60 });
 
             responseData.status = Status.CREATED;
             responseData.error = null;
             responseData.message = 'User registered successfully';
-            // responseData.accessToken = accessToken;
-            // responseData.refreshToken = refreshToken;
             responseData.userId = userCreated._id.toString();
             responseData.role = userCreated.role;
 
         } catch (error) {
             console.error('Error registering user:', error);
 
-            if (error && (error.code === 11000 || error.code === 'ER_DUP_ENTRY')) {
+            if (error?.message === 'EMAIL_EXISTS') {
                 responseData.status = Status.BAD_REQUEST;
                 responseData.error = 'Email already exists';
+            } else if (error?.code === 11000 || error?.code === 'ER_DUP_ENTRY') {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Email already exists';
+            } else if (error?.name === 'ValidationError') {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Invalid data provided: ' + (error.message || 'Validation failed');
+            } else if (error?.name === 'CastError') {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Invalid data format provided';
+            } else if (error?.name === 'MongoError' || error?.name === 'MongoServerError') {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Database constraint violation';
             } else {
                 responseData.status = Status.INTERNAL_SERVER_ERROR;
                 responseData.error = 'Error on registering user';
@@ -124,29 +153,26 @@ const userModule = {
                 return responseData;
             }
 
-            if (!isValidEmail(email)) {
+            const normalizedEmail = email.toLowerCase().trim();
+            
+            if (!isValidEmail(normalizedEmail)) {
                 responseData.status = Status.BAD_REQUEST;
                 responseData.error = 'Invalid email address';
                 return responseData;
             }
 
-            const userObject = await dbHelper.findOne('user', { email, });
-            if (!userObject) {
-                await new Promise((r) => setTimeout(r, 100));
+            const userObject = await dbHelper.findOne('user', { email: normalizedEmail }, { 
+                projection: { password: 1, email: 1, role: 1, _id: 1 } 
+            });
+            
+            if (!userObject || !userObject.password) {
                 responseData.status = Status.UNAUTHORIZED;
                 responseData.error = 'Invalid credentials';
                 return responseData;
             }
 
-            if (!userObject || !userObject.password) {
-                responseData.status = Status.UNAUTHORIZED;
-                responseData.error = 'Invalid credentials.';
-                return responseData;
-            }
-
             const match = await bcrypt.compare(password, userObject.password);
             if (!match) {
-                await new Promise((r) => setTimeout(r, 100));
                 responseData.status = Status.UNAUTHORIZED;
                 responseData.error = 'Invalid credentials';
                 return responseData;
@@ -161,13 +187,22 @@ const userModule = {
                 jti,
             };
 
-            const accessToken = jwtHelper.generateAccessToken(safeUser);
-            const refreshToken = jwtHelper.generateRefreshToken(safeUser);
+            const [accessToken, refreshToken] = await Promise.all([
+                Promise.resolve(jwtHelper.generateAccessToken(safeUser)),
+                Promise.resolve(jwtHelper.generateRefreshToken(safeUser))
+            ]);
 
             const REFRESH_TTL = 7 * 24 * 60 * 60;
-            await redisClient.set(`rt:${userId}:${jti}`, refreshToken, { EX: REFRESH_TTL, });
-
-            await dbHelper.updateOne('user', { _id: userObject._id, }, { lastLoggedIn: Date.now(), });
+            
+            await dbHelper.withTransaction(async (session) => {
+                await dbHelper.updateOneWithTransaction('user', 
+                    { _id: userObject._id }, 
+                    { lastLoggedIn: Date.now() },
+                    session
+                );
+                
+                await redisClient.set(`rt:${userId}:${jti}`, refreshToken, { EX: REFRESH_TTL });
+            });
 
             responseData.status = Status.OK;
             responseData.error = null;
@@ -180,8 +215,20 @@ const userModule = {
 
         } catch (error) {
             console.error('Error logging in user:', error);
-            responseData.status = Status.INTERNAL_SERVER_ERROR;
-            responseData.error = 'Error on logging in user';
+            
+            if (error?.name === 'ValidationError') {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Invalid data provided: ' + (error.message || 'Validation failed');
+            } else if (error?.name === 'CastError') {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Invalid data format provided';
+            } else if (error?.name === 'MongoError' || error?.name === 'MongoServerError') {
+                responseData.status = Status.INTERNAL_SERVER_ERROR;
+                responseData.error = 'Database error during login';
+            } else {
+                responseData.status = Status.INTERNAL_SERVER_ERROR;
+                responseData.error = 'Error on logging in user';
+            }
         }
 
         return responseData;
@@ -261,29 +308,36 @@ const userModule = {
                 return responseData;
             }
 
-            let user = await dbHelper.findOne('user', { googleId, });
-            if (!user) {
-                if (email) {
-                    const emailOwner = await dbHelper.findOne('user', { email, });
-                    if (emailOwner) {
-                        responseData.status = Status.BAD_REQUEST;
-                        responseData.error = 'Email already exists';
-                        return responseData;
+            let user;
+            await dbHelper.withTransaction(async (session) => {
+                user = await dbHelper.findOneWithTransaction('user', { googleId }, {}, session);
+                
+                if (!user) {
+                    if (email) {
+                        const emailOwner = await dbHelper.findOneWithTransaction('user', { email }, {}, session);
+                        if (emailOwner) {
+                            throw new Error('EMAIL_EXISTS');
+                        }
                     }
-                }
 
-                user = await dbHelper.create('user', {
-                    email: email || null,
-                    name,
-                    googleId,
-                    role: UserRole.GUEST,
-                    createdAt: Date.now(),
-                    lastLoggedIn: Date.now(),
-                });
-                isNewUser = true;
-            } else {
-                await dbHelper.updateOne('user', { _id: user._id, }, { lastLoggedIn: Date.now(), });
-            }
+                    const result = await dbHelper.createWithTransaction('user', {
+                        email: email || null,
+                        name,
+                        googleId,
+                        role: UserRole.GUEST,
+                        createdAt: Date.now(),
+                        lastLoggedIn: Date.now(),
+                    }, session);
+                    user = result[0];
+                    isNewUser = true;
+                } else {
+                    await dbHelper.updateOneWithTransaction('user', 
+                        { _id: user._id }, 
+                        { lastLoggedIn: Date.now() },
+                        session
+                    );
+                }
+            });
 
             const jti = uuidv4();
             const userId = user._id.toString();
@@ -307,8 +361,23 @@ const userModule = {
 
         } catch (error) {
             console.error('Error logging in with Google:', error);
-            responseData.status = Status.INTERNAL_SERVER_ERROR;
-            responseData.error = 'Error on logging in with Google';
+            
+            if (error?.message === 'EMAIL_EXISTS') {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Email already exists';
+            } else if (error?.name === 'ValidationError') {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Invalid data provided: ' + (error.message || 'Validation failed');
+            } else if (error?.name === 'CastError') {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Invalid data format provided';
+            } else if (error?.name === 'MongoError' || error?.name === 'MongoServerError') {
+                responseData.status = Status.INTERNAL_SERVER_ERROR;
+                responseData.error = 'Database error during Google login';
+            } else {
+                responseData.status = Status.INTERNAL_SERVER_ERROR;
+                responseData.error = 'Error on logging in with Google';
+            }
             return responseData;
         }
     },
@@ -363,31 +432,38 @@ const userModule = {
             const name = me.name || '';
             const email = (me.email || '').trim().toLowerCase();
 
-            let user = await dbHelper.findOne('user', { facebookId, });
-            if (!user) {
-                if (email) {
-                    const emailOwner = await dbHelper.findOne('user', { email, });
-                    if (emailOwner) {
-                        responseData.status = Status.BAD_REQUEST;
-                        responseData.error = 'Email already exists';
-                        return responseData;
+            let user;
+            await dbHelper.withTransaction(async (session) => {
+                user = await dbHelper.findOneWithTransaction('user', { facebookId }, {}, session);
+                
+                if (!user) {
+                    if (email) {
+                        const emailOwner = await dbHelper.findOneWithTransaction('user', { email }, {}, session);
+                        if (emailOwner) {
+                            throw new Error('EMAIL_EXISTS');
+                        }
                     }
+
+                    const baseDoc = {
+                        facebookId,
+                        email: email || null,
+                        name,
+                        role: UserRole.GUEST,
+                        createdAt: Date.now(),
+                        lastLoggedIn: Date.now(),
+                    };
+
+                    const result = await dbHelper.createWithTransaction('user', baseDoc, session);
+                    user = result[0];
+                    isNewUser = true;
+                } else {
+                    await dbHelper.updateOneWithTransaction('user', 
+                        { _id: user._id }, 
+                        { lastLoggedIn: Date.now() },
+                        session
+                    );
                 }
-
-                const baseDoc = {
-                    facebookId,
-                    email: email || null,
-                    name,
-                    role: UserRole.GUEST,
-                    createdAt: Date.now(),
-                    lastLoggedIn: Date.now(),
-                };
-
-                user = await dbHelper.create('user', baseDoc);
-                isNewUser = true;
-            } else {
-                await dbHelper.updateOne('user', { _id: user._id, }, { lastLoggedIn: Date.now(), });
-            }
+            });
 
             const jti = uuidv4();
             const userId = user._id.toString();
@@ -412,8 +488,23 @@ const userModule = {
 
         } catch (error) {
             console.error('Error logging in with Facebook:', error);
-            responseData.status = Status.INTERNAL_SERVER_ERROR;
-            responseData.error = 'Error on logging in with Facebook';
+            
+            if (error?.message === 'EMAIL_EXISTS') {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Email already exists';
+            } else if (error?.name === 'ValidationError') {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Invalid data provided: ' + (error.message || 'Validation failed');
+            } else if (error?.name === 'CastError') {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Invalid data format provided';
+            } else if (error?.name === 'MongoError' || error?.name === 'MongoServerError') {
+                responseData.status = Status.INTERNAL_SERVER_ERROR;
+                responseData.error = 'Database error during Facebook login';
+            } else {
+                responseData.status = Status.INTERNAL_SERVER_ERROR;
+                responseData.error = 'Error on logging in with Facebook';
+            }
             return responseData;
         }
     },
@@ -430,73 +521,133 @@ const userModule = {
             status: Status.INTERNAL_SERVER_ERROR,
             error: 'Error adding user',
         };
-        try {
-            const { name, email, role, password, } = data;
-            if (!isPresent(name) || !isPresent(email) || !isPresent(role) || !isPresent(password)) {
-                responseData.status = Status.BAD_REQUEST;
-                responseData.error = 'Missing required fields';
-                return responseData;
-            }
 
-            if (user.role !== UserRole.SUPERINTENDENT) {
+        try {
+            if (!user || user.role !== UserRole.SUPERINTENDENT) {
                 responseData.status = Status.FORBIDDEN;
                 responseData.error = 'Only superintendent can add a user';
                 return responseData;
             }
 
+            const { name, email, role, password } = data;
+            
+            const validationErrors = [];
+            if (!isPresent(name)) validationErrors.push('Name is required');
+            if (!isPresent(email)) validationErrors.push('Email is required');
+            if (!isPresent(role)) validationErrors.push('Role is required');
+            if (!isPresent(password)) validationErrors.push('Password is required');
+
+            if (validationErrors.length > 0) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = validationErrors.join(', ');
+                return responseData;
+            }
+
+            const normalizedEmail = email.toLowerCase().trim();
+            
             if (!isValidName(name)) {
                 responseData.status = Status.BAD_REQUEST;
-                responseData.error = 'Invalid name';
+                responseData.error = 'Invalid name format. Name must contain only letters, spaces, hyphens, periods, and apostrophes';
                 return responseData;
             }
 
-            if (!isValidEmail(email.toLowerCase())) {
+            if (!isValidEmail(normalizedEmail)) {
                 responseData.status = Status.BAD_REQUEST;
-                responseData.error = 'Invalid email address';
-                return responseData;
-            }
-
-            const emailOwner = await dbHelper.findOne('user', { email, });
-            if (emailOwner) {
-                responseData.status = Status.BAD_REQUEST;
-                responseData.error = 'Email already exists';
+                responseData.error = 'Invalid email address format';
                 return responseData;
             }
 
             if (!isValidRole(role)) {
                 responseData.status = Status.BAD_REQUEST;
-                responseData.error = 'Invalid role';
+                responseData.error = `Invalid role. Must be one of: ${Object.values(UserRole).join(', ')}`;
                 return responseData;
             }
 
             if (!isValidPassword(password)) {
                 responseData.status = Status.BAD_REQUEST;
-                responseData.error = 'Invalid password';
+                responseData.error = 'Password must be 8-128 characters long';
                 return responseData;
             }
 
-            const hashedPassword = await bcrypt.hash(password, 10);
-            data.password = hashedPassword;
+            let createdUser;
+            let emailExists = false;
+            
+            await dbHelper.withTransaction(async (session) => {
+                const existingUser = await dbHelper.findOneWithTransaction('user', 
+                    { email: normalizedEmail }, 
+                    { projection: { _id: 1, email: 1 } },
+                    session
+                );
+                
+                if (existingUser) {
+                    emailExists = true;
+                    return;
+                }
 
-            await dbHelper.create('user', {
-                name,
-                email,
-                role,
-                password: hashedPassword,
-                createdAt: Date.now(),
-                lastLoggedIn: Date.now(),
+                const sanitizedName = name.trim().replace(/\s+/g, ' ');
+                const userData = {
+                    name: sanitizedName,
+                    email: normalizedEmail,
+                    role,
+                    password: null,
+                    createdAt: new Date(),
+                    lastLoggedIn: null,
+                };
+
+                const saltRounds = 12;
+                const hashedPassword = await bcrypt.hash(password, saltRounds);
+                userData.password = hashedPassword;
+
+                const result = await dbHelper.createWithTransaction('user', userData, session);
+                createdUser = result[0];
+                
+                if (!createdUser || !createdUser._id) {
+                    throw new Error('Failed to create user - no ID returned');
+                }
+            });
+
+            if (emailExists) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Email already exists';
+                return responseData;
             }
-            );
-            responseData.status = Status.OK;
+
+            await invalidateUserSearchCache();
+
+            responseData.status = Status.CREATED;
             responseData.error = null;
             responseData.message = 'User added successfully';
-            return responseData;
+            responseData.userId = createdUser._id.toString();
+            responseData.user = {
+                id: createdUser._id.toString(),
+                name: createdUser.name,
+                email: createdUser.email,
+                role: createdUser.role,
+                createdAt: createdUser.createdAt
+            };
+
         } catch (error) {
             console.error('Error adding user:', error);
-            responseData.status = Status.INTERNAL_SERVER_ERROR;
-            responseData.error = 'Error adding user';
-            return responseData;
+
+            if (error?.code === 11000 || error?.code === 'ER_DUP_ENTRY') {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Email already exists';
+            } else if (error?.name === 'ValidationError') {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Invalid data provided: ' + (error.message || 'Validation failed');
+            } else if (error?.name === 'CastError') {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Invalid data format provided';
+            } else if (error?.name === 'MongoError' || error?.name === 'MongoServerError') {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Database constraint violation';
+            } else {
+                responseData.status = Status.INTERNAL_SERVER_ERROR;
+                responseData.error = 'Error adding user';
+            }
         }
+
+        return responseData;
     },
 
     /**
@@ -504,12 +655,15 @@ const userModule = {
      * @param {Object} dbHelper - The database helper for database operations.
      * @param {string} role - The role of the users to retrieve.
      * @param {Object} user - The user object.
+     * @param {Object} options - Optional parameters for pagination and sorting.
      * @returns {Object} Response data with status, error, and an array of users on success.
      */
-    getAllUsersByRole: async (dbHelper, role, user) => {
+    getAllUsersByRole: async (dbHelper, role, user, options = {}) => {
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
             error: 'Error fetching users by role',
+            users: [],
+            totalCount: 0,
         };
         try {
             if (user.role !== UserRole.SUPERINTENDENT) {
@@ -530,10 +684,64 @@ const userModule = {
                 return responseData;
             }
 
-            const users = await dbHelper.find('user', { role, });
+            const {
+                limit = 20,
+                skip = 0,
+                sort = 'createdAt:desc'
+            } = options;
+
+            const limitValue = clampLimit(limit, 20);
+            const skipValue = clampSkip(skip, 0);
+            const sortOpt = parseSort(sort) || { createdAt: -1 };
+
+            const cacheKey = `get_users_by_role:${role}:${limitValue}:${skipValue}:${JSON.stringify(sortOpt)}`;
+            try {
+                const cachedResult = await redisClient.get(cacheKey);
+                if (cachedResult) {
+                    const parsed = JSON.parse(cachedResult);
+                    responseData.status = Status.OK;
+                    responseData.error = null;
+                    responseData.users = parsed.users;
+                    responseData.totalCount = parsed.totalCount;
+                    return responseData;
+                }
+            } catch (cacheError) {
+                console.warn('Cache read error for getAllUsersByRole:', cacheError);
+            }
+
+            const projection = { 
+                _id: 1,
+                email: 1, 
+                name: 1, 
+                role: 1, 
+                createdAt: 1, 
+                lastLoggedIn: 1,
+                googleId: 1,
+                facebookId: 1
+            };
+
+            const [users, totalCount] = await Promise.all([
+                dbHelper.findMany('user', { role }, {
+                    projection,
+                    sort: sortOpt,
+                    limit: limitValue,
+                    skip: skipValue,
+                }),
+                dbHelper.count('user', { role })
+            ]);
+            try {
+                await redisClient.set(cacheKey, JSON.stringify({
+                    users,
+                    totalCount
+                }), { EX: 300 });
+            } catch (cacheError) {
+                console.warn('Cache write error for getAllUsersByRole:', cacheError);
+            }
+
             responseData.status = Status.OK;
             responseData.error = null;
             responseData.users = users;
+            responseData.totalCount = totalCount;
         } catch (error) {
             console.error('Error fetching users by role:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
@@ -583,116 +791,94 @@ const userModule = {
                 sort,
             } = query || {};
 
-            const filter = {};
-            const andConds = [];
+            const limitValue = clampLimit(limit, 20);
+            const skipValue = clampSkip(skip, 0);
+            
+            const cacheKey = `search_users:${JSON.stringify({
+                email: email?.trim(),
+                name: name?.trim(),
+                role: role?.trim(),
+                id: id?.trim(),
+                search: search?.trim(),
+                createdFrom,
+                createdTo,
+                lastLoggedFrom,
+                lastLoggedTo,
+                limit: limitValue,
+                skip: skipValue,
+                sort
+            })}`;
 
-            if (typeof email === 'string' && email.trim()) {
-                filter.email = new RegExp(escapeRegex(email.trim()), 'i');
-            }
-            if (typeof name === 'string' && name.trim()) {
-                filter.name = new RegExp(escapeRegex(name.trim()), 'i');
-            }
-            if (typeof role === 'string' && role.trim()) {
-                const norm = normalizeRole(role);
-                if (!norm) {
+            try {
+                const cachedResult = await redisClient.get(cacheKey);
+                if (cachedResult) {
+                    const parsed = JSON.parse(cachedResult);
                     responseData.status = Status.OK;
                     responseData.error = null;
-                    responseData.users = [];
+                    responseData.users = parsed.users;
+                    responseData.totalCount = parsed.totalCount;
                     return responseData;
                 }
-                filter.role = norm;
+            } catch (cacheError) {
+                console.warn('Cache read error:', cacheError);
             }
 
-            if (typeof id === 'string' && id.trim()) {
-                const idStr = id.trim();
-                if (/^[0-9a-fA-F]{24}$/.test(idStr)) {
-                    filter._id = idStr;
-                } else if (/^[0-9a-fA-F]{3,}$/.test(idStr)) {
-                    andConds.push({
-                        $expr: { $regexMatch: { input: { $toString: '$_id', }, regex: idStr, options: 'i', }, },
-                    });
-                } else {
-                    responseData.status = Status.OK;
-                    responseData.error = null;
-                    responseData.users = [];
-                    return responseData;
-                }
-            }
+            const { finalQuery, hasValidFilters } = buildOptimizedUserQuery({
+                email,
+                name,
+                role,
+                id,
+                search,
+                createdFrom,
+                createdTo,
+                lastLoggedFrom,
+                lastLoggedTo
+            });
 
-            const createdCond = {};
-            if (typeof createdFrom === 'string' && createdFrom.trim()) {
-                const d = new Date(createdFrom);
-                if (!Number.isNaN(d.getTime())) createdCond.$gte = d;
-            }
-            if (typeof createdTo === 'string' && createdTo.trim()) {
-                const d = new Date(createdTo);
-                if (!Number.isNaN(d.getTime())) createdCond.$lt = d;
-            }
-            if (Object.keys(createdCond).length) andConds.push({ createdAt: createdCond, });
-
-            const lastCond = {};
-            if (typeof lastLoggedFrom === 'string' && lastLoggedFrom.trim()) {
-                const d = new Date(lastLoggedFrom);
-                if (!Number.isNaN(d.getTime())) lastCond.$gte = d;
-            }
-            if (typeof lastLoggedTo === 'string' && lastLoggedTo.trim()) {
-                const d = new Date(lastLoggedTo);
-                if (!Number.isNaN(d.getTime())) lastCond.$lt = d;
-            }
-            if (Object.keys(lastCond).length) andConds.push({ lastLoggedIn: lastCond, });
-
-            if (typeof search === 'string' && search.trim()) {
-                const s = search.trim();
-                const safe = escapeRegex(s);
-                const or = [
-                    { name: { $regex: safe, $options: 'i', }, },
-                    { email: { $regex: safe, $options: 'i', }, },
-                    { role: { $regex: safe, $options: 'i', }, },
-                ];
-                if (/^[0-9a-fA-F]{24}$/.test(s)) {
-                    or.push({ _id: s, });
-                } else if (/^[0-9a-fA-F]{3,}$/.test(s)) {
-                    or.push({
-                        $expr: {
-                            $regexMatch: {
-                                input: { $toString: '$_id' },
-                                regex: s,
-                                options: 'i',
-                            },
-                        },
-                    });
-                }
-                andConds.push({ $or: or, });
-            }
-
-            let finalQuery = filter;
-            if (andConds.length) {
-                if (Object.keys(filter).length) {
-                    finalQuery = { $and: [filter, ...andConds,], };
-                } else {
-                    finalQuery = { $and: andConds, };
-                }
-            }
-
-            if (!Object.keys(finalQuery).length) {
+            if (!hasValidFilters) {
                 responseData.status = Status.OK;
                 responseData.error = null;
                 responseData.users = [];
+                responseData.totalCount = 0;
                 return responseData;
             }
 
-            const projection = { password: 0, resetTokenHash: 0, verificationCodeHash: 0, };
-            const sortOpt = parseSort(sort) || { createdAt: -1, };
-            const users = await dbHelper.findMany('user', finalQuery, {
-                projection,
-                sort: sortOpt,
-                limit: clampLimit(limit, 20),
-                skip: clampSkip(skip, 0),
-            });
+            const projection = { 
+                _id: 1,
+                email: 1, 
+                name: 1, 
+                role: 1, 
+                createdAt: 1, 
+                lastLoggedIn: 1,
+                googleId: 1,
+                facebookId: 1
+            };
+
+            const sortOpt = parseSort(sort) || { createdAt: -1 };
+
+            const [users, totalCount] = await Promise.all([
+                dbHelper.findMany('user', finalQuery, {
+                    projection,
+                    sort: sortOpt,
+                    limit: limitValue,
+                    skip: skipValue,
+                }),
+                dbHelper.count('user', finalQuery)
+            ]);
+
+            try {
+                await redisClient.set(cacheKey, JSON.stringify({
+                    users,
+                    totalCount
+                }), { EX: 300 }); // 5 minutes
+            } catch (cacheError) {
+                console.warn('Cache write error:', cacheError);
+            }
 
             responseData.status = Status.OK;
             responseData.error = null;
             responseData.users = users;
+            responseData.totalCount = totalCount;
             return responseData;
         } catch (error) {
             console.error('Error searching users:', error);
@@ -732,7 +918,33 @@ const userModule = {
                 return responseData;
             }
 
+            const targetUser = await dbHelper.findOne('user', { _id: userId }, { projection: { _id: 1, role: 1, email: 1, name: 1 } });
+            if (!targetUser) {
+                responseData.status = Status.NOT_FOUND;
+                responseData.error = 'User not found';
+                return responseData;
+            }
+
+            if (targetUser._id.toString() === user.userId.toString()) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'You cannot delete your own account';
+                return responseData;
+            }
+
+            if (targetUser.role === UserRole.SUPERINTENDENT) {
+                const superintendentCount = await dbHelper.count('user', { role: UserRole.SUPERINTENDENT });
+                if (superintendentCount <= 1) {
+                    responseData.status = Status.BAD_REQUEST;
+                    responseData.error = 'Cannot delete the last superintendent account. At least one superintendent must remain.';
+                    return responseData;
+                }
+
+            }
+
             await dbHelper.deleteOne('user', { _id: userId, });
+            
+            await invalidateUserSearchCache();
+            
             responseData.status = Status.OK;
             responseData.error = null;
             responseData.message = 'User deleted successfully';
@@ -1150,4 +1362,146 @@ function hashString(s) {
 
 function generate6DigitCode() {
     return crypto.randomInt(0, 1_000_000).toString().padStart(6, '0');
+}
+
+/**
+ * Builds an optimized MongoDB query for user search
+ * @param {Object} params - Search parameters
+ * @returns {Object} Query object and validation flag
+ */
+function buildOptimizedUserQuery({
+    email,
+    name,
+    role,
+    id,
+    search,
+    createdFrom,
+    createdTo,
+    lastLoggedFrom,
+    lastLoggedTo
+}) {
+    const filter = {};
+    const andConds = [];
+    let hasValidFilters = false;
+
+    if (typeof email === 'string' && email.trim()) {
+        const emailTrimmed = email.trim();
+        if (emailTrimmed.includes('@')) {
+            filter.email = { $regex: `^${escapeRegex(emailTrimmed)}$`, $options: 'i' };
+        } else {
+            filter.email = { $regex: escapeRegex(emailTrimmed), $options: 'i' };
+        }
+        hasValidFilters = true;
+    }
+
+    if (typeof name === 'string' && name.trim()) {
+        const nameTrimmed = name.trim();
+        if (nameTrimmed.length > 2) {
+            filter.name = { $regex: escapeRegex(nameTrimmed), $options: 'i' };
+            hasValidFilters = true;
+        }
+    }
+
+    if (typeof role === 'string' && role.trim()) {
+        const normalizedRole = normalizeRole(role);
+        if (normalizedRole) {
+            filter.role = normalizedRole;
+            hasValidFilters = true;
+        } else {
+            return { finalQuery: { _id: { $exists: false } }, hasValidFilters: false };
+        }
+    }
+
+    if (typeof id === 'string' && id.trim()) {
+        const idStr = id.trim();
+        if (/^[0-9a-fA-F]{24}$/.test(idStr)) {
+            filter._id = idStr;
+            hasValidFilters = true;
+        } else if (/^[0-9a-fA-F]{3,}$/.test(idStr)) {
+            andConds.push({
+                $expr: { $regexMatch: { input: { $toString: '$_id' }, regex: idStr, options: 'i' } }
+            });
+            hasValidFilters = true;
+        } else {
+            return { finalQuery: { _id: { $exists: false } }, hasValidFilters: false };
+        }
+    }
+
+    const createdCond = {};
+    if (typeof createdFrom === 'string' && createdFrom.trim()) {
+        const d = new Date(createdFrom);
+        if (!Number.isNaN(d.getTime())) {
+            createdCond.$gte = d;
+            hasValidFilters = true;
+        }
+    }
+    if (typeof createdTo === 'string' && createdTo.trim()) {
+        const d = new Date(createdTo);
+        if (!Number.isNaN(d.getTime())) {
+            createdCond.$lt = d;
+            hasValidFilters = true;
+        }
+    }
+    if (Object.keys(createdCond).length) {
+        andConds.push({ createdAt: createdCond });
+    }
+
+    const lastLoggedCond = {};
+    if (typeof lastLoggedFrom === 'string' && lastLoggedFrom.trim()) {
+        const d = new Date(lastLoggedFrom);
+        if (!Number.isNaN(d.getTime())) {
+            lastLoggedCond.$gte = d;
+            hasValidFilters = true;
+        }
+    }
+    if (typeof lastLoggedTo === 'string' && lastLoggedTo.trim()) {
+        const d = new Date(lastLoggedTo);
+        if (!Number.isNaN(d.getTime())) {
+            lastLoggedCond.$lt = d;
+            hasValidFilters = true;
+        }
+    }
+    if (Object.keys(lastLoggedCond).length) {
+        andConds.push({ lastLoggedIn: lastLoggedCond });
+    }
+
+    // Handle general search term
+    if (typeof search === 'string' && search.trim()) {
+        const searchTerm = search.trim();
+        const safeSearch = escapeRegex(searchTerm);
+        
+        const searchConditions = [
+            { name: { $regex: safeSearch, $options: 'i' } },
+            { email: { $regex: safeSearch, $options: 'i' } },
+            { role: { $regex: safeSearch, $options: 'i' } }
+        ];
+
+        if (/^[0-9a-fA-F]{24}$/.test(searchTerm)) {
+            searchConditions.push({ _id: searchTerm });
+        } else if (/^[0-9a-fA-F]{3,}$/.test(searchTerm)) {
+            searchConditions.push({
+                $expr: {
+                    $regexMatch: {
+                        input: { $toString: '$_id' },
+                        regex: searchTerm,
+                        options: 'i'
+                    }
+                }
+            });
+        }
+
+        andConds.push({ $or: searchConditions });
+        hasValidFilters = true;
+    }
+
+    let finalQuery = {};
+    if (Object.keys(filter).length > 0 && andConds.length > 0) {
+        finalQuery = { $and: [filter, ...andConds] };
+    } else if (Object.keys(filter).length > 0) {
+        finalQuery = filter;
+    } else if (andConds.length > 0) {
+        finalQuery = { $and: andConds };
+    }
+
+    return { finalQuery, hasValidFilters };
 }

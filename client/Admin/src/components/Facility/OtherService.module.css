@@ -330,7 +330,7 @@
 
 /* Save Button */
 .saveBtn {
-  background-color: #5a3d0e;
+  background-color: #1E3C24;
   color: white;
   padding: 0.6rem 1.8rem;
   border: none;
@@ -633,4 +633,17 @@
     text-align: right;
   }
   
+}
+.unitInput {
+  border: 1px solid #ccc;
+  border-radius: 9999px; /* pill shape */
+  padding: 0.4rem 0.8rem;
+  background-color: #fff;
+  font-size: 0.95rem;
+  color: #333;
+  appearance: none; /* removes default arrow */
+  background-image: url("data:image/svg+xml;utf8,<svg fill='gray' height='16' viewBox='0 0 20 20' width='16' xmlns='http://www.w3.org/2000/svg'><path d='M5.5 7l4.5 4 4.5-4z'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 0.6rem center;
+  background-size: 12px;
 }

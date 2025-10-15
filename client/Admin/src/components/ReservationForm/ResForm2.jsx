@@ -28,8 +28,8 @@ function ReservationFormStep2() {
     typeFacilities: '',
     facilityName: '',
     typeService: '',
-    timeArrivalHour: '',
-    timeArrivalAMPM: 'AM',
+    timeArrivalHour: '2',
+    timeArrivalAMPM: 'PM',
     specialRequests: '',
   });
 

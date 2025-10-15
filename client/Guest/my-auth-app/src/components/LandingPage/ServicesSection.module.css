@@ -243,3 +243,19 @@
   cursor: pointer;
   z-index: 4;
 }
+
+/* Basic focus indicators */
+.serviceCard:focus {
+  outline: 2px solid #007bff;
+  outline-offset: 2px;
+}
+
+.carouselArrow:focus {
+  outline: 2px solid #007bff;
+  outline-offset: 2px;
+}
+
+.dot:focus {
+  outline: 2px solid #007bff;
+  outline-offset: 2px;
+}
