@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import compression from 'compression';
 import asyncHandler from '../middleware/asyncHandler.js';
 import { authenticateJWT } from '../middleware/auth.js';
 import { uploadImages } from '../middleware/uploads.js';
@@ -6,6 +7,8 @@ import dbHelper from '../modules/dbHelper.js';
 import facilityModule from '../modules/facility.js';
 
 const r = Router();
+
+r.use(compression());
 
 r.get('/get-all-facilities', asyncHandler(async (req, res) => {
   const response = await facilityModule.getAllFacilities(dbHelper, req.query);
