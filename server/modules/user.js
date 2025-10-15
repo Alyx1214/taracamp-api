@@ -7,19 +7,6 @@ import redisClient from './redisClient.js';
 import { v4 as uuidv4, } from 'uuid';
 import crypto from 'crypto';
 
-// Helper function to invalidate user search cache
-async function invalidateUserSearchCache() {
-    try {
-        const pattern = 'search_users:*';
-        const keys = await redisClient.keys(pattern);
-        if (keys && keys.length > 0) {
-            await redisClient.del(...keys);
-        }
-    } catch (cacheError) {
-        console.warn('Failed to invalidate user search cache:', cacheError);
-    }
-}
-
 const userModule = {
     /**
      * Registers a new user.
@@ -733,7 +720,7 @@ const userModule = {
                 await redisClient.set(cacheKey, JSON.stringify({
                     users,
                     totalCount
-                }), { EX: 300 });
+                }), { EX: 60 });
             } catch (cacheError) {
                 console.warn('Cache write error for getAllUsersByRole:', cacheError);
             }
@@ -870,7 +857,7 @@ const userModule = {
                 await redisClient.set(cacheKey, JSON.stringify({
                     users,
                     totalCount
-                }), { EX: 300 }); // 5 minutes
+                }), { EX: 60 });
             } catch (cacheError) {
                 console.warn('Cache write error:', cacheError);
             }
@@ -1354,6 +1341,18 @@ async function revokeAllRefreshTokens(userId) {
         return;
     }
     await revokeAllRefreshTokensScan(userId);
+}
+
+async function invalidateUserSearchCache() {
+    try {
+        const pattern = 'search_users:*';
+        const keys = await redisClient.keys(pattern);
+        if (keys && keys.length > 0) {
+            await redisClient.del(...keys);
+        }
+    } catch (cacheError) {
+        console.warn('Failed to invalidate user search cache:', cacheError);
+    }
 }
 
 function hashString(s) {

@@ -47,7 +47,6 @@ const dbHelper = {
                 resetTokenExpiry: { type: Date, required: false, },
             });
 
-            // Add compound indexes for search optimization
             UserSchema.index({ email: 1, role: 1 });
             UserSchema.index({ name: 1, role: 1 });
             UserSchema.index({ createdAt: -1, role: 1 });
@@ -97,7 +96,7 @@ const dbHelper = {
                 numberOfRooms: { type: Number, required: false, },
                 emergencyContact: { type: String, required: true, },
                 emergencyContactPerson: { type: String, required: false, },
-                dateOfArrival: { type: Date, required: true, },
+                dateOfArrival: { type: Date, required: true, index: true },
                 dateOfDeparture: { type: Date, required: true, },
                 timeOfArrival: { type: String, required: true, },
                 facility: { type: mongoose.Schema.Types.ObjectId, ref: 'facility', required: true, },
@@ -106,14 +105,17 @@ const dbHelper = {
                 seniorCitizenIdFileId: { type: mongoose.Schema.Types.ObjectId, ref: 'file', required: false },
                 nonAvailabilityCertFileId: { type: mongoose.Schema.Types.ObjectId, ref: 'file', required: false },
                 nonAvailabilityCertFileUploadedAt: { type: Date, required: false, },
-                status: { type: String, enum: Object.values(ReservationStatus), default: ReservationStatus.PENDING, required: true, },
+                status: { type: String, enum: Object.values(ReservationStatus), default: ReservationStatus.PENDING, required: true, index: true },
                 totalEstimatedAmount: { type: Number, required: true, },
                 otherRequests: { type: String, required: false, },
                 addOns: [{ type: mongoose.Schema.Types.ObjectId, ref: 'addon' }],
-                createdAt: { type: Date, default: Date.now, },
+                createdAt: { type: Date, default: Date.now, index: true },
                 userId: { type: mongoose.Schema.Types.ObjectId, ref: 'user', required: false, index: true },
                 reservationCode: { type: String, required: true, unique: true, index: true },
             });
+
+            ReservationSchema.index({ status: 1, dateOfArrival: 1 });
+            ReservationSchema.index({ dateOfArrival: 1, status: 1 });
 
             const FacilitySchema = new mongoose.Schema({
                 name: { type: String, required: true, unique: true, },
@@ -245,6 +247,10 @@ const dbHelper = {
 
     count: async (collectionName, query = {}) => {
         return await mongoose.model(collectionName).countDocuments(query);
+    },
+
+    aggregate: async (collectionName, pipeline = []) => {
+        return await mongoose.model(collectionName).aggregate(pipeline);
     },
 
     updateMany: async (collectionName, query, update) => {
