@@ -220,62 +220,7 @@ const reservationModule = {
                 addonsTotal = services.reduce((sum, s) => sum + (Number(s.price) || 0), 0);
             }
 
-            const userOverlapping = await dbHelper.findOne('reservation', creatingForGuest ? {
-                guestEmail: guestEmail.trim(),
-                facility: facility,
-                $or: [
-                    {
-                        dateOfArrival: { $lte: new Date(dateOfDeparture), },
-                        dateOfDeparture: { $gte: new Date(dateOfArrival), },
-                    },
-                ],
-            } : {
-                userId: user.userId,
-                facility: facility,
-                $or: [
-                    {
-                        dateOfArrival: { $lte: new Date(dateOfDeparture), },
-                        dateOfDeparture: { $gte: new Date(dateOfArrival), },
-                    },
-                ],
-            });
-
-            if (userOverlapping) {
-                responseData.status = Status.BAD_REQUEST;
-                responseData.error = 'You already have a reservation for this facility that overlaps with these dates.';
-                return responseData;
-            }
-
-            const overlapping = await dbHelper.findOne('reservation', {
-                facility: facility,
-                $or: [
-                    {
-                        dateOfArrival: { $lte: new Date(dateOfDeparture), },
-                        dateOfDeparture: { $gte: new Date(dateOfArrival), },
-                    },
-                ],
-            });
-
-            if (overlapping) {
-                responseData.status = Status.BAD_REQUEST;
-                responseData.error = 'Facility is not available for the selected dates.';
-                return responseData;
-            }
-
-            if (total > facilityDoc.capacity) {
-                responseData.status = Status.BAD_REQUEST;
-                responseData.error = `Number of guests (${total}) exceeds the facility capacity (${facilityDoc.capacity}).`;
-                return responseData;
-            }
-
-            if (facilityDoc.facilityType === FacilityType.DORMITORY) {
-                if (!isNonNegativeInteger(numberOfRooms) || parseInt(numberOfRooms) <= 0) {
-                    responseData.status = Status.BAD_REQUEST;
-                    responseData.error = 'Number of rooms is required for dormitory reservations and must be a positive integer';
-                    return responseData;
-                }
-            }
-
+            // Prepare file uploads and reservation data before transaction
             let loiFileDoc = null;
             let seniorCitizenIdFileDoc = null;
             
@@ -305,6 +250,8 @@ const reservationModule = {
                     } catch (createFileErr) {
                         console.error('Error creating file record for LOI:', createFileErr);
                         responseData.status = Status.INTERNAL_SERVER_ERROR;
+                        responseData.error = 'Failed to create file record for Letter of Intent';
+                        return responseData;
                     }
                 } catch (err) {
                     responseData.status = Status.INTERNAL_SERVER_ERROR;
@@ -351,6 +298,8 @@ const reservationModule = {
                     } catch (createFileErr) {
                         console.error('Error creating file record for Senior Citizen ID:', createFileErr);
                         responseData.status = Status.INTERNAL_SERVER_ERROR;
+                        responseData.error = 'Failed to create file record for Senior Citizen ID';
+                        return responseData;
                     }
                 } catch (err) {
                     responseData.status = Status.INTERNAL_SERVER_ERROR;
@@ -378,6 +327,21 @@ const reservationModule = {
             const timestamp = Date.now();
             const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
             const reservationCode = `TC${timestamp}${random}`;
+
+            // Validate capacity and dormitory requirements before transaction
+            if (total > facilityDoc.capacity) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = `Number of guests (${total}) exceeds the facility capacity (${facilityDoc.capacity}).`;
+                return responseData;
+            }
+
+            if (facilityDoc.facilityType === FacilityType.DORMITORY) {
+                if (!isNonNegativeInteger(numberOfRooms) || parseInt(numberOfRooms) <= 0) {
+                    responseData.status = Status.BAD_REQUEST;
+                    responseData.error = 'Number of rooms is required for dormitory reservations and must be a positive integer';
+                    return responseData;
+                }
+            }
 
             const reservationData = {
                 guestName,
@@ -414,7 +378,70 @@ const reservationModule = {
                 createdAt: new Date(),
             };
 
-            const reservation = await dbHelper.create('reservation', reservationData);
+            // Use transaction to prevent race conditions
+            let reservation;
+            try {
+                await dbHelper.withTransaction(async (session) => {
+                    // Re-check facility status within transaction
+                    const facilityDocInTransaction = await dbHelper.findOneWithTransaction('facility', { _id: facility }, {}, session);
+                    if (!facilityDocInTransaction || facilityDocInTransaction.status !== FacilityStatus.AVAILABLE) {
+                        throw new Error('Facility is not available for booking.');
+                    }
+
+                    // Check for user overlapping reservations within transaction
+                    const userOverlapping = await dbHelper.findOneWithTransaction('reservation', creatingForGuest ? {
+                        guestEmail: guestEmail.trim(),
+                        facility: facility,
+                        $or: [
+                            {
+                                dateOfArrival: { $lte: new Date(dateOfDeparture), },
+                                dateOfDeparture: { $gte: new Date(dateOfArrival), },
+                            },
+                        ],
+                    } : {
+                        userId: user.userId,
+                        facility: facility,
+                        $or: [
+                            {
+                                dateOfArrival: { $lte: new Date(dateOfDeparture), },
+                                dateOfDeparture: { $gte: new Date(dateOfArrival), },
+                            },
+                        ],
+                    }, {}, session);
+
+                    if (userOverlapping) {
+                        throw new Error('You already have a reservation for this facility that overlaps with these dates.');
+                    }
+
+                    // Check for any overlapping reservations within transaction
+                    const overlapping = await dbHelper.findOneWithTransaction('reservation', {
+                        facility: facility,
+                        $or: [
+                            {
+                                dateOfArrival: { $lte: new Date(dateOfDeparture), },
+                                dateOfDeparture: { $gte: new Date(dateOfArrival), },
+                            },
+                        ],
+                    }, {}, session);
+
+                    if (overlapping) {
+                        throw new Error('Facility is not available for the selected dates.');
+                    }
+
+                    // Create reservation atomically within transaction
+                    reservation = await dbHelper.createWithTransaction('reservation', reservationData, session);
+                });
+            } catch (transactionError) {
+                if (transactionError.message.includes('Facility is not available for booking') ||
+                    transactionError.message.includes('already have a reservation') ||
+                    transactionError.message.includes('not available for the selected dates')) {
+                    responseData.status = Status.BAD_REQUEST;
+                    responseData.error = transactionError.message;
+                    return responseData;
+                }
+                // Re-throw unexpected errors
+                throw transactionError;
+            }
 
             if (loiFileDoc?._id) {
                 try {
@@ -778,7 +805,14 @@ const reservationModule = {
                     'reservation',
                     { status, },
                     {
-                        projection: { __v: 0, createdAt: 0, },
+                        projection: { 
+                            _id: 1,
+                            guestName: 1, 
+                            guestEmail: 1, 
+                            serviceType: 1, 
+                            dateOfArrival: 1,
+                            userId: 1
+                        },
                         sort: sortOption,
                         limit: limitValue,
                         skip: skipValue,
@@ -801,8 +835,11 @@ const reservationModule = {
             }
 
             const withEmails = list.map((r) => ({
-                ...r,
+                _id: r._id,
+                guestName: r.guestName,
                 guestEmail: r.guestEmail ?? emailById.get(String(r.userId)) ?? null,
+                serviceType: r.serviceType,
+                dateOfArrival: r.dateOfArrival,
             }));
 
             // Cache the result

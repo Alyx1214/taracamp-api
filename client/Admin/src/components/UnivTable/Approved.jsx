@@ -141,7 +141,13 @@ export default function Approved({
   const renderMenu = (row) => [
     {
       label: "See Details",
-      onClick: () => navigate(`/approvedRSV/${row.id}/details`),
+      onClick: () => {
+        if (!row.id || row.id === "N/A") {
+          alert("Invalid reservation ID. Cannot view details.");
+          return;
+        }
+        navigate(`/approvedRSV/${row.id}/details`);
+      },
     },
   ];
 

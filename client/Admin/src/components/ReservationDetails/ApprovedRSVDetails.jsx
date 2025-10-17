@@ -43,20 +43,51 @@ export default function ApprovedRSVDetails() {
     return () => { cancelled = true; };
   }, [id]);
 
-  if (loading) {
-    return (
-      <div className={styles["rsv-details-container"]}>
-        <div className={styles["rsv-details-header"]}>
-          <span className={styles["rsv-details-back"]} onClick={() => navigate(-1)}>
-            &larr;
-          </span>
-          <h1 className={styles["rsv-details-title"]}>Reservation Details</h1>
+  // Skeleton Loading Component
+  const SkeletonLoading = () => (
+    <div className={styles["reservation-details-container"]}>
+      <div className={styles["reservation-details-header"]}>
+        <span className={styles["reservation-details-back"]} onClick={() => navigate(-1)}>
+          &larr;
+        </span>
+        <h1 className={styles["reservation-details-title"]}>Reservation Details</h1>
+      </div>
+      <div className={styles["reservation-details-card"]}>
+        {/* Header Row Skeleton */}
+        <div className={`${styles["skeleton-header-row"]} ${styles["skeleton"]}`}>
+          <div className={`${styles["skeleton-facility"]} ${styles["skeleton"]}`}></div>
+          <div className={`${styles["skeleton-date"]} ${styles["skeleton"]}`}></div>
         </div>
-        <div className={styles["rsv-details-card"]}>
-          <p>Loading…</p>
+
+        {/* Table Rows Skeleton */}
+        <div className={styles["reservation-details-table"]}>
+          <tbody>
+            {Array.from({ length: 11 }).map((_, index) => (
+              <tr key={index}>
+                <td className={styles["skeleton-table-row"]}>
+                  <div className={`${styles["skeleton-label"]} ${styles["skeleton"]}`}></div>
+                  <div className={`${styles["skeleton-separator"]} ${styles["skeleton"]}`}></div>
+                  <div className={`${styles["skeleton-value"]} ${styles["skeleton"]}`}></div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </div>
+
+        {/* Status and Print Button Skeleton */}
+        <div className={styles["reservation-details-foot"]}>
+          <div className={`${styles["skeleton-status-row"]} ${styles["skeleton"]}`}>
+            <div className={`${styles["skeleton-status-label"]} ${styles["skeleton"]}`}></div>
+            <div className={`${styles["skeleton-status-value"]} ${styles["skeleton"]}`}></div>
+          </div>
+          <div className={`${styles["skeleton-print-btn"]} ${styles["skeleton"]}`}></div>
         </div>
       </div>
-    );
+    </div>
+  );
+
+  if (loading) {
+    return <SkeletonLoading />;
   }
 
   if (!reservation) {

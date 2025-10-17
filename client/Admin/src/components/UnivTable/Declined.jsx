@@ -128,7 +128,13 @@ export default function Declined({
   const renderMenu = (row) => [
     {
       label: "View Details",
-      onClick: () => navigate(`/declinedRSV/${row.id}/details`), 
+      onClick: () => {
+        if (!row.id || row.id === "N/A") {
+          alert("Invalid reservation ID. Cannot view details.");
+          return;
+        }
+        navigate(`/declinedRSV/${row.id}/details`);
+      },
     },
   ];
 

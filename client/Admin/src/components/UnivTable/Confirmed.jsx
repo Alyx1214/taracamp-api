@@ -122,10 +122,15 @@ export default function Confirmed({
   const renderMenu = (row) => [
     {
       label: "See Details",
-      onClick: () =>
+      onClick: () => {
+        if (!row.id || row.id === "N/A") {
+          alert("Invalid reservation ID. Cannot view details.");
+          return;
+        }
         row.guestType === "GROUP"
           ? navigate(`/confirmedGroup/${row.id}/details`)
-          : navigate(`/confirmedIndiv/${row.id}/details`)
+          : navigate(`/confirmedIndiv/${row.id}/details`);
+      }
     }
   ];
 

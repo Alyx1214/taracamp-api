@@ -151,7 +151,13 @@ export default function Pending({
   const renderMenu = (row) => [
     {
       label: "See Details",
-      onClick: () => navigate(`/pendingRSV/${row.id}/details`),
+      onClick: () => {
+        if (!row.id || row.id === "N/A") {
+          alert("Invalid reservation ID. Cannot view details.");
+          return;
+        }
+        navigate(`/pendingRSV/${row.id}/details`);
+      },
     },
   ];
 

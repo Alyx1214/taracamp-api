@@ -116,6 +116,17 @@ const dbHelper = {
 
             ReservationSchema.index({ status: 1, dateOfArrival: 1 });
             ReservationSchema.index({ dateOfArrival: 1, status: 1 });
+            // Compound index to prevent overlapping reservations for the same facility
+            ReservationSchema.index({ 
+                facility: 1, 
+                dateOfArrival: 1, 
+                dateOfDeparture: 1 
+            }, { 
+                unique: true, 
+                partialFilterExpression: { 
+                    status: { $in: [ReservationStatus.PENDING, ReservationStatus.APPROVED] } 
+                } 
+            });
 
             const FacilitySchema = new mongoose.Schema({
                 name: { type: String, required: true, unique: true, },
@@ -302,6 +313,10 @@ const dbHelper = {
             runValidators: true,
             session 
         });
+    },
+
+    findManyWithTransaction: async (collectionName, query = {}, projection = {}, session) => {
+        return await mongoose.model(collectionName).find(query, projection).session(session);
     },
 };
 
