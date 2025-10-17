@@ -4,6 +4,7 @@ import { OAuth2Client, } from 'google-auth-library';
 import fetch from 'node-fetch';
 import jwtHelper from './jwtHelper.js';
 import redisClient from './redisClient.js';
+import { safeRedisOperations } from './redisCircuitBreaker.js';
 import { v4 as uuidv4, } from 'uuid';
 import crypto from 'crypto';
 
@@ -187,9 +188,14 @@ const userModule = {
                     { lastLoggedIn: Date.now() },
                     session
                 );
-                
-                await redisClient.set(`rt:${userId}:${jti}`, refreshToken, { EX: REFRESH_TTL });
             });
+            
+            // Handle Redis operation outside transaction with circuit breaker protection
+            const redisResult = await safeRedisOperations.set(`rt:${userId}:${jti}`, refreshToken, { EX: REFRESH_TTL });
+            if (redisResult === null) {
+                console.warn('Redis operation failed after successful login - refresh token not stored');
+                // Log for monitoring but don't fail the login since DB operation succeeded
+            }
 
             responseData.status = Status.OK;
             responseData.error = null;
@@ -954,7 +960,10 @@ const userModule = {
             error: 'Error on logging out user',
         };
         try {
-            await redisClient.del(`rt:${userId}:${jti}`);
+            const result = await safeRedisOperations.del(`rt:${userId}:${jti}`);
+            if (result === null) {
+                console.warn('Redis operation failed during logout - token may not be revoked');
+            }
             responseData.status = Status.OK;
             responseData.error = null;
             responseData.message = 'User logged out successfully';
@@ -1018,14 +1027,22 @@ const userModule = {
             }
 
             const hashedPassword = await hashPassword(newPassword);
-            await dbHelper.updateOne('user', { email, }, {
-                password: hashedPassword,
-                resetTokenHash: null,
-                resetTokenExpiry: null,
-                updatedAt: Date.now(),
+            
+            await dbHelper.withTransaction(async (session) => {
+                await dbHelper.updateOneWithTransaction('user', { email }, {
+                    password: hashedPassword,
+                    resetTokenHash: null,
+                    resetTokenExpiry: null,
+                    updatedAt: Date.now(),
+                }, session);
             });
 
-            await revokeAllRefreshTokens(user._id.toString());
+            // Handle Redis operation outside transaction with circuit breaker protection
+            const revokeResult = await revokeAllRefreshTokens(user._id.toString());
+            if (revokeResult === false) {
+                console.warn('Failed to revoke refresh tokens after password reset - Redis may be down');
+                // Log for monitoring - password is changed but old tokens remain valid
+            }
 
             responseData.status = Status.OK;
             responseData.error = null;
@@ -1184,56 +1201,81 @@ const userModule = {
             const oldJti = payload.jti;
             const oldKey = `rt:${userId}:${oldJti}`;
 
-            const stored = await redisClient.get(oldKey);
-            if (!stored) {
-                await revokeAllRefreshTokens(userId);
-                responseData.status = Status.UNAUTHORIZED;
-                responseData.error = 'Refresh token reuse detected. All sessions revoked.';
+            // Add locking mechanism to prevent race conditions
+            const lockKey = `lock:rt:${userId}:${oldJti}`;
+            const lockValue = uuidv4();
+            const lockTTL = 30; // seconds
+
+            // Try to acquire lock with circuit breaker protection
+            const lockAcquired = await safeRedisOperations.set(lockKey, lockValue, { 
+                EX: lockTTL, 
+                NX: true 
+            });
+
+            if (!lockAcquired) {
+                responseData.status = Status.TOO_MANY_REQUESTS;
+                responseData.error = 'Token refresh in progress, please try again';
                 return responseData;
             }
 
-            if (stored !== refreshToken.trim()) {
-                await revokeAllRefreshTokens(userId);
-                responseData.status = Status.UNAUTHORIZED;
-                responseData.error = 'Refresh token mismatch. All sessions revoked.';
-                return responseData;
+            try {
+                const stored = await safeRedisOperations.get(oldKey);
+                if (!stored) {
+                    await revokeAllRefreshTokens(userId);
+                    responseData.status = Status.UNAUTHORIZED;
+                    responseData.error = 'Refresh token reuse detected. All sessions revoked.';
+                    return responseData;
+                }
+
+                if (stored !== refreshToken.trim()) {
+                    await revokeAllRefreshTokens(userId);
+                    responseData.status = Status.UNAUTHORIZED;
+                    responseData.error = 'Refresh token mismatch. All sessions revoked.';
+                    return responseData;
+                }
+
+                const user = await dbHelper.findOne('user', { _id: userId, });
+                if (!user) {
+                    await revokeAllRefreshTokens(userId);
+                    responseData.status = Status.FORBIDDEN;
+                    responseData.error = 'User not found';
+                    return responseData;
+                }
+
+                const newJti = uuidv4();
+                const safeUser = {
+                    _id: userId,
+                    email: user.email || '',
+                    role: user.role,
+                    jti: newJti,
+                };
+
+                const newAccessToken = jwtHelper.generateAccessToken(safeUser);
+                const newRefreshToken = jwtHelper.generateRefreshToken(safeUser);
+
+                const newKey = `rt:${userId}:${newJti}`;
+                const REFRESH_TTL = 7 * 24 * 60 * 60;
+
+                const multi = safeRedisOperations.multi();
+                multi.del(oldKey);
+                multi.set(newKey, newRefreshToken, { EX: REFRESH_TTL });
+                multi.del(lockKey); // Release lock
+                await safeRedisOperations.exec(multi);
+
+                responseData.status = Status.OK;
+                responseData.error = null;
+                responseData.message = 'Tokens refreshed successfully';
+                responseData.accessToken = newAccessToken;
+                responseData.refreshToken = newRefreshToken;
+                responseData.jti = newJti;
+                responseData.userId = userId;
+                responseData.role = user.role;
+
+            } catch (error) {
+                // Release lock on error
+                await safeRedisOperations.del(lockKey);
+                throw error;
             }
-
-            const user = await dbHelper.findOne('user', { _id: userId, });
-            if (!user) {
-                await revokeAllRefreshTokens(userId);
-                responseData.status = Status.FORBIDDEN;
-                responseData.error = 'User not found';
-                return responseData;
-            }
-
-            const newJti = uuidv4();
-            const safeUser = {
-                _id: userId,
-                email: user.email || '',
-                role: user.role,
-                jti: newJti,
-            };
-
-            const newAccessToken = jwtHelper.generateAccessToken(safeUser);
-            const newRefreshToken = jwtHelper.generateRefreshToken(safeUser);
-
-            const newKey = `rt:${userId}:${newJti}`;
-            const REFRESH_TTL = 7 * 24 * 60 * 60;
-
-            const multi = redisClient.multi();
-            multi.del(oldKey);
-            multi.set(newKey, newRefreshToken, { EX: REFRESH_TTL, });
-            await multi.exec();
-
-            responseData.status = Status.OK;
-            responseData.error = null;
-            responseData.message = 'Tokens refreshed successfully';
-            responseData.accessToken = newAccessToken;
-            responseData.refreshToken = newRefreshToken;
-            responseData.jti = newJti;
-            responseData.userId = userId;
-            responseData.role = user.role;
 
         } catch (error) {
             console.error('Error refreshing token:', error);
@@ -1321,26 +1363,32 @@ async function revokeAllRefreshTokensScan(userId) {
     const pattern = `rt:${userId}:*`;
     let cursor = '0';
     do {
-        const { cursor: nextCursor, keys, } = await redisClient.scan(cursor, {
+        const { cursor: nextCursor, keys, } = await safeRedisOperations.scan(cursor, {
             MATCH: pattern,
             COUNT: 200,
         });
         cursor = nextCursor;
         if (keys && keys.length > 0) {
-            await redisClient.del(...keys);
+            await safeRedisOperations.del(...keys);
         }
     } while (cursor !== '0');
 }
 
 async function revokeAllRefreshTokens(userId) {
-    const pattern = `rt:${userId}:*`;
-    if (typeof redisClient.scanIterator === 'function') {
-        for await (const key of redisClient.scanIterator({ MATCH: pattern, COUNT: 200, })) {
-            await redisClient.del(key);
+    try {
+        const pattern = `rt:${userId}:*`;
+        if (typeof redisClient.scanIterator === 'function') {
+            for await (const key of redisClient.scanIterator({ MATCH: pattern, COUNT: 200, })) {
+                await safeRedisOperations.del(key);
+            }
+            return true;
         }
-        return;
+        await revokeAllRefreshTokensScan(userId);
+        return true;
+    } catch (error) {
+        console.error('Error revoking refresh tokens:', error);
+        return false;
     }
-    await revokeAllRefreshTokensScan(userId);
 }
 
 async function invalidateUserSearchCache() {

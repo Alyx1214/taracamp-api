@@ -1,6 +1,7 @@
 import { Storage, } from '@google-cloud/storage';
 import { Status, FacilityType, FacilityStatus, UserRole, ReservationStatus, } from '../constants.js';
 import redisClient from './redisClient.js';
+import { safeRedisOperations } from './redisCircuitBreaker.js';
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -137,7 +138,7 @@ const facilityModule = {
             })}`;
             
             try {
-                const cached = await redisClient.get(cacheKey);
+                const cached = await safeRedisOperations.get(cacheKey);
                 if (cached) {
                     const cachedData = JSON.parse(cached);
                     responseData.status = Status.OK;
@@ -214,10 +215,10 @@ const facilityModule = {
             responseData.pagination = paginationData;
 
             try {
-                await redisClient.setEx(cacheKey, 60, JSON.stringify({
+                await safeRedisOperations.set(cacheKey, JSON.stringify({
                     facilities: withSigned,
                     pagination: paginationData
-                }));
+                }), { EX: 60 });
             } catch (cacheError) {
                 console.warn('Redis cache write error:', cacheError.message);
             }
@@ -676,6 +677,23 @@ const facilityModule = {
         };
 
         try {
+            // Create cache key with all search parameters
+            const cacheKey = `search_facilities:${type || 'all'}:${query || ''}:${minPrice || ''}:${maxPrice || ''}:${capacity || ''}:${checkInDate || ''}:${checkOutDate || ''}:${includeUnavailable || false}`;
+
+            // Try to get cached result
+            try {
+                const cachedResult = await safeRedisOperations.get(cacheKey);
+                if (cachedResult) {
+                    const parsed = JSON.parse(cachedResult);
+                    responseData.status = Status.OK;
+                    responseData.error = null;
+                    responseData.facilities = parsed.facilities;
+                    return responseData;
+                }
+            } catch (cacheError) {
+                console.warn('Cache read error for searchFacilities:', cacheError);
+            }
+
             let filter = {};
             if (type) filter.facilityType = type.trim();
             if (query) filter.name = new RegExp(query.trim(), 'i');
@@ -723,6 +741,13 @@ const facilityModule = {
                     return obj;
                 })
             );
+
+            // Cache the result
+            try {
+                await safeRedisOperations.set(cacheKey, JSON.stringify({ facilities: withSigned }), { EX: 300 }); // 5 minutes TTL
+            } catch (cacheError) {
+                console.warn('Cache write error for searchFacilities:', cacheError);
+            }
 
             responseData.status = Status.OK;
             responseData.error = null;
@@ -917,9 +942,11 @@ function calculateAverageRatings(reviews) {
 
 async function invalidateFacilitiesCache() {
     try {
-        const keys = await redisClient.keys('facilities:*');
-        if (keys.length > 0) {
-            await redisClient.del(keys);
+        const keys = await safeRedisOperations.keys('facilities:*');
+        const searchKeys = await safeRedisOperations.keys('search_facilities:*');
+        const allKeys = [...keys, ...searchKeys];
+        if (allKeys.length > 0) {
+            await safeRedisOperations.del(...allKeys);
         }
     } catch (error) {
         console.warn('Error invalidating facilities cache:', error.message);

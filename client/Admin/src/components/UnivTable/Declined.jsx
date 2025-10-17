@@ -21,12 +21,23 @@ function prettifyServiceType(svc) {
     .join("");
 }
 
-export default function Declined({ searchQuery = "" }) {
+export default function Declined({ 
+  searchQuery = "", 
+  currentPage: parentCurrentPage = 1,
+  totalPages: parentTotalPages = 1,
+  totalItems: parentTotalItems = 0,
+  onPageChange: parentOnPageChange,
+  onPaginationUpdate
+}) {
   const navigate = useNavigate();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState(null);
+  const [currentPage, setCurrentPage] = useState(parentCurrentPage);
+  const [totalPages, setTotalPages] = useState(parentTotalPages);
+  const [totalItems, setTotalItems] = useState(parentTotalItems);
   
+  const itemsPerPage = 15;
   const columns = useMemo(() => ["Name", "Email", "Service Type", "Date", "Actions"], []);
 
   useEffect(() => {
@@ -35,12 +46,15 @@ export default function Declined({ searchQuery = "" }) {
       try {
         setLoading(true);
         let res;
+        const skip = (currentPage - 1) * itemsPerPage;
+        const options = { limit: itemsPerPage, skip };
+        
         if (String(searchQuery || '').trim()) {
           const s = String(searchQuery || '').trim();
-          res = await searchReservations({ query: s });
+          res = await searchReservations({ query: s, ...options });
           res.reservations = (res?.reservations || []).filter(r => r.status === 'Declined');
         } else {
-          res = await getAllReservationsByStatus("Declined");
+          res = await getAllReservationsByStatus("Declined", options);
         }
         const list = (res?.reservations || []).map(r => ({
           id: r._id || "N/A",
@@ -50,7 +64,18 @@ export default function Declined({ searchQuery = "" }) {
           date: formatDateLong(r.dateOfArrival || r.createdAt),
           _raw: r, 
         }));
-        if (!cancelled) setRows(list);
+        
+        if (!cancelled) {
+          setRows(list);
+          // Use real total count from API
+          const totalCount = res?.totalCount || 0;
+          setTotalItems(totalCount);
+          setTotalPages(Math.ceil(totalCount / itemsPerPage));
+          
+          if (onPaginationUpdate) {
+            onPaginationUpdate(Math.ceil(totalCount / itemsPerPage), totalCount);
+          }
+        }
       } catch (e) {
         if (!cancelled) setErr(e?.message || "Failed to load");
       } finally {
@@ -59,7 +84,20 @@ export default function Declined({ searchQuery = "" }) {
     }
     fetchDeclined();
     return () => { cancelled = true; };
-  }, [searchQuery]);
+  }, [searchQuery, currentPage]);
+
+  // Sync with parent pagination state
+  useEffect(() => {
+    setCurrentPage(parentCurrentPage);
+  }, [parentCurrentPage]);
+
+  useEffect(() => {
+    setTotalPages(parentTotalPages);
+  }, [parentTotalPages]);
+
+  useEffect(() => {
+    setTotalItems(parentTotalItems);
+  }, [parentTotalItems]);
 
   const handleDelete = async (row) => {
     if (!window.confirm(`Are you sure you want to delete reservation for ${row.name}?`)) return;
@@ -69,6 +107,13 @@ export default function Declined({ searchQuery = "" }) {
       alert("Reservation deleted!");
     } catch (e) {
       alert(e?.message || "Failed to delete reservation.");
+    }
+  };
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+    if (parentOnPageChange) {
+      parentOnPageChange(page);
     }
   };
 
@@ -94,7 +139,7 @@ export default function Declined({ searchQuery = "" }) {
   return (
     <UnivTable
       columns={columns}
-      data={loading ? [] : rows}
+      data={rows}
       loading={loading}
       renderActions={renderActions}
       renderMenu={renderMenu}

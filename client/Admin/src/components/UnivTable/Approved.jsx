@@ -21,13 +21,24 @@ function prettifyServiceType(svc) {
     .join("");
 }
 
-export default function Approved({ searchQuery = "" }) {
+export default function Approved({ 
+  searchQuery = "", 
+  currentPage: parentCurrentPage = 1,
+  totalPages: parentTotalPages = 1,
+  totalItems: parentTotalItems = 0,
+  onPageChange: parentOnPageChange,
+  onPaginationUpdate
+}) {
   const navigate = useNavigate();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState(null);
   const [cancellingId, setCancellingId] = useState(null);
+  const [currentPage, setCurrentPage] = useState(parentCurrentPage);
+  const [totalPages, setTotalPages] = useState(parentTotalPages);
+  const [totalItems, setTotalItems] = useState(parentTotalItems);
 
+  const itemsPerPage = 15;
   const columns = useMemo(() => ["Name", "Email", "Service Type", "Date", "Actions"], []);
 
   useEffect(() => {
@@ -37,12 +48,15 @@ export default function Approved({ searchQuery = "" }) {
       try {
         setLoading(true);
         let res;
+        const skip = (currentPage - 1) * itemsPerPage;
+        const options = { limit: itemsPerPage, skip };
+        
         if (String(searchQuery || '').trim()) {
           const s = String(searchQuery || '').trim();
-          res = await searchReservations({ query: s });
+          res = await searchReservations({ query: s, ...options });
           res.reservations = (res?.reservations || []).filter(r => r.status === 'Approved');
         } else {
-          res = await getAllReservationsByStatus("Approved"); 
+          res = await getAllReservationsByStatus("Approved", options); 
         }
         const list = (res?.reservations || []).map(r => ({
           id: r._id || "N/A",
@@ -52,7 +66,18 @@ export default function Approved({ searchQuery = "" }) {
           date: formatDateYMDToLong(r.dateOfArrival || r.createdAt),
           _raw: r,
         }));
-        if (!cancelled) setRows(list);
+        
+        if (!cancelled) {
+          setRows(list);
+          // Use real total count from API
+          const totalCount = res?.totalCount || 0;
+          setTotalItems(totalCount);
+          setTotalPages(Math.ceil(totalCount / itemsPerPage));
+          
+          if (onPaginationUpdate) {
+            onPaginationUpdate(Math.ceil(totalCount / itemsPerPage), totalCount);
+          }
+        }
       } catch (e) {
         if (!cancelled) setErr(e?.message || "Failed to load");
       } finally {
@@ -64,7 +89,20 @@ export default function Approved({ searchQuery = "" }) {
     return () => {
       cancelled = true;
     };
-  }, [searchQuery]);
+  }, [searchQuery, currentPage]);
+
+  // Sync with parent pagination state
+  useEffect(() => {
+    setCurrentPage(parentCurrentPage);
+  }, [parentCurrentPage]);
+
+  useEffect(() => {
+    setTotalPages(parentTotalPages);
+  }, [parentTotalPages]);
+
+  useEffect(() => {
+    setTotalItems(parentTotalItems);
+  }, [parentTotalItems]);
 
   const handleCancel = async (row) => {
     if (!window.confirm("Are you sure you want to cancel this reservation?")) return;
@@ -76,6 +114,13 @@ export default function Approved({ searchQuery = "" }) {
       alert(e?.message || "Failed to cancel reservation.");
     } finally {
       setCancellingId(null);
+    }
+  };
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+    if (parentOnPageChange) {
+      parentOnPageChange(page);
     }
   };
   const renderActions = (row) => (
@@ -107,7 +152,7 @@ export default function Approved({ searchQuery = "" }) {
   return (
     <UnivTable
       columns={columns}
-      data={loading ? [] : rows}
+      data={rows}
       loading={loading}
       renderActions={renderActions}
       renderMenu={renderMenu}

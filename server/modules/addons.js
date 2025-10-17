@@ -1,5 +1,6 @@
-import { Status, UserRole, } from '../constants.js';
+import { Status, UserRole, UnitType, } from '../constants.js';
 import dbHelper from './dbHelper.js';
+import { safeRedisOperations } from './redisCircuitBreaker.js';
 
 const addonsModule = {
     /**
@@ -27,6 +28,12 @@ const addonsModule = {
             if (!isValidPrice(price)) {
                 responseData.status = Status.BAD_REQUEST;
                 responseData.error = 'Invalid price value';
+                return responseData;
+            }
+
+            if (!isValidUnit(unit)) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Invalid unit type.';
                 return responseData;
             }
 
@@ -67,6 +74,9 @@ const addonsModule = {
             responseData.message = 'Add-on added successfully';
             responseData.addonId = addon._id.toString();
 
+            // Invalidate cache after successful creation
+            await invalidateAddonsCache();
+
         } catch (error) {
             console.error('Error adding add-on:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
@@ -90,12 +100,43 @@ const addonsModule = {
         try {
             const { limit, skip, sort, } = options || {};
             const sortOption = sort ? parseSort(sort) : { name: 1, };
+            const limitValue = clampLimit(limit);
+            const skipValue = clampSkip(skip);
+            
+            // Generate cache key
+            const cacheKey = `addons:all:${JSON.stringify({
+                sort: sortOption,
+                limit: limitValue,
+                skip: skipValue
+            })}`;
+            
+            // Try to get from cache first
+            try {
+                const cached = await safeRedisOperations.get(cacheKey);
+                if (cached) {
+                    const cachedData = JSON.parse(cached);
+                    responseData.status = Status.OK;
+                    responseData.error = null;
+                    responseData.addons = cachedData.addons;
+                    return responseData;
+                }
+            } catch (cacheError) {
+                console.warn('Cache read error:', cacheError.message);
+            }
+            
             const addons = await dbHelper.findMany('addon', {}, {
                 projection: { __v: 0, createdAt: 0, },
                 sort: sortOption,
-                limit: clampLimit(limit),
-                skip: clampSkip(skip),
+                limit: limitValue,
+                skip: skipValue,
             });
+
+            // Cache the result
+            try {
+                await safeRedisOperations.set(cacheKey, JSON.stringify({ addons }), { EX: 300 }); // 5 minutes TTL
+            } catch (cacheError) {
+                console.warn('Cache write error:', cacheError.message);
+            }
 
             responseData.status = Status.OK;
             responseData.error = null;
@@ -127,6 +168,23 @@ const addonsModule = {
         }
 
         try {
+            // Generate cache key
+            const cacheKey = `addon:${id}`;
+            
+            // Try to get from cache first
+            try {
+                const cached = await safeRedisOperations.get(cacheKey);
+                if (cached) {
+                    const cachedData = JSON.parse(cached);
+                    responseData.status = Status.OK;
+                    responseData.error = null;
+                    responseData.addon = cachedData.addon;
+                    return responseData;
+                }
+            } catch (cacheError) {
+                console.warn('Cache read error:', cacheError.message);
+            }
+            
             const addon = await dbHelper.findOne('addon', { _id: id, });
             if (!addon) {
                 responseData.status = Status.NOT_FOUND;
@@ -137,6 +195,13 @@ const addonsModule = {
             const addonObject = addon.toObject();
             delete addonObject.__v;
             delete addonObject.createdAt;
+
+            // Cache the result
+            try {
+                await safeRedisOperations.set(cacheKey, JSON.stringify({ addon: addonObject }), { EX: 300 }); // 5 minutes TTL
+            } catch (cacheError) {
+                console.warn('Cache write error:', cacheError.message);
+            }
 
             responseData.status = Status.OK;
             responseData.error = null;
@@ -200,7 +265,14 @@ const addonsModule = {
                 }
                 updateData.price = Number(String(data.price).replace(/,/g, '')) || 0;
             }
-            if (isPresent(data.unit)) updateData.unit = data.unit;
+            if (isPresent(data.unit)) {
+                if (!isValidUnit(data.unit)) {
+                    responseData.status = Status.BAD_REQUEST;
+                    responseData.error = 'Invalid unit type.';
+                    return responseData;
+                }
+                updateData.unit = data.unit;
+            }
 
             const existing = await dbHelper.findOne('addon', {
                 _id: { $ne: id, },
@@ -221,6 +293,9 @@ const addonsModule = {
             responseData.error = null;
             responseData.message = 'Add-on updated successfully';
             responseData.addonId = id;
+
+            // Invalidate cache after successful update
+            await invalidateAddonsCache();
         } catch (error) {
             console.error('Error editing add-on:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
@@ -287,7 +362,14 @@ const addonsModule = {
                     }
                     updateData.price = Number(String(price).replace(/,/g, '')) || 0;
                 }
-                if (isPresent(unit)) updateData.unit = unit;
+                if (isPresent(unit)) {
+                    if (!isValidUnit(unit)) {
+                        responseData.status = Status.BAD_REQUEST;
+                        responseData.error = 'Invalid unit type.';
+                        return responseData;
+                    }
+                    updateData.unit = unit;
+                }
 
                 const existing = await dbHelper.findOne('addon', {
                     _id: { $ne: id, },
@@ -308,6 +390,9 @@ const addonsModule = {
             responseData.status = Status.OK;
             responseData.error = null;
             responseData.message = 'Add-ons updated successfully';
+
+            // Invalidate cache after successful updates
+            await invalidateAddonsCache();
 
         } catch (error) {
             console.error('Error updating add-ons:', error);
@@ -362,6 +447,9 @@ const addonsModule = {
             responseData.error = null;
             responseData.message = 'Add-on deleted successfully';
             responseData.addonId = id;
+
+            // Invalidate cache after successful deletion
+            await invalidateAddonsCache();
         } catch (error) {
             console.error('Error deleting add-on:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
@@ -395,7 +483,36 @@ const addonsModule = {
                 if (maxPrice) filter.price.$lte = Number(maxPrice);
             }
 
+            // Generate cache key
+            const cacheKey = `search-addons:${JSON.stringify({
+                query,
+                unit,
+                minPrice,
+                maxPrice
+            })}`;
+            
+            // Try to get from cache first
+            try {
+                const cached = await safeRedisOperations.get(cacheKey);
+                if (cached) {
+                    const cachedData = JSON.parse(cached);
+                    responseData.status = Status.OK;
+                    responseData.error = null;
+                    responseData.addons = cachedData.addons;
+                    return responseData;
+                }
+            } catch (cacheError) {
+                console.warn('Cache read error:', cacheError.message);
+            }
+
             const addons = await dbHelper.find('addon', filter, { __v: 0, createdAt: 0, });
+
+            // Cache the result
+            try {
+                await safeRedisOperations.set(cacheKey, JSON.stringify({ addons }), { EX: 300 }); // 5 minutes TTL
+            } catch (cacheError) {
+                console.warn('Cache write error:', cacheError.message);
+            }
 
             responseData.status = Status.OK;
             responseData.error = null;
@@ -463,4 +580,32 @@ function parseSort(spec) {
         result[field] = isDesc ? -1 : 1;
     }
     return Object.keys(result).length > 0 ? result : null;
+}
+
+function isValidUnit(unit) {
+    if (!isPresent(unit)) return false;
+    const validUnits = Object.values(UnitType);
+    return validUnits.includes(unit);
+}
+
+/**
+ * Invalidates addon-related cache entries
+ */
+async function invalidateAddonsCache() {
+    try {
+        const patterns = [
+            'addons:*',
+            'addon:*',
+            'search-addons:*'
+        ];
+        
+        for (const pattern of patterns) {
+            const keys = await safeRedisOperations.keys(pattern);
+            if (keys && keys.length > 0) {
+                await safeRedisOperations.del(...keys);
+            }
+        }
+    } catch (error) {
+        console.warn('Error invalidating addons cache:', error.message);
+    }
 }

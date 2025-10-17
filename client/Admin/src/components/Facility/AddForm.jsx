@@ -251,13 +251,19 @@ const AddForm = () => {
           {isSpecialService ? (
             <label>
               Unit:
-              <input
-                type="text"
+              <select
                 name="unit"
                 value={formData.unit}
                 onChange={handleChange}
                 required
-              />
+              >
+                <option value="">Select unit</option>
+                <option value="day">day</option>
+                <option value="pc">pc</option>
+                <option value="watts">watts</option>
+                <option value="mins">mins</option>
+                <option value="cert">cert</option>
+              </select>
             </label>
           ) : (
             <label>

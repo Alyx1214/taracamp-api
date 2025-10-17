@@ -1,0 +1,77 @@
+.skeleton-container {
+  width: 100%;
+  overflow-x: auto;
+  background-color: #f5f5f5;
+  font-family: "Montserrat", sans-serif;
+}
+
+.skeleton-table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: #f5f5f5;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid #ccc;
+}
+
+.skeleton-table thead tr {
+  background-color: #538E5E;
+  color: #f5f5f5;
+  font-weight: bold;
+}
+
+.skeleton-table th,
+.skeleton-table td {
+  padding: 10px 20px;
+  text-align: left;
+  border-bottom: 1px solid #ddd;
+}
+
+.skeleton-table th:last-child,
+.skeleton-table td:last-child {
+  text-align: center;
+}
+
+.skeleton-table tbody tr:nth-child(odd) {
+  background-color: #ffffff;
+}
+
+.skeleton-table tbody tr:nth-child(even) {
+  background-color: #f5f5f5;
+}
+
+.skeleton-header {
+  height: 20px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 4px;
+}
+
+.skeleton-cell {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.skeleton-content {
+  height: 16px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 4px;
+  width: 80%;
+}
+
+.skeleton-table td:last-child .skeleton-content {
+  width: 60%;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}

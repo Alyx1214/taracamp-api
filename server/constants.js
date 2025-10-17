@@ -5,6 +5,7 @@ export class Status {
     static UNAUTHORIZED = 401;
     static FORBIDDEN = 403;
     static NOT_FOUND = 404;
+    static TOO_MANY_REQUESTS = 429;
     static TOO_MANY_ATTEMPTS = 429;
     static INTERNAL_SERVER_ERROR = 500;
 }
@@ -65,3 +66,11 @@ export const ServiceType = {
     EVENT_AND_LODGING: 'Event and Lodging',
     LODGING: 'Lodging',
 };
+
+export const UnitType = {
+    DAY: 'day',
+    WATT: 'watt',
+    PC: 'pc',
+    MINS: 'mins',
+    CERT: 'cert',
+}
