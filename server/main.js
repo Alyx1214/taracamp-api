@@ -40,8 +40,23 @@ const app = express();
 app.set('trust proxy', 1);
 await redisClient.connect();
 
+const allowedOrigins = [
+  'http://localhost:5173', 
+  'http://localhost:3000', 
+  'http://localhost:5174', 
+  'https://taracamp-api.vercel.app', 
+  'https://taracamp-api-admin.vercel.app',
+  'https://taracamp-7bx0cbsyw-alyssas-projects-927ddea5.vercel.app'
+];
+
+// Add any additional origins from environment variable
+if (process.env.ALLOWED_ORIGINS) {
+  const additionalOrigins = process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim());
+  allowedOrigins.push(...additionalOrigins);
+}
+
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:5174', 'https://taracamp-api.vercel.app', 'https://taracamp-api-admin.vercel.app'],
+  origin: allowedOrigins,
   credentials: true
 }));
 
