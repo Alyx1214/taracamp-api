@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import UnivTable from "../UnivTable/UnivTable.jsx";
 import styles from "../UnivTable/UnivTable.module.css"; 
 
-export default function TransactionTable({ data = [] }) {
+export default function TransactionTable({ data = [], loading = false }) {
   const navigate = useNavigate();
 
   const columns = ["Name", "Email", "Service Type", "Date", "Actions"];
@@ -38,6 +38,7 @@ export default function TransactionTable({ data = [] }) {
     <UnivTable
       columns={columns}
       data={formattedData}
+      loading={loading}
       renderActions={renderActions}
       renderMenu={renderMenu}
     />

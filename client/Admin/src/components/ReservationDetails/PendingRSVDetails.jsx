@@ -114,7 +114,7 @@ export default function PendingRSVDetails() {
   const SkeletonLoading = () => (
     <div className={styles["reservation-details-container"]}>
       <div className={styles["reservation-details-header"]}>
-        <span className={styles["reservation-details-back"]} onClick={() => navigate(-1)}>
+        <span className={styles["reservation-details-back"]} onClick={() => navigate('/reservations', { state: { activeTab: 'Pending' } })}>
           &larr;
         </span>
         <h1 className={styles["reservation-details-title"]}>Reservation Details</h1>
@@ -176,7 +176,7 @@ export default function PendingRSVDetails() {
           <div className={styles["rsv-details-header"]}>
             <span
               className={styles["rsv-details-back"]}
-              onClick={() => navigate(-1)}
+              onClick={() => navigate('/reservations', { state: { activeTab: 'Pending' } })}
             >
               &larr;
             </span>
@@ -194,7 +194,7 @@ export default function PendingRSVDetails() {
       <div className={styles["reservation-details-header"]}>
         <span
           className={styles["reservation-details-back"]}
-          onClick={() => navigate(-1)}
+          onClick={() => navigate('/reservations', { state: { activeTab: 'Pending' } })}
         >
           &larr;
         </span>

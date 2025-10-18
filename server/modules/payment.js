@@ -2,6 +2,7 @@ import fetch from 'node-fetch';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
 import { Status, ReservationStatus, UserRole, ServiceType, } from '../constants.js';
+import { safeRedisOperations } from './redisCircuitBreaker.js';
 
 dotenv.config();
 
@@ -146,6 +147,20 @@ const paymentModule = {
             responseData.status = Status.INTERNAL_SERVER_ERROR;
             responseData.error = 'Error creating payment intent';
         }
+
+        // Invalidate payment details cache for this reservation
+        if (reservationId) {
+            try {
+                const cachePattern = `payment_details:${reservationId}:*`;
+                const keys = await safeRedisOperations.keys(cachePattern);
+                if (keys && keys.length > 0) {
+                    await safeRedisOperations.del(...keys);
+                }
+            } catch (cacheError) {
+                console.warn('Failed to invalidate payment details cache:', cacheError);
+            }
+        }
+
         return responseData;
     },
 
@@ -507,6 +522,20 @@ const paymentModule = {
             responseData.status = Status.INTERNAL_SERVER_ERROR;
             responseData.error = 'Error processing webhook';
         }
+
+        // Invalidate payment details cache for this reservation
+        if (reservationId) {
+            try {
+                const cachePattern = `payment_details:${reservationId}:*`;
+                const keys = await safeRedisOperations.keys(cachePattern);
+                if (keys && keys.length > 0) {
+                    await safeRedisOperations.del(...keys);
+                }
+            } catch (cacheError) {
+                console.warn('Failed to invalidate payment details cache:', cacheError);
+            }
+        }
+
         return responseData;
     },
 
@@ -907,6 +936,21 @@ const paymentModule = {
                 return responseData;
             }
 
+            // Try cache first
+            const cacheKey = `payment_details:${reservationId}:${user.userId}`;
+            try {
+                const cachedResult = await safeRedisOperations.get(cacheKey);
+                if (cachedResult) {
+                    const parsed = JSON.parse(cachedResult);
+                    responseData.status = Status.OK;
+                    responseData.error = null;
+                    responseData.data = parsed.data;
+                    return responseData;
+                }
+            } catch (cacheError) {
+                console.warn('Cache read error for getPaymentDetails:', cacheError);
+            }
+
             const reservation = await dbHelper.findOne('reservation', { _id: reservationId, });
             if (!reservation) {
                 responseData.status = Status.NOT_FOUND;
@@ -999,6 +1043,14 @@ const paymentModule = {
             responseData.status = Status.OK;
             responseData.error = null;
             responseData.data = view;
+
+            // Cache the result
+            try {
+                await safeRedisOperations.set(cacheKey, JSON.stringify({ data: view }), { EX: 60 }); // 1 minute TTL
+            } catch (cacheError) {
+                console.warn('Cache write error for getPaymentDetails:', cacheError);
+            }
+
             return responseData;
         } catch (err) {
             console.error('Error getting payment details view:', err);

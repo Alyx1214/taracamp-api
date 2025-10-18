@@ -50,54 +50,66 @@ export default function PaymentDetails() {
       </div>
       <div className={styles["payment-details-card"]}>
         {/* Table Rows Skeleton */}
-        <div className={styles["payment-details-table"]}>
+        <table className={styles["payment-details-table"]}>
           <tbody>
             {Array.from({ length: 3 }).map((_, index) => (
               <tr key={index}>
-                <td className={styles["skeleton-table-row"]}>
+                <td className={styles["payment-details-label"]}>
                   <div className={`${styles["skeleton-label"]} ${styles["skeleton"]}`}></div>
+                </td>
+                <td className={styles["payment-details-separator"]}>
                   <div className={`${styles["skeleton-separator"]} ${styles["skeleton"]}`}></div>
+                </td>
+                <td>
                   <div className={`${styles["skeleton-value"]} ${styles["skeleton"]}`}></div>
                 </td>
               </tr>
             ))}
           </tbody>
-        </div>
+        </table>
         
         {/* Payment Breakdown Skeleton */}
-        <div className={styles["payment-details-divider"]}></div>
+        <hr className={styles["payment-details-divider"]} />
         <div className={styles["payment-details-section-title"]}>Payment Breakdown</div>
-        <div className={styles["payment-details-table"]}>
+        <table className={styles["payment-details-table"]}>
           <tbody>
             {Array.from({ length: 4 }).map((_, index) => (
               <tr key={index}>
-                <td className={styles["skeleton-table-row"]}>
+                <td className={styles["payment-details-label"]}>
                   <div className={`${styles["skeleton-label"]} ${styles["skeleton"]}`}></div>
+                </td>
+                <td className={styles["payment-details-separator"]}>
                   <div className={`${styles["skeleton-separator"]} ${styles["skeleton"]}`}></div>
+                </td>
+                <td>
                   <div className={`${styles["skeleton-value"]} ${styles["skeleton"]}`}></div>
                 </td>
               </tr>
             ))}
           </tbody>
-        </div>
+        </table>
         
         {/* Discount Skeleton */}
-        <div className={styles["payment-details-divider"]}></div>
+        <hr className={styles["payment-details-divider"]} />
         <div className={styles["payment-details-section-title"]}>Discount %</div>
-        <div className={styles["payment-details-table"]}>
+        <table className={styles["payment-details-table"]}>
           <tbody>
             <tr>
-              <td className={styles["skeleton-table-row"]}>
+              <td className={styles["payment-details-label"]}>
                 <div className={`${styles["skeleton-label"]} ${styles["skeleton"]}`}></div>
+              </td>
+              <td className={styles["payment-details-separator"]}>
                 <div className={`${styles["skeleton-separator"]} ${styles["skeleton"]}`}></div>
+              </td>
+              <td>
                 <div className={`${styles["skeleton-value"]} ${styles["skeleton"]}`}></div>
               </td>
             </tr>
           </tbody>
-        </div>
+        </table>
         
         {/* Total and Status Skeleton */}
-        <div className={styles["payment-details-divider"]}></div>
+        <hr className={styles["payment-details-divider"]} />
         <div className={styles["payment-details-total-row"]}>
           <div className={`${styles["skeleton-total-label"]} ${styles["skeleton"]}`}></div>
           <div className={`${styles["skeleton-total-value"]} ${styles["skeleton"]}`}></div>
@@ -113,11 +125,11 @@ export default function PaymentDetails() {
   const Back = (
     <span
       className={styles["payment-details-back"]}
-      onClick={() => navigate(-1)}
+      onClick={() => navigate('/transactions')}
       style={{ cursor: "pointer" }}
       role="button"
       tabIndex={0}
-      onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && navigate(-1)}
+      onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && navigate('/transactions')}
       aria-label="Go back"
     >
       &larr;

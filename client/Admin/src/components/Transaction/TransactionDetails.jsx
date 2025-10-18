@@ -55,7 +55,7 @@ export default function TransactionDetails() {
   const SkeletonLoading = () => (
     <div className={styles["transaction-details-container"]}>
       <div className={styles["transaction-details-header"]}>
-        <span className={styles["transaction-details-back"]} onClick={() => navigate(-1)}>
+        <span className={styles["transaction-details-back"]} onClick={() => navigate('/transactions')}>
           &larr;
         </span>
         <h1 className={styles["transaction-details-title"]}>Transaction Details</h1>
@@ -82,11 +82,11 @@ export default function TransactionDetails() {
   const Back = (
     <span
       className={styles["transaction-details-back"]}
-      onClick={() => navigate(-1)}
+      onClick={() => navigate('/transactions')}
       style={{ cursor: "pointer" }}
       role="button"
       tabIndex={0}
-      onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && navigate(-1)}
+      onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && navigate('/transactions')}
       aria-label="Go back"
     >
       &larr;

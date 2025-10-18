@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import ReservationsHeader from "./ReservationsHeader";
 import Pagination from "../Pagination/Pagination.jsx";
 import styles from "./Reservations.module.css"; 
@@ -12,7 +13,8 @@ import Cancelled from "../UnivTable/Cancelled";
 import Confirmed from "../UnivTable/Confirmed";
 
 export default function Reservations() {
-  const [activeTab, setActiveTab] = useState("Pending");
+  const location = useLocation();
+  const [activeTab, setActiveTab] = useState(location.state?.activeTab || "Pending");
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
