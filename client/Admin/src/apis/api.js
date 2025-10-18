@@ -4,6 +4,42 @@ const ACCESS_KEY = 'accessToken';
 const REFRESH_KEY = 'refreshToken';
 const isFormData = v => typeof FormData !== 'undefined' && v instanceof FormData;
 
+// Token management functions
+function getAccessToken() {
+  return localStorage.getItem(ACCESS_KEY);
+}
+
+function setAccessToken(token) {
+  if (token) {
+    localStorage.setItem(ACCESS_KEY, token);
+  } else {
+    localStorage.removeItem(ACCESS_KEY);
+  }
+}
+
+function getRefreshToken() {
+  return localStorage.getItem(REFRESH_KEY);
+}
+
+function setRefreshToken(token) {
+  if (token) {
+    localStorage.setItem(REFRESH_KEY, token);
+  } else {
+    localStorage.removeItem(REFRESH_KEY);
+  }
+}
+
+export function clearTokens() {
+  localStorage.removeItem(ACCESS_KEY);
+  localStorage.removeItem(REFRESH_KEY);
+}
+
+function buildUrl(path) {
+  const base = path.startsWith('http') ? '' : API_BASE;
+  const prefix = path.startsWith('/api/') ? '' : API_V1_PREFIX;
+  return `${base}${prefix}${path}`;
+}
+
 async function rawFetch(path, options = {}) {
   const url = buildUrl(path);
   const headers = new Headers(options.headers || {});

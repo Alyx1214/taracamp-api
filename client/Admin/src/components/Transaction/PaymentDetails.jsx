@@ -39,6 +39,77 @@ export default function PaymentDetails() {
     return () => { cancelled = true; };
   }, [reservationId]);
 
+  // Skeleton Loading Component
+  const SkeletonLoading = () => (
+    <div className={styles["payment-details-container"]}>
+      <div className={styles["payment-details-header"]}>
+        <span className={styles["payment-details-back"]} onClick={() => navigate(-1)}>
+          &larr;
+        </span>
+        <h1 className={styles["payment-details-title"]}>Payment Details</h1>
+      </div>
+      <div className={styles["payment-details-card"]}>
+        {/* Table Rows Skeleton */}
+        <div className={styles["payment-details-table"]}>
+          <tbody>
+            {Array.from({ length: 3 }).map((_, index) => (
+              <tr key={index}>
+                <td className={styles["skeleton-table-row"]}>
+                  <div className={`${styles["skeleton-label"]} ${styles["skeleton"]}`}></div>
+                  <div className={`${styles["skeleton-separator"]} ${styles["skeleton"]}`}></div>
+                  <div className={`${styles["skeleton-value"]} ${styles["skeleton"]}`}></div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </div>
+        
+        {/* Payment Breakdown Skeleton */}
+        <div className={styles["payment-details-divider"]}></div>
+        <div className={styles["payment-details-section-title"]}>Payment Breakdown</div>
+        <div className={styles["payment-details-table"]}>
+          <tbody>
+            {Array.from({ length: 4 }).map((_, index) => (
+              <tr key={index}>
+                <td className={styles["skeleton-table-row"]}>
+                  <div className={`${styles["skeleton-label"]} ${styles["skeleton"]}`}></div>
+                  <div className={`${styles["skeleton-separator"]} ${styles["skeleton"]}`}></div>
+                  <div className={`${styles["skeleton-value"]} ${styles["skeleton"]}`}></div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </div>
+        
+        {/* Discount Skeleton */}
+        <div className={styles["payment-details-divider"]}></div>
+        <div className={styles["payment-details-section-title"]}>Discount %</div>
+        <div className={styles["payment-details-table"]}>
+          <tbody>
+            <tr>
+              <td className={styles["skeleton-table-row"]}>
+                <div className={`${styles["skeleton-label"]} ${styles["skeleton"]}`}></div>
+                <div className={`${styles["skeleton-separator"]} ${styles["skeleton"]}`}></div>
+                <div className={`${styles["skeleton-value"]} ${styles["skeleton"]}`}></div>
+              </td>
+            </tr>
+          </tbody>
+        </div>
+        
+        {/* Total and Status Skeleton */}
+        <div className={styles["payment-details-divider"]}></div>
+        <div className={styles["payment-details-total-row"]}>
+          <div className={`${styles["skeleton-total-label"]} ${styles["skeleton"]}`}></div>
+          <div className={`${styles["skeleton-total-value"]} ${styles["skeleton"]}`}></div>
+        </div>
+        <div className={styles["payment-details-status-row"]}>
+          <div className={`${styles["skeleton-status-label"]} ${styles["skeleton"]}`}></div>
+          <div className={`${styles["skeleton-status-value"]} ${styles["skeleton"]}`}></div>
+        </div>
+      </div>
+    </div>
+  );
+
   const Back = (
     <span
       className={styles["payment-details-back"]}
@@ -54,17 +125,7 @@ export default function PaymentDetails() {
   );
 
   if (loading) {
-    return (
-      <div className={styles["payment-details-container"]}>
-        <div className={styles["payment-details-header"]}>
-          {Back}
-          <h1 className={styles["payment-details-title"]}>Payment Details</h1>
-        </div>
-        <div className={styles["payment-details-card"]}>
-          <p>Loading…</p>
-        </div>
-      </div>
-    );
+    return <SkeletonLoading />;
   }
 
   if (error || !payment) {

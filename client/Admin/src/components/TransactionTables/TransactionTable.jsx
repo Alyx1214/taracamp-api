@@ -6,7 +6,7 @@ import styles from "../UnivTable/UnivTable.module.css";
 export default function TransactionTable({ data = [] }) {
   const navigate = useNavigate();
 
-  const columns = ["ID", "Name", "Email", "Service Type", "Date", "Actions"];
+  const columns = ["Name", "Email", "Service Type", "Date", "Actions"];
 
   const formattedData = data.map(item => ({
     id: item._id,

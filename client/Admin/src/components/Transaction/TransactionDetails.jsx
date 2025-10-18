@@ -51,6 +51,34 @@ export default function TransactionDetails() {
     };
   }, [reservationId]);
 
+  // Skeleton Loading Component
+  const SkeletonLoading = () => (
+    <div className={styles["transaction-details-container"]}>
+      <div className={styles["transaction-details-header"]}>
+        <span className={styles["transaction-details-back"]} onClick={() => navigate(-1)}>
+          &larr;
+        </span>
+        <h1 className={styles["transaction-details-title"]}>Transaction Details</h1>
+      </div>
+      <div className={styles["transaction-details-card"]}>
+        {/* Table Rows Skeleton */}
+        <div className={styles["transaction-details-table"]}>
+          <tbody>
+            {Array.from({ length: 7 }).map((_, index) => (
+              <tr key={index}>
+                <td className={styles["skeleton-table-row"]}>
+                  <div className={`${styles["skeleton-label"]} ${styles["skeleton"]}`}></div>
+                  <div className={`${styles["skeleton-separator"]} ${styles["skeleton"]}`}></div>
+                  <div className={`${styles["skeleton-value"]} ${styles["skeleton"]}`}></div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </div>
+      </div>
+    </div>
+  );
+
   const Back = (
     <span
       className={styles["transaction-details-back"]}
@@ -66,17 +94,7 @@ export default function TransactionDetails() {
   );
 
   if (loading) {
-    return (
-      <div className={styles["transaction-details-container"]}>
-        <div className={styles["transaction-details-header"]}>
-          {Back}
-          <h1 className={styles["transaction-details-title"]}>Transaction Details</h1>
-        </div>
-        <div className={styles["transaction-details-card"]}>
-          <p>Loading…</p>
-        </div>
-      </div>
-    );
+    return <SkeletonLoading />;
   }
 
   if (error || !transaction) {
