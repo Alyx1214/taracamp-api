@@ -12,6 +12,7 @@ import MainServicesConference from '../MainServices/Conference';
 import MainServicesAddOns from '../MainServices/Add-Ons';
 import MainServicesServiceDetail from '../MainServices/ServiceDetail';
 import { searchFacilities } from '../../apis/facilityApi';
+import { searchAddons } from '../../apis/addonsApi';
 import AllServices from '../MainServices/AllServices';
 import Controls from '../MainServices/Controls';
 
@@ -75,17 +76,22 @@ function Services() {
     setLoadError(null);
 
     try {
-      const resolvedType = facilityLabelToEnum[facilityType] ?? null;
-      const res = await searchFacilities({ type: resolvedType, query });
-
-      if (res?.status === 200) {
-        const list =
-          Array.isArray(res.facilities) ? res.facilities :
-          Array.isArray(res.data) ? res.data :
-          Array.isArray(res?.data?.facilities) ? res.data.facilities : [];
-        setFacilities(list);
+      if (facilityType === 'Add-Ons') {
+        const data = await searchAddons({ query });
+        setFacilities(Array.isArray(data?.addons) ? data.addons : []);
       } else {
-        setFacilities([]);
+        const resolvedType = facilityLabelToEnum[facilityType] ?? null;
+        const res = await searchFacilities({ type: resolvedType, query });
+
+        if (res?.status === 200) {
+          const list =
+            Array.isArray(res.facilities) ? res.facilities :
+            Array.isArray(res.data) ? res.data :
+            Array.isArray(res?.data?.facilities) ? res.data.facilities : [];
+          setFacilities(list);
+        } else {
+          setFacilities([]);
+        }
       }
     } catch (err) {
       console.error('Search failed:', err);
@@ -108,28 +114,41 @@ function Services() {
     setLoadError(null);
 
     try {
-      const resolvedType =
-        filters.type !== undefined ? filters.type : facilityLabelToEnum[facilityType] ?? null;
-
-      const params = {
-        type: resolvedType,
-        minPrice: filters.minPrice || undefined,
-        maxPrice: filters.maxPrice || undefined,
-        capacity: filters.capacity || undefined,
-        checkInDate: toISO(filters.checkInDate),
-        checkOutDate: toISO(filters.checkOutDate),
-        query: filters.query,
-      };
-
-      const res = await searchFacilities(params);
-      if (res?.status === 200) {
-        const list =
-          Array.isArray(res.facilities) ? res.facilities :
-          Array.isArray(res.data) ? res.data :
-          Array.isArray(res?.data?.facilities) ? res.data.facilities : [];
-        setFacilities(list);
+      if (facilityType === 'Add-Ons') {
+        // For Add-Ons, only apply relevant filters (query, price, unit)
+        // Ignore facility-specific filters like capacity, dates
+        const params = {
+          query: filters?.query,
+          minPrice: filters?.minPrice,
+          maxPrice: filters?.maxPrice,
+          unit: filters?.unit,
+        };
+        const data = await searchAddons(params);
+        setFacilities(Array.isArray(data?.addons) ? data.addons : []);
       } else {
-        setFacilities([]);
+        const resolvedType =
+          filters.type !== undefined ? filters.type : facilityLabelToEnum[facilityType] ?? null;
+
+        const params = {
+          type: resolvedType,
+          minPrice: filters.minPrice || undefined,
+          maxPrice: filters.maxPrice || undefined,
+          capacity: filters.capacity || undefined,
+          checkInDate: toISO(filters.checkInDate),
+          checkOutDate: toISO(filters.checkOutDate),
+          query: filters.query,
+        };
+
+        const res = await searchFacilities(params);
+        if (res?.status === 200) {
+          const list =
+            Array.isArray(res.facilities) ? res.facilities :
+            Array.isArray(res.data) ? res.data :
+            Array.isArray(res?.data?.facilities) ? res.data.facilities : [];
+          setFacilities(list);
+        } else {
+          setFacilities([]);
+        }
       }
     } catch (err) {
       console.error('Filter application failed:', err);
