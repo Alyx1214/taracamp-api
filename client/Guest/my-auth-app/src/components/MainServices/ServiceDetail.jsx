@@ -516,6 +516,9 @@ const getCalendarData = (date) => {
                   <p className={styles.facilityRate}>
                     {priceLabel}: ₱ {displayPrice?.toLocaleString() || 'N/A'}
                   </p>
+                  <p className={styles.priceNote}>
+                    Note: The price is inclusive of a 10% service fee. DepEd, Gov't, PWD, and Seniors are eligible for a 20% discount.
+                  </p>
                 </div>
                 <button className={styles.reserveButton} onClick={onReserveNow}>
                   Reserve Now
