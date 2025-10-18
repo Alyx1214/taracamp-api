@@ -17,6 +17,11 @@ const ReservationsCalendar = () => {
   const [dayCounts, setDayCounts] = useState(new Map());
   const [loading, setLoading] = useState(false);
 
+  // new UI state for search and facility filter
+  const [searchQuery, setSearchQuery] = useState("");
+  const [facilityFilter, setFacilityFilter] = useState("All");
+  const [facilities, setFacilities] = useState([]);
+
   const year = currentDate.getFullYear();
   const monthIndex = currentDate.getMonth();   // 0-indexed
   const monthForApi = monthIndex + 1;          // API expects 1-indexed
@@ -45,8 +50,41 @@ const ReservationsCalendar = () => {
         const res = await getReservationsForCalendar(year, monthForApi);
         const rows = Array.isArray(res?.reservations) ? res.reservations : [];
 
-        const map = new Map();
+        // build facility list from returned reservations (frontend only) paedit nalang ako neto aly sa backend
+        const facilitySet = new Set();
         for (const r of rows) {
+          const name =
+            (r.facilityName && String(r.facilityName).trim()) ||
+            (r.facility && (r.facility.name || r.facility.facilityName)) ||
+            null;
+          if (name) facilitySet.add(String(name));
+        }
+        setFacilities(["All", ...Array.from(facilitySet)]);
+
+        const map = new Map();
+        const q = (searchQuery || "").trim().toLowerCase();
+
+        for (const r of rows) {
+          // apply facility filter if selected
+          const rName =
+            (r.facilityName && String(r.facilityName).trim()) ||
+            (r.facility && (r.facility.name || r.facility.facilityName)) ||
+            "";
+
+          if (facilityFilter && facilityFilter !== "All" && String(rName) !== String(facilityFilter)) {
+            continue;
+          }
+
+          // apply search query (search facility name and guest name if available)
+          if (q) {
+            const guest =
+              (r.guestName && String(r.guestName)) ||
+              (r.guest && (r.guest.name || r.guest.fullName)) ||
+              "";
+            const hay = `${rName} ${guest}`.toLowerCase();
+            if (!hay.includes(q)) continue;
+          }
+
           const dt = new Date(r.dateOfArrival);
           if (Number.isNaN(dt.getTime())) continue;
           const day = dt.getDate();
@@ -72,7 +110,7 @@ const ReservationsCalendar = () => {
       }
     };
     fetchMonth();
-  }, [year, monthForApi]);
+  }, [year, monthForApi, facilityFilter, searchQuery]);
 
   const navigateMonth = (direction) => {
     setCurrentDate(prev => {
@@ -97,6 +135,31 @@ const ReservationsCalendar = () => {
       <div className={styles.calendarHeader}>
         <div className={styles.headerTop}>
           <h3 className={styles.calendarTitle}>Reservations Calendar</h3>
+        </div>
+
+        {/* search + facility dropdown inserted between title and header controls */}
+        <div className={styles.searchRow}>
+          <input
+            type="search"
+            placeholder="Search facility..."
+            className={styles.searchInput}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            aria-label="Search reservations"
+          />
+
+          <select
+            className={styles.filterSelect}
+            value={facilityFilter}
+            onChange={(e) => setFacilityFilter(e.target.value)}
+            aria-label="Filter by facility"
+          >
+            {facilities.map((f) => (
+              <option key={f} value={f}>
+                {f}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className={styles.headerControls}>
