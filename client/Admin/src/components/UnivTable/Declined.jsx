@@ -38,8 +38,7 @@ export default function Declined({
   const [totalItems, setTotalItems] = useState(parentTotalItems);
   
   const itemsPerPage = 15;
-  const columns = useMemo(() => ["Name", "Email", "Service Type", "Date", "Actions"], []);
-
+  const columns = useMemo(() => ["Name", "Email", "Service Type", "Facility Name", "Date", "Actions"], []);
   useEffect(() => {
     let cancelled = false;
     async function fetchDeclined() {

@@ -31,6 +31,7 @@ export default function UnivTable({ columns, data, renderActions, renderMenu, lo
       Name: "name",
       Email: "email",
       "Service Type": "serviceType",
+      "Facility Name": "facilityName",
       Date: "date",
     };
     return mapping[columnName] || columnName.toLowerCase().replace(/ /g, "");

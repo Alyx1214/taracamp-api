@@ -13,27 +13,38 @@ export default function Transaction() {
   const [activeTab, setActiveTab] = useState("Transactions");
   const [transactions, setTransactions] = useState([]);
   const [payments, setPayments] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    setLoading(true);
     if (activeTab === "Transactions") {
       getAllReservationsByStatus("Checked-out")
-        .then(data => setTransactions(data.reservations || []))
+        .then(data => {
+          setTransactions(data.reservations || []);
+          setLoading(false);
+        })
         .catch((err) => {
           console.error("Failed to fetch checked out reservations:", err)
           setTransactions([]);
+          setLoading(false);
         });
     } else if (activeTab === "Payment") {
         getAllReservationsByStatus("Confirmed")
-        .then(data => setPayments(data.reservations || []))
+        .then(data => {
+          setPayments(data.reservations || []);
+          setLoading(false);
+        })
         .catch((err) => {
           console.error("Failed to fetch confirmed reservations:", err)
           setPayments([]);
+          setLoading(false);
         });
     }
   }, [activeTab]);
 
   const handleSearch = async (value) => {
     const q = (value || "").trim();
+    setLoading(true);
     if (!q) {
       if (activeTab === "Transactions") {
         try {
@@ -50,6 +61,7 @@ export default function Transaction() {
           setPayments([]);
         }
       }
+      setLoading(false);
       return;
     }
 
@@ -67,6 +79,8 @@ export default function Transaction() {
       console.error("Search failed:", err?.message || err);
       if (activeTab === "Transactions") setTransactions([]);
       else if (activeTab === "Payment") setPayments([]);
+    } finally {
+      setLoading(false);
     }
   };
   const handleFilter = () => console.log("Filter clicked");
@@ -74,9 +88,9 @@ export default function Transaction() {
   const renderActiveTab = () => {
     switch (activeTab) {
         case "Transactions":
-            return <TransactionTable data={transactions} />;
+            return <TransactionTable data={transactions} loading={loading} />;
         case "Payment":
-            return <PaymentTable data={payments} />;
+            return <PaymentTable data={payments} loading={loading} />;
         default:
             return null;
     }

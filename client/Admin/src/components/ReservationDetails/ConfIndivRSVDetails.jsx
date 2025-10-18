@@ -32,7 +32,7 @@ export default function ConfIndivRSVDetails() {
   const SkeletonLoading = () => (
     <div className={styles["rsv-details-container"]}>
       <div className={styles["rsv-details-header"]}>
-        <span className={styles["rsv-details-back"]} onClick={() => navigate(-1)}>
+        <span className={styles["rsv-details-back"]} onClick={() => navigate('/reservations', { state: { activeTab: 'Confirmed' } })}>
           &larr;
         </span>
         <h1 className={styles["rsv-details-title"]}>Reservation Details</h1>
@@ -81,7 +81,7 @@ export default function ConfIndivRSVDetails() {
     return (
       <div className={styles["rsv-details-container"]}>
         <div className={styles["rsv-details-header"]}>
-          <span className={styles["rsv-details-back"]} onClick={() => navigate(-1)}>&larr;</span>
+          <span className={styles["rsv-details-back"]} onClick={() => navigate('/reservations', { state: { activeTab: 'Confirmed' } })}>&larr;</span>
           <h1 className={styles["rsv-details-title"]}>Reservation Details</h1>
         </div>
         <div className={styles["rsv-details-card"]}>
@@ -101,7 +101,7 @@ export default function ConfIndivRSVDetails() {
   return (
     <div className={styles["rsv-details-container"]}>
       <div className={styles["rsv-details-header"]}>
-        <span className={styles["rsv-details-back"]} onClick={() => navigate(-1)}>&larr;</span>
+        <span className={styles["rsv-details-back"]} onClick={() => navigate('/reservations', { state: { activeTab: 'Confirmed' } })}>&larr;</span>
         <h1 className={styles["rsv-details-title"]}>Reservation Details</h1>
       </div>
       <div className={styles["rsv-details-card"]}>

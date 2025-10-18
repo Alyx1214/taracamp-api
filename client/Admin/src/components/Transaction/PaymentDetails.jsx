@@ -39,14 +39,97 @@ export default function PaymentDetails() {
     return () => { cancelled = true; };
   }, [reservationId]);
 
+  // Skeleton Loading Component
+  const SkeletonLoading = () => (
+    <div className={styles["payment-details-container"]}>
+      <div className={styles["payment-details-header"]}>
+        <span className={styles["payment-details-back"]} onClick={() => navigate(-1)}>
+          &larr;
+        </span>
+        <h1 className={styles["payment-details-title"]}>Payment Details</h1>
+      </div>
+      <div className={styles["payment-details-card"]}>
+        {/* Table Rows Skeleton */}
+        <table className={styles["payment-details-table"]}>
+          <tbody>
+            {Array.from({ length: 3 }).map((_, index) => (
+              <tr key={index}>
+                <td className={styles["payment-details-label"]}>
+                  <div className={`${styles["skeleton-label"]} ${styles["skeleton"]}`}></div>
+                </td>
+                <td className={styles["payment-details-separator"]}>
+                  <div className={`${styles["skeleton-separator"]} ${styles["skeleton"]}`}></div>
+                </td>
+                <td>
+                  <div className={`${styles["skeleton-value"]} ${styles["skeleton"]}`}></div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        
+        {/* Payment Breakdown Skeleton */}
+        <hr className={styles["payment-details-divider"]} />
+        <div className={styles["payment-details-section-title"]}>Payment Breakdown</div>
+        <table className={styles["payment-details-table"]}>
+          <tbody>
+            {Array.from({ length: 4 }).map((_, index) => (
+              <tr key={index}>
+                <td className={styles["payment-details-label"]}>
+                  <div className={`${styles["skeleton-label"]} ${styles["skeleton"]}`}></div>
+                </td>
+                <td className={styles["payment-details-separator"]}>
+                  <div className={`${styles["skeleton-separator"]} ${styles["skeleton"]}`}></div>
+                </td>
+                <td>
+                  <div className={`${styles["skeleton-value"]} ${styles["skeleton"]}`}></div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        
+        {/* Discount Skeleton */}
+        <hr className={styles["payment-details-divider"]} />
+        <div className={styles["payment-details-section-title"]}>Discount %</div>
+        <table className={styles["payment-details-table"]}>
+          <tbody>
+            <tr>
+              <td className={styles["payment-details-label"]}>
+                <div className={`${styles["skeleton-label"]} ${styles["skeleton"]}`}></div>
+              </td>
+              <td className={styles["payment-details-separator"]}>
+                <div className={`${styles["skeleton-separator"]} ${styles["skeleton"]}`}></div>
+              </td>
+              <td>
+                <div className={`${styles["skeleton-value"]} ${styles["skeleton"]}`}></div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        
+        {/* Total and Status Skeleton */}
+        <hr className={styles["payment-details-divider"]} />
+        <div className={styles["payment-details-total-row"]}>
+          <div className={`${styles["skeleton-total-label"]} ${styles["skeleton"]}`}></div>
+          <div className={`${styles["skeleton-total-value"]} ${styles["skeleton"]}`}></div>
+        </div>
+        <div className={styles["payment-details-status-row"]}>
+          <div className={`${styles["skeleton-status-label"]} ${styles["skeleton"]}`}></div>
+          <div className={`${styles["skeleton-status-value"]} ${styles["skeleton"]}`}></div>
+        </div>
+      </div>
+    </div>
+  );
+
   const Back = (
     <span
       className={styles["payment-details-back"]}
-      onClick={() => navigate(-1)}
+      onClick={() => navigate('/transactions')}
       style={{ cursor: "pointer" }}
       role="button"
       tabIndex={0}
-      onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && navigate(-1)}
+      onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && navigate('/transactions')}
       aria-label="Go back"
     >
       &larr;
@@ -54,17 +137,7 @@ export default function PaymentDetails() {
   );
 
   if (loading) {
-    return (
-      <div className={styles["payment-details-container"]}>
-        <div className={styles["payment-details-header"]}>
-          {Back}
-          <h1 className={styles["payment-details-title"]}>Payment Details</h1>
-        </div>
-        <div className={styles["payment-details-card"]}>
-          <p>Loading…</p>
-        </div>
-      </div>
-    );
+    return <SkeletonLoading />;
   }
 
   if (error || !payment) {

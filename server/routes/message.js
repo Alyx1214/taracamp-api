@@ -41,4 +41,20 @@ r.post('/mark-all-read', asyncHandler(async (req, res) => {
   res.status(response.status).json(response);
 }));
 
+// Automated response management routes (admin only)
+r.get('/auto-response/config', asyncHandler(async (req, res) => {
+  const response = await messageModule.getAutoResponseConfig(dbHelper, req.user?.userId);
+  res.status(response.status).json(response);
+}));
+
+r.post('/auto-response/config', asyncHandler(async (req, res) => {
+  const response = await messageModule.updateAutoResponseConfig(dbHelper, req.user?.userId, req.body);
+  res.status(response.status).json(response);
+}));
+
+r.post('/auto-response/test', asyncHandler(async (req, res) => {
+  const response = await messageModule.testAutoResponse(dbHelper, req.user?.userId, req.body.message);
+  res.status(response.status).json(response);
+}));
+
 export default r;

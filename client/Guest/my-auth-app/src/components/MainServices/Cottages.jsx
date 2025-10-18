@@ -96,7 +96,7 @@ function MainServicesCottages({
               <h3 className={styles.cottageName}>{cottage?.name || 'Unnamed Cottage'}</h3>
               <p className={styles.cottageInfo}>Capacity: {formatCapacity(cottage?.capacity)}</p>
               <p className={styles.cottageRate}>
-                Rates per Person : ₱ {formatPeso(cottage?.ratePerPerson ?? cottage?.rate)}
+                Price : ₱ {formatPeso(cottage?.ratePerPerson ?? cottage?.rate)}
               </p>
               <Link to={`${cottage?.name?.replace(/\s+/g, '-').toLowerCase() || 'unnamed'}/${cottage?._id ?? cottage?.id ?? ''}`} className={styles.checkButton}>
                 View Details

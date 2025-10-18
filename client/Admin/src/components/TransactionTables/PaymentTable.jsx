@@ -3,10 +3,10 @@ import { useNavigate } from "react-router-dom";
 import UnivTable from "../UnivTable/UnivTable.jsx";
 import styles from "../UnivTable/UnivTable.module.css"; 
 
-export default function PaymentTable({ data = [] }) {
+export default function PaymentTable({ data = [], loading = false }) {
   const navigate = useNavigate();
 
-  const columns = ["ID", "Name", "Email", "Service Type", "Date", "Actions"];
+  const columns = ["Name", "Email", "Service Type", "Date", "Actions"];
 
   const formattedData = data.map(item => ({
     id: item._id,
@@ -38,6 +38,7 @@ export default function PaymentTable({ data = [] }) {
     <UnivTable
       columns={columns}
       data={formattedData}
+      loading={loading}
       renderActions={renderActions}
       renderMenu={renderMenu}
     />

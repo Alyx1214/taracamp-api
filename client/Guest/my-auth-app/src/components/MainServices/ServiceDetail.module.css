@@ -99,7 +99,7 @@
 }
 
 .facilityName {
-  font-size: clamp(1.8rem, 3vw, 2.9rem);
+  font-size: clamp(1.8rem, 3vw, 2.5rem);
   color: var(--text-primary);
   margin: 0 0 0.5rem 0;
   font-weight: 700;
@@ -111,6 +111,13 @@
   color: var(--text-secondary);
   margin: 0;
   font-weight: 500;
+}
+
+.priceNote{
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-top: 0.5rem;
+  font-style: italic;
 }
 
 .reserveButton {

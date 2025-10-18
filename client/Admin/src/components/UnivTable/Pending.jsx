@@ -4,6 +4,7 @@ import UnivTable from "./UnivTable";
 import styles from "./UnivTable.module.css";
 import { getAllReservationsByStatus, decideReservation, searchReservations } from "../../apis/reservationApi";
 import ConfirmModal from "../Shared/ConfirmModal";
+import { getFacilityById } from "../../apis/facilityApi";
 
 function formatDateYMDToLong(dateStr) {
   if (!dateStr) return "N/A";
@@ -42,17 +43,19 @@ export default function Pending({
   const [totalItems, setTotalItems] = useState(parentTotalItems);
 
   const itemsPerPage = 15;
-  const columns = useMemo(() => ["Name", "Email", "Service Type", "Date", "Actions"], []);
+  const columns = useMemo(() => ["Name", "Email", "Service Type", "Facility Name", "Date", "Actions"], []);
 
   useEffect(() => {
     let cancelled = false;
+
     async function fetchPending() {
       try {
         setLoading(true);
         let res;
         const skip = (currentPage - 1) * itemsPerPage;
         const options = { limit: itemsPerPage, skip };
-        
+
+        // Fetch pending reservations or search results
         if (String(searchQuery || '').trim()) {
           const s = String(searchQuery || '').trim();
           res = await searchReservations({ query: s, ...options });
@@ -60,50 +63,60 @@ export default function Pending({
         } else {
           res = await getAllReservationsByStatus("Pending", options);
         }
-        
-        const list = (res?.reservations || []).map((r) => ({
-          id: r._id || "N/A",
-          name: r.guestName || "N/A",
-          email: r.guestEmail || "N/A",
-          serviceType: prettifyServiceType(r.serviceType) || "N/A",
-          date: formatDateYMDToLong(r.dateOfArrival || r.createdAt),
-          _raw: r,
-        }));
-        
+
+        const reservations = res?.reservations || [];
+
+        // 🔹 Fetch facility names in parallel
+        const list = await Promise.all(
+          reservations.map(async (r) => {
+            let facilityName = "N/A";
+            try {
+              if (r.facility) {
+                const facilityData = await getFacilityById(r.facility);
+                facilityName = facilityData?.facility?.name || "N/A";
+              }
+            } catch {
+              facilityName = "N/A";
+            }
+
+            return {
+              id: r._id || "N/A",
+              name: r.guestName || "N/A",
+              email: r.guestEmail || "N/A",
+              serviceType: prettifyServiceType(r.serviceType) || "N/A",
+              facilityName,
+              date: formatDateYMDToLong(r.dateOfArrival || r.createdAt),
+              _raw: r,
+            };
+          })
+        );
+
         if (!cancelled) {
           setRows(list);
-          // Use real total count from API
           const totalCount = res?.totalCount || 0;
           setTotalItems(totalCount);
           setTotalPages(Math.ceil(totalCount / itemsPerPage));
-          
-          // Update parent pagination state
+
           if (onPaginationUpdate) {
             onPaginationUpdate(Math.ceil(totalCount / itemsPerPage), totalCount);
           }
         }
       } catch (e) {
-        if (!cancelled) setErr(e?.message || "Failed to load");
+        if (!cancelled) setErr(e?.message || "Failed to load reservations");
       } finally {
         if (!cancelled) setLoading(false);
       }
     }
+
     fetchPending();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [searchQuery, currentPage]);
 
-  // Sync with parent pagination state
-  useEffect(() => {
-    setCurrentPage(parentCurrentPage);
-  }, [parentCurrentPage]);
-
-  useEffect(() => {
-    setTotalPages(parentTotalPages);
-  }, [parentTotalPages]);
-
-  useEffect(() => {
-    setTotalItems(parentTotalItems);
-  }, [parentTotalItems]);
+  useEffect(() => setCurrentPage(parentCurrentPage), [parentCurrentPage]);
+  useEffect(() => setTotalPages(parentTotalPages), [parentTotalPages]);
+  useEffect(() => setTotalItems(parentTotalItems), [parentTotalItems]);
 
   async function onApprove(row) {
     try {
@@ -136,9 +149,7 @@ export default function Pending({
 
   const handlePageChange = (page) => {
     setCurrentPage(page);
-    if (parentOnPageChange) {
-      parentOnPageChange(page);
-    }
+    if (parentOnPageChange) parentOnPageChange(page);
   };
 
   const renderActions = (row) => (
@@ -173,6 +184,9 @@ export default function Pending({
         loading={loading}
         renderActions={renderActions}
         renderMenu={renderMenu}
+        onPageChange={handlePageChange}
+        currentPage={currentPage}
+        totalPages={totalPages}
       />
       <ConfirmModal
         open={confirmDeclineOpen}

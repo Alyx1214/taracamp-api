@@ -38,8 +38,7 @@ export default function Confirmed({
   const [totalItems, setTotalItems] = useState(parentTotalItems);
 
   const itemsPerPage = 15;
-  const columns = useMemo(() => ["Name", "Email", "Service Type", "Date", "Actions"], []);
-
+  const columns = useMemo(() => ["Name", "Email", "Service Type", "Facility Name", "Date", "Actions"], []);
   useEffect(() => {
     let cancelled = false;
     async function fetchConfirmed() {
@@ -110,10 +109,26 @@ export default function Confirmed({
 
   const renderActions = (row) => (
     <>
-      <button className={styles["univ-approve-btn"]} onClick={() => navigate(`/confirmed/edit/${row.id}`)}>
+      <button className={styles["univ-approve-btn"]} onClick={() => {
+        if (!row.id || row.id === "N/A") {
+          alert("Invalid reservation ID. Cannot edit.");
+          return;
+        }
+        row.guestType === "GROUP"
+          ? navigate(`/confirmedGroup/${row.id}/details`)
+          : navigate(`/confirmedIndiv/${row.id}/details`);
+      }}>
         Edit
       </button>
-      <button className={styles["univ-decline-btn"]} onClick={() => navigate(`/confirmed/view/${row.id}`)}>
+      <button className={styles["univ-decline-btn"]} onClick={() => {
+        if (!row.id || row.id === "N/A") {
+          alert("Invalid reservation ID. Cannot view details.");
+          return;
+        }
+        row.guestType === "GROUP"
+          ? navigate(`/confirmedGroup/${row.id}/details`)
+          : navigate(`/confirmedIndiv/${row.id}/details`);
+      }}>
         View
       </button>
     </>
