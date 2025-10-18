@@ -846,10 +846,11 @@ const paymentModule = {
             ]);
 
             const successful = (payments || []).filter((p) => ['paid', 'succeeded',].includes((p.status || '').toLowerCase()));
-            const latest = successful[0] || payments[0] || null;
+            const latest = successful[0] || null;
 
-            const dateIso = latest?.paidAt || latest?.updatedAt || latest?.createdAt || null;
-            const paymentMethod = latest?.paymentMethodType || latest?.paymentMethod?.type || null;
+            // Only show payment method and date for successful payments
+            const dateIso = latest?.paidAt || null;
+            const paymentMethod = latest?.paymentMethodType || null;
 
             const view = {
                 id: (reservation._id?.toString() || '').slice(-4) || '—',
@@ -1075,7 +1076,8 @@ function methodLabel(t) {
 
 function computeEstimate({ facilityDoc, adults = 0, children = 0, pwds = 0, serviceType, }) {
     const isAccommodation =
-    serviceType === ServiceType.ACCOMMODATION ||
+    serviceType === ServiceType.LODGING ||
+    serviceType === ServiceType.EVENT_AND_LODGING ||
     facilityDoc?.facilityType === 'DORMITORY' ||
     facilityDoc?.facilityType === 'COTTAGE';
 

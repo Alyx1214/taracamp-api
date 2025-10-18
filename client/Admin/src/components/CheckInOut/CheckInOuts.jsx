@@ -19,8 +19,8 @@ export default function CheckInOuts() {
 
   const statusForTab = (tab) => {
     if (tab === "Approved") return "Approved"; 
-    if (tab === "Check-in") return "Checked-In";
-    if (tab === "Check-out") return "Checked-Out";
+    if (tab === "Check-in") return "Checked-in";
+    if (tab === "Check-out") return "Checked-out";
     return "";
   };
 
@@ -112,7 +112,7 @@ export default function CheckInOuts() {
     <button
       className={`${styles.pillBtn} ${styles.checkInBtn}`}
       disabled={actionId === row.id}
-      onClick={() => doAction(row, 'CHECKED-IN')}
+      onClick={() => doAction(row, 'Checked-in')}
     >
       {actionId === row.id ? 'Checking in…' : 'Check-In'}
     </button>
@@ -122,7 +122,7 @@ export default function CheckInOuts() {
     <button
       className={`${styles.pillBtn} ${styles.checkOutBtn}`}
       disabled={actionId === row.id}
-      onClick={() => doAction(row, 'CHECK-OUT')}
+      onClick={() => doAction(row, 'Checked-out')}
     >
       {actionId === row.id ? 'Checking out…' : 'Check-Out'}
     </button>

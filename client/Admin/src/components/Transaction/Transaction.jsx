@@ -16,7 +16,7 @@ export default function Transaction() {
 
   useEffect(() => {
     if (activeTab === "Transactions") {
-      getAllReservationsByStatus("Checked-Out")
+      getAllReservationsByStatus("Checked-out")
         .then(data => setTransactions(data.reservations || []))
         .catch((err) => {
           console.error("Failed to fetch checked out reservations:", err)
@@ -37,7 +37,7 @@ export default function Transaction() {
     if (!q) {
       if (activeTab === "Transactions") {
         try {
-          const data = await getAllReservationsByStatus("Checked-Out");
+          const data = await getAllReservationsByStatus("Checked-out");
           setTransactions(data.reservations || []);
         } catch {
           setTransactions([]);
@@ -55,7 +55,7 @@ export default function Transaction() {
 
     const params = {
       query: q,
-      status: activeTab === "Transactions" ? "Checked-Out" : "Confirmed",
+      status: activeTab === "Transactions" ? "Checked-out" : "Confirmed",
     };
 
     try {
