@@ -35,7 +35,7 @@ function ReservationForm() {
     type: { groups: false, individual: false },
     phoneNo: '',
     officeTelephoneNo: '',
-    guests: { adult: '', children: '', pwds: '' },
+    guests: { adult: '', children: '', pwds: '', senior: '' },
     emergencyContactPerson: '', 
     emergencyContact: '',
   });
@@ -64,7 +64,8 @@ function ReservationForm() {
     const a = parseInt(formData.guests.adult || '0', 10);
     const c = parseInt(formData.guests.children || '0', 10);
     const p = parseInt(formData.guests.pwds || '0', 10);
-    return (Number.isFinite(a) ? a : 0) + (Number.isFinite(c) ? c : 0) + (Number.isFinite(p) ? p : 0);
+    const s = parseInt(formData.guests.senior || '0', 10);
+    return (Number.isFinite(a) ? a : 0) + (Number.isFinite(c) ? c : 0) + (Number.isFinite(p) ? p : 0) + (Number.isFinite(s) ? s : 0);
   }, [formData.guests]);
 
   const handleInputChange = (e) => {
@@ -92,7 +93,7 @@ function ReservationForm() {
     const { name, value } = e.target;
     const clean = value === '' ? '' : clampNonNegativeInt(value);
     setFormData(prev => ({ ...prev, guests: { ...prev.guests, [name]: clean } }));
-    const guestErrKey = name === 'adult' ? 'guestsAdult' : name === 'children' ? 'guestsChildren' : 'guestsPwds';
+    const guestErrKey = name === 'adult' ? 'guestsAdult' : name === 'children' ? 'guestsChildren' : name === 'pwds' ? 'guestsPwds' : 'guestsSenior';
     setErrors(prev => ({ ...prev, [guestErrKey]: undefined, guestsTotal: undefined }));
   };
 
@@ -112,13 +113,15 @@ function ReservationForm() {
     const a = parseInt(formData.guests.adult || '0', 10) || 0;
     const c = parseInt(formData.guests.children || '0', 10) || 0;
     const p = parseInt(formData.guests.pwds || '0', 10) || 0;
+    const s = parseInt(formData.guests.senior || '0', 10) || 0;
 
     if (a < 0) e.guestsAdult = 'Adult guests cannot be negative.';
     if (c < 0) e.guestsChildren = 'Children cannot be negative.';
     if (p < 0) e.guestsPwds = 'PWD guests cannot be negative.';
-    if (a + c + p <= 0) e.guestsTotal = 'At least 1 guest is required.';
-    if (facility?.capacity && (a + c + p) > facility.capacity) {
-      e.guestsTotal = `Total guests (${a + c + p}) exceeds facility capacity (${facility.capacity}).`;
+    if (s < 0) e.guestsSenior = 'Senior citizen guests cannot be negative.';
+    if (a + c + p + s <= 0) e.guestsTotal = 'At least 1 guest is required.';
+    if (facility?.capacity && (a + c + p + s) > facility.capacity) {
+      e.guestsTotal = `Total guests (${a + c + p + s}) exceeds facility capacity (${facility.capacity}).`;
     }
 
     setErrors(e);
@@ -298,7 +301,6 @@ function ReservationForm() {
               </div>
 
               <div className={styles.formRow}>
-                {/* Derived, read-only total */}
                 <div className={styles.formGroup}>
                   <label className={styles.label} htmlFor="adult">Adult</label>
                   <input
@@ -326,6 +328,20 @@ function ReservationForm() {
                     inputMode="numeric"
                   />
                   {errors.guestsChildren && <div className={styles.fieldError}>{errors.guestsChildren}</div>}
+                </div>
+                <div className={styles.formGroup}>
+                  <label className={styles.label} htmlFor="senior">Senior Citizen</label>
+                  <input
+                    id="senior"
+                    type="number"
+                    name="senior"
+                    {...numberGuardProps}
+                    value={formData.guests.senior}
+                    onChange={handleGuestChange}
+                    className={`${styles.input} ${errors.guestsSenior ? styles.inputError : ''}`}
+                    inputMode="numeric"
+                  />
+                  {errors.guestsSenior && <div className={styles.fieldError}>{errors.guestsSenior}</div>}
                 </div>
                 <div className={styles.formGroup}>
                   <label className={styles.label} htmlFor="pwds">PWDs</label>

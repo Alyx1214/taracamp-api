@@ -131,7 +131,7 @@ const reservationModule = {
 
             if (!isValidDateRange(dateOfArrival, dateOfDeparture)) {
                 responseData.status = Status.BAD_REQUEST;
-                responseData.error = 'Invalid date range: ensure arrival is today or later, and departure is after arrival';
+                responseData.error = 'Invalid date range: ensure arrival is today or later, departure is after arrival, and arrival is at least 2 months from today';
                 return responseData;
             }
 
@@ -145,6 +145,20 @@ const reservationModule = {
                 responseData.status = Status.BAD_REQUEST;
                 responseData.error = 'Invalid guest type';
                 return responseData;
+            }
+
+            if (guestType === GuestType.INDIVIDUAL) {
+                const adults = parseInt(numberOfAdults) || 0;
+                const children = parseInt(numberOfChildren) || 0;
+                const pwds = parseInt(numberOfPwds) || 0;
+                const seniorCitizens = parseInt(numberOfSeniorCitizens) || 0;
+                const total = adults + children + pwds + seniorCitizens;
+                
+                if (total > 50) {
+                    responseData.status = Status.BAD_REQUEST;
+                    responseData.error = 'Individual reservations are limited to a maximum of 50 guests. Please select "Group" type for more than 50 guests.';
+                    return responseData;
+                }
             }
 
             if (!isValidServiceType(serviceType)) {
@@ -316,6 +330,7 @@ const reservationModule = {
                 seniorCitizens,
                 serviceType,
                 addonsTotal,
+                category,
             });
 
             if (!Number.isFinite(totalEstimatedAmount)) {
@@ -783,7 +798,7 @@ const reservationModule = {
             const skipValue = clampSkip(skip);
 
             // Create cache key with all relevant parameters
-            const cacheKey = `get_reservations_by_status:${status}:${limitValue}:${skipValue}:${JSON.stringify(sortOption)}`;
+            const cacheKey = `get_reservations_by_status_v2:${status}:${limitValue}:${skipValue}:${JSON.stringify(sortOption)}`;
 
             // Try to get cached result
             try {
@@ -810,7 +825,7 @@ const reservationModule = {
                             guestName: 1, 
                             guestEmail: 1, 
                             serviceType: 1, 
-                            dateOfArrival: 1,
+                            createdAt: 1,
                             userId: 1
                         },
                         sort: sortOption,
@@ -839,7 +854,7 @@ const reservationModule = {
                 guestName: r.guestName,
                 guestEmail: r.guestEmail ?? emailById.get(String(r.userId)) ?? null,
                 serviceType: r.serviceType,
-                dateOfArrival: r.dateOfArrival,
+                createdAt: r.createdAt,
             }));
 
             // Cache the result
@@ -1433,7 +1448,10 @@ const reservationModule = {
      *   - adults (optional, default 0): The number of adults.
      *   - children (optional, default 0): The number of children.
      *   - pwds (optional, default 0): The number of persons with disabilities.
-     *   - serviceType (optional): The type of service (ACCOMMODATION or MEETING).
+     *   - seniorCitizens (optional, default 0): The number of senior citizens.
+     *   - serviceType (optional): The type of service (EVENT, EVENT_AND_LODGING, or LODGING).
+     *   - addOns (optional): Array of addon IDs.
+     *   - category (optional): The category (PRIVATE, GOVERNMENT, DEPED, PWDs, OTHERS).
      * @returns {Object} Response data with status, error, amount, and model on success.
      */
     estimate: async (dbHelper, params = {}) => {
@@ -1443,7 +1461,7 @@ const reservationModule = {
         };
 
         try {
-            const { facility, adults = 0, children = 0, pwds = 0, seniorCitizens = 0, serviceType, addOns, } = params;
+            const { facility, adults = 0, children = 0, pwds = 0, seniorCitizens = 0, serviceType, addOns, category, } = params;
 
             if (!facility) {
                 responseData.status = Status.BAD_REQUEST;
@@ -1489,6 +1507,7 @@ const reservationModule = {
                 seniorCitizens: Number(seniorCitizens) || 0,
                 serviceType: svcType,
                 addonsTotal,
+                category,
             });
 
             responseData.status = Status.OK;
@@ -1531,7 +1550,7 @@ const reservationModule = {
             }
             if (!isValidDateRange(start, end)) {
                 responseData.status = Status.BAD_REQUEST;
-                responseData.error = 'Invalid date range: ensure arrival is today or later, and departure is after arrival';
+                responseData.error = 'Invalid date range: ensure arrival is today or later, departure is after arrival, and arrival is at least 2 months from today';
                 return responseData;
             }
 
@@ -1668,7 +1687,12 @@ function isValidDateRange(dateOfArrival, dateOfDeparture) {
     if (!arrival || !departure || !today) return false;
     if (arrival < today) return false;
     if (departure <= arrival) return false;
-    // Optional: enforce an upper booking window by comparing against a computed `maxAdvance`
+    
+    // Calculate minimum advance date (2 months from today) using the normalized today date
+    const minAdvanceDate = new Date(today);
+    minAdvanceDate.setMonth(minAdvanceDate.getMonth() + 2);
+    
+    if (arrival < minAdvanceDate) return false;
 
     return true;
 }
@@ -1717,27 +1741,52 @@ function isPresent(value) {
     return true;
 }
 
-function computeEstimate({ facilityDoc, adults = 0, children = 0, pwds = 0, seniorCitizens = 0, serviceType, addonsTotal = 0, }) {
+function computeEstimate({ facilityDoc, adults = 0, children = 0, pwds = 0, seniorCitizens = 0, serviceType, addonsTotal = 0, category, }) {
     const isAccommodation =
-    serviceType === ServiceType.ACCOMMODATION ||
+    serviceType === ServiceType.LODGING ||
+    serviceType === ServiceType.EVENT_AND_LODGING ||
     facilityDoc?.facilityType === FacilityType.DORMITORY ||
     facilityDoc?.facilityType === FacilityType.COTTAGE;
 
     const perPersonRate = Number(facilityDoc?.ratePerPerson);
     const flatBookingPrice = Number(facilityDoc?.price ?? facilityDoc?.conferencePrice ?? facilityDoc?.flatPrice);
 
+    let baseAmount = 0;
+
     if (isAccommodation) {
         if (!Number.isFinite(perPersonRate) || perPersonRate < 0) {
-            return { amount: addonsTotal, model: 'perPerson', };
+            baseAmount = addonsTotal;
+        } else {
+            baseAmount = adults * perPersonRate + (children + pwds + seniorCitizens) * perPersonRate * 0.80 + addonsTotal;
         }
-        const base = adults * perPersonRate + (children + pwds) * perPersonRate * 0.80;
-        return { amount: base + addonsTotal, model: 'perPerson', };
     } else {
         if (!Number.isFinite(flatBookingPrice) || flatBookingPrice < 0) {
-            return { amount: addonsTotal, model: 'flat', };
+            baseAmount = addonsTotal;
+        } else {
+            baseAmount = flatBookingPrice + addonsTotal;
         }
-        return { amount: flatBookingPrice + addonsTotal, model: 'flat', };
     }
+
+    // Apply service fees and discounts based on category
+    let finalAmount = baseAmount;
+    
+    if (category === Category.PRIVATE) {
+        // Private category: 10% service fee
+        finalAmount = baseAmount * 1.10;
+    } else if (category === Category.GOVERNMENT || category === Category.DEPED) {
+        // Government and DepEd: 10% service fee + 20% discount
+        const withServiceFee = baseAmount * 1.10;
+        finalAmount = withServiceFee * 0.80; // 20% discount
+    }
+    // Other categories (PWDs, Others) have no service fee or discount
+
+    return { 
+        amount: finalAmount, 
+        model: isAccommodation ? 'perPerson' : 'flat',
+        baseAmount: baseAmount,
+        serviceFee: category === Category.PRIVATE || category === Category.GOVERNMENT || category === Category.DEPED ? baseAmount * 0.10 : 0,
+        discount: category === Category.GOVERNMENT || category === Category.DEPED ? (baseAmount * 1.10) * 0.20 : 0
+    };
 }
 
 function clampLimit(value, def = undefined) {

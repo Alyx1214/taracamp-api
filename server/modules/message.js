@@ -1,4 +1,5 @@
 import { Status } from '../constants.js';
+import autoResponseEngine from './autoResponseEngine.js';
 
 const MAX_PAGE_SIZE = 50;
 
@@ -145,13 +146,15 @@ const messageModule = {
     },
 
     /**
-     * Sends a message to a user.
+     * Sends a message to a user with optional automated response.
      * @param {Object} dbHelper - The database helper object.
      * @param {Object} user - The user object containing the user ID and role.
      * @param {Object} data - The data object containing the message text and sender name.
+     * @param {Object} options - Additional options for message processing.
+     * @param {boolean} [options.enableAutoResponse=true] - Whether to enable automated responses.
      * @returns {Promise<Object>} The response data with the status, error, and the created message.
      */
-    sendMessage: async (dbHelper, user, data = {}) => {
+    sendMessage: async (dbHelper, user, data = {}, options = {}) => {
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
             error: 'Error sending message',
@@ -186,10 +189,170 @@ const messageModule = {
             responseData.status = Status.CREATED;
             responseData.error = null;
             responseData.data = toMessagePayload(saved);
+
+            // Process automated response if this is a user message and auto-response is enabled
+            const enableAutoResponse = options.enableAutoResponse !== false;
+            if (isUserMessage && enableAutoResponse) {
+                try {
+                    const autoResponseResult = await autoResponseEngine.processMessage(
+                        dbHelper, 
+                        userId, 
+                        text, 
+                        { userRole: user?.role, userName: user?.name }
+                    );
+
+                    if (autoResponseResult.shouldSendAutoResponse && autoResponseResult.autoResponse) {
+                        // Add a small delay before sending automated response
+                        setTimeout(async () => {
+                            try {
+                                const autoResponseDoc = {
+                                    userId: autoResponseResult.autoResponse.userId,
+                                    text: autoResponseResult.autoResponse.text,
+                                    sender: autoResponseResult.autoResponse.sender,
+                                    role: autoResponseResult.autoResponse.role,
+                                    isUser: autoResponseResult.autoResponse.isUser,
+                                    isRead: autoResponseResult.autoResponse.isRead,
+                                    metadata: autoResponseResult.autoResponse.metadata
+                                };
+
+                                await dbHelper.create('message', autoResponseDoc);
+                            } catch (error) {
+                                console.error('Error sending automated response:', error);
+                            }
+                        }, 1000); // 1 second delay
+                    }
+
+                    // Include analysis in response for debugging/admin purposes
+                    responseData.autoResponseAnalysis = autoResponseResult.analysis;
+                } catch (error) {
+                    console.error('Error processing automated response:', error);
+                    // Don't fail the main message send if auto-response fails
+                }
+            }
         } catch (error) {
             console.error('Error sending message:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
             responseData.error = 'Error sending message';
+        }
+        return responseData;
+    },
+
+    /**
+     * Gets automated response configuration and statistics.
+     * @param {Object} dbHelper - The database helper object.
+     * @param {string} userId - The ID of the user (admin only).
+     * @returns {Promise<Object>} The response data with configuration and stats.
+     */
+    getAutoResponseConfig: async (dbHelper, userId) => {
+        const responseData = {
+            status: Status.INTERNAL_SERVER_ERROR,
+            error: 'Error fetching auto-response configuration',
+        };
+        try {
+            if (!userId) {
+                responseData.status = Status.UNAUTHORIZED;
+                responseData.error = 'User not logged in';
+                return responseData;
+            }
+
+            // Get configuration
+            const config = autoResponseEngine.getConfig();
+            
+            // Get knowledge base
+            const knowledgeBase = autoResponseEngine.getKnowledgeBase();
+            
+            // Get statistics (count of auto responses sent)
+            const autoResponseCount = await dbHelper.count('message', { 
+                'metadata.isAutoResponse': true 
+            });
+
+            responseData.status = Status.OK;
+            responseData.error = null;
+            responseData.data = {
+                config,
+                knowledgeBase,
+                statistics: {
+                    totalAutoResponses: autoResponseCount
+                }
+            };
+        } catch (error) {
+            console.error('Error fetching auto-response configuration:', error);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Error fetching auto-response configuration';
+        }
+        return responseData;
+    },
+
+    /**
+     * Updates automated response configuration.
+     * @param {Object} dbHelper - The database helper object.
+     * @param {string} userId - The ID of the user (admin only).
+     * @param {Object} config - New configuration options.
+     * @returns {Promise<Object>} The response data.
+     */
+    updateAutoResponseConfig: async (dbHelper, userId, config) => {
+        const responseData = {
+            status: Status.INTERNAL_SERVER_ERROR,
+            error: 'Error updating auto-response configuration',
+        };
+        try {
+            if (!userId) {
+                responseData.status = Status.UNAUTHORIZED;
+                responseData.error = 'User not logged in';
+                return responseData;
+            }
+
+            autoResponseEngine.updateConfig(config);
+            
+            responseData.status = Status.OK;
+            responseData.error = null;
+            responseData.data = { message: 'Configuration updated successfully' };
+        } catch (error) {
+            console.error('Error updating auto-response configuration:', error);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Error updating auto-response configuration';
+        }
+        return responseData;
+    },
+
+    /**
+     * Tests a message against the automated response engine.
+     * @param {Object} dbHelper - The database helper object.
+     * @param {string} userId - The ID of the user (admin only).
+     * @param {string} testMessage - Message to test.
+     * @returns {Promise<Object>} The response data with test results.
+     */
+    testAutoResponse: async (dbHelper, userId, testMessage) => {
+        const responseData = {
+            status: Status.INTERNAL_SERVER_ERROR,
+            error: 'Error testing auto-response',
+        };
+        try {
+            if (!userId) {
+                responseData.status = Status.UNAUTHORIZED;
+                responseData.error = 'User not logged in';
+                return responseData;
+            }
+
+            if (!testMessage || typeof testMessage !== 'string') {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Test message is required';
+                return responseData;
+            }
+
+            const testResult = autoResponseEngine.testMessage(testMessage);
+            
+            responseData.status = Status.OK;
+            responseData.error = null;
+            responseData.data = {
+                testMessage,
+                analysis: testResult,
+                suggestedResponse: testResult.response
+            };
+        } catch (error) {
+            console.error('Error testing auto-response:', error);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Error testing auto-response';
         }
         return responseData;
     },
