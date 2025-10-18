@@ -28,10 +28,24 @@
   background: #4CA16B;
   color: #fff;
 }
+.pagination-btn:hover:not(:disabled) {
+  background: #f0f0f0;
+}
+.pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 .pagination-arrow {
   background: none;
   border: none;
   font-size: 1.5rem;
   color: #4CA16B;
   cursor: pointer;
+}
+.pagination-arrow:hover:not(:disabled) {
+  color: #2d5a3d;
+}
+.pagination-arrow:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }

@@ -4,8 +4,11 @@ export function getReservationById(id) {
   return apiGet(`/reservation/get-reservation-by-id/${id}`);
 }
 
-export function getAllReservationsByStatus(status) {
-  return apiGet(`/reservation/get-all-reservations-by-status/${encodeURIComponent(status)}`);
+export function getAllReservationsByStatus(status, options = {}) {
+  const { limit = 15, skip = 0, sort } = options;
+  const query = { limit, skip };
+  if (sort) query.sort = sort;
+  return apiGet(`/reservation/get-all-reservations-by-status/${encodeURIComponent(status)}`, query);
 }
 
 export function searchReservations(params = {}) {
@@ -14,6 +17,9 @@ export function searchReservations(params = {}) {
     p.query = p.search;
     delete p.search;
   }
+  // Add default pagination if not provided
+  if (p.limit === undefined) p.limit = 15;
+  if (p.skip === undefined) p.skip = 0;
   return apiGet('/reservation/search-reservations', p);
 }
 

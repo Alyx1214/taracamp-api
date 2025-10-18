@@ -22,7 +22,14 @@ function prettifyServiceType(svc) {
     .join("");
 }
 
-export default function Pending({ searchQuery = "" }) {
+export default function Pending({ 
+  searchQuery = "", 
+  currentPage: parentCurrentPage = 1,
+  totalPages: parentTotalPages = 1,
+  totalItems: parentTotalItems = 0,
+  onPageChange: parentOnPageChange,
+  onPaginationUpdate
+}) {
   const navigate = useNavigate();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -30,7 +37,11 @@ export default function Pending({ searchQuery = "" }) {
   const [confirmDeclineOpen, setConfirmDeclineOpen] = useState(false);
   const [selectedRow, setSelectedRow] = useState(null);
   const [declining, setDeclining] = useState(false);
+  const [currentPage, setCurrentPage] = useState(parentCurrentPage);
+  const [totalPages, setTotalPages] = useState(parentTotalPages);
+  const [totalItems, setTotalItems] = useState(parentTotalItems);
 
+  const itemsPerPage = 15;
   const columns = useMemo(() => ["Name", "Email", "Service Type", "Date", "Actions"], []);
 
   useEffect(() => {
@@ -39,13 +50,17 @@ export default function Pending({ searchQuery = "" }) {
       try {
         setLoading(true);
         let res;
+        const skip = (currentPage - 1) * itemsPerPage;
+        const options = { limit: itemsPerPage, skip };
+        
         if (String(searchQuery || '').trim()) {
           const s = String(searchQuery || '').trim();
-          res = await searchReservations({ query: s });
+          res = await searchReservations({ query: s, ...options });
           res.reservations = (res?.reservations || []).filter(r => r.status === 'Pending');
         } else {
-          res = await getAllReservationsByStatus("Pending");
+          res = await getAllReservationsByStatus("Pending", options);
         }
+        
         const list = (res?.reservations || []).map((r) => ({
           id: r._id || "N/A",
           name: r.guestName || "N/A",
@@ -54,7 +69,19 @@ export default function Pending({ searchQuery = "" }) {
           date: formatDateYMDToLong(r.dateOfArrival || r.createdAt),
           _raw: r,
         }));
-        if (!cancelled) setRows(list);
+        
+        if (!cancelled) {
+          setRows(list);
+          // Use real total count from API
+          const totalCount = res?.totalCount || 0;
+          setTotalItems(totalCount);
+          setTotalPages(Math.ceil(totalCount / itemsPerPage));
+          
+          // Update parent pagination state
+          if (onPaginationUpdate) {
+            onPaginationUpdate(Math.ceil(totalCount / itemsPerPage), totalCount);
+          }
+        }
       } catch (e) {
         if (!cancelled) setErr(e?.message || "Failed to load");
       } finally {
@@ -63,7 +90,20 @@ export default function Pending({ searchQuery = "" }) {
     }
     fetchPending();
     return () => { cancelled = true; };
-  }, [searchQuery]);
+  }, [searchQuery, currentPage]);
+
+  // Sync with parent pagination state
+  useEffect(() => {
+    setCurrentPage(parentCurrentPage);
+  }, [parentCurrentPage]);
+
+  useEffect(() => {
+    setTotalPages(parentTotalPages);
+  }, [parentTotalPages]);
+
+  useEffect(() => {
+    setTotalItems(parentTotalItems);
+  }, [parentTotalItems]);
 
   async function onApprove(row) {
     try {
@@ -94,6 +134,13 @@ export default function Pending({ searchQuery = "" }) {
     }
   }
 
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+    if (parentOnPageChange) {
+      parentOnPageChange(page);
+    }
+  };
+
   const renderActions = (row) => (
     <>
       <button className={styles["univ-approve-btn"]} onClick={() => onApprove(row)}>Approve</button>
@@ -104,7 +151,13 @@ export default function Pending({ searchQuery = "" }) {
   const renderMenu = (row) => [
     {
       label: "See Details",
-      onClick: () => navigate(`/pendingRSV/${row.id}/details`),
+      onClick: () => {
+        if (!row.id || row.id === "N/A") {
+          alert("Invalid reservation ID. Cannot view details.");
+          return;
+        }
+        navigate(`/pendingRSV/${row.id}/details`);
+      },
     },
   ];
 
@@ -116,7 +169,8 @@ export default function Pending({ searchQuery = "" }) {
     <>
       <UnivTable
         columns={columns}
-        data={loading ? [] : rows}
+        data={rows}
+        loading={loading}
         renderActions={renderActions}
         renderMenu={renderMenu}
       />

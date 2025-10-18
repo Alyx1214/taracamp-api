@@ -24,6 +24,7 @@ import messageRoutes from './routes/message.js';
 
 import { basicLimiter } from './middleware/limiter.js';
 import asyncHandler from './middleware/asyncHandler.js';
+import requestIdMiddleware from './middleware/requestId.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -46,6 +47,7 @@ app.use(cors({
 
 app.use('/api/v1/payment/webhook', express.raw({ type: 'application/json' }));
 app.use(express.json());
+app.use(requestIdMiddleware);
 
 const userSocketMap = new Map();
 app.use('/api/v1', basicLimiter, (req, res, next) => {

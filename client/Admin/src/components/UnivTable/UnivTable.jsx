@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from "react";
 import { FaEllipsisV } from "react-icons/fa";
 import styles from "./UnivTable.module.css";
+import SkeletonLoader from "../Shared/SkeletonLoader";
 
-export default function UnivTable({ columns, data, renderActions, renderMenu }) {
+export default function UnivTable({ columns, data, renderActions, renderMenu, loading = false }) {
   const [openMenuIndex, setOpenMenuIndex] = useState(null);
   const menuRefs = useRef({});
 
@@ -34,6 +35,10 @@ export default function UnivTable({ columns, data, renderActions, renderMenu }) 
     };
     return mapping[columnName] || columnName.toLowerCase().replace(/ /g, "");
   };
+
+  if (loading) {
+    return <SkeletonLoader rows={5} columns={columns.length} columnsData={columns} />;
+  }
 
   return (
     <div className={styles["univtable-container"]}>

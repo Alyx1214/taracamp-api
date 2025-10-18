@@ -23,12 +23,15 @@ async function rawFetch(path, options = {}) {
   if (!headers.has('Content-Type') && options.body && !isFormData(options.body)) {
     headers.set('Content-Type', 'application/json');
   }
-  const access = getAccessToken();
+  
+  // Ensure we have a fresh token before making the request
+  const access = await ensureFreshAccess();
   if (access) headers.set('Authorization', `Bearer ${access}`);
 
   const res = await fetch(url, { ...options, headers, credentials: 'include' });
   if (res.status !== 401) return res;
 
+  // If we get 401, try one more refresh attempt
   const newAccess = await tryRefresh();
   if (!newAccess) {
     try { clearTokens(); } catch {}

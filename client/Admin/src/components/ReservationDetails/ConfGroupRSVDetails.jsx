@@ -30,8 +30,64 @@ export default function ConfGroupRSVDetails() {
     return () => { cancelled = true; };
   }, [id]);
 
+  const SkeletonLoading = () => (
+    <div className={styles["rsv-details-container"]}>
+      <div className={styles["rsv-details-header"]}>
+        <span className={styles["rsv-details-back"]} onClick={() => navigate(-1)}>
+          &larr;
+        </span>
+        <h1 className={styles["rsv-details-title"]}>Reservation Details</h1>
+      </div>
+      <div className={styles["rsv-details-card"]}>
+        {/* Header Row Skeleton */}
+        <div className={`${styles["skeleton-header-row"]} ${styles["skeleton"]}`}>
+          <div className={`${styles["skeleton-facility"]} ${styles["skeleton"]}`}></div>
+          <div className={`${styles["skeleton-date"]} ${styles["skeleton"]}`}></div>
+        </div>
+
+        {/* Table Rows Skeleton */}
+        <div className={styles["rsv-details-table"]}>
+          <tbody>
+            {Array.from({ length: 8 }).map((_, index) => (
+              <tr key={index}>
+                <td className={styles["skeleton-table-row"]}>
+                  <div className={`${styles["skeleton-label"]} ${styles["skeleton"]}`}></div>
+                  <div className={`${styles["skeleton-separator"]} ${styles["skeleton"]}`}></div>
+                  <div className={`${styles["skeleton-value"]} ${styles["skeleton"]}`}></div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </div>
+
+        {/* Payment Table Skeleton */}
+        <div className={styles["rsv-details-table"]}>
+          <tbody>
+            {Array.from({ length: 4 }).map((_, index) => (
+              <tr key={index}>
+                <td className={styles["skeleton-table-row"]}>
+                  <div className={`${styles["skeleton-label"]} ${styles["skeleton"]}`}></div>
+                  <div className={`${styles["skeleton-separator"]} ${styles["skeleton"]}`}></div>
+                  <div className={`${styles["skeleton-value"]} ${styles["skeleton"]}`}></div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </div>
+
+        {/* Status Skeleton */}
+        <div className={styles["rsv-details-status-row"]}>
+          <div className={`${styles["skeleton-status-row"]} ${styles["skeleton"]}`}>
+            <div className={`${styles["skeleton-status-label"]} ${styles["skeleton"]}`}></div>
+            <div className={`${styles["skeleton-status-value"]} ${styles["skeleton"]}`}></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   if (loading) {
-    return <div className={styles["rsv-details-card"]}>Loading...</div>;
+    return <SkeletonLoading />;
   }
 
   if (error || !reservation) {

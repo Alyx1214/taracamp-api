@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
-import { tryRefresh, clearTokens } from '../../apis/api';
+import { tryRefresh, clearTokens, ensureFreshAccess } from '../../apis/api';
 
 function isTokenExpired(token) {
   try {
@@ -14,6 +14,18 @@ function isTokenExpired(token) {
   }
 }
 
+function getTokenExpirationTime(token) {
+  try {
+    if (!token) return 0;
+    const [, payloadBase64] = token.split('.');
+    if (!payloadBase64) return 0;
+    const payload = JSON.parse(atob(payloadBase64));
+    return payload.exp * 1000;
+  } catch {
+    return 0;
+  }
+}
+
 export default function RequireAuth() {
   const [status, setStatus] = useState('checking'); // checking | authed | redirect
 
@@ -21,6 +33,7 @@ export default function RequireAuth() {
 
   useEffect(() => {
     let cancelled = false;
+    let refreshTimer = null;
 
     async function ensureAuth() {
       // No token at all → redirect
@@ -32,6 +45,24 @@ export default function RequireAuth() {
       // Token present and valid → proceed
       if (!isTokenExpired(token)) {
         if (!cancelled) setStatus('authed');
+        
+        // Set up proactive token refresh
+        const expTime = getTokenExpirationTime(token);
+        if (expTime > 0) {
+          // Refresh token 2 minutes before expiration
+          const refreshTime = expTime - Date.now() - (2 * 60 * 1000);
+          if (refreshTime > 0) {
+            refreshTimer = setTimeout(async () => {
+              if (!cancelled) {
+                try {
+                  await ensureFreshAccess();
+                } catch (error) {
+                  console.warn('Proactive token refresh failed:', error);
+                }
+              }
+            }, refreshTime);
+          }
+        }
         return;
       }
 
@@ -47,7 +78,24 @@ export default function RequireAuth() {
     }
 
     ensureAuth();
-    return () => { cancelled = true; };
+    
+    return () => { 
+      cancelled = true;
+      if (refreshTimer) clearTimeout(refreshTimer);
+    };
+  }, [token]);
+
+  // Listen for storage changes (token updates from other tabs)
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key === 'accessToken' && e.newValue !== token) {
+        // Token was updated in another tab, re-check auth
+        window.location.reload();
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
   }, [token]);
 
   if (status === 'checking') return null; // or a small spinner if desired

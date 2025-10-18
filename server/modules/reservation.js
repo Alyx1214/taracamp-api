@@ -1,5 +1,6 @@
 import { Category, GuestType, Status, UserRole, FacilityStatus, ServiceType, ReservationStatus, FileKind, FacilityType, } from '../constants.js';
 import { Storage, } from '@google-cloud/storage';
+import { safeRedisOperations } from './redisCircuitBreaker.js';
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -7,6 +8,20 @@ const storage = new Storage();
 const bucket = storage.bucket(process.env.BUCKET_NAME);
 const APP_TZ_OFFSET = '+08:00';
 const TZ = 'Asia/Manila';
+
+// Helper function to invalidate reservation cache
+const invalidateReservationCache = async () => {
+    try {
+        const keys = await safeRedisOperations.keys('get_reservations_by_status:*');
+        const reservationKeys = await safeRedisOperations.keys('reservation_by_id:*');
+        const allKeys = [...keys, ...reservationKeys];
+        if (allKeys && allKeys.length > 0) {
+            await safeRedisOperations.del(...allKeys);
+        }
+    } catch (error) {
+        console.warn('Error invalidating reservation cache:', error);
+    }
+};
 
 const reservationModule = {
     /**
@@ -79,7 +94,7 @@ const reservationModule = {
                 }
             }
 
-            if (!file && guestType !== GuestType.INDIVIDUAL) {
+            if (!letterOfIntentFile && guestType !== GuestType.INDIVIDUAL) {
                 responseData.status = Status.BAD_REQUEST;
                 responseData.error = 'Missing Letter of Intent file';
                 return responseData;
@@ -144,7 +159,7 @@ const reservationModule = {
                 return responseData;
             }
 
-            if (file && !isValidFile(file)) {
+            if (letterOfIntentFile && !isValidFile(letterOfIntentFile)) {
                 responseData.status = Status.BAD_REQUEST;
                 responseData.error = 'Invalid Letter of Intent file';
                 return responseData;
@@ -205,62 +220,7 @@ const reservationModule = {
                 addonsTotal = services.reduce((sum, s) => sum + (Number(s.price) || 0), 0);
             }
 
-            const userOverlapping = await dbHelper.findOne('reservation', creatingForGuest ? {
-                guestEmail: guestEmail.trim(),
-                facility: facility,
-                $or: [
-                    {
-                        dateOfArrival: { $lte: new Date(dateOfDeparture), },
-                        dateOfDeparture: { $gte: new Date(dateOfArrival), },
-                    },
-                ],
-            } : {
-                userId: user.userId,
-                facility: facility,
-                $or: [
-                    {
-                        dateOfArrival: { $lte: new Date(dateOfDeparture), },
-                        dateOfDeparture: { $gte: new Date(dateOfArrival), },
-                    },
-                ],
-            });
-
-            if (userOverlapping) {
-                responseData.status = Status.BAD_REQUEST;
-                responseData.error = 'You already have a reservation for this facility that overlaps with these dates.';
-                return responseData;
-            }
-
-            const overlapping = await dbHelper.findOne('reservation', {
-                facility: facility,
-                $or: [
-                    {
-                        dateOfArrival: { $lte: new Date(dateOfDeparture), },
-                        dateOfDeparture: { $gte: new Date(dateOfArrival), },
-                    },
-                ],
-            });
-
-            if (overlapping) {
-                responseData.status = Status.BAD_REQUEST;
-                responseData.error = 'Facility is not available for the selected dates.';
-                return responseData;
-            }
-
-            if (total > facilityDoc.capacity) {
-                responseData.status = Status.BAD_REQUEST;
-                responseData.error = `Number of guests (${total}) exceeds the facility capacity (${facilityDoc.capacity}).`;
-                return responseData;
-            }
-
-            if (facilityDoc.facilityType === FacilityType.DORMITORY) {
-                if (!isNonNegativeInteger(numberOfRooms) || parseInt(numberOfRooms) <= 0) {
-                    responseData.status = Status.BAD_REQUEST;
-                    responseData.error = 'Number of rooms is required for dormitory reservations and must be a positive integer';
-                    return responseData;
-                }
-            }
-
+            // Prepare file uploads and reservation data before transaction
             let loiFileDoc = null;
             let seniorCitizenIdFileDoc = null;
             
@@ -290,6 +250,8 @@ const reservationModule = {
                     } catch (createFileErr) {
                         console.error('Error creating file record for LOI:', createFileErr);
                         responseData.status = Status.INTERNAL_SERVER_ERROR;
+                        responseData.error = 'Failed to create file record for Letter of Intent';
+                        return responseData;
                     }
                 } catch (err) {
                     responseData.status = Status.INTERNAL_SERVER_ERROR;
@@ -336,6 +298,8 @@ const reservationModule = {
                     } catch (createFileErr) {
                         console.error('Error creating file record for Senior Citizen ID:', createFileErr);
                         responseData.status = Status.INTERNAL_SERVER_ERROR;
+                        responseData.error = 'Failed to create file record for Senior Citizen ID';
+                        return responseData;
                     }
                 } catch (err) {
                     responseData.status = Status.INTERNAL_SERVER_ERROR;
@@ -363,6 +327,21 @@ const reservationModule = {
             const timestamp = Date.now();
             const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
             const reservationCode = `TC${timestamp}${random}`;
+
+            // Validate capacity and dormitory requirements before transaction
+            if (total > facilityDoc.capacity) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = `Number of guests (${total}) exceeds the facility capacity (${facilityDoc.capacity}).`;
+                return responseData;
+            }
+
+            if (facilityDoc.facilityType === FacilityType.DORMITORY) {
+                if (!isNonNegativeInteger(numberOfRooms) || parseInt(numberOfRooms) <= 0) {
+                    responseData.status = Status.BAD_REQUEST;
+                    responseData.error = 'Number of rooms is required for dormitory reservations and must be a positive integer';
+                    return responseData;
+                }
+            }
 
             const reservationData = {
                 guestName,
@@ -399,7 +378,70 @@ const reservationModule = {
                 createdAt: new Date(),
             };
 
-            const reservation = await dbHelper.create('reservation', reservationData);
+            // Use transaction to prevent race conditions
+            let reservation;
+            try {
+                await dbHelper.withTransaction(async (session) => {
+                    // Re-check facility status within transaction
+                    const facilityDocInTransaction = await dbHelper.findOneWithTransaction('facility', { _id: facility }, {}, session);
+                    if (!facilityDocInTransaction || facilityDocInTransaction.status !== FacilityStatus.AVAILABLE) {
+                        throw new Error('Facility is not available for booking.');
+                    }
+
+                    // Check for user overlapping reservations within transaction
+                    const userOverlapping = await dbHelper.findOneWithTransaction('reservation', creatingForGuest ? {
+                        guestEmail: guestEmail.trim(),
+                        facility: facility,
+                        $or: [
+                            {
+                                dateOfArrival: { $lte: new Date(dateOfDeparture), },
+                                dateOfDeparture: { $gte: new Date(dateOfArrival), },
+                            },
+                        ],
+                    } : {
+                        userId: user.userId,
+                        facility: facility,
+                        $or: [
+                            {
+                                dateOfArrival: { $lte: new Date(dateOfDeparture), },
+                                dateOfDeparture: { $gte: new Date(dateOfArrival), },
+                            },
+                        ],
+                    }, {}, session);
+
+                    if (userOverlapping) {
+                        throw new Error('You already have a reservation for this facility that overlaps with these dates.');
+                    }
+
+                    // Check for any overlapping reservations within transaction
+                    const overlapping = await dbHelper.findOneWithTransaction('reservation', {
+                        facility: facility,
+                        $or: [
+                            {
+                                dateOfArrival: { $lte: new Date(dateOfDeparture), },
+                                dateOfDeparture: { $gte: new Date(dateOfArrival), },
+                            },
+                        ],
+                    }, {}, session);
+
+                    if (overlapping) {
+                        throw new Error('Facility is not available for the selected dates.');
+                    }
+
+                    // Create reservation atomically within transaction
+                    reservation = await dbHelper.createWithTransaction('reservation', reservationData, session);
+                });
+            } catch (transactionError) {
+                if (transactionError.message.includes('Facility is not available for booking') ||
+                    transactionError.message.includes('already have a reservation') ||
+                    transactionError.message.includes('not available for the selected dates')) {
+                    responseData.status = Status.BAD_REQUEST;
+                    responseData.error = transactionError.message;
+                    return responseData;
+                }
+                // Re-throw unexpected errors
+                throw transactionError;
+            }
 
             if (loiFileDoc?._id) {
                 try {
@@ -434,6 +476,9 @@ const reservationModule = {
             responseData.message = 'Reservation submitted successfully';
             responseData.reservationId = reservation._id.toString();
             responseData.reservation = reservationObject;
+
+            // Invalidate cache after successful reservation creation
+            await invalidateReservationCache();
         } catch (error) {
             console.error('Error creating reservation:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
@@ -458,6 +503,21 @@ const reservationModule = {
             responseData.status = Status.BAD_REQUEST;
             responseData.error = 'Reservation ID is required';
             return responseData;
+            }
+
+            // Try cache first
+            const cacheKey = `reservation_by_id:${reservationId}`;
+            try {
+                const cachedResult = await safeRedisOperations.get(cacheKey);
+                if (cachedResult) {
+                    const parsed = JSON.parse(cachedResult);
+                    responseData.status = Status.OK;
+                    responseData.error = null;
+                    responseData.reservation = parsed.reservation;
+                    return responseData;
+                }
+            } catch (cacheError) {
+                console.warn('Cache read error for getReservationById:', cacheError);
             }
 
             const reservation = await dbHelper.findOne('reservation', { _id: reservationId });
@@ -542,6 +602,17 @@ const reservationModule = {
             reservationObject.letterOfIntentFile = url;
             reservationObject.nonAvailabilityCertFile = nonAvailabilityUrl;
             reservationObject.hasNonAvailabilityCert = hasNonAvailabilityCert || !!reservation.nonAvailabilityCertFileId;
+
+            // Cache the result (without signed URLs for longer TTL)
+            try {
+                const cacheData = { ...reservationObject };
+                delete cacheData.letterOfIntentFile;
+                delete cacheData.nonAvailabilityCertFile;
+                
+                await safeRedisOperations.set(cacheKey, JSON.stringify({ reservation: cacheData }), { EX: 60 }); // 1 minute TTL
+            } catch (cacheError) {
+                console.warn('Cache write error for getReservationById:', cacheError);
+            }
 
             responseData.status = Status.OK;
             responseData.error = null;
@@ -658,6 +729,9 @@ const reservationModule = {
                 _id: updatedReservation._id,
                 status: updatedReservation.status,
             };
+
+            // Invalidate cache after successful cancellation
+            await invalidateReservationCache();
         } catch (error) {
             console.error('Error cancelling reservation:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
@@ -705,17 +779,47 @@ const reservationModule = {
 
             const { limit, skip, sort, } = options || {};
             const sortOption = sort ? parseSort(sort) : { createdAt: -1, };
+            const limitValue = clampLimit(limit);
+            const skipValue = clampSkip(skip);
 
-            const raw = await dbHelper.findMany(
-                'reservation',
-                { status, },
-                {
-                    projection: { __v: 0, createdAt: 0, },
-                    sort: sortOption,
-                    limit: clampLimit(limit),
-                    skip: clampSkip(skip),
+            // Create cache key with all relevant parameters
+            const cacheKey = `get_reservations_by_status:${status}:${limitValue}:${skipValue}:${JSON.stringify(sortOption)}`;
+
+            // Try to get cached result
+            try {
+                const cachedResult = await safeRedisOperations.get(cacheKey);
+                if (cachedResult) {
+                    const parsed = JSON.parse(cachedResult);
+                    responseData.status = Status.OK;
+                    responseData.error = null;
+                    responseData.reservations = parsed.reservations;
+                    responseData.totalCount = parsed.totalCount;
+                    return responseData;
                 }
-            );
+            } catch (cacheError) {
+                console.warn('Cache read error for getAllReservationsByStatus:', cacheError);
+            }
+
+            const [raw, totalCount] = await Promise.all([
+                dbHelper.findMany(
+                    'reservation',
+                    { status, },
+                    {
+                        projection: { 
+                            _id: 1,
+                            guestName: 1, 
+                            guestEmail: 1, 
+                            serviceType: 1, 
+                            dateOfArrival: 1,
+                            userId: 1
+                        },
+                        sort: sortOption,
+                        limit: limitValue,
+                        skip: skipValue,
+                    }
+                ),
+                dbHelper.count('reservation', { status })
+            ]);
 
             const list = (raw || []).map((r) => (typeof r.toObject === 'function' ? r.toObject() : r));
             const userIds = toValidObjectIdStrings(list.map((r) => r.userId));
@@ -731,13 +835,24 @@ const reservationModule = {
             }
 
             const withEmails = list.map((r) => ({
-                ...r,
+                _id: r._id,
+                guestName: r.guestName,
                 guestEmail: r.guestEmail ?? emailById.get(String(r.userId)) ?? null,
+                serviceType: r.serviceType,
+                dateOfArrival: r.dateOfArrival,
             }));
+
+            // Cache the result
+            try {
+                await safeRedisOperations.set(cacheKey, JSON.stringify({ reservations: withEmails, totalCount }), { EX: 60 }); // 1 minute TTL
+            } catch (cacheError) {
+                console.warn('Cache write error for getAllReservationsByStatus:', cacheError);
+            }
 
             responseData.status = Status.OK;
             responseData.error = null;
             responseData.reservations = withEmails;
+            responseData.totalCount = totalCount;
             return responseData;
         } catch (error) {
             console.error('Error fetching reservations by status:', error);
@@ -839,6 +954,19 @@ const reservationModule = {
                     { status: { $regex: safe, $options: 'i', }, },
                 ];
 
+                // Add user email search to query
+                try {
+                    const users = await dbHelper.findMany('user', 
+                        { email: { $regex: safe, $options: 'i' } }, 
+                        { projection: { _id: 1 } }
+                    );
+                    if (users.length > 0) {
+                        or.push({ userId: { $in: users.map(u => u._id) } });
+                    }
+                } catch (userSearchError) {
+                    console.warn('Error searching user emails:', userSearchError);
+                }
+
                 if (/^[0-9a-fA-F]{24}$/.test(q)) {
                     or.push({ _id: q, });
                 } else if (/^[0-9a-fA-F]{3,}$/.test(q)) {
@@ -901,16 +1029,19 @@ const reservationModule = {
             }
 
             const sortOption = parseSort(sort) || { createdAt: -1, };
-            const docs = await dbHelper.findMany(
-                'reservation',
-                filter,
-                {
-                    projection: { __v: 0, createdAt: 0, },
-                    sort: sortOption,
-                    limit: clampLimit(limit),
-                    skip: clampSkip(skip),
-                }
-            );
+            const [docs, totalCount] = await Promise.all([
+                dbHelper.findMany(
+                    'reservation',
+                    filter,
+                    {
+                        projection: { __v: 0, createdAt: 0, },
+                        sort: sortOption,
+                        limit: clampLimit(limit),
+                        skip: clampSkip(skip),
+                    }
+                ),
+                dbHelper.count('reservation', filter)
+            ]);
 
             const list = (docs || []).map((d) => (typeof d.toObject === 'function' ? d.toObject() : d));
             const userIds = Array.from(new Set(list.map((r) => r.userId).filter(Boolean).map(String)));
@@ -932,6 +1063,7 @@ const reservationModule = {
             responseData.status = Status.OK;
             responseData.error = null;
             responseData.reservations = withEmails;
+            responseData.totalCount = totalCount;
             return responseData;
         } catch (error) {
             console.error('Error searching reservations:', error);
@@ -1012,6 +1144,9 @@ const reservationModule = {
                 _id: updatedReservation._id,
                 status: updatedReservation.status,
             };
+
+            // Invalidate cache after successful status update
+            await invalidateReservationCache();
         } catch (error) {
             console.error('Error approving or declining reservation:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
@@ -1101,6 +1236,9 @@ const reservationModule = {
                 _id: updatedReservation._id,
                 status: updatedReservation.status,
             };
+
+            // Invalidate cache after successful check-in/check-out
+            await invalidateReservationCache();
         } catch (error) {
             console.error('Error checking in or checking out reservation:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
@@ -1173,6 +1311,9 @@ const reservationModule = {
                 _id: deletedReservation._id,
                 status: deletedReservation.status,
             };
+
+            // Invalidate cache after successful deletion
+            await invalidateReservationCache();
         } catch (error) {
             console.error('Error deleting reservation:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;

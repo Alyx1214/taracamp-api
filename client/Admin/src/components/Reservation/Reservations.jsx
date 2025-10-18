@@ -14,27 +14,51 @@ import Confirmed from "../UnivTable/Confirmed";
 export default function Reservations() {
   const [activeTab, setActiveTab] = useState("Pending");
   const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
 
   const handleSearch = (value) => {
     setSearchQuery(String(value || "").trim());
+    setCurrentPage(1); // Reset to first page when searching
   };
 
   const handleFilter = () => {
     console.log("Filter clicked");
   };
 
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    setCurrentPage(1); // Reset to first page when changing tabs
+  };
+
   const renderActiveTab = () => {
+    const paginationProps = {
+      currentPage,
+      totalPages,
+      totalItems,
+      onPageChange: handlePageChange,
+      onPaginationUpdate: (pages, items) => {
+        setTotalPages(pages);
+        setTotalItems(items);
+      }
+    };
+
     switch (activeTab) {
       case "Pending":
-        return <Pending searchQuery={searchQuery} />;
+        return <Pending searchQuery={searchQuery} {...paginationProps} />;
       case "Approved":
-        return <Approved searchQuery={searchQuery} />;
+        return <Approved searchQuery={searchQuery} {...paginationProps} />;
       case "Declined":
-        return <Declined searchQuery={searchQuery} />;
+        return <Declined searchQuery={searchQuery} {...paginationProps} />;
       case "Cancelled":
-        return <Cancelled searchQuery={searchQuery} />;
+        return <Cancelled searchQuery={searchQuery} {...paginationProps} />;
       case "Confirmed":
-        return <Confirmed searchQuery={searchQuery} />;
+        return <Confirmed searchQuery={searchQuery} {...paginationProps} />;
       default:
         return null;
     }
@@ -48,7 +72,7 @@ export default function Reservations() {
         <Tabs
           tabs={["Pending", "Approved", "Declined", "Cancelled", "Confirmed"]}
           activeTab={activeTab}
-          setActiveTab={setActiveTab}
+          setActiveTab={handleTabChange}
         />
         <SearchFil onSearch={handleSearch} onFilter={handleFilter} />
       </div>
@@ -57,7 +81,12 @@ export default function Reservations() {
         {renderActiveTab()}
       </div>
 
-      <Pagination />
+      <Pagination 
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalItems={totalItems}
+        onPageChange={handlePageChange}
+      />
     </div>
   );
 }

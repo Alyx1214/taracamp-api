@@ -1,6 +1,7 @@
 import { Storage, } from '@google-cloud/storage';
 import { Status, FacilityType, FacilityStatus, UserRole, ReservationStatus, } from '../constants.js';
 import redisClient from './redisClient.js';
+import { safeRedisOperations } from './redisCircuitBreaker.js';
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -14,6 +15,9 @@ const BLOCKING_RESERVATION_STATUSES = [
     ReservationStatus.CONFIRMED,
     ReservationStatus.CHECKED_IN,
 ];
+
+const validationCache = new Map();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 const facilityModule = {
     /**
@@ -33,77 +37,27 @@ const facilityModule = {
         try {
             const { name, facilityType, capacity, ratePerPerson, price, status, } = data;
 
-            if (
-                !isPresent(name) ||
-                !isPresent(facilityType) ||
-                !isPresent(capacity) ||
-                ((facilityType === FacilityType.CONFERENCE || facilityType === FacilityType.COTTAGE) && !isPresent(price)) ||
-                (facilityType === FacilityType.DORMITORY && !isPresent(ratePerPerson))
-            ) {
+            const validationResult = validateFacilityInput(data, user);
+            if (validationResult.error) {
+                responseData.status = validationResult.status;
+                responseData.error = validationResult.error;
+                return responseData;
+            }
+
+            const [imageResult, existing] = await Promise.all([
+                processImages(files),
+                dbHelper.findOne('facility', { 
+                    name: toTitleCase(String(name || '')), 
+                    facilityType 
+                })
+            ]);
+
+            if (imageResult.error) {
                 responseData.status = Status.BAD_REQUEST;
-                responseData.error = 'Missing required fields';
+                responseData.error = imageResult.error;
                 return responseData;
             }
 
-            if (!user || !user.userId) {
-                responseData.status = Status.UNAUTHORIZED;
-                responseData.error = 'User not logged in';
-                return responseData;
-            }
-
-            if (user.role !== UserRole.CRMSTEAM && user.role !== UserRole.SUPERINTENDENT) {
-                responseData.status = Status.FORBIDDEN;
-                responseData.error = 'Only CRMS team and Superintendents can add a facility';
-                return responseData;
-            }
-
-            if (!isValidFacilityType(facilityType)) {
-                responseData.status = Status.BAD_REQUEST;
-                responseData.error = 'Invalid facility type';
-                return responseData;
-            }
-
-            if (!isValidCapacity(capacity)) {
-                responseData.status = Status.BAD_REQUEST;
-                responseData.error = 'Invalid or missing capacity';
-                return responseData;
-            }
-
-            if (
-                ((facilityType === FacilityType.CONFERENCE || facilityType === FacilityType.COTTAGE) && !isValidRate(price)) ||
-                (facilityType === FacilityType.DORMITORY && !isValidRate(ratePerPerson))
-            ) {
-                responseData.status = Status.BAD_REQUEST;
-                responseData.error = 'Missing or invalid rate/price for this facility type';
-                return responseData;
-            }
-
-            if (!isValidFacilityStatus(status)) {
-                responseData.status = Status.BAD_REQUEST;
-                responseData.error = 'Invalid facility status';
-                return responseData;
-            }
-
-            let imageKeys = [];
-            let imageUrls = [];
-            if (Array.isArray(files) && files.length) {
-                const imgErr = isValidImages(files);
-                if (imgErr) {
-                    responseData.status = Status.BAD_REQUEST;
-                    responseData.error = imgErr;
-                    return responseData;
-                }
-                try {
-                    imageKeys = await uploadImagesAndGetKeys(files);
-                    imageUrls = await getSignedReadUrls(imageKeys);
-                } catch (err) {
-                    responseData.status = Status.INTERNAL_SERVER_ERROR;
-                    responseData.error = 'Image upload failed: ' + err.message;
-                    return responseData;
-                }
-            }
-
-            const existing = await dbHelper.findOne('facility', { name: toTitleCase(String(name || '')), facilityType, });
             if (existing) {
                 responseData.status = Status.BAD_REQUEST;
                 responseData.error = 'Facility already exists';
@@ -115,7 +69,7 @@ const facilityModule = {
                 facilityType,
                 status,
                 capacity: parseInt(String(capacity).replace(/,/g, ''), 10),
-                images: imageKeys,
+                images: imageResult.keys,
             };
 
             if (facilityType === FacilityType.CONFERENCE || facilityType === FacilityType.COTTAGE) {
@@ -125,16 +79,24 @@ const facilityModule = {
                 facilityData.ratePerPerson = Number(String(ratePerPerson).replace(/,/g, '')) || 0;
             }
 
-            const facility = await dbHelper.create('facility', facilityData);
+            const [facility] = await Promise.all([
+                createFacilityWithTransaction(dbHelper, facilityData),
+                invalidateFacilitiesCache()
+            ]);
 
             responseData.status = Status.CREATED;
             responseData.error = null;
             responseData.message = 'Facility added successfully';
-            responseData.facilityId = facility._id.toString();
-            responseData.imageUrls = imageUrls;
+            responseData.data = {
+                facilityId: facility._id.toString(),
+                name: facilityData.name,
+                facilityType: facilityData.facilityType,
+                capacity: facilityData.capacity,
+                status: facilityData.status,
+                imageUrls: imageResult.urls,
+                imageCount: imageResult.urls.length
+            };
 
-            // Invalidate facilities cache
-            await invalidateFacilitiesCache();
         } catch (error) {
             console.error('Error adding facility:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
@@ -167,7 +129,6 @@ const facilityModule = {
                 filter.status = { $ne: FacilityStatus.UNAVAILABLE };
             }
             
-            // Create cache key based on query parameters
             const cacheKey = `facilities:${JSON.stringify({
                 filter,
                 sort: sortOption,
@@ -176,9 +137,8 @@ const facilityModule = {
                 includeUnavailable
             })}`;
             
-            // Try to get from cache first
             try {
-                const cached = await redisClient.get(cacheKey);
+                const cached = await safeRedisOperations.get(cacheKey);
                 if (cached) {
                     const cachedData = JSON.parse(cached);
                     responseData.status = Status.OK;
@@ -191,10 +151,8 @@ const facilityModule = {
                 console.warn('Redis cache read error:', cacheError.message);
             }
             
-            // Get total count for pagination metadata
             const totalCount = await dbHelper.count('facility', filter);
             
-            // Optimized database query with better projection
             const facilities = await dbHelper.findMany('facility', filter, {
                 projection: { 
                     __v: 0, 
@@ -206,7 +164,6 @@ const facilityModule = {
                 skip: skipValue,
             });
 
-            // Batch process all image URLs at once for better performance
             const allImageKeys = [];
             const facilityImageMap = new Map();
             
@@ -218,12 +175,9 @@ const facilityModule = {
                 }
             });
 
-            // Generate all signed URLs in a single batch operation
             const allSignedUrls = allImageKeys.length > 0 
                 ? await getSignedReadUrlsBatch(allImageKeys) 
                 : [];
-
-            // Map signed URLs back to facilities
             let urlIndex = 0;
             const withSigned = facilities.map((facility, index) => {
                 const obj = facility.toObject ? facility.toObject() : facility;
@@ -240,7 +194,6 @@ const facilityModule = {
                 return obj;
             });
 
-            // Calculate pagination metadata
             const totalPages = Math.ceil(totalCount / limitValue);
             const currentPage = Math.floor(skipValue / limitValue) + 1;
             const hasNextPage = currentPage < totalPages;
@@ -261,12 +214,11 @@ const facilityModule = {
             responseData.facilities = withSigned;
             responseData.pagination = paginationData;
 
-            // Cache the result for 5 minutes (300 seconds)
             try {
-                await redisClient.setEx(cacheKey, 300, JSON.stringify({
+                await safeRedisOperations.set(cacheKey, JSON.stringify({
                     facilities: withSigned,
                     pagination: paginationData
-                }));
+                }), { EX: 60 });
             } catch (cacheError) {
                 console.warn('Redis cache write error:', cacheError.message);
             }
@@ -503,7 +455,6 @@ const facilityModule = {
             responseData.message = 'Facility updated successfully';
             responseData.facilityId = id;
 
-            // Invalidate facilities cache
             await invalidateFacilitiesCache();
         } catch (error) {
             console.error('Error editing facility:', error);
@@ -565,7 +516,6 @@ const facilityModule = {
             responseData.message = 'Facility deleted successfully';
             responseData.facilityId = id;
 
-            // Invalidate facilities cache
             await invalidateFacilitiesCache();
         } catch (error) {
             console.error('Error deleting facility:', error);
@@ -662,11 +612,10 @@ const facilityModule = {
                 return responseData;
             }
 
-            // Define the date range to check (e.g., next 6 months)
             const todayYmd = toAppYMD(new Date());
             const today = fromAppYMD(todayYmd) || new Date();
             const endDate = new Date(today);
-            endDate.setUTCMonth(endDate.getUTCMonth() + 6); // Check for next 6 months
+            endDate.setUTCMonth(endDate.getUTCMonth() + 6);
 
             const reservations = await dbHelper.find('reservation', {
                 facility: facilityId,
@@ -728,6 +677,23 @@ const facilityModule = {
         };
 
         try {
+            // Create cache key with all search parameters
+            const cacheKey = `search_facilities:${type || 'all'}:${query || ''}:${minPrice || ''}:${maxPrice || ''}:${capacity || ''}:${checkInDate || ''}:${checkOutDate || ''}:${includeUnavailable || false}`;
+
+            // Try to get cached result
+            try {
+                const cachedResult = await safeRedisOperations.get(cacheKey);
+                if (cachedResult) {
+                    const parsed = JSON.parse(cachedResult);
+                    responseData.status = Status.OK;
+                    responseData.error = null;
+                    responseData.facilities = parsed.facilities;
+                    return responseData;
+                }
+            } catch (cacheError) {
+                console.warn('Cache read error for searchFacilities:', cacheError);
+            }
+
             let filter = {};
             if (type) filter.facilityType = type.trim();
             if (query) filter.name = new RegExp(query.trim(), 'i');
@@ -775,6 +741,13 @@ const facilityModule = {
                     return obj;
                 })
             );
+
+            // Cache the result
+            try {
+                await safeRedisOperations.set(cacheKey, JSON.stringify({ facilities: withSigned }), { EX: 300 }); // 5 minutes TTL
+            } catch (cacheError) {
+                console.warn('Cache write error for searchFacilities:', cacheError);
+            }
 
             responseData.status = Status.OK;
             responseData.error = null;
@@ -868,7 +841,6 @@ async function getSignedReadUrls(keys, expiresInMs = 60 * 60 * 1000) {
 }
 
 async function getSignedReadUrlsBatch(keys, expiresInMs = 60 * 60 * 1000) {
-    // Process all URLs in parallel for better performance
     const urlPromises = keys.map(key => 
         bucket.file(key).getSignedUrl({
             version: 'v4',
@@ -970,12 +942,186 @@ function calculateAverageRatings(reviews) {
 
 async function invalidateFacilitiesCache() {
     try {
-        // Get all cache keys that start with 'facilities:'
-        const keys = await redisClient.keys('facilities:*');
-        if (keys.length > 0) {
-            await redisClient.del(keys);
+        const keys = await safeRedisOperations.keys('facilities:*');
+        const searchKeys = await safeRedisOperations.keys('search_facilities:*');
+        const allKeys = [...keys, ...searchKeys];
+        if (allKeys.length > 0) {
+            await safeRedisOperations.del(...allKeys);
         }
     } catch (error) {
         console.warn('Error invalidating facilities cache:', error.message);
     }
+}
+
+/**
+ * Validates facility input data and user permissions with caching
+ * @param {Object} data - The facility data
+ * @param {Object} user - The authenticated user
+ * @returns {Object} Validation result with error and status
+ */
+function validateFacilityInput(data, user) {
+    const { name, facilityType, capacity, ratePerPerson, price, status } = data;
+
+    const cacheKey = `validation:${JSON.stringify({ name, facilityType, capacity, ratePerPerson, price, status, userId: user?.userId, role: user?.role })}`;
+    
+    const cached = validationCache.get(cacheKey);
+    if (cached && (Date.now() - cached.timestamp) < CACHE_TTL) {
+        return cached.result;
+    }
+
+    const result = performValidation(data, user);
+    
+    validationCache.set(cacheKey, {
+        result,
+        timestamp: Date.now()
+    });
+
+    if (validationCache.size > 1000) {
+        cleanupValidationCache();
+    }
+
+    return result;
+}
+
+/**
+ * Performs the actual validation logic
+ * @param {Object} data - The facility data
+ * @param {Object} user - The authenticated user
+ * @returns {Object} Validation result with error and status
+ */
+function performValidation(data, user) {
+    const { name, facilityType, capacity, ratePerPerson, price, status } = data;
+
+    if (
+        !isPresent(name) ||
+        !isPresent(facilityType) ||
+        !isPresent(capacity) ||
+        ((facilityType === FacilityType.CONFERENCE || facilityType === FacilityType.COTTAGE) && !isPresent(price)) ||
+        (facilityType === FacilityType.DORMITORY && !isPresent(ratePerPerson))
+    ) {
+        return { status: Status.BAD_REQUEST, error: 'Missing required fields' };
+    }
+
+    if (!user || !user.userId) {
+        return { status: Status.UNAUTHORIZED, error: 'User not logged in' };
+    }
+
+    if (user.role !== UserRole.CRMSTEAM && user.role !== UserRole.SUPERINTENDENT) {
+        return { status: Status.FORBIDDEN, error: 'Only CRMS team and Superintendents can add a facility' };
+    }
+
+    if (!isValidFacilityType(facilityType)) {
+        return { status: Status.BAD_REQUEST, error: 'Invalid facility type' };
+    }
+
+    if (!isValidCapacity(capacity)) {
+        return { status: Status.BAD_REQUEST, error: 'Invalid or missing capacity' };
+    }
+
+    if (
+        ((facilityType === FacilityType.CONFERENCE || facilityType === FacilityType.COTTAGE) && !isValidRate(price)) ||
+        (facilityType === FacilityType.DORMITORY && !isValidRate(ratePerPerson))
+    ) {
+        return { status: Status.BAD_REQUEST, error: 'Missing or invalid rate/price for this facility type' };
+    }
+
+    if (!isValidFacilityStatus(status)) {
+        return { status: Status.BAD_REQUEST, error: 'Invalid facility status' };
+    }
+
+    return { error: null };
+}
+
+/**
+ * Cleans up old validation cache entries
+ */
+function cleanupValidationCache() {
+    const now = Date.now();
+    for (const [key, value] of validationCache.entries()) {
+        if (now - value.timestamp > CACHE_TTL) {
+            validationCache.delete(key);
+        }
+    }
+}
+
+/**
+ * Creates a facility with transaction support for atomicity
+ * @param {Object} dbHelper - The database helper
+ * @param {Object} facilityData - The facility data to create
+ * @returns {Promise<Object>} The created facility
+ */
+async function createFacilityWithTransaction(dbHelper, facilityData) {
+    if (dbHelper.startTransaction && dbHelper.commitTransaction && dbHelper.rollbackTransaction) {
+        const session = await dbHelper.startTransaction();
+        try {
+            const facility = await dbHelper.create('facility', facilityData, { session });
+            await dbHelper.commitTransaction(session);
+            return facility;
+        } catch (error) {
+            await dbHelper.rollbackTransaction(session);
+            throw error;
+        }
+    } else {
+        return await dbHelper.create('facility', facilityData);
+    }
+}
+
+/**
+ * Processes image files with parallel upload and URL generation
+ * @param {Array} files - Array of image files
+ * @returns {Promise<Object>} Result with keys, urls, or error
+ */
+async function processImages(files) {
+    if (!Array.isArray(files) || files.length === 0) {
+        return { keys: [], urls: [] };
+    }
+
+    const imgErr = isValidImages(files);
+    if (imgErr) {
+        return { error: imgErr };
+    }
+
+    try {
+        const [imageKeys, imageUrls] = await Promise.all([
+            uploadImagesAndGetKeysParallel(files),
+            uploadImagesAndGetKeys(files).then(keys => getSignedReadUrlsBatch(keys))
+        ]);
+
+        return { keys: imageKeys, urls: imageUrls };
+    } catch (err) {
+        return { error: 'Image upload failed: ' + err.message };
+    }
+}
+
+/**
+ * Uploads multiple images in parallel for better performance
+ * @param {Array} files - Array of image files
+ * @returns {Promise<Array>} Array of image keys
+ */
+async function uploadImagesAndGetKeysParallel(files) {
+    const uploadPromises = files.map(file => uploadSingleImage(file));
+    return await Promise.all(uploadPromises);
+}
+
+/**
+ * Uploads a single image file
+ * @param {Object} file - The image file
+ * @returns {Promise<string>} The image key
+ */
+async function uploadSingleImage(file) {
+    const filename = `${Date.now()}_${Math.random().toString(36).slice(2)}_${file.originalname.replace(/\s/g, '_')}`;
+    const key = ((process.env.FACILITY_IMAGE_PREFIX || 'facility_images/').replace(/(^\/+|\/+$)/g, '') + '/') + filename;
+    const blob = bucket.file(key);
+    
+    await new Promise((resolve, reject) => {
+        const stream = blob.createWriteStream({ 
+            resumable: false, 
+            contentType: file.mimetype 
+        });
+        stream.on('error', reject);
+        stream.on('finish', resolve);
+        stream.end(file.buffer);
+    });
+    
+    return key;
 }
