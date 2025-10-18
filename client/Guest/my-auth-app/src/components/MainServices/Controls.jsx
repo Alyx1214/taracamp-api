@@ -39,6 +39,22 @@ const Controls = ({ facilityType = 'All', onApplyFilters, sharedFilters, updateS
   const applyFiltersDebounced = useCallback(() => {
     if (!onApplyFilters) return;
 
+    // For Add-Ons, don't apply facility-specific filters
+    if (facilityType === 'Add-Ons') {
+      const nextFilters = {
+        type: null, // Don't set type for addons
+      };
+
+      const prev = lastAppliedFiltersRef.current;
+      const changed = !prev || prev.type !== nextFilters.type;
+
+      if (!changed) return;
+
+      lastAppliedFiltersRef.current = nextFilters;
+      onApplyFilters(nextFilters);
+      return;
+    }
+
     const adultCount = adults === '' ? 1 : Number(adults);
     const childCount = children === '' ? 0 : Number(children);
     const totalGuests = adultCount + childCount;

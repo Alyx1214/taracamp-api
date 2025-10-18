@@ -17,7 +17,6 @@ function MainServicesAddOns({
 
     async function loadDefaults() {
       if (searchAttempted) return;
-      if (facilities && facilities.length > 0) return;
 
       setFetchingDefault(true);
       setFetchError(null);
@@ -60,14 +59,12 @@ function MainServicesAddOns({
     return () => {
       cancelled = true;
     };
-  }, [facilities, searchAttempted]);
+  }, [searchAttempted]);
 
   const isLoading = Boolean(loading || fetchingDefault);
   const displayServices = searchAttempted
     ? (facilities || [])
-    : (facilities && facilities.length > 0)
-      ? facilities
-      : defaultServices;
+    : defaultServices;
   const showError = !isLoading && Boolean(fetchError || loadError);
   const showNoResult = !isLoading && !showError && searchAttempted && (facilities?.length ?? 0) === 0;
   const showEmptyDefault = !isLoading && !showError && !searchAttempted && (displayServices?.length ?? 0) === 0;

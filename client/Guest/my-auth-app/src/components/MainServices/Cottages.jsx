@@ -27,7 +27,7 @@ function MainServicesCottages({
     if (c == null) return '—';
     return `${c} pax`;
   };
-  const imgSrc = (c) => c?.images[0] || placeholderImage;
+  const imgSrc = (c) => c?.images?.[0] || placeholderImage;
 
   return (
     <section className={styles.cottagesSection}>

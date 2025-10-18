@@ -108,7 +108,9 @@ function MainServices() {
     setError(null);
 
     try {
-      if (facilityType === 'Add-Ons' && !filters?.type) {
+      if (facilityType === 'Add-Ons') {
+        // For Add-Ons, only apply relevant filters (query, price, unit)
+        // Ignore facility-specific filters like capacity, dates
         const params = {
           query: filters?.query,
           minPrice: filters?.minPrice,
