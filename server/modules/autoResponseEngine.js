@@ -64,8 +64,9 @@ const KNOWLEDGE_BASE = {
     pricing: {
         keywords: ['price', 'cost', 'rate', 'rates', 'fee', 'fees', 'how much', 'expensive', 'cheap'],
         responses: [
-            "Pricing varies depending on the accommodation type, duration of stay, and season. Please contact our reservations office for current rates and available packages.",
-            "Our rates depend on accommodation type, length of stay, and season. Contact our reservations office for detailed pricing information."
+            "Please click this link to check the price and rate: [Pricing Information Link]",
+            "For current rates and pricing information, please click this link: [Pricing Information Link]",
+            "Pricing varies depending on the accommodation type, duration of stay, and season. Please click this link to check the price and rate: [Pricing Information Link]"
         ]
     },
     
@@ -283,7 +284,7 @@ const autoResponseEngine = {
                 const autoResponseData = {
                     userId,
                     text: analysis.response,
-                    sender: 'Teachers\' Camp Assistant',
+                    sender: 'Teachers\' Camp',
                     role: 'system',
                     isUser: false,
                     isRead: false,

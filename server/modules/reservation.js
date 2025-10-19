@@ -826,7 +826,8 @@ const reservationModule = {
                             guestEmail: 1, 
                             serviceType: 1, 
                             createdAt: 1,
-                            userId: 1
+                            userId: 1,
+                            facility: 1
                         },
                         sort: sortOption,
                         limit: limitValue,
@@ -838,6 +839,7 @@ const reservationModule = {
 
             const list = (raw || []).map((r) => (typeof r.toObject === 'function' ? r.toObject() : r));
             const userIds = toValidObjectIdStrings(list.map((r) => r.userId));
+            const facilityIds = toValidObjectIdStrings(list.map((r) => r.facility));
 
             let emailById = new Map();
             if (userIds.length) {
@@ -849,12 +851,23 @@ const reservationModule = {
                 emailById = new Map((users || []).map((u) => [String(u._id), u.email,]));
             }
 
+            let facilityById = new Map();
+            if (facilityIds.length) {
+                const facilities = await dbHelper.findMany(
+                    'facility',
+                    { _id: { $in: facilityIds, }, },
+                    { projection: { _id: 1, name: 1, }, }
+                );
+                facilityById = new Map((facilities || []).map((f) => [String(f._id), f.name,]));
+            }
+
             const withEmails = list.map((r) => ({
                 _id: r._id,
                 guestName: r.guestName,
                 guestEmail: r.guestEmail ?? emailById.get(String(r.userId)) ?? null,
                 serviceType: r.serviceType,
                 createdAt: r.createdAt,
+                facilityName: facilityById.get(String(r.facility)) ?? null,
             }));
 
             // Cache the result
