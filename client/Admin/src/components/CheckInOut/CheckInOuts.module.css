@@ -49,3 +49,19 @@
   background-color: #64030d8e;
   transform: scale(1.05);
 }
+
+.editBtn {
+  background: #1E3C24;
+  margin-left: 8px;
+  padding: 8px 25px;
+  border: none;
+  border-radius: 9999px; 
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.1s ease;
+  color: white;
+}
+.editBtn:hover {
+  background: #218838;
+}

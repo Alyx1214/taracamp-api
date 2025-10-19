@@ -62,6 +62,7 @@ export default function Approved({
           name: r.guestName || "N/A",
           email: r.guestEmail || "N/A",
           serviceType: prettifyServiceType(r.serviceType) || "N/A",
+          facilityName: r.facilityName || "N/A",
           date: formatDateYMDToLong(r.dateOfArrival || r.createdAt),
           _raw: r,
         }));

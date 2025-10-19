@@ -325,6 +325,18 @@ export default function EditForm() {
             </div>
 
             <div className={styles.formRow}>
+              <label>
+                {(facilityType === "Conference" || facilityType === "Cottage" || isSpecialService) ? "Price" : "Facility Rate (inclusive of 10% Service Fee):"}
+                <input type="number" name="baseRate" value={form.baseRate} onChange={onChange} required />
+              </label>
+
+              <label>
+                {(facilityType === "Conference" || facilityType === "Cottage" || isSpecialService) ? "Price" : "Discounted Facility Rate:"}
+                <input type="number" name="discountRate" value={form.discountRate} onChange={onChange} required />
+              </label>
+            </div>
+
+            <div className={styles.formRow}>
               {!isSpecialService &&
                 (facilityType === "Dormitory" || facilityType === "Conference") && (
                   <label>

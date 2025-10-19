@@ -109,23 +109,42 @@ export default function CheckInOuts() {
   };
 
   const renderApprovedActions = (row) => (
-    <button
+    <>
+      <button
+        className={`${styles.pillBtn} ${styles.editBtn}`}
+        onClick={() => alert(`Editing ${row.name}`)}
+        style={{ marginLeft: 8 }}
+      >
+        Edit
+      </button>
+      <button
       className={`${styles.pillBtn} ${styles.checkInBtn}`}
       disabled={actionId === row.id}
       onClick={() => doAction(row, 'Checked-in')}
     >
       {actionId === row.id ? 'Checking in…' : 'Check-In'}
     </button>
+    </>
   );
 
   const renderCheckInActions = (row) => (
-    <button
-      className={`${styles.pillBtn} ${styles.checkOutBtn}`}
-      disabled={actionId === row.id}
-      onClick={() => doAction(row, 'Checked-out')}
-    >
-      {actionId === row.id ? 'Checking out…' : 'Check-Out'}
-    </button>
+    <>
+      <button
+        className={`${styles.pillBtn} ${styles.editBtn}`}
+        onClick={() => alert(`Editing ${row.name}`)}
+        style={{ marginLeft: 8 }}
+      >
+        Edit
+      </button>
+      <button
+        className={`${styles.pillBtn} ${styles.checkOutBtn}`}
+        disabled={actionId === row.id}
+        onClick={() => doAction(row, 'Checked-out')}
+      >
+        {actionId === row.id ? 'Checking out…' : 'Check-Out'}
+      </button>
+      
+    </>
   );
 
   const renderCheckOutActions = (row) => (

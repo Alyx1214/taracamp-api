@@ -66,30 +66,16 @@ export default function Pending({
 
         const reservations = res?.reservations || [];
 
-        // 🔹 Fetch facility names in parallel
-        const list = await Promise.all(
-          reservations.map(async (r) => {
-            let facilityName = "N/A";
-            try {
-              if (r.facility) {
-                const facilityData = await getFacilityById(r.facility);
-                facilityName = facilityData?.facility?.name || "N/A";
-              }
-            } catch {
-              facilityName = "N/A";
-            }
-
-            return {
-              id: r._id || "N/A",
-              name: r.guestName || "N/A",
-              email: r.guestEmail || "N/A",
-              serviceType: prettifyServiceType(r.serviceType) || "N/A",
-              facilityName,
-              date: formatDateYMDToLong(r.dateOfArrival || r.createdAt),
-              _raw: r,
-            };
-          })
-        );
+        // Use facilityName from backend response
+        const list = reservations.map((r) => ({
+          id: r._id || "N/A",
+          name: r.guestName || "N/A",
+          email: r.guestEmail || "N/A",
+          serviceType: prettifyServiceType(r.serviceType) || "N/A",
+          facilityName: r.facilityName || "N/A",
+          date: formatDateYMDToLong(r.dateOfArrival || r.createdAt),
+          _raw: r,
+        }));
 
         if (!cancelled) {
           setRows(list);

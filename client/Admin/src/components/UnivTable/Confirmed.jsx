@@ -61,6 +61,7 @@ export default function Confirmed({
           name: r.guestName || "N/A",
           email: r.guestEmail || "N/A", 
           serviceType: prettifyServiceType(r.serviceType) || "N/A",
+          facilityName: r.facilityName || "N/A",
           date: formatDateLong(r.dateOfArrival || r.createdAt),
           guestType: r.guestType || 'INDIVIDUAL',
           _raw: r,
