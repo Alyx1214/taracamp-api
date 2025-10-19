@@ -235,6 +235,30 @@ const AddForm = () => {
         </div>
 
         <div className={styles.formRow}>
+          <label>
+            {isSpecialService || facilityType === "Conference" || facilityType === "Cottage" ? "Price:" : "Facility Rate (Inclusive of 10% Service Fee):"}
+            <input
+              type="number"
+              name="baseRate"
+              value={formData.baseRate}
+              onChange={handleChange}
+              required
+            />
+          </label>
+
+          <label>
+            {isSpecialService || facilityType === "Conference" || facilityType === "Cottage" ? "Price:" : "Discounted Facility Rate:"}
+            <input
+              type="number"
+              name="discountRate"
+              value={formData.discountRate}
+              onChange={handleChange}
+              required
+            />
+          </label>
+        </div>
+
+        <div className={styles.formRow}>
           {!isSpecialService && (
             <label>
               Capacity:
