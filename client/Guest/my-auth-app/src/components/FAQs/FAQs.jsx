@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import HeaderHome from '../HeaderHome/HeaderHome';
-import FooterHome from '../FooterHome/FooterHome';  
+import FooterHome from '../FooterHome/FooterHome'; 
+import { useNavigate } from 'react-router-dom'; 
 // import ReserveNow from '../BubbleButton/ReserveNow';
 import styles from './FAQs.module.css';
 
 function FAQsPage() {
   const [openFAQ, setOpenFAQ] = useState(null);
+  const navigate = useNavigate();
 
   const faqs = [
     {
@@ -65,7 +67,7 @@ function FAQsPage() {
   };
 
   const handleReserveNowClick = () => {
-    // Implement navigation to reservation page
+    navigate('/user/services');
     console.log("Reserve Now clicked from FAQs!");
     // Example: navigate('/reserve'); 
   };
