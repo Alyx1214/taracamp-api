@@ -1,6 +1,7 @@
 import { Category, GuestType, Status, UserRole, FacilityStatus, ServiceType, ReservationStatus, FileKind, FacilityType, } from '../constants.js';
 import { Storage, } from '@google-cloud/storage';
 import { safeRedisOperations } from './redisCircuitBreaker.js';
+import { computeEstimate } from './payment.js';
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -129,9 +130,12 @@ const reservationModule = {
                 return responseData;
             }
 
-            if (!isValidDateRange(dateOfArrival, dateOfDeparture)) {
+            if (!isValidDateRange(dateOfArrival, dateOfDeparture, user)) {
                 responseData.status = Status.BAD_REQUEST;
-                responseData.error = 'Invalid date range: ensure arrival is today or later, departure is after arrival, and arrival is at least 2 months from today';
+                const errorMessage = user && user.role === UserRole.FRONTDESK 
+                    ? 'Invalid date range: ensure arrival is today or later and departure is after arrival'
+                    : 'Invalid date range: ensure arrival is today or later, departure is after arrival, and arrival is at least 2 months from today';
+                responseData.error = errorMessage;
                 return responseData;
             }
 
@@ -1539,9 +1543,10 @@ const reservationModule = {
      * Checks if a facility is available for a date range (preflight).
      * @param {Object} dbHelper
      * @param {Object} params - { facility, start, end }
+     * @param {Object} user - Optional user object for role-based validation
      * @returns {Object} { status, error, available, reason }
      */
-    checkAvailability: async (dbHelper, params = {}) => {
+    checkAvailability: async (dbHelper, params = {}, user = null) => {
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
             error: 'Error checking availability',
@@ -1561,9 +1566,12 @@ const reservationModule = {
                 responseData.error = 'Invalid date format';
                 return responseData;
             }
-            if (!isValidDateRange(start, end)) {
+            if (!isValidDateRange(start, end, user)) {
                 responseData.status = Status.BAD_REQUEST;
-                responseData.error = 'Invalid date range: ensure arrival is today or later, departure is after arrival, and arrival is at least 2 months from today';
+                const errorMessage = user && user.role === UserRole.FRONTDESK 
+                    ? 'Invalid date range: ensure arrival is today or later and departure is after arrival'
+                    : 'Invalid date range: ensure arrival is today or later, departure is after arrival, and arrival is at least 2 months from today';
+                responseData.error = errorMessage;
                 return responseData;
             }
 
@@ -1690,7 +1698,7 @@ function parseSort(spec) {
     return Object.keys(sort).length ? sort : undefined;
 }
 
-function isValidDateRange(dateOfArrival, dateOfDeparture) {
+function isValidDateRange(dateOfArrival, dateOfDeparture, user = null) {
     if (!isValidDate(dateOfArrival) || !isValidDate(dateOfDeparture)) return false;
 
     const arrival = normalizeDateOnly(dateOfArrival);
@@ -1700,6 +1708,11 @@ function isValidDateRange(dateOfArrival, dateOfDeparture) {
     if (!arrival || !departure || !today) return false;
     if (arrival < today) return false;
     if (departure <= arrival) return false;
+    
+    // Skip 2-month constraint for frontdesk users
+    if (user && user.role === UserRole.FRONTDESK) {
+        return true;
+    }
     
     // Calculate minimum advance date (2 months from today) using the normalized today date
     const minAdvanceDate = new Date(today);
@@ -1752,54 +1765,6 @@ function isPresent(value) {
         return !Number.isNaN(value);
     }
     return true;
-}
-
-function computeEstimate({ facilityDoc, adults = 0, children = 0, pwds = 0, seniorCitizens = 0, serviceType, addonsTotal = 0, category, }) {
-    const isAccommodation =
-    serviceType === ServiceType.LODGING ||
-    serviceType === ServiceType.EVENT_AND_LODGING ||
-    facilityDoc?.facilityType === FacilityType.DORMITORY ||
-    facilityDoc?.facilityType === FacilityType.COTTAGE;
-
-    const perPersonRate = Number(facilityDoc?.ratePerPerson);
-    const flatBookingPrice = Number(facilityDoc?.price ?? facilityDoc?.conferencePrice ?? facilityDoc?.flatPrice);
-
-    let baseAmount = 0;
-
-    if (isAccommodation) {
-        if (!Number.isFinite(perPersonRate) || perPersonRate < 0) {
-            baseAmount = addonsTotal;
-        } else {
-            baseAmount = adults * perPersonRate + (children + pwds + seniorCitizens) * perPersonRate * 0.80 + addonsTotal;
-        }
-    } else {
-        if (!Number.isFinite(flatBookingPrice) || flatBookingPrice < 0) {
-            baseAmount = addonsTotal;
-        } else {
-            baseAmount = flatBookingPrice + addonsTotal;
-        }
-    }
-
-    // Apply service fees and discounts based on category
-    let finalAmount = baseAmount;
-    
-    if (category === Category.PRIVATE) {
-        // Private category: 10% service fee
-        finalAmount = baseAmount * 1.10;
-    } else if (category === Category.GOVERNMENT || category === Category.DEPED) {
-        // Government and DepEd: 10% service fee + 20% discount
-        const withServiceFee = baseAmount * 1.10;
-        finalAmount = withServiceFee * 0.80; // 20% discount
-    }
-    // Other categories (PWDs, Others) have no service fee or discount
-
-    return { 
-        amount: finalAmount, 
-        model: isAccommodation ? 'perPerson' : 'flat',
-        baseAmount: baseAmount,
-        serviceFee: category === Category.PRIVATE || category === Category.GOVERNMENT || category === Category.DEPED ? baseAmount * 0.10 : 0,
-        discount: category === Category.GOVERNMENT || category === Category.DEPED ? (baseAmount * 1.10) * 0.20 : 0
-    };
 }
 
 function clampLimit(value, def = undefined) {

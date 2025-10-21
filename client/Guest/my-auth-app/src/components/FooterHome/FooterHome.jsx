@@ -36,7 +36,18 @@ function Footer({ onReserveNow }) {
   };
 
   const handleTaraCampClick = () => {
-    navigate('/user/services');
+    const servicesPath = '/user/services';
+    
+    if (location.pathname === servicesPath) {
+      // Already on services page, just go to top instantly
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    } else {
+      // Navigate to services page and go to top instantly
+      navigate(servicesPath);
+      setTimeout(() => {
+        window.scrollTo({ top: 0, behavior: 'instant' });
+      }, 100);
+    }
   };
 
 

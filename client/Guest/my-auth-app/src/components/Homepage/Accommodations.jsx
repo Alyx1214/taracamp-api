@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import styles from './Accommodations.module.css';
 import placeholderImage from '../../assets/conference.jpg';
 import { getAllFacilities } from '../../apis/facilityApi';
@@ -21,6 +21,7 @@ export default function AccommodationsSection({ limit = 6 }) {
   const [items, setItems] = useState([]);
   const [state, setState] = useState({ loading: true, error: null });
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     let active = true;
@@ -72,7 +73,22 @@ export default function AccommodationsSection({ limit = 6 }) {
     return () => { active = false; };
   }, [limit]);
 
-  const onExploreMore = () => navigate('/user/services');
+  const onExploreMore = () => {
+    const servicesPath = '/user/services';
+    
+    if (location.pathname === servicesPath) {
+      // Already on services page, just go to top instantly
+      setTimeout(() => {
+        window.scrollTo({ top: 0, behavior: 'instant' });
+      }, 100);
+    } else {
+      // Navigate to services page and go to top instantly
+      navigate(servicesPath);
+      setTimeout(() => {
+        window.scrollTo({ top: 0, behavior: 'instant' });
+      }, 100);
+    }
+  };
 
   const isLoading = state.loading;
   const hasError = !isLoading && Boolean(state.error);

@@ -4,7 +4,7 @@ import servicesHeaderBg from '../../assets/services-header.jpg';
 
 function MainServicesHeader() {
   return (
-    <div className={styles.headerSection} style={{ backgroundImage: `url(${servicesHeaderBg})` }}>
+    <div className={styles.headerSection} id="services-top" style={{ backgroundImage: `url(${servicesHeaderBg})` }}>
       <h1 className={styles.headerTitle}>SERVICES & ROOM/<br />HALL RATES</h1>
     </div>
   );

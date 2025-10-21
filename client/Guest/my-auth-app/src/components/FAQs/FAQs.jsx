@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
 import HeaderHome from '../HeaderHome/HeaderHome';
-import FooterHome from '../FooterHome/FooterHome';  
+import FooterHome from '../FooterHome/FooterHome'; 
+import { useNavigate, useLocation } from 'react-router-dom'; 
 // import ReserveNow from '../BubbleButton/ReserveNow';
 import styles from './FAQs.module.css';
 
 function FAQsPage() {
   const [openFAQ, setOpenFAQ] = useState(null);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const faqs = [
     {
@@ -65,9 +68,20 @@ function FAQsPage() {
   };
 
   const handleReserveNowClick = () => {
-    // Implement navigation to reservation page
-    console.log("Reserve Now clicked from FAQs!");
-    // Example: navigate('/reserve'); 
+    const servicesPath = '/user/services';
+    
+    if (location.pathname === servicesPath) {
+      // Already on services page, just go to top instantly
+      setTimeout(() => {
+        window.scrollTo({ top: 0, behavior: 'instant' });
+      }, 100);
+    } else {
+      // Navigate to services page and go to top instantly
+      navigate(servicesPath);
+      setTimeout(() => {
+        window.scrollTo({ top: 0, behavior: 'instant' });
+      }, 100);
+    }
   };
 
   return (
@@ -115,7 +129,7 @@ function FAQsPage() {
 
       {/* Floating Reserve Button
       <ReserveNow
-        navigateTo="/services"
+        navigateTo="/user/services"
         className={styles.floatingReserveBtn}
       >
         Reserve Now

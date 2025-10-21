@@ -9,10 +9,9 @@ main {
   flex-grow: 1;
 }
 
-
 .heroSection {
   position: relative;
-  height: 40vh; 
+  height: 40vh;
   background-size: cover;
   background-position: center;
   display: flex;
@@ -21,7 +20,7 @@ main {
   text-align: center;
   color: white;
   z-index: 1;
-  padding-top: 90px; 
+  padding-top: 90px;
 }
 
 .heroSection::before {
@@ -31,7 +30,7 @@ main {
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.141); 
+  background-color: rgba(0, 0, 0, 0.141);
   z-index: -1;
 }
 
@@ -53,19 +52,18 @@ main {
   text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);
 }
 
-/* Main Content Section */
 .mainContentSection {
   display: flex;
   flex-wrap: wrap;
-  justify-content: center; 
+  justify-content: center;
   padding: 60px 40px;
   max-width: 1200px;
   margin: 0 auto;
-  gap: 40px; 
+  gap: 40px;
 }
 
 .reachUsColumn {
-  flex: 2; 
+  flex: 2;
   min-width: 200px;
   text-align: left;
 }
@@ -89,7 +87,7 @@ main {
   border-radius: 20px;
   overflow: hidden;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-  height: 440px; 
+  height: 440px;
   width: 100%;
 }
 
@@ -100,13 +98,12 @@ main {
   border-radius: 20px;
 }
 
-
 .contactDetailsColumn {
-  flex: 1; 
+  flex: 1;
   min-width: 450px;
   display: flex;
   flex-direction: column;
-  gap: 40px; 
+  gap: 40px;
 }
 
 .contactCard,
@@ -115,7 +112,7 @@ main {
   border-radius: 20px;
   padding: 30px;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
-  text-align: center; 
+  text-align: center;
 }
 
 .contactCardTitle,
@@ -134,7 +131,7 @@ main {
 }
 
 .contactButton {
-  background-color: #1e3c24; 
+  background-color: #1e3c24;
   color: #f5f5f5;
   border: none;
   border-radius: 25px;
@@ -146,7 +143,7 @@ main {
   align-items: center;
   justify-content: center;
   width: 100%;
-  margin-bottom: 15px; 
+  margin-bottom: 15px;
   transition: background-color 0.3s ease, transform 0.2s ease;
 }
 
@@ -162,12 +159,13 @@ main {
   color: #F5F5F5;
   transform: translateY(-2px);
 }
+
 .contactButton:hover svg {
-    stroke: #F5F5F5;
+  stroke: #F5F5F5;
 }
 
 .contactButton:last-child {
-  margin-bottom: 0; 
+  margin-bottom: 0;
 }
 
 .howToGetHereAddress {
@@ -183,7 +181,7 @@ main {
   line-height: 1.6;
   color: #555;
   margin-bottom: 10px;
-  text-align: left; 
+  text-align: left;
 }
 
 .detailLabel {
@@ -193,7 +191,7 @@ main {
 }
 
 .mapLink {
-  color: #007bff; 
+  color: #007bff;
   text-decoration: underline;
   font-weight: bold;
 }
@@ -202,102 +200,101 @@ main {
   color: #0056b3;
 }
 
-/* Responsive Adjustments */
+
+/* Tablet Large (992px and below) */
 @media (max-width: 992px) {
   .heroTitle {
     font-size: 2.8em;
   }
+  
   .heroSubtitle {
     font-size: 1em;
   }
+  
   .mainContentSection {
-    flex-direction: column; 
+    flex-direction: column;
     padding: 40px 20px;
     gap: 30px;
   }
-  .reachUsColumn, .contactDetailsColumn {
+  
+  .reachUsColumn,
+  .contactDetailsColumn {
     min-width: unset;
     width: 100%;
   }
-  .reachUsColumn, .contactCard, .howToGetHereCard {
+  
+  .reachUsColumn,
+  .contactCard,
+  .howToGetHereCard {
     text-align: center;
   }
+  
   .howToGetHereDetail {
     text-align: center;
   }
 }
 
+/* Tablet (768px and below) */
 @media (max-width: 768px) {
   .heroSection {
     height: 35vh;
   }
+  
   .heroTitle {
     font-size: 2.2em;
   }
+  
   .heroSubtitle {
     font-size: 0.9em;
   }
+  
   .mainContentSection {
     padding: 30px 15px;
   }
+  
   .reachUsTitle {
     font-size: 1.8em;
   }
-  .contactCardTitle, .howToGetHereTitle {
+  
+  .contactCardTitle,
+  .howToGetHereTitle {
     font-size: 1.3em;
   }
+  
   .contactButton {
     font-size: 0.9em;
     padding: 10px 20px;
   }
+  
   .mapContainer {
-    height: 300px; 
+    height: 300px;
   }
 }
 
+/* Mobile (576px and below) */
 @media (max-width: 576px) {
   .heroSection {
     height: 30vh;
   }
+  
   .heroTitle {
     font-size: 1.8em;
   }
+  
   .heroSubtitle {
     font-size: 0.8em;
   }
+  
   .mainContentSection {
     padding: 20px 10px;
   }
-  .contactCard, .howToGetHereCard {
+  
+  .contactCard,
+  .howToGetHereCard {
     padding: 20px;
   }
+  
   .mapContainer {
-    height: 250px; 
+    height: 250px;
   }
-}
-
-.floatingReserveBtn {
-  position: fixed;
-  bottom: 20px;       
-  right: 20px;
-  z-index: 1100;
-  background-color: #007bff;
-  color: #fff;
-  font-size: 1rem;
-  padding: 14px 22px;
-  border-radius: 50px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-  border: none;
-  cursor: pointer;
-  transition: transform 0.2s ease, background-color 0.3s ease;
-}
-
-.floatingReserveBtn:hover {
-  background-color: #0056b3;
-  transform: scale(1.05);
-}
-
-.floatingReserveBtn.disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
 }
