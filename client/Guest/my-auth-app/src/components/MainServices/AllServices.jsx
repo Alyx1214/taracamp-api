@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import styles from './AllServices.module.css';
 
 const TYPE = Object.freeze({
@@ -17,6 +17,7 @@ const AllServices = ({
   loadError = null,
 }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const errorMessage = loadError;
   const isLoading = loading;
   const facilitiesList = Array.isArray(facilities) ? facilities : [];
@@ -52,7 +53,20 @@ const AllServices = ({
     };
     
     const routePath = routeMap[section] || section.toLowerCase();
-    navigate(`/user/services/${routePath}`);
+    const targetPath = `/user/services/${routePath}`;
+    
+    if (location.pathname === targetPath) {
+      // Already on the correct section, just go to top instantly
+      setTimeout(() => {
+        window.scrollTo({ top: 0, behavior: 'instant' });
+      }, 100);
+    } else {
+      // Navigate to the specific section and go to top instantly
+      navigate(targetPath);
+      setTimeout(() => {
+        window.scrollTo({ top: 0, behavior: 'instant' });
+      }, 100);
+    }
   };
 
   const handleCheck = (item) => {

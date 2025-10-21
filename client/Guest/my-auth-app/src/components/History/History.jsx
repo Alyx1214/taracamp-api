@@ -114,7 +114,7 @@ function HistoryPage() {
 
       {/* Floating Reserve Button
       <ReserveNow
-        navigateTo="/services"
+        navigateTo="/user/services"
         className={styles.floatingReserveBtn}
       >
         Reserve Now

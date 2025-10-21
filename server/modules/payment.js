@@ -1,7 +1,7 @@
 import fetch from 'node-fetch';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
-import { Status, ReservationStatus, UserRole, ServiceType, } from '../constants.js';
+import { Status, ReservationStatus, UserRole, ServiceType, Category, FacilityType, } from '../constants.js';
 import { safeRedisOperations } from './redisCircuitBreaker.js';
 
 dotenv.config();
@@ -971,38 +971,52 @@ const paymentModule = {
             ]);
 
             const breakdown = [];
+            const addons = [];
 
-            if (facility) {
-                const { amount: facilityCost, } = computeEstimate({
-                    facilityDoc: facility,
-                    adults: reservation?.numberOfGuests?.adult || 0,
-                    children: reservation?.numberOfGuests?.children || 0,
-                    pwds: reservation?.numberOfGuests?.pwds || 0,
-                    serviceType: reservation?.serviceType,
-                });
-                breakdown.push({
-                    label: facility.name,
-                    amount: fmtAmountOnly(facilityCost),
-                });
-            }
-
+            // Calculate addonsTotal from reservation add-ons
+            let addonsTotal = 0;
             const serviceIds = []
                 .concat(reservation?.addOns || [])
                 .concat(reservation?.specialService ? [reservation.specialService,] : [])
                 .filter(Boolean);
 
+            let services = [];
             if (serviceIds.length) {
-                const services = await dbHelper.findMany(
+                services = await dbHelper.findMany(
                     'addon',
                     { _id: { $in: serviceIds.map(String), }, },
-                    { projection: { name: 1, price: 1, }, }
+                    { projection: { _id: 1, price: 1, name: 1, unit: 1, }, }
                 );
-                for (const s of services || []) {
-                    breakdown.push({
-                        label: s.name,
-                        amount: fmtAmountOnly(Number(s.price) || 0),
-                    });
-                }
+                addonsTotal = services.reduce((sum, s) => sum + (Number(s.price) || 0), 0);
+            }
+
+            if (facility) {
+                const estimateResult = computeEstimate({
+                    facilityDoc: facility,
+                    adults: reservation?.numberOfGuests?.adult || 0,
+                    children: reservation?.numberOfGuests?.children || 0,
+                    pwds: reservation?.numberOfGuests?.pwds || 0,
+                    seniorCitizens: reservation?.numberOfGuests?.seniorCitizens || 0,
+                    serviceType: reservation?.serviceType,
+                    addonsTotal: addonsTotal,
+                    category: reservation?.category,
+                });
+                
+                breakdown.push({
+                    label: facility.name,
+                    amount: fmtAmountOnly(estimateResult.baseAmount - addonsTotal),
+                });
+            }
+
+            // Process add-ons for display (separate from breakdown)
+            for (const s of services || []) {
+                const addonItem = {
+                    name: s.name,
+                    price: fmtAmountOnly(Number(s.price) || 0),
+                    unit: s.unit || 'per item'
+                };
+                addons.push(addonItem);
+                // Note: Add-ons are NOT added to breakdown to avoid redundancy
             }
 
             const totalEstimated = Number(reservation.totalEstimatedAmount) || 0;
@@ -1028,14 +1042,61 @@ const paymentModule = {
                 reservation.reservationCode ||
                 'N/A';
 
+            // Calculate discount and service fee information using shared computeEstimate logic
+            let discountInfo = {
+                label: 'None',
+                amount: '₱0.00',
+                percentage: '0%'
+            };
+            let serviceFeeInfo = {
+                label: 'None',
+                amount: '₱0.00',
+                percentage: '0%'
+            };
+
+            if (facility && reservation.category) {
+                const estimateResult = computeEstimate({
+                    facilityDoc: facility,
+                    adults: reservation?.numberOfGuests?.adult || 0,
+                    children: reservation?.numberOfGuests?.children || 0,
+                    pwds: reservation?.numberOfGuests?.pwds || 0,
+                    seniorCitizens: reservation?.numberOfGuests?.seniorCitizens || 0,
+                    serviceType: reservation?.serviceType,
+                    addonsTotal: addonsTotal,
+                    category: reservation?.category,
+                });
+
+                // Always show service fee for categories that have it
+                if (reservation.category === Category.PRIVATE || reservation.category === Category.GOVERNMENT || reservation.category === Category.DEPED) {
+                    serviceFeeInfo = {
+                        label: 'Service Fee',
+                        amount: peso(estimateResult.serviceFee),
+                        percentage: '10%'
+                    };
+                }
+
+                if (estimateResult.discount > 0) {
+                    discountInfo = {
+                        label: `${reservation.category} Discount`,
+                        amount: peso(estimateResult.discount),
+                        percentage: reservation.category === Category.GOVERNMENT || reservation.category === Category.DEPED ? '20%' : '0%'
+                    };
+                }
+            }
+
             const view = {
                 id: (reservation._id?.toString()),
                 referenceNumber,
                 name: reservationUser?.name || reservation.guestName || '—',
                 confirmationFee: peso(confirmationFee),             
                 breakdown,                                          
-                discount: 'None',                                   
-                discountAmount: '00.00',                            
+                addons,
+                serviceFee: serviceFeeInfo.label,                                   
+                serviceFeeAmount: serviceFeeInfo.amount,
+                serviceFeePercentage: serviceFeeInfo.percentage,
+                discount: discountInfo.label,                                   
+                discountAmount: discountInfo.amount,
+                discountPercentage: discountInfo.percentage,
                 total: peso(totalEstimated, true),                  
                 status,
             };
@@ -1061,6 +1122,54 @@ const paymentModule = {
     },
 };
 
+function computeEstimate({ facilityDoc, adults = 0, children = 0, pwds = 0, seniorCitizens = 0, serviceType, addonsTotal = 0, category, }) {
+    const isAccommodation =
+    serviceType === ServiceType.LODGING ||
+    serviceType === ServiceType.EVENT_AND_LODGING ||
+    facilityDoc?.facilityType === FacilityType.DORMITORY ||
+    facilityDoc?.facilityType === FacilityType.COTTAGE;
+
+    const perPersonRate = Number(facilityDoc?.ratePerPerson);
+    const flatBookingPrice = Number(facilityDoc?.price ?? facilityDoc?.conferencePrice ?? facilityDoc?.flatPrice);
+
+    let baseAmount = 0;
+
+    if (isAccommodation) {
+        if (!Number.isFinite(perPersonRate) || perPersonRate < 0) {
+            baseAmount = addonsTotal;
+        } else {
+            baseAmount = adults * perPersonRate + (children + pwds + seniorCitizens) * perPersonRate * 0.80 + addonsTotal;
+        }
+    } else {
+        if (!Number.isFinite(flatBookingPrice) || flatBookingPrice < 0) {
+            baseAmount = addonsTotal;
+        } else {
+            baseAmount = flatBookingPrice + addonsTotal;
+        }
+    }
+
+    // Apply service fees and discounts based on category
+    let finalAmount = baseAmount;
+    
+    if (category === Category.PRIVATE) {
+        // Private category: 10% service fee
+        finalAmount = baseAmount * 1.10;
+    } else if (category === Category.GOVERNMENT || category === Category.DEPED) {
+        // Government and DepEd: 10% service fee + 20% discount
+        const withServiceFee = baseAmount * 1.10;
+        finalAmount = withServiceFee * 0.80; // 20% discount
+    }
+
+    return { 
+        amount: finalAmount, 
+        model: isAccommodation ? 'perPerson' : 'flat',
+        baseAmount: baseAmount,
+        serviceFee: category === Category.PRIVATE || category === Category.GOVERNMENT || category === Category.DEPED ? baseAmount * 0.10 : 0,
+        discount: category === Category.GOVERNMENT || category === Category.DEPED ? (baseAmount * 1.10) * 0.20 : 0
+    };
+}
+
+export { computeEstimate };
 export default paymentModule;
 
 function getAuthHeader() {
@@ -1124,31 +1233,6 @@ function methodLabel(t) {
     if (m === 'paymaya') return 'Maya';
     if (m === 'bank_transfer' || m === 'bank') return 'Bank Transfer';
     return t;
-}
-
-function computeEstimate({ facilityDoc, adults = 0, children = 0, pwds = 0, serviceType, }) {
-    const isAccommodation =
-    serviceType === ServiceType.LODGING ||
-    serviceType === ServiceType.EVENT_AND_LODGING ||
-    facilityDoc?.facilityType === 'DORMITORY' ||
-    facilityDoc?.facilityType === 'COTTAGE';
-
-    const perPersonRate = Number(facilityDoc?.ratePerPerson);
-    const flatBookingPrice = Number(facilityDoc?.price ?? facilityDoc?.conferencePrice ?? facilityDoc?.flatPrice);
-
-    if (isAccommodation) {
-        if (!Number.isFinite(perPersonRate) || perPersonRate < 0) {
-            return { amount: 0, model: 'perPerson', };
-        }
-        const amount = (Number(adults) || 0) * perPersonRate +
-                   ((Number(children) || 0) + (Number(pwds) || 0)) * perPersonRate * 0.8;
-        return { amount, model: 'perPerson', };
-    } else {
-        if (!Number.isFinite(flatBookingPrice) || flatBookingPrice < 0) {
-            return { amount: 0, model: 'flat', };
-        }
-        return { amount: flatBookingPrice, model: 'flat', };
-    }
 }
 
 function peso(num, withLeadingSpace = false) {

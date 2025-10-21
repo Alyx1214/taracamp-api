@@ -30,7 +30,7 @@ export default function buildReservationRouter(userSocketMap) {
   }));
 
   r.get('/check-availability', asyncHandler(async (req, res) => {
-    const response = await reservationModule.checkAvailability(dbHelper, req.query);
+    const response = await reservationModule.checkAvailability(dbHelper, req.query, req.user || null);
     res.status(response.status).json(response);
   }));
 

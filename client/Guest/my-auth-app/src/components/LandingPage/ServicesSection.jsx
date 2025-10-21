@@ -59,7 +59,7 @@ function ServicesSection() {
   };
 
   const handleCardClick = () => {
-    navigate('/services'); 
+    navigate('/user/services'); 
   };
 
   const handleKeyDown = (event) => {

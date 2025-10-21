@@ -89,9 +89,49 @@ export default function PaymentDetails() {
           </tbody>
         </table>
         
+        {/* Add-ons Skeleton */}
+        <hr className={styles["payment-details-divider"]} />
+        <div className={styles["payment-details-section-title"]}>Add-ons</div>
+        <table className={styles["payment-details-table"]}>
+          <tbody>
+            {Array.from({ length: 2 }).map((_, index) => (
+              <tr key={index}>
+                <td className={styles["payment-details-label"]}>
+                  <div className={`${styles["skeleton-label"]} ${styles["skeleton"]}`}></div>
+                </td>
+                <td className={styles["payment-details-separator"]}>
+                  <div className={`${styles["skeleton-separator"]} ${styles["skeleton"]}`}></div>
+                </td>
+                <td>
+                  <div className={`${styles["skeleton-value"]} ${styles["skeleton"]}`}></div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        
+        {/* Service Fee Skeleton */}
+        <hr className={styles["payment-details-divider"]} />
+        <div className={styles["payment-details-section-title"]}>Service Fee</div>
+        <table className={styles["payment-details-table"]}>
+          <tbody>
+            <tr>
+              <td className={styles["payment-details-label"]}>
+                <div className={`${styles["skeleton-label"]} ${styles["skeleton"]}`}></div>
+              </td>
+              <td className={styles["payment-details-separator"]}>
+                <div className={`${styles["skeleton-separator"]} ${styles["skeleton"]}`}></div>
+              </td>
+              <td>
+                <div className={`${styles["skeleton-value"]} ${styles["skeleton"]}`}></div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        
         {/* Discount Skeleton */}
         <hr className={styles["payment-details-divider"]} />
-        <div className={styles["payment-details-section-title"]}>Discount %</div>
+        <div className={styles["payment-details-section-title"]}>Discount</div>
         <table className={styles["payment-details-table"]}>
           <tbody>
             <tr>
@@ -166,7 +206,7 @@ export default function PaymentDetails() {
             <tr>
               <td className={styles["payment-details-label"]}>Reference Number</td>
               <td className={styles["payment-details-separator"]}>:</td>
-              <td>{payment.referenceNumber}</td>
+              <td>{payment.referenceNumber?.toUpperCase()}</td>
             </tr>
             <tr>
               <td className={styles["payment-details-label"]}>Name</td>
@@ -193,14 +233,46 @@ export default function PaymentDetails() {
             ))}
           </tbody>
         </table>
+        
+        {/* Add-ons Section */}
+        {payment.addons && payment.addons.length > 0 && (
+          <>
+            <hr className={styles["payment-details-divider"]} />
+            <div className={styles["payment-details-section-title"]}>Add-ons</div>
+            <table className={styles["payment-details-table"]}>
+              <tbody>
+                {payment.addons.map((addon, idx) => (
+                  <tr key={idx}>
+                    <td className={styles["payment-details-label"]}>{addon.name}</td>
+                    <td className={styles["payment-details-separator"]}>:</td>
+                    <td>{addon.price} ({addon.unit})</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )}
+        
+        {/* Service Fee Section */}
         <hr className={styles["payment-details-divider"]} />
-        <div className={styles["payment-details-section-title"]}>Discount %</div>
+        <div className={styles["payment-details-section-title"]}>Service Fee</div>
+        <table className={styles["payment-details-table"]}>
+          <tbody>
+            <tr>
+              <td className={styles["payment-details-label"]}>{payment.serviceFee}</td>
+              <td className={styles["payment-details-separator"]}>:</td>
+              <td>{payment.serviceFeeAmount} {payment.serviceFeePercentage && `(${payment.serviceFeePercentage})`}</td>
+            </tr>
+          </tbody>
+        </table>
+        <hr className={styles["payment-details-divider"]} />
+        <div className={styles["payment-details-section-title"]}>Discount</div>
         <table className={styles["payment-details-table"]}>
           <tbody>
             <tr>
               <td className={styles["payment-details-label"]}>{payment.discount}</td>
               <td className={styles["payment-details-separator"]}>:</td>
-              <td>{payment.discountAmount}</td>
+              <td>{payment.discountAmount} {payment.discountPercentage && `(${payment.discountPercentage})`}</td>
             </tr>
           </tbody>
         </table>

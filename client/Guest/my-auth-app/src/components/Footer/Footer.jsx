@@ -36,7 +36,7 @@ function Footer() {
   };
 
   const handleTaraCampClick = () => {
-    navigate('/services');
+    navigate('/user/services');
   };
 
   return (

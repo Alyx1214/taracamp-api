@@ -20,7 +20,7 @@ function ResDetails({ onClose }) {
   const { step1 = {}, step2 = {}, file } = location.state || {};
 
   useEffect(() => {
-    if (!id) navigate('/services', { replace: true });
+    if (!id) navigate('/user/services', { replace: true });
   }, [id, navigate]);
 
   useEffect(() => {

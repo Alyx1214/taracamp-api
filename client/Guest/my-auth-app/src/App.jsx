@@ -126,8 +126,27 @@ function AuthLayout() {
 
 function App() {
   const navigate = useNavigate();
+  const location = useLocation();
+  
   const handleReserveNow = () => {
-    navigate('/services');
+    navigate('/user/services');
+  };
+
+  const handleHomepageReserveNow = () => {
+    const servicesPath = '/user/services';
+    
+    if (location.pathname === servicesPath) {
+      // Already on services page, just go to top instantly
+      setTimeout(() => {
+        window.scrollTo({ top: 0, behavior: 'instant' });
+      }, 100);
+    } else {
+      // Navigate to services page and go to top instantly
+      navigate(servicesPath);
+      setTimeout(() => {
+        window.scrollTo({ top: 0, behavior: 'instant' });
+      }, 100);
+    }
   };
 
   return (
@@ -139,7 +158,7 @@ function App() {
       {/* <Route element={<RequireAuth />}> */}
       <Route
         path="/homepage/*"
-        element={<Homepage onReserveNow={() => navigate('/user/services')} isLoggedIn />}
+        element={<Homepage onReserveNow={handleHomepageReserveNow} isLoggedIn />}
       />
       <Route path="/history" element={<HistoryPage />} />
       <Route path="/user/services/*" element={<ServicesPage />} />

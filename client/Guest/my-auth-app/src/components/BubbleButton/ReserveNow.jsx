@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import './ReserveNow.module.css';
 
 const ReserveNow = ({ 
@@ -12,6 +12,7 @@ const ReserveNow = ({
   navigateToServices = true 
 }) => {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleClick = (e) => {
     if (!disabled) {
@@ -36,7 +37,20 @@ const ReserveNow = ({
 
       // Handle navigation or custom onClick
       if (navigateToServices) {
-        setTimeout(() => navigate('/services'), 200);
+        const servicesPath = '/user/services';
+        
+        if (location.pathname === servicesPath) {
+          // Already on services page, just go to top instantly
+          setTimeout(() => {
+            window.scrollTo({ top: 0, behavior: 'instant' });
+          }, 200);
+        } else {
+          // Navigate to services page and go to top instantly
+          navigate(servicesPath);
+          setTimeout(() => {
+            window.scrollTo({ top: 0, behavior: 'instant' });
+          }, 100);
+        }
       } else if (onClick) {
         onClick(e);
       }
