@@ -1,14 +1,37 @@
+/* CSS Variables */
+:root {
+  --primary-green: #1e3c24;
+  --accent-green: #538E5E;
+  --brown-primary: #4F3718;
+  --light-gray: #f5f5f5;
+  --white: #ffffff;
+  --dark-gray: #333;
+  --medium-gray: #444;
+  --text-secondary: #555;
+  --blue-primary: #007bff;
+  --blue-secondary: #0056b3;
+  --overlay-dark: rgba(0, 0, 0, 0.4);
+  --shadow-light: 0 4px 15px rgba(0, 0, 0, 0.1);
+  --shadow-heavy: 0 4px 12px rgba(0, 0, 0, 0.3);
+  --border-radius: 8px;
+  --border-radius-button: 30px;
+  --border-radius-floating: 50px;
+  --transition: all 0.3s ease;
+  --transition-transform: transform 0.2s ease;
+}
+
 .historyPageContainer {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  background-color: #f5f5f5;
+  background-color: var(--light-gray);
 }
 
 main {
   flex-grow: 1;
 }
 
+/* Hero Section */
 .heroSection {
   position: relative;
   height: 100vh;
@@ -18,7 +41,7 @@ main {
   align-items: center;
   justify-content: center;
   text-align: center;
-  color: white;
+  color: var(--white);
   z-index: 1;
 }
 
@@ -29,7 +52,7 @@ main {
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.4);
+  background-color: var(--overlay-dark);
   z-index: -1;
 }
 
@@ -53,22 +76,23 @@ main {
 }
 
 .exploreButton {
-  background-color: #538E5E;
-  color: white;
+  background-color: var(--accent-green);
+  color: var(--white);
   border: none;
   padding: 17px 90px;
-  border-radius: 30px;
+  border-radius: var(--border-radius-button);
   font-size: 1.1em;
   font-weight: bold;
   cursor: pointer;
-  transition: background-color 0.3s ease, transform 0.2s ease;
+  transition: var(--transition), var(--transition-transform);
 }
 
 .exploreButton:hover {
-  background-color: #1e3c24;
+  background-color: var(--primary-green);
   transform: translateY(-2px);
 }
 
+/* History Content Section */
 .historyContentSection {
   display: flex;
   flex-wrap: wrap;
@@ -76,7 +100,7 @@ main {
   margin: 130px auto 10px;
   align-items: flex-start;
   gap: 60px;
-  background-color: #f5f5f5;
+  background-color: var(--light-gray);
 }
 
 .imageColumn {
@@ -90,8 +114,8 @@ main {
 .historyMarkerImage {
   max-width: 100%;
   height: auto;
-  border-radius: 8px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow-light);
 }
 
 .textColumn {
@@ -103,7 +127,7 @@ main {
 .contentTitle {
   font-size: 2.2em;
   font-weight: bold;
-  color: #1e3c24;
+  color: var(--primary-green);
   margin-bottom: 20px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -112,10 +136,11 @@ main {
 .contentParagraph {
   font-size: 1.1em;
   line-height: 1.6;
-  color: #333;
+  color: var(--dark-gray);
   margin-bottom: 15px;
 }
 
+/* Evolution Section */
 .evolutionSection {
   padding: 50px 40px;
   max-width: 1200px;
@@ -126,7 +151,7 @@ main {
 .evolutionTitle {
   font-size: 2.5em;
   font-weight: bold;
-  color: #1e3c24;
+  color: var(--primary-green);
   margin-bottom: 50px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -152,8 +177,8 @@ main {
   max-width: 350px;
   margin-bottom: 20px;
   overflow: hidden;
-  border-radius: 8px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow-light);
 }
 
 .timelineImage {
@@ -170,20 +195,20 @@ main {
 .timelineYear {
   font-size: 2em;
   font-weight: bold;
-  color: #538E5E;
+  color: var(--accent-green);
   margin-bottom: 10px;
 }
 
 .timelineDescription {
   font-size: 1.05em;
   line-height: 1.6;
-  color: #555;
+  color: var(--text-secondary);
 }
 
 .evolutionConclusion {
   font-size: 1.5em;
   line-height: 1.7;  
-  color: #444;     
+  color: var(--medium-gray);     
   max-width: 1200px;
   margin: 60px auto;
   text-align: center;
@@ -191,38 +216,72 @@ main {
 }
 
 .highlightGreen {
-  color: #538E5E;
+  color: var(--accent-green);
   font-weight: bold; 
 }
 
 .highlightBrown {
-  color: #4F3718; 
+  color: var(--brown-primary); 
   font-weight: bold;
 }
 
+/* Floating Reserve Button */
+.floatingReserveBtn {
+  position: fixed;
+  bottom: 20px;       
+  right: 20px;
+  z-index: 1100;
+  background-color: var(--blue-primary);
+  color: var(--white);
+  font-size: 1rem;
+  padding: 14px 22px;
+  border-radius: var(--border-radius-floating);
+  box-shadow: var(--shadow-heavy);
+  border: none;
+  cursor: pointer;
+  transition: var(--transition-transform), background-color 0.3s ease;
+}
 
+.floatingReserveBtn:hover {
+  background-color: var(--blue-secondary);
+  transform: scale(1.05);
+}
+
+.floatingReserveBtn.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Responsive Design */
 @media (max-width: 992px) {
   .heroTitle {
     font-size: 2.8em;
   }
+  
   .heroSubtitle {
     font-size: 1.2em;
   }
+  
   .historyContentSection {
     flex-direction: column;
     padding: 60px 20px;
     gap: 40px;
   }
-  .imageColumn, .textColumn {
+  
+  .imageColumn, 
+  .textColumn {
     min-width: unset;
     width: 100%;
   }
+  
   .textColumn {
     text-align: center;
   }
+  
   .contentTitle {
     font-size: 1.8em;
   }
+  
   .contentParagraph {
     font-size: 1em;
   }
@@ -230,9 +289,11 @@ main {
   .evolutionTitle {
     font-size: 2em;
   }
+  
   .timelineGrid {
     grid-template-columns: 1fr;
   }
+  
   .evolutionConclusion {
     font-size: 1em;
     margin-top: 40px;
@@ -243,18 +304,23 @@ main {
   .heroTitle {
     font-size: 2.2em;
   }
+  
   .heroSubtitle {
     font-size: 1em;
   }
+  
   .heroSection {
     height: 50vh;
   }
+  
   .evolutionSection {
     padding: 60px 20px;
   }
+  
   .timelineYear {
     font-size: 1.8em;
   }
+  
   .timelineDescription {
     font-size: 0.95em;
   }
@@ -264,19 +330,24 @@ main {
   .heroSection {
     height: 45vh;
   }
+  
   .heroTitle {
     font-size: 1.8em;
   }
+  
   .heroSubtitle {
     font-size: 0.9em;
   }
+  
   .exploreButton {
     padding: 10px 25px;
     font-size: 1em;
   }
+  
   .historyContentSection {
     padding: 40px 15px;
   }
+  
   .contentTitle {
     font-size: 1.5em;
   }
@@ -284,37 +355,13 @@ main {
   .evolutionSection {
     padding: 40px 15px;
   }
+  
   .evolutionTitle {
     font-size: 1.8em;
     margin-bottom: 30px;
   }
+  
   .timelineImageContainer {
     max-width: 280px;
   }
-}
-
-.floatingReserveBtn {
-  position: fixed;
-  bottom: 20px;       
-  right: 20px;
-  z-index: 1100;
-  background-color: #007bff;
-  color: #fff;
-  font-size: 1rem;
-  padding: 14px 22px;
-  border-radius: 50px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-  border: none;
-  cursor: pointer;
-  transition: transform 0.2s ease, background-color 0.3s ease;
-}
-
-.floatingReserveBtn:hover {
-  background-color: #0056b3;
-  transform: scale(1.05);
-}
-
-.floatingReserveBtn.disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
 }
