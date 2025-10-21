@@ -4,7 +4,8 @@ import { authenticateJWT } from '../middleware/auth.js';
 import dbHelper from '../modules/dbHelper.js';
 import messageModule from '../modules/message.js';
 
-const r = Router();
+const buildMessageRouter = (userSocketMap) => {
+  const r = Router();
 
 r.use(authenticateJWT);
 
@@ -23,7 +24,7 @@ r.get('/count-unread', asyncHandler(async (req, res) => {
 }));
 
 r.post('/send', asyncHandler(async (req, res) => {
-  const response = await messageModule.sendMessage(dbHelper, req.user, req.body);
+  const response = await messageModule.sendMessage(dbHelper, req.user, req.body, {}, userSocketMap);
   res.status(response.status).json(response);
 }));
 
@@ -57,4 +58,7 @@ r.post('/auto-response/test', asyncHandler(async (req, res) => {
   res.status(response.status).json(response);
 }));
 
-export default r;
+  return r;
+};
+
+export default buildMessageRouter;

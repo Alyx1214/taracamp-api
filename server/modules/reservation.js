@@ -20,7 +20,10 @@ const invalidateReservationCache = async () => {
             await safeRedisOperations.del(...allKeys);
         }
     } catch (error) {
-        console.warn('Error invalidating reservation cache:', error);
+        console.error('Error invalidating reservation cache:', error);
+        responseData.status = Status.INTERNAL_SERVER_ERROR;
+        responseData.error = 'Error invalidating reservation cache: ' + error.message;
+        return responseData;
     }
 };
 
@@ -466,7 +469,10 @@ const reservationModule = {
                 try {
                     await dbHelper.findOneAndUpdate('file', { _id: loiFileDoc._id, }, { reservationId: reservation._id, });
                 } catch (e) {
-                    console.warn('Failed to backfill reservationId on LOI file:', e?.message);
+                    console.error('Failed to backfill reservationId on LOI file:', e?.message);
+                    responseData.status = Status.INTERNAL_SERVER_ERROR;
+                    responseData.error = 'Failed to backfill reservationId on LOI file: ' + e?.message;
+                    return responseData;
                 }
             }
 
@@ -474,7 +480,10 @@ const reservationModule = {
                 try {
                     await dbHelper.findOneAndUpdate('file', { _id: seniorCitizenIdFileDoc._id, }, { reservationId: reservation._id, });
                 } catch (e) {
-                    console.warn('Failed to backfill reservationId on Senior Citizen ID file:', e?.message);
+                    console.error('Failed to backfill reservationId on Senior Citizen ID file:', e?.message);
+                    responseData.status = Status.INTERNAL_SERVER_ERROR;
+                    responseData.error = 'Failed to backfill reservationId on Senior Citizen ID file';
+                    return responseData;
                 }
             }
 
@@ -874,7 +883,6 @@ const reservationModule = {
                 facilityName: facilityById.get(String(r.facility)) ?? null,
             }));
 
-            // Cache the result
             try {
                 await safeRedisOperations.set(cacheKey, JSON.stringify({ reservations: withEmails, totalCount }), { EX: 60 }); // 1 minute TTL
             } catch (cacheError) {
@@ -996,7 +1004,10 @@ const reservationModule = {
                         or.push({ userId: { $in: users.map(u => u._id) } });
                     }
                 } catch (userSearchError) {
-                    console.warn('Error searching user emails:', userSearchError);
+                    console.error('Error searching user emails:', userSearchError);
+                    responseData.status = Status.INTERNAL_SERVER_ERROR;
+                    responseData.error = 'Error searching user emails';
+                    return responseData;
                 }
 
                 if (/^[0-9a-fA-F]{24}$/.test(q)) {
@@ -1329,7 +1340,10 @@ const reservationModule = {
                 try {
                     await bucket.file(file.path).delete();
                 } catch (err) {
-                    console.warn('Failed to delete file in bucket:', file.path, err.message);
+                    console.error('Failed to delete file in bucket:', file.path, err.message);
+                    responseData.status = Status.INTERNAL_SERVER_ERROR;
+                    responseData.error = 'Failed to delete file in bucket';
+                    return responseData;
                 }
             }
             await dbHelper.deleteMany('file', { reservationId: reservationId, });

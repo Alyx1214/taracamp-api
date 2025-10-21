@@ -154,7 +154,7 @@ const messageModule = {
      * @param {boolean} [options.enableAutoResponse=true] - Whether to enable automated responses.
      * @returns {Promise<Object>} The response data with the status, error, and the created message.
      */
-    sendMessage: async (dbHelper, user, data = {}, options = {}) => {
+    sendMessage: async (dbHelper, user, data = {}, options = {}, userSocketMap = null) => {
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
             error: 'Error sending message',
@@ -190,6 +190,21 @@ const messageModule = {
             responseData.error = null;
             responseData.data = toMessagePayload(saved);
 
+            // Broadcast message via WebSocket if userSocketMap is available
+            if (userSocketMap && userSocketMap.has(userId)) {
+                try {
+                    const ws = userSocketMap.get(userId);
+                    if (ws && ws.readyState === 1) { // WebSocket.OPEN
+                        ws.send(JSON.stringify({
+                            type: 'new_message',
+                            data: toMessagePayload(saved)
+                        }));
+                    }
+                } catch (error) {
+                    console.error('Error broadcasting message via WebSocket:', error);
+                }
+            }
+
             // Process automated response if this is a user message and auto-response is enabled
             const enableAutoResponse = options.enableAutoResponse !== false;
             if (isUserMessage && enableAutoResponse) {
@@ -215,7 +230,22 @@ const messageModule = {
                                     metadata: autoResponseResult.autoResponse.metadata
                                 };
 
-                                await dbHelper.create('message', autoResponseDoc);
+                                const autoResponseSaved = await dbHelper.create('message', autoResponseDoc);
+                                
+                                // Broadcast automated response via WebSocket
+                                if (userSocketMap && userSocketMap.has(userId)) {
+                                    try {
+                                        const ws = userSocketMap.get(userId);
+                                        if (ws && ws.readyState === 1) { // WebSocket.OPEN
+                                            ws.send(JSON.stringify({
+                                                type: 'new_message',
+                                                data: toMessagePayload(autoResponseSaved)
+                                            }));
+                                        }
+                                    } catch (error) {
+                                        console.error('Error broadcasting auto-response via WebSocket:', error);
+                                    }
+                                }
                             } catch (error) {
                                 console.error('Error sending automated response:', error);
                             }

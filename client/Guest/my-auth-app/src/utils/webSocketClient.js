@@ -1,4 +1,4 @@
-import { ensureFreshAccess } from './api';
+import { ensureFreshAccess } from '../apis/api';
 
 let socket = null;
 let lastToken = null;

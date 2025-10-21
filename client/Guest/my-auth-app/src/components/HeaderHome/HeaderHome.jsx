@@ -12,6 +12,7 @@ import {
   sendMessage as sendMessageApi,
   markAllMessagesRead,
 } from '../../apis/messageApi';
+import { subscribe, initSocketFresh, startAutoReconnect, stopAutoReconnect } from '../../utils/webSocketClient';
 
 let refreshingPromise = null;
 const MIN_UNREAD_REFRESH_MS = 1200;
@@ -263,6 +264,7 @@ function HeaderHome() {
     return () => { cancelled = true; };
   }, [isMsgOpen]);
 
+
   // Unread messages badge: refresh while open
   useEffect(() => {
     let timer;
@@ -296,6 +298,49 @@ function HeaderHome() {
     })();
     return () => { cancelled = true; };
   }, [location.pathname]);
+
+  // WebSocket connection and message handling
+  useEffect(() => {
+    // Initialize WebSocket with fresh token
+    initSocketFresh();
+
+    const handleWebSocketMessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'new_message') {
+          const newMessage = data.data;
+          
+          // Skip user's own messages as they're already handled by optimistic updates
+          if (newMessage.isUser) {
+            return;
+          }
+          
+          setMessages(prev => {
+            // Check if message already exists to avoid duplicates
+            const exists = prev.some(m => m._id === newMessage._id);
+            if (exists) return prev;
+            return sortMessagesAscending([...prev, newMessage]);
+          });
+          
+          // Update unread count for non-user messages
+          setMsgUnreadCount(prev => prev + 1);
+        }
+      } catch (error) {
+        console.error('Error parsing WebSocket message:', error);
+      }
+    };
+
+    // Subscribe to WebSocket messages
+    const unsubscribe = subscribe(handleWebSocketMessage);
+
+    // Start auto-reconnect
+    startAutoReconnect();
+
+    return () => {
+      unsubscribe();
+      stopAutoReconnect();
+    };
+  }, []);
 
   const handleNavLinkClick = (path, sectionId) => {
     setIsMenuOpen(false);
