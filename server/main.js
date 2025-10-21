@@ -20,7 +20,7 @@ import buildPaymentRouter from './routes/payment.js';
 import notificationRoutes from './routes/notification.js';
 import dashboardRoutes from './routes/dashboard.js';
 import reviewRoutes from './routes/reviews.js';
-import messageRoutes from './routes/message.js';
+import buildMessageRouter from './routes/message.js';
 import reportRoutes from './routes/report.js';
 
 import { basicLimiter } from './middleware/limiter.js';
@@ -76,7 +76,7 @@ app.use('/api/v1', basicLimiter, (req, res, next) => {
   r.use('/notification', notificationRoutes);
   r.use('/dashboard', dashboardRoutes);
   r.use('/reviews', reviewRoutes);
-  r.use('/message', messageRoutes);
+  r.use('/message', buildMessageRouter(userSocketMap));
   r.use('/report', reportRoutes);
   return r(req, res, next);
 });

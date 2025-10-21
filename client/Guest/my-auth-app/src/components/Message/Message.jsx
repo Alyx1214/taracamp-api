@@ -4,6 +4,7 @@ import styles from './Message.module.css';
 import weblogo from '../../assets/logo.png';
 import { FaPaperclip, FaSmile, FaPaperPlane } from 'react-icons/fa';
 import { listMessages, sendMessage as sendMessageApi } from '../../apis/messageApi';
+import { subscribe } from '../../utils/webSocketClient';
 
 const Message = ({ sender, text, isUser, role }) => (
   <div className={styles.messageRow + ' ' + (isUser ? styles.user : styles.bot)}>
@@ -75,6 +76,40 @@ const ChatContainer = ({ messages, onSend, onAttach, onEmoji, placeholder = 'Ent
 
     load();
     return () => { cancelled = true; };
+  }, [manageMessages]);
+
+  // WebSocket message handling for auto-managed messages
+  useEffect(() => {
+    if (!manageMessages) return;
+
+    const handleWebSocketMessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'new_message') {
+          const newMessage = data.data;
+          
+          // Skip user's own messages as they're already handled by optimistic updates
+          if (newMessage.isUser) {
+            return;
+          }
+          
+          setFetchedMessages(prev => {
+            // Check if message already exists to avoid duplicates
+            const exists = prev.some(m => m._id === newMessage._id);
+            if (exists) return prev;
+            return toChronological([...prev, newMessage]);
+          });
+        }
+      } catch (error) {
+        console.error('Error parsing WebSocket message:', error);
+      }
+    };
+
+    const unsubscribe = subscribe(handleWebSocketMessage);
+
+    return () => {
+      unsubscribe();
+    };
   }, [manageMessages]);
 
   const safeMessages = manageMessages ? fetchedMessages : Array.isArray(messages) ? messages : [];
