@@ -129,19 +129,28 @@ function App() {
   const location = useLocation();
   
   const handleReserveNow = () => {
-    navigate('/user/services');
+    const servicesPath = '/services';
+    
+    if (location.pathname === servicesPath) {
+      // Already on services page, scroll to top instantly
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    } else {
+      // Navigate to services page and scroll to top instantly
+      navigate(servicesPath);
+      setTimeout(() => {
+        window.scrollTo({ top: 0, behavior: 'instant' });
+      }, 100);
+    }
   };
 
   const handleHomepageReserveNow = () => {
     const servicesPath = '/user/services';
     
     if (location.pathname === servicesPath) {
-      // Already on services page, just go to top instantly
-      setTimeout(() => {
-        window.scrollTo({ top: 0, behavior: 'instant' });
-      }, 100);
+      // Already on services page, scroll to top instantly
+      window.scrollTo({ top: 0, behavior: 'instant' });
     } else {
-      // Navigate to services page and go to top instantly
+      // Navigate to services page and scroll to top instantly
       navigate(servicesPath);
       setTimeout(() => {
         window.scrollTo({ top: 0, behavior: 'instant' });

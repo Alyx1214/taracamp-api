@@ -37,19 +37,35 @@ const ReserveNow = ({
 
       // Handle navigation or custom onClick
       if (navigateToServices) {
-        const servicesPath = '/user/services';
+        const servicesPath = '/services';
         
         if (location.pathname === servicesPath) {
-          // Already on services page, just go to top instantly
+          // Already on services page, scroll to rates section
           setTimeout(() => {
-            window.scrollTo({ top: 0, behavior: 'instant' });
+            const ratesSection = document.querySelector('[class*="ratesExcessSection"]') || 
+                                document.querySelector('[class*="rates"]') ||
+                                document.querySelector('section:last-child');
+            if (ratesSection) {
+              ratesSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            } else {
+              // Fallback to scrolling to bottom
+              window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+            }
           }, 200);
         } else {
-          // Navigate to services page and go to top instantly
+          // Navigate to services page and scroll to rates section
           navigate(servicesPath);
           setTimeout(() => {
-            window.scrollTo({ top: 0, behavior: 'instant' });
-          }, 100);
+            const ratesSection = document.querySelector('[class*="ratesExcessSection"]') || 
+                                document.querySelector('[class*="rates"]') ||
+                                document.querySelector('section:last-child');
+            if (ratesSection) {
+              ratesSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            } else {
+              // Fallback to scrolling to bottom
+              window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+            }
+          }, 500);
         }
       } else if (onClick) {
         onClick(e);

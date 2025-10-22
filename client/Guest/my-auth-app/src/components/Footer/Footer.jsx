@@ -36,7 +36,18 @@ function Footer() {
   };
 
   const handleTaraCampClick = () => {
-    navigate('/user/services');
+    const servicesPath = '/services';
+    
+    if (location.pathname === servicesPath) {
+      // Already on services page, scroll to top instantly
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    } else {
+      // Navigate to services page and scroll to top instantly
+      navigate(servicesPath);
+      setTimeout(() => {
+        window.scrollTo({ top: 0, behavior: 'instant' });
+      }, 100);
+    }
   };
 
   return (
