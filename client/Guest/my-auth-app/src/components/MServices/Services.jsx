@@ -168,7 +168,7 @@ function Services() {
 
       <main className={styles.mainContent}>
         <MainServicesHeader />
-        <div className={styles.contentWrapper}>
+        <div className={styles.contentWrapper} id="services-top">
           <MainServicesNavSearch
             onSearch={handleSearch}
             onClearSearch={handleClearSearch}
@@ -246,7 +246,7 @@ function Services() {
                 />
               }
             />
-            <Route path=":type/:facilityName/:id" element={<MainServicesServiceDetail />} />
+            <Route path=":type/:name/:id" element={<MainServicesServiceDetail />} />
           </Routes>
 
           {!isDetailViewOrAddOns && <MainServicesRates />}

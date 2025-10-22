@@ -98,7 +98,7 @@ function MainServicesCottages({
               <p className={styles.cottageRate}>
                 Price : ₱ {formatPeso(cottage?.ratePerPerson ?? cottage?.rate)}
               </p>
-              <Link to={`${cottage?.name?.replace(/\s+/g, '-').toLowerCase() || 'unnamed'}/${cottage?._id ?? cottage?.id ?? ''}`} className={styles.checkButton}>
+              <Link to={`cottages/${encodeURIComponent(cottage?.name || 'unnamed')}/${cottage?._id ?? cottage?.id ?? ''}`} className={styles.checkButton}>
                 View Details
               </Link>
             </div>

@@ -93,7 +93,7 @@ function MainServicesConference({
                 <p className={styles.conferenceCapacity}>Capacity: {hall.capacity}</p>
               )}
               <p className={styles.conferencePrice}>Price: ₱ {formatPrice(hall?.price)}</p>
-              <Link to={`${hall?.name?.replace(/\s+/g, '-').toLowerCase() || 'unnamed'}/${hall?._id ?? hall?.id ?? ''}`} className={styles.checkButton}>
+              <Link to={`conference/${encodeURIComponent(hall?.name || 'unnamed')}/${hall?._id ?? hall?.id ?? ''}`} className={styles.checkButton}>
                 View Details
               </Link>
             </div>
