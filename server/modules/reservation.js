@@ -121,6 +121,17 @@ const reservationModule = {
                 return responseData;
             }
 
+            const normalizePhone = (phone) => {
+                if (!phone) return '';
+                return phone.replace(/^\+63/, '').replace(/^0/, '');
+            };
+
+            if (normalizePhone(telephone) === normalizePhone(emergencyContact)) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Phone number and emergency contact number must be different';
+                return responseData;
+            }
+
             if (!isValidCategory(category)) {
                 responseData.status = Status.BAD_REQUEST;
                 responseData.error = 'Invalid category';
@@ -1507,8 +1518,15 @@ const reservationModule = {
                 return responseData;
             }
 
-            let addonIds = Array.isArray(addOns) ? addOns.filter(isValidObjectId) : [];
+            
+            let addonIds = [];
+            if (Array.isArray(addOns)) {
+                addonIds = addOns.filter(isValidObjectId);
+            } else if (typeof addOns === 'string' && addOns.trim()) {
+                addonIds = addOns.split(',').map(id => id.trim()).filter(isValidObjectId);
+            }
             let addonsTotal = 0;
+            
             if (addonIds.length) {
                 const services = await dbHelper.findMany(
                     'addon',
@@ -1530,7 +1548,7 @@ const reservationModule = {
                 ? ServiceType.LODGING
                 : ServiceType.EVENT);
 
-            const { amount, model, } = computeEstimate({
+            const { amount, model, baseAmount, facilityFee, serviceFee, discount } = computeEstimate({
                 facilityDoc,
                 adults: Number(adults) || 0,
                 children: Number(children) || 0,
@@ -1541,10 +1559,16 @@ const reservationModule = {
                 category,
             });
 
+
             responseData.status = Status.OK;
             responseData.error = null;
             responseData.amount = amount;
             responseData.model = model;
+            responseData.baseAmount = baseAmount;
+            responseData.facilityFee = facilityFee;
+            responseData.serviceFee = serviceFee;
+            responseData.discount = discount;
+            responseData.addonsTotal = addonsTotal;
         } catch (err) {
             console.error('Error estimating amount:', err);
             responseData.status = Status.INTERNAL_SERVER_ERROR;

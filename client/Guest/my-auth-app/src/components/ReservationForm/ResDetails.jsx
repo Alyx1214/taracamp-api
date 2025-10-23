@@ -4,9 +4,10 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import styles from './ResDetails.module.css';
 import HeaderHome from '../HeaderHome/HeaderHome';
 import ErrorBanner from '../ErrorBanner/ErrorBanner';
-import { buildReservationPayload, mapServiceType } from '../../utils/reservationMapper';
+import { buildReservationPayload, mapServiceType, pickCategory } from '../../utils/reservationMapper';
 import ConfirmationOverlay from './ConfirmationOverlay';
 import { estimateAmount as apiEstimateAmount, createReservation as apiCreateReservation, } from '../../apis/reservationApi';
+import { getAllAddons } from '../../apis/addonsApi';
 
 function ResDetails({ onClose }) {
   const navigate = useNavigate();
@@ -16,12 +17,57 @@ function ResDetails({ onClose }) {
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState(null);
   const [quote, setQuote] = useState(null);
+  const [breakdown, setBreakdown] = useState(null);
+  const [allAddons, setAllAddons] = useState([]);
   const { type, facilityName, id } = useParams();
   const { step1 = {}, step2 = {}, file } = location.state || {};
+  const selectedAddons = step2.selectedAddons || [];
+
+  // Helper function to render add-ons with label and indented items
+  const renderAddOns = () => {
+    if (!selectedAddons || selectedAddons.length === 0) {
+      return <tr><td>Add-ons</td><td>:</td><td>₱ 0</td></tr>;
+    }
+    
+    return (
+      <>
+        <tr><td>Add-ons</td><td>:</td><td></td></tr>
+        {selectedAddons.map((selectedAddon, index) => {
+          // Find the full add-on data by matching the value (ID)
+          const addonData = allAddons.find(addon => addon._id === selectedAddon.value);
+          const price = addonData?.price || 0;
+          
+          return (
+            <tr key={index}>
+              <td style={{ paddingLeft: '20px' }}>• {selectedAddon.label}</td>
+              <td>:</td>
+              <td>₱ {Math.round(price).toLocaleString()}</td>
+            </tr>
+          );
+        })}
+      </>
+    );
+  };
 
   useEffect(() => {
     if (!id) navigate('/user/services', { replace: true });
   }, [id, navigate]);
+
+  // Fetch all add-ons to get price information
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await getAllAddons();
+        if (!cancelled && data?.addons) {
+          setAllAddons(data.addons);
+        }
+      } catch (error) {
+        console.error('Failed to fetch add-ons:', error);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     if (!id) return;
@@ -40,11 +86,25 @@ function ResDetails({ onClose }) {
           adults: a,
           children: c,
           pwds: p,
-          serviceType: mapServiceType(step2?.typeService) || 'MEETING/CONFERENCE',
+          serviceType: mapServiceType(step2?.typeService),
+          category: pickCategory(step1.category),
+          addOns: selectedAddons.map(addon => addon.value),
         });
-        if (!abort) setQuote(data.amount);
+        if (!abort) {
+          setQuote(data.amount);
+          setBreakdown({
+            baseAmount: data.baseAmount || 0,
+            facilityFee: data.facilityFee || 0,
+            serviceFee: data.serviceFee || 0,
+            discount: data.discount || 0,
+            addonsTotal: data.addonsTotal || 0
+          });
+        }
       } catch {
-        if (!abort) setQuote(null);
+        if (!abort) {
+          setQuote(null);
+          setBreakdown(null);
+        }
       }
     })();
 
@@ -56,7 +116,6 @@ function ResDetails({ onClose }) {
   const amountText = quote != null ? `₱ ${Math.round(quote).toLocaleString()}` : '—';
 
   const data = useMemo(() => {
-    const catKey = Object.entries(step1?.category || {}).find(([, v]) => v)?.[0];
     const guestsTotal =
       (parseInt(step1?.guests?.adult || '0', 10) || 0) +
       (parseInt(step1?.guests?.children || '0', 10) || 0) +
@@ -66,7 +125,7 @@ function ResDetails({ onClose }) {
       group: step1.groupAssociation || 'N/A',
       address: step1.homeAddress || 'N/A',
       officeAddress: step1.officeAddress || 'N/A',
-      category: catKey ? catKey.toUpperCase() : 'N/A',
+      category: pickCategory(step1.category),
       phone: step1.phoneNo || 'N/A',
       officeTel: step1.officeTelephoneNo || 'N/A',
       guests: String(guestsTotal),
@@ -200,15 +259,44 @@ function ResDetails({ onClose }) {
                 <tr><td>Type of Facility</td><td>:</td><td>{data.facilityType}</td></tr>
                 <tr><td>Facility Name</td><td>:</td><td>{data.facilityName}</td></tr>
                 <tr><td>Type of Service</td><td>:</td><td>{data.service}</td></tr>
-                <tr className={styles.amountRow}>
-                  <td colSpan={3}>
-                    <div className={styles.amountLine}></div>
-                    <div className={styles.amountLabel}>Total Estimated Amount</div>
-                    <span className={styles.amountValue}>{amountText}</span>
-                  </td>
-                </tr>
               </tbody>
             </table>
+
+            {breakdown && (
+              <>
+                <div className={styles.amountLine}></div>
+                <table className={styles.detailsTable}>
+                  <tbody>
+                    <tr><td><strong>Breakdown of Fees</strong></td><td></td><td></td></tr>
+                    <tr><td>Facility Fee</td><td>:</td><td>₱ {Math.round(breakdown.facilityFee || 0).toLocaleString()}</td></tr>
+                    {renderAddOns()}
+                    <tr><td>10% Service Fee</td><td>:</td><td>₱ {Math.round(breakdown.serviceFee || 0).toLocaleString()}</td></tr>
+                    <tr><td>Discount</td><td>:</td><td>₱ {Math.round(breakdown.discount || 0).toLocaleString()}</td></tr>
+                    <tr className={styles.amountRow}>
+                      <td colSpan={3}>
+                        <div className={styles.amountLine}></div>
+                        <div className={styles.amountLabel}>Total Estimated Amount</div>
+                        <span className={styles.amountValue}>{amountText}</span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </>
+            )}
+
+            {!breakdown && (
+              <table className={styles.detailsTable}>
+                <tbody>
+                  <tr className={styles.amountRow}>
+                    <td colSpan={3}>
+                      <div className={styles.amountLine}></div>
+                      <div className={styles.amountLabel}>Total Estimated Amount</div>
+                      <span className={styles.amountValue}>{amountText}</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            )}
 
             <div className={styles.amountNote}>
               Note that this is just an estimated amount and is subject to change

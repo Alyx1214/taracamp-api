@@ -40,11 +40,23 @@ const Calendar = ({
   onDateSelect,             
   onClose,                  
   minDate,                  
-  reservedDates = []        
+  reservedDates = [],
+  maxMonthsAhead = 2  // Default to 2 months restriction
 }) => {
   const selected = parseLooseDate(selectedDate);
   const [viewDate, setViewDate] = useState(() => new Date(selected.getFullYear(), selected.getMonth(), 1));
   const minD = minDate ? parseLooseDate(minDate) : null;
+  
+  // Calculate restricted date range (today to 2 months from today - these will be grayed out)
+  const today = new Date();
+  const restrictedEndDate = useMemo(() => {
+    const endDate = new Date(today.getFullYear(), today.getMonth() + maxMonthsAhead, today.getDate());
+    return endDate;
+  }, [maxMonthsAhead]);
+  
+  const minAllowedDate = useMemo(() => {
+    return new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  }, [today]);
 
   const reservedSet = useMemo(() => {
     const s = new Set();
@@ -70,7 +82,6 @@ const Calendar = ({
 
   const data = useMemo(() => buildCalendarData(viewDate, reservedSet), [viewDate, reservedSet]);
 
-  const today = new Date();
   const isSameDay = (y, m, d, ref) => y === ref.getFullYear() && m === ref.getMonth() && d === ref.getDate();
 
   const goPrev = () => setViewDate(d => new Date(d.getFullYear(), d.getMonth() - 1, 1));
@@ -82,6 +93,17 @@ const Calendar = ({
     const m = viewDate.getMonth();
     const chosen = new Date(y, m, day);
 
+    // Check if date is before today
+    if (chosen < minAllowedDate) {
+      return;
+    }
+
+    // Check if date is within the restricted period (within 2 months - these should be grayed out)
+    if (chosen <= restrictedEndDate) {
+      return;
+    }
+
+    // Check additional minimum date restriction if provided
     if (minD && chosen < new Date(minD.getFullYear(), minD.getMonth(), minD.getDate())) {
       return;
     }
@@ -122,12 +144,12 @@ const Calendar = ({
           }
 
           const chosen = day ? new Date(y, m, day) : null;
-          const todayFloor = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-          const beforeToday = chosen && chosen < todayFloor; 
+          const beforeToday = chosen && chosen < minAllowedDate; 
+          const withinRestrictedPeriod = chosen && chosen <= restrictedEndDate;
           const beforeMin = minD && chosen && chosen < new Date(minD.getFullYear(), minD.getMonth(), minD.getDate());
+          const isRestricted = beforeToday || withinRestrictedPeriod;
 
-
-          const clickable = !!day && !isReserved && !beforeMin;
+          const clickable = !!day && !isReserved && !beforeMin && !isRestricted;
 
           return (
             <div
@@ -137,14 +159,19 @@ const Calendar = ({
                 isReserved ? styles.reservedDate : '',
                 isToday ? styles.currentDay : '',
                 clickable ? styles.clickable : '',
-                beforeToday ? styles.pastDate : ''
+                isRestricted ? styles.restrictedDate : ''
               ].join(' ')}
               onClick={
-                clickable && !beforeToday
+                clickable
                   ? () => clickDay(day)
                   : undefined
               }
-              title={isReserved ? 'Reserved' : beforeMin ? 'Unavailable' : day ? 'Select' : ''}
+              title={
+                isReserved ? 'Reserved' : 
+                beforeMin ? 'Unavailable' : 
+                isRestricted ? 'Within 2-month restriction period' : 
+                day ? 'Select' : ''
+              }
             >
               {day || ''}
             </div>
