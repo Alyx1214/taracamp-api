@@ -13,7 +13,7 @@ export default function TransactionTable({ data = [], loading = false }) {
     name: item.guestName || 'N/A',
     email: item.guestEmail || 'N/A',
     serviceType: item.serviceType || 'N/A',
-    date: item.dateOfArrival ? new Date(item.dateOfArrival).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'N/A',
+    date: item.createdAt ? new Date(item.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'N/A',
   }));
 
   const renderActions = (row) => (

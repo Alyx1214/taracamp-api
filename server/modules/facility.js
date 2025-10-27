@@ -1,6 +1,5 @@
 import { Storage, } from '@google-cloud/storage';
 import { Status, FacilityType, FacilityStatus, UserRole, ReservationStatus, } from '../constants.js';
-import redisClient from './redisClient.js';
 import { safeRedisOperations } from './redisCircuitBreaker.js';
 import dotenv from 'dotenv';
 dotenv.config();
@@ -17,7 +16,7 @@ const BLOCKING_RESERVATION_STATUSES = [
 ];
 
 const validationCache = new Map();
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const CACHE_TTL = 1 * 60 * 1000; // 1 minute
 
 const facilityModule = {
     /**
@@ -41,6 +40,12 @@ const facilityModule = {
             if (validationResult.error) {
                 responseData.status = validationResult.status;
                 responseData.error = validationResult.error;
+                return responseData;
+            }
+
+            if (!files || !Array.isArray(files) || files.length === 0) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'At least one image is required';
                 return responseData;
             }
 
