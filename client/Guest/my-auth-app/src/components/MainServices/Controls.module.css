@@ -152,10 +152,19 @@
   overflow: hidden;
 }
 
+@media (max-width: 1024px) {
+  .controlsContainer {
+    margin: 32px 40px 0 40px;
+    padding: 0 40px;
+    box-sizing: border-box;
+  }
+}
+
 @media (max-width: 768px) {
   .controlsContainer {
     flex-direction: column;
-    width: 100%;
+    margin: 20px 16px 0 16px;
+    padding: 0 16px;
   }
   
   .dateControl,
