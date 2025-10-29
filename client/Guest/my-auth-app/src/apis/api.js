@@ -27,17 +27,23 @@ async function rawFetch(path, options = {}) {
   let access = getAccessToken();
 
   if (access && !headers.has('Authorization')) {
-    const maybeFresh = await ensureFreshAccess();
-    if (maybeFresh) {
-      access = maybeFresh;
-    } else {
-      const payload = decodeJwt(access);
-      const exp = payload?.exp;
-      const now = Math.floor(Date.now() / 1000);
-      if (!exp || exp <= now) {
-        try { clearTokens(); } catch {}
-        access = null;
+    try {
+      const maybeFresh = await ensureFreshAccess();
+      if (maybeFresh) {
+        access = maybeFresh;
+      } else {
+        const payload = decodeJwt(access);
+        const exp = payload?.exp;
+        const now = Math.floor(Date.now() / 1000);
+        if (!exp || exp <= now) {
+          try { clearTokens(); } catch {}
+          access = null;
+        }
       }
+    } catch (error) {
+      console.warn('Token refresh failed:', error);
+      // Don't clear tokens immediately on refresh failure
+      // Let the 401 response handle it instead
     }
   }
 
@@ -107,7 +113,7 @@ function decodeJwt(token) {
   try { return JSON.parse(atob(token.split('.')[1])); } catch { return {}; }
 }
 
-export async function ensureFreshAccess(skewSec = 60) {
+export async function ensureFreshAccess(skewSec = 30) {
   const token = getAccessToken();
   if (!token) return null;
 

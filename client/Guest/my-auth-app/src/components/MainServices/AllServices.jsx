@@ -18,6 +18,10 @@ const AllServices = ({
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  
+  // Determine if we're in authenticated context (/user/services) or non-authenticated context (/services)
+  const isAuthenticatedContext = location.pathname.startsWith('/user/services');
+  const routePrefix = isAuthenticatedContext ? '/user/services' : '/services';
   const errorMessage = loadError;
   const isLoading = loading;
   const facilitiesList = Array.isArray(facilities) ? facilities : [];
@@ -53,7 +57,7 @@ const AllServices = ({
     };
     
     const routePath = routeMap[section] || section.toLowerCase();
-    const targetPath = `/user/services/${routePath}`;
+    const targetPath = `${routePrefix}/${routePath}`;
     
     if (location.pathname === targetPath) {
       // Already on the correct section, just go to top instantly
@@ -73,7 +77,7 @@ const AllServices = ({
     const facilityType = item.facilityType?.toLowerCase() || 'facility';
     const facilityName = encodeURIComponent(item.name || 'facility');
     const facilityId = item._id || item.id;
-    navigate(`/user/services/${facilityType}/${facilityName}/${facilityId}`);
+    navigate(`${routePrefix}/${facilityType}/${facilityName}/${facilityId}`);
   };
 
   const ServiceCard = ({ item }) => (

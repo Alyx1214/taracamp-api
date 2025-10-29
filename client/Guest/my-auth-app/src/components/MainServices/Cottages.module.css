@@ -162,7 +162,8 @@
   border-radius: 15px;
   box-shadow: 0 2px 8px rgba(0, 34, 10, 0.36);
   overflow: hidden;
-  height: 100%;
+  height: 400px;
+  width: 350px;
   display: flex;
   flex-direction: column;
 }
@@ -228,6 +229,17 @@
   font-size: 0.95rem;
 }
 
+@media (max-width: 992px) {
+  .skeletonCard {
+    width: 300px;
+    height: 380px;
+  }
+}
+
 @media (max-width: 576px) {
+  .skeletonCard {
+    width: 280px;
+    height: 360px;
+  }
   .skelImg { height: 150px; }
 }

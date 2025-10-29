@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import styles from './ServicesSection.module.css';
 import OptimizedImage from '../OptimizedImage/OptimizedImage';
 import conferenceImage from '../../assets/conference.jpg';
@@ -37,6 +37,7 @@ const servicesData = [
 function ServicesSection() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -59,7 +60,30 @@ function ServicesSection() {
   };
 
   const handleCardClick = () => {
-    navigate('/user/services'); 
+    const servicesPath = '/services';
+    
+    if (location.pathname === servicesPath) {
+      // Already on services page, scroll to services top instantly
+      const servicesTopElement = document.getElementById('services-top');
+      if (servicesTopElement) {
+        servicesTopElement.scrollIntoView({ behavior: 'instant', block: 'start' });
+      } else {
+        // Fallback to scrolling to top if element not found
+        window.scrollTo({ top: 0, behavior: 'instant' });
+      }
+    } else {
+      // Navigate to services page and scroll to services top instantly
+      navigate(servicesPath);
+      setTimeout(() => {
+        const servicesTopElement = document.getElementById('services-top');
+        if (servicesTopElement) {
+          servicesTopElement.scrollIntoView({ behavior: 'instant', block: 'start' });
+        } else {
+          // Fallback to scrolling to top if element not found
+          window.scrollTo({ top: 0, behavior: 'instant' });
+        }
+      }, 100);
+    }
   };
 
   const handleKeyDown = (event) => {

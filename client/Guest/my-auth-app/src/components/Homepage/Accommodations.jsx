@@ -4,7 +4,15 @@ import styles from './Accommodations.module.css';
 import placeholderImage from '../../assets/conference.jpg';
 import { getAllFacilities } from '../../apis/facilityApi';
 
-const TYPE_ROUTE = { CONFERENCE: 'conference', DORMITORY: 'dormitories', COTTAGE: 'cottages' };
+const TYPE_ROUTE = { 
+  Conference: 'conference', 
+  Dormitory: 'dormitories', 
+  Cottage: 'cottages',
+  // Fallback for uppercase versions
+  CONFERENCE: 'conference', 
+  DORMITORY: 'dormitories', 
+  COTTAGE: 'cottages' 
+};
 
 const pickPrice = (f) => (f?.facilityType === 'Conference' ? f.price ?? '—' : f.ratePerPerson ?? '—');
 
@@ -77,15 +85,25 @@ export default function AccommodationsSection({ limit = 6 }) {
     const servicesPath = '/user/services';
     
     if (location.pathname === servicesPath) {
-      // Already on services page, just go to top instantly
-      setTimeout(() => {
+      // Already on services page, scroll to services top instantly
+      const servicesTopElement = document.getElementById('services-top');
+      if (servicesTopElement) {
+        servicesTopElement.scrollIntoView({ behavior: 'instant', block: 'start' });
+      } else {
+        // Fallback to scrolling to top if element not found
         window.scrollTo({ top: 0, behavior: 'instant' });
-      }, 100);
+      }
     } else {
-      // Navigate to services page and go to top instantly
+      // Navigate to services page and scroll to services top instantly
       navigate(servicesPath);
       setTimeout(() => {
-        window.scrollTo({ top: 0, behavior: 'instant' });
+        const servicesTopElement = document.getElementById('services-top');
+        if (servicesTopElement) {
+          servicesTopElement.scrollIntoView({ behavior: 'instant', block: 'start' });
+        } else {
+          // Fallback to scrolling to top if element not found
+          window.scrollTo({ top: 0, behavior: 'instant' });
+        }
       }, 100);
     }
   };
@@ -136,8 +154,8 @@ export default function AccommodationsSection({ limit = 6 }) {
       {!isLoading && !hasError && !isEmpty && (
         <div className={styles.cardsContainer}>
           {items.map(item => {
-            const routeType = TYPE_ROUTE[item.type];
-            const to = `/user/services/${routeType}/${encodeURIComponent(item.id)}`;
+            const routeType = TYPE_ROUTE[item.type] || item.type?.toLowerCase() || 'unknown';
+            const to = `/user/services/${routeType}/${encodeURIComponent(item.name)}/${encodeURIComponent(item.id)}`;
             return (
               <Link key={item.id} to={to} className={styles.accommodationCard}>
                 <div

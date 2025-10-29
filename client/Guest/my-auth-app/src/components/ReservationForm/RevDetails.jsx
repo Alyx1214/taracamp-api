@@ -2,6 +2,24 @@ import React from 'react';
 import styles from './RevDetails.module.css';
 
 function RevDetails({ onClose, data, amount, onCancel }) {
+    // Helper function to format add-ons display
+    const renderAddOns = () => {
+        // Handle case where addOns is an array of objects (new format)
+        if (Array.isArray(data.addOns) && data.addOns.length > 0) {
+            return (
+                <td>
+                    {data.addOns.map((addon, index) => (
+                        <div key={index} style={{ marginBottom: '4px' }}>
+                            {addon.name}: ₱ {addon.price}
+                        </div>
+                    ))}
+                </td>
+            );
+        }
+        
+        // Handle case where addOns is a string (old format) or empty
+        return <td>{data.addOns || '₱ 0.00'}</td>;
+    };
     
     return (
         <div className={styles.overlay}>
@@ -29,12 +47,12 @@ function RevDetails({ onClose, data, amount, onCancel }) {
                         </tbody>
                     </table>
 
+                    <div className={styles.amountLine}></div>
                     <table className={styles.detailsTable}>
                         <tbody>
-							<div className={styles.amountLine}></div>
                             <tr><td><strong>Breakdown of Fees</strong></td><td></td><td></td></tr>
                             <tr><td>Facility Fee</td><td>:</td><td>{data.facilityFee || 'PHP 0.00'}</td></tr>
-                            <tr><td>Add-ons</td><td>:</td><td>{data.addOns || 'PHP 0.00'}</td></tr>
+                            <tr><td>Add-ons</td><td>:</td>{renderAddOns()}</tr>
                             <tr><td>10% Service Fee</td><td>:</td><td>{data.serviceFee || 'PHP 0.00'}</td></tr>
                             <tr><td>Discount</td><td>:</td><td>{data.discount || 'PHP 0.00'}</td></tr>
                             <tr className={styles.amountRow}>

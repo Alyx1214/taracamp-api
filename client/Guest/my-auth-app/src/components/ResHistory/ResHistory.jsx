@@ -191,7 +191,7 @@ function ReservationHistory() {
                   <h3 className={styles.emptyTitle}>No reservations yet</h3>
                   <p className={styles.emptyDesc}>When you book your first stay, it will appear here.</p>
                   <div className={styles.emptyActions}>
-                    <button className={styles.primaryBtn} onClick={() => navigate('/user/services')}>
+                    <button className={styles.primaryBtn} onClick={() => navigate('/services')}>
                       Make a reservation
                     </button>
                   </div>

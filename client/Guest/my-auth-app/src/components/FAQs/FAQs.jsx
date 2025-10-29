@@ -72,9 +72,7 @@ function FAQsPage() {
     
     if (location.pathname === servicesPath) {
       // Already on services page, just go to top instantly
-      setTimeout(() => {
-        window.scrollTo({ top: 0, behavior: 'instant' });
-      }, 100);
+      window.scrollTo({ top: 0, behavior: 'instant' });
     } else {
       // Navigate to services page and go to top instantly
       navigate(servicesPath);

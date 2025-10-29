@@ -129,19 +129,28 @@ function App() {
   const location = useLocation();
   
   const handleReserveNow = () => {
-    navigate('/user/services');
+    const servicesPath = '/services';
+    
+    if (location.pathname === servicesPath) {
+      // Already on services page, scroll to top instantly
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    } else {
+      // Navigate to services page and scroll to top instantly
+      navigate(servicesPath);
+      setTimeout(() => {
+        window.scrollTo({ top: 0, behavior: 'instant' });
+      }, 100);
+    }
   };
 
   const handleHomepageReserveNow = () => {
     const servicesPath = '/user/services';
     
     if (location.pathname === servicesPath) {
-      // Already on services page, just go to top instantly
-      setTimeout(() => {
-        window.scrollTo({ top: 0, behavior: 'instant' });
-      }, 100);
+      // Already on services page, scroll to top instantly
+      window.scrollTo({ top: 0, behavior: 'instant' });
     } else {
-      // Navigate to services page and go to top instantly
+      // Navigate to services page and scroll to top instantly
       navigate(servicesPath);
       setTimeout(() => {
         window.scrollTo({ top: 0, behavior: 'instant' });
@@ -155,26 +164,26 @@ function App() {
       <Route path="/auth/*" element={<AuthLayout />} />
       <Route path="/services/*" element={<MainServices />} />
 
-      {/* <Route element={<RequireAuth />}> */}
-      <Route
-        path="/homepage/*"
-        element={<Homepage onReserveNow={handleHomepageReserveNow} isLoggedIn />}
-      />
-      <Route path="/history" element={<HistoryPage />} />
-      <Route path="/user/services/*" element={<ServicesPage />} />
-      <Route path="/faqs" element={<FAQsPage />} />
-      <Route path="/contacts" element={<ContactsPage />} />
-      <Route path="/transactions" element={<Transactions />} />
-      <Route path="/reservations" element={<ResHistory />} />
-      <Route path="/reservation-form" element={<ReservationForm />} />
-      <Route path="/reservation-step2" element={<ReservationFormStep2 />} />
-      <Route path="/reservation-step3" element={<ReservationFormStep3 />} />
-      <Route path="/reservation-step4" element={<ReservationFormStep4 />} />
-      <Route path="/reservation-form/:type/:facilityName/:id" element={<ReservationForm />} />
-      <Route path="/reservation-step2/:type/:facilityName/:id" element={<ReservationFormStep2 />} />
-      <Route path="/reservation-step3/:type/:facilityName/:id" element={<ReservationFormStep3 />} />
-      <Route path="/reservation-step4/:type/:facilityName/:id" element={<ReservationFormStep4 />} />
-      {/* </Route> */}
+      <Route element={<RequireAuth />}>
+        <Route
+          path="/homepage/*"
+          element={<Homepage onReserveNow={handleHomepageReserveNow} isLoggedIn />}
+        />
+        <Route path="/history" element={<HistoryPage />} />
+        <Route path="/user/services/*" element={<ServicesPage />} />
+        <Route path="/faqs" element={<FAQsPage />} />
+        <Route path="/contacts" element={<ContactsPage />} />
+        <Route path="/transactions" element={<Transactions />} />
+        <Route path="/reservations" element={<ResHistory />} />
+        <Route path="/reservation-form" element={<ReservationForm />} />
+        <Route path="/reservation-step2" element={<ReservationFormStep2 />} />
+        <Route path="/reservation-step3" element={<ReservationFormStep3 />} />
+        <Route path="/reservation-step4" element={<ReservationFormStep4 />} />
+        <Route path="/reservation-form/:type/:facilityName/:id" element={<ReservationForm />} />
+        <Route path="/reservation-step2/:type/:facilityName/:id" element={<ReservationFormStep2 />} />
+        <Route path="/reservation-step3/:type/:facilityName/:id" element={<ReservationFormStep3 />} />
+        <Route path="/reservation-step4/:type/:facilityName/:id" element={<ReservationFormStep4 />} />
+      </Route>
     </Routes>
   );
 }

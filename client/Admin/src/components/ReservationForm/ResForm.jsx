@@ -83,6 +83,14 @@ function ReservationForm() {
   const phoneOk = /^(\+63|0)9\d{9}$/.test(formData.phoneNo || '');
   const emailOk = !formData.guestEmail || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.guestEmail);
   const emerOk  = /^(\+63|0)9\d{9}$/.test(formData.emergencyContact || '');
+  
+  const normalizePhone = (phone) => {
+    if (!phone) return '';
+    return phone.replace(/^\+63/, '').replace(/^0/, '');
+  };
+  
+  const phoneNumbersDifferent = !formData.phoneNo || !formData.emergencyContact || 
+    normalizePhone(formData.phoneNo) !== normalizePhone(formData.emergencyContact);
 
   function validateStep1() {
     const e = {};
@@ -91,6 +99,7 @@ function ReservationForm() {
     if (!phoneOk) e.phoneNo = 'Enter a valid PH mobile (e.g., 09XXXXXXXXX or +639XXXXXXXXX).';
     if (!formData.emergencyContactPerson?.trim()) e.emergencyContactPerson = 'Required';
     if (!emerOk) e.emergencyContact = 'Enter a valid PH mobile for emergency contact.';
+    if (!phoneNumbersDifferent) e.emergencyContact = 'Emergency contact number must be different from the phone number.';
     if (!emailOk) e.guestEmail = 'Enter a valid email address.';
     if (!hasCategory) e.category = 'Please select a category.';
     if (!hasType) e.type = 'Please select a type.';

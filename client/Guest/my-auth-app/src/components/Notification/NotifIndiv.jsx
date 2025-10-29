@@ -31,9 +31,24 @@ export default function NotifIndiv({
           )}
         </div>
         <div className={styles.foodPrefBox}>
-          Thank you for reserving your stay with us! Please choose your preferred meals for your stay by clicking the food preference button below.
+          Thank you for reserving your stay with us! Will you avail meals from Teachers' Camp?
         </div>
-        <button className={styles.foodPrefBtn} onClick={onFoodPref}>Food Preference</button>
+        <div className={styles.foodPrefBtns}>
+          <button
+            className={`${styles.foodPrefBtn} ${styles.foodPrefYes}`}
+            onClick={() => onFoodPref(true)}
+            aria-label="Yes, I will avail food"
+          >
+            Yes
+          </button>
+          <button
+            className={`${styles.foodPrefBtn} ${styles.foodPrefNo}`}
+            onClick={() => onFoodPref(false)}
+            aria-label="No, I will not avail food"
+          >
+            No
+          </button>
+        </div>
         <div className={styles.cancelBox}>
           <div className={styles.cancelTitle}>Need to Cancel?</div>
           <div className={styles.cancelText}>

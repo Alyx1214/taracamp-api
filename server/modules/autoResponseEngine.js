@@ -1,21 +1,14 @@
 import { Status } from '../constants.js';
 
-/**
- * Rule-based automated response engine for message system
- * Provides intelligent responses based on user queries and context
- */
-
 // Configuration for automated responses
 const AUTO_RESPONSE_CONFIG = {
     enabled: true,
-    responseDelay: 1000, // Delay in milliseconds before sending auto response
+    responseDelay: 1000,
     maxResponseLength: 500,
-    confidenceThreshold: 0.4, // Minimum confidence score to send auto response
+    confidenceThreshold: 0.4,
 };
 
-// Knowledge base with FAQ and common queries
 const KNOWLEDGE_BASE = {
-    // Accommodation and rooms
     accommodation: {
         keywords: ['room', 'accommodation', 'lodging', 'stay', 'sleep', 'bed', 'dormitory', 'cottage', 'hall'],
         responses: [
@@ -24,7 +17,6 @@ const KNOWLEDGE_BASE = {
         ]
     },
     
-    // Board and lodging
     boardLodging: {
         keywords: ['board', 'lodging', 'meals', 'food', 'dining', 'eat', 'breakfast', 'lunch', 'dinner'],
         responses: [
@@ -33,7 +25,6 @@ const KNOWLEDGE_BASE = {
         ]
     },
     
-    // Check-in/out times
     checkInOut: {
         keywords: ['check-in', 'check-in', 'checkout', 'check-out', 'arrival', 'departure', 'time', 'when'],
         responses: [
@@ -42,7 +33,6 @@ const KNOWLEDGE_BASE = {
         ]
     },
     
-    // Reservations
     reservations: {
         keywords: ['reserve', 'reservation', 'book', 'booking', 'how to', 'make', 'create', 'schedule'],
         responses: [
@@ -51,7 +41,6 @@ const KNOWLEDGE_BASE = {
         ]
     },
     
-    // Pets policy
     pets: {
         keywords: ['pet', 'pets', 'dog', 'cat', 'animal', 'bring'],
         responses: [
@@ -60,7 +49,6 @@ const KNOWLEDGE_BASE = {
         ]
     },
     
-    // Pricing and rates
     pricing: {
         keywords: ['price', 'cost', 'rate', 'rates', 'fee', 'fees', 'how much', 'expensive', 'cheap'],
         responses: [
@@ -70,7 +58,6 @@ const KNOWLEDGE_BASE = {
         ]
     },
     
-    // Facilities and amenities
     facilities: {
         keywords: ['facility', 'facilities', 'amenity', 'amenities', 'wifi', 'internet', 'parking', 'conference', 'meeting'],
         responses: [
@@ -79,7 +66,6 @@ const KNOWLEDGE_BASE = {
         ]
     },
     
-    // Location and directions
     location: {
         keywords: ['where', 'location', 'address', 'directions', 'how to get', 'near', 'close to'],
         responses: [
@@ -88,7 +74,6 @@ const KNOWLEDGE_BASE = {
         ]
     },
     
-    // General greetings and help
     greeting: {
         keywords: ['hello', 'hi', 'hey', 'help', 'assistance', 'support', 'question'],
         responses: [
@@ -97,7 +82,6 @@ const KNOWLEDGE_BASE = {
         ]
     },
     
-    // Contact information
     contact: {
         keywords: ['contact', 'phone', 'email', 'call', 'reach', 'get in touch'],
         responses: [
@@ -107,7 +91,6 @@ const KNOWLEDGE_BASE = {
     }
 };
 
-// Response templates for different scenarios
 const RESPONSE_TEMPLATES = {
     noMatch: "I understand you're looking for information. While I couldn't find a specific answer to your question, our staff is available to help. Please contact our reservations office for personalized assistance.",
     multipleMatches: "I found several topics that might help with your question. Could you please be more specific about what you'd like to know?",
@@ -138,12 +121,10 @@ function analyzeMessage(messageText, userContext = {}) {
         );
         
         if (keywordMatches.length > 0) {
-            // Improved confidence calculation
             const keywordRatio = keywordMatches.length / data.keywords.length;
             const messageLength = words.length;
             const matchDensity = keywordMatches.length / Math.max(messageLength, 1);
             
-            // Base confidence from keyword matches, boosted by match density
             const confidence = Math.min(keywordRatio * 0.6 + matchDensity * 0.4 + 0.2, 1.0);
             const response = data.responses[Math.floor(Math.random() * data.responses.length)];
             
@@ -155,7 +136,6 @@ function analyzeMessage(messageText, userContext = {}) {
         }
     }
 
-    // Handle multiple matches
     if (matches.length > 1) {
         const highConfidenceMatches = matches.filter(m => m.confidence >= AUTO_RESPONSE_CONFIG.confidenceThreshold);
         if (highConfidenceMatches.length > 1) {
@@ -168,7 +148,6 @@ function analyzeMessage(messageText, userContext = {}) {
         }
     }
 
-    // Return best match if confidence is sufficient
     if (bestMatch.confidence >= AUTO_RESPONSE_CONFIG.confidenceThreshold) {
         return {
             confidence: bestMatch.confidence,
@@ -178,7 +157,6 @@ function analyzeMessage(messageText, userContext = {}) {
         };
     }
 
-    // Low confidence or no match
     if (matches.length > 0) {
         return {
             confidence: matches[0].confidence,
@@ -188,7 +166,6 @@ function analyzeMessage(messageText, userContext = {}) {
         };
     }
 
-    // No matches found
     return {
         confidence: 0,
         response: RESPONSE_TEMPLATES.noMatch,
@@ -206,22 +183,19 @@ function analyzeMessage(messageText, userContext = {}) {
 function generateContextualResponse(recentMessages = [], currentMessage) {
     const analysis = analyzeMessage(currentMessage);
     
-    // If we have recent messages, try to understand context
     if (recentMessages.length > 0) {
         const recentText = recentMessages
-            .slice(-3) // Last 3 messages
+            .slice(-3)
             .map(msg => msg.text || '')
             .join(' ')
             .toLowerCase();
         
-        // Check if this is a follow-up question
         const followUpKeywords = ['more', 'also', 'and', 'what about', 'how about', 'tell me more'];
         const isFollowUp = followUpKeywords.some(keyword => 
             currentMessage.toLowerCase().includes(keyword)
         );
         
         if (isFollowUp && analysis.confidence < AUTO_RESPONSE_CONFIG.confidenceThreshold) {
-            // Try to match against recent conversation context
             const contextualAnalysis = analyzeMessage(recentText + ' ' + currentMessage);
             if (contextualAnalysis.confidence > analysis.confidence) {
                 return {
@@ -257,7 +231,6 @@ const autoResponseEngine = {
         };
 
         try {
-            // Check if auto responses are enabled
             if (!AUTO_RESPONSE_CONFIG.enabled) {
                 responseData.status = Status.OK;
                 responseData.error = null;
@@ -265,22 +238,18 @@ const autoResponseEngine = {
                 return responseData;
             }
 
-            // Get recent messages for context
             const recentMessages = await dbHelper.findMany('message', 
                 { userId, isUser: true }, 
                 { sort: { createdAt: -1 }, limit: 5 }
             );
 
-            // Analyze the message
-            const analysis = generateContextualResponse(recentMessages, messageText);
+            const analysis = generateContextualResponse(recentMessages, messageText            );
 
-            // Determine if we should send an automated response
-            const shouldSend = analysis.confidence >= AUTO_RESPONSE_CONFIG.confidenceThreshold || 
+            const shouldSend = analysis.confidence >= AUTO_RESPONSE_CONFIG.confidenceThreshold ||
                              analysis.category === 'low_confidence' ||
                              analysis.category === 'no_match';
 
             if (shouldSend) {
-                // Prepare automated response data
                 const autoResponseData = {
                     userId,
                     text: analysis.response,
@@ -318,40 +287,18 @@ const autoResponseEngine = {
         return responseData;
     },
 
-    /**
-     * Updates the configuration for automated responses
-     * @param {Object} newConfig - New configuration options
-     */
     updateConfig: (newConfig) => {
         Object.assign(AUTO_RESPONSE_CONFIG, newConfig);
     },
 
-    /**
-     * Gets current configuration
-     * @returns {Object} Current configuration
-     */
     getConfig: () => ({ ...AUTO_RESPONSE_CONFIG }),
 
-    /**
-     * Adds or updates knowledge base entries
-     * @param {string} category - Category name
-     * @param {Object} data - Category data with keywords and responses
-     */
     updateKnowledgeBase: (category, data) => {
         KNOWLEDGE_BASE[category] = data;
     },
 
-    /**
-     * Gets the current knowledge base
-     * @returns {Object} Current knowledge base
-     */
     getKnowledgeBase: () => ({ ...KNOWLEDGE_BASE }),
 
-    /**
-     * Tests a message against the knowledge base (for debugging/admin purposes)
-     * @param {string} messageText - Message to test
-     * @returns {Object} Analysis results
-     */
     testMessage: (messageText) => {
         return analyzeMessage(messageText);
     }

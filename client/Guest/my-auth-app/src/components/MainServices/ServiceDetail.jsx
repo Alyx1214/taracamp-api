@@ -42,7 +42,8 @@ const useAuth = () => {
 };
 
 function MainServicesServiceDetail() {
-  const { type, name, facilityName, id } = useParams();
+  const params = useParams();
+  const { type, name, facilityName, id } = params;
   const facilityNameParam = name || facilityName;
   const [facility, setFacility] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -87,7 +88,12 @@ function MainServicesServiceDetail() {
 
   useEffect(() => {
     const fetchFacilityData = async () => {
-      if (!id) return;
+      if (!id) {
+        console.error('No facility ID provided in route params');
+        setError('No facility ID provided');
+        setLoading(false);
+        return;
+      }
 
       setLoading(true);
       setError(null);
@@ -103,15 +109,15 @@ function MainServicesServiceDetail() {
           
           const transformedFacility = {
             id: facilityData._id || facilityData.id,
-            name: facilityData.name,
-            facilityType: facilityData.facilityType,
-            capacity: facilityData.capacity,
-            ratePerPerson: facilityData.ratePerPerson,
-            price: facilityData.price,
+            name: facilityData.name || 'Unnamed Facility',
+            facilityType: facilityData.facilityType || 'Unknown',
+            capacity: facilityData.capacity || 0,
+            ratePerPerson: facilityData.ratePerPerson || 0,
+            price: facilityData.price || 0,
             image: facilityData.images?.[0] || placeholderImage,
             features: [
               { icon: '🏔️', title: 'Great View', description: 'Scenic mountain views' },
-              { icon: '👥', title: `Ideal for Groups`, description: `Perfect for ${facilityData.capacity} people` },
+              { icon: '👥', title: `Ideal for Groups`, description: `Perfect for ${facilityData.capacity || 0} people` },
               { icon: '💰', title: 'Budget-Friendly', description: 'Affordable rates' },
               { icon: '📍', title: 'Ideal Location', description: 'Prime location access' }
             ],
@@ -326,12 +332,10 @@ const getCalendarData = (date) => {
     today.setHours(0, 0, 0, 0);
 
     if (!availableDates.includes(selectedDateStr)) {
-      console.log('Date not available:', selectedDateStr);
       return;
     }
 
     if (dateObj < today) {
-      console.log('Date is in the past:', selectedDateStr);
       return;
     }
 
@@ -493,19 +497,23 @@ const getCalendarData = (date) => {
 
   const currentReview = reviews[currentReviewIndex];
 
-  const displayPrice = facility.facilityType === 'Conference' 
-    ? facility.price 
-    : facility.ratePerPerson;
+  // Handle case where type might be 'undefined' string or actual undefined
+  const facilityType = facility?.facilityType || (type && type !== 'undefined' ? type : 'Unknown');
+  
+  const displayPrice = facilityType === 'Conference' 
+    ? (facility.price || 0)
+    : (facility.ratePerPerson || 0);
 
-  const priceLabel = facility.facilityType === 'Conference' 
+  const priceLabel = facilityType === 'Conference' 
     ? 'Price' 
     : 'Rates per Person';
+
 
   return (
     <section className={styles.serviceDetailSection}>
       <div className={styles.container}>
         <h1 className={styles.sectionTitle}>
-          {type?.toUpperCase() || facility.facilityType?.toUpperCase() || 'FACILITIES'} / DETAIL VIEW
+          {facilityType?.toUpperCase() || 'FACILITIES'} / DETAIL VIEW
         </h1>
 
         <div className={styles.mainContent}>
@@ -515,7 +523,7 @@ const getCalendarData = (date) => {
                 <div className={styles.facilityInfo}>
                   <h2 className={styles.facilityName}>{facility.name}</h2>
                   <p className={styles.facilityRate}>
-                    {priceLabel}: ₱ {displayPrice?.toLocaleString() || 'N/A'}
+                    {priceLabel}: ₱ {displayPrice > 0 ? displayPrice.toLocaleString() : 'N/A'}
                   </p>
                   <p className={styles.priceNote}>
                     Note: The price is inclusive of a 10% service fee. DepEd, Gov't, PWD, and Seniors are eligible for a 20% discount.
