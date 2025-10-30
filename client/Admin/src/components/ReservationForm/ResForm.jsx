@@ -132,10 +132,16 @@ function ReservationForm() {
       <div className={styles.reservationFormContainer}>
         <div className={styles.contentWrapper}>
           <div className={styles.headerSection}>
-            <button onClick={handleGoBack} className={styles.backButton} aria-label="Go back">
-              <ArrowLeft size={24} />
-            </button>
-            <h1 className={styles.pageTitle}>RESERVATION FORM</h1>
+            <span
+              className={styles["add-form-back"]}
+              onClick={handleGoBack}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && handleGoBack()}
+            >
+              &larr;
+            </span>
+            <h1 className={styles.title}>Reservation Form</h1>
           </div>
 
           <div className={styles.formCard}>
