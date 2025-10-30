@@ -233,7 +233,21 @@ const reservationModule = {
                 return responseData;
             }
 
-            let addonIds = Array.isArray(addOns) ? addOns.filter(isValidObjectId) : [];
+            let addonIds = [];
+            if (Array.isArray(addOns)) {
+                addonIds = addOns.filter(isValidObjectId);
+            } else if (typeof addOns === 'string' && addOns.trim()) {
+                try {
+                    const parsed = JSON.parse(addOns);
+                    if (Array.isArray(parsed)) {
+                        addonIds = parsed.filter(isValidObjectId);
+                    } else {
+                        addonIds = addOns.split(',').map(id => id.trim()).filter(isValidObjectId);
+                    }
+                } catch {
+                    addonIds = addOns.split(',').map(id => id.trim()).filter(isValidObjectId);
+                }
+            }
             let addonsTotal = 0;
 
             if (addonIds.length) {

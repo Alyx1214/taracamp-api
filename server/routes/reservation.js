@@ -60,7 +60,27 @@ export default function buildReservationRouter(userSocketMap) {
   r.post('/create-reservation', asyncHandler(async (req, res) => {
     await runUpload(req, res);
 
-    const data = req.body;
+    const raw = req.body || {};
+    const data = { ...raw };
+    // Normalize facility to string
+    if (data.facility !== undefined && data.facility !== null) {
+      data.facility = String(data.facility);
+    }
+    // Parse addOns if sent as JSON/string
+    if (typeof data.addOns === 'string') {
+      try {
+        const parsed = JSON.parse(data.addOns);
+        data.addOns = Array.isArray(parsed) ? parsed : String(data.addOns).split(',');
+      } catch {
+        data.addOns = String(data.addOns)
+          .split(',')
+          .map(s => s.trim())
+          .filter(Boolean);
+      }
+    }
+    // Drop any client-sent file id hints
+    delete data.letterOfIntentFileId;
+    delete data.seniorCitizenIdFileId;
     const letterOfIntentFile = req.files?.letterOfIntentFile?.[0] || null;
     const seniorCitizenIdFile = req.files?.seniorCitizenIdFile?.[0] || null;
     const response = await reservationModule.addReservation(dbHelper, data, letterOfIntentFile, seniorCitizenIdFile, req.user);

@@ -22,10 +22,39 @@ export function checkAvailability(params) {
 
 export function createReservation(payload = {}, letterOfIntentFile, seniorCitizenIdFile) {
   const fd = new FormData();
-  Object.entries(payload).forEach(([k, v]) => {
-    if (v === undefined || v === null) return;
-    fd.append(k, typeof v === 'object' ? JSON.stringify(v) : String(v));
+
+  // Avoid leaking internal IDs and force primitives to strings
+  const { letterOfIntentFileId, seniorCitizenIdFileId, ...safe } = payload || {};
+
+  Object.entries(safe).forEach(([key, value]) => {
+    if (value === undefined || value === null) return;
+
+    // Explicitly ensure facility is a plain string
+    if (key === 'facility') {
+      fd.append('facility', String(value));
+      return;
+    }
+
+    // Append arrays as repeated fields (server accepts arrays)
+    if (Array.isArray(value)) {
+      value.forEach((item) => {
+        fd.append(key, String(item));
+      });
+      return;
+    }
+
+    // Files are handled separately; skip here
+    if (typeof File !== 'undefined' && value instanceof File) return;
+    if (typeof Blob !== 'undefined' && value instanceof Blob) return;
+
+    // Primitives -> strings; objects -> JSON string
+    if (typeof value === 'object') {
+      fd.append(key, JSON.stringify(value));
+    } else {
+      fd.append(key, String(value));
+    }
   });
+
   if (letterOfIntentFile) fd.append('letterOfIntentFile', letterOfIntentFile);
   if (seniorCitizenIdFile) fd.append('seniorCitizenIdFile', seniorCitizenIdFile);
   return apiPost('/reservation/create-reservation', fd);
