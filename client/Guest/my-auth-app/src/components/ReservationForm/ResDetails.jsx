@@ -26,22 +26,31 @@ function ResDetails({ onClose }) {
 
   const handlePrevious = () => {
     const numberOfSeniors = parseInt(step1?.guests?.senior || 0, 10) || 0;
-    const isIndividual = step1?.type?.individual;
     const hasSeniors = numberOfSeniors > 0;
-    
-    if (hasSeniors && isIndividual) {
-      navigate(`/reservation-step3-senior/${type}/${facilityName}/${id}`, { 
-        state: { step1, step2, file, seniorCitizenIdFile } 
+    const routeType = String(type || '').toLowerCase();
+    const isIndividual = Boolean(step1?.type?.individual) || routeType === 'individual';
+    const isGroup = Boolean(step1?.type?.groups) || routeType === 'group';
+
+    if (hasSeniors) {
+      // With seniors, previous should return to the Senior Citizen ID step
+      navigate(`/reservation-step3-senior/${type}/${facilityName}/${id}`, {
+        state: { step1, step2, file, seniorCitizenIdFile }
       });
-    } else if (type === 'Group' || step1?.type?.group) {
-      navigate(`/reservation-step3/${type}/${facilityName}/${id}`, { 
-        state: { step1, step2, file, seniorCitizenIdFile } 
-      });
-    } else {
-      navigate(`/reservation-step2/${type}/${facilityName}/${id}`, { 
-        state: { step1, step2, file, seniorCitizenIdFile } 
-      });
+      return;
     }
+
+    if (isGroup) {
+      // Group without seniors returns to Letter of Intent step
+      navigate(`/reservation-step3/${type}/${facilityName}/${id}`, {
+        state: { step1, step2, file, seniorCitizenIdFile }
+      });
+      return;
+    }
+
+    // Default: go back to step 2 (date/facility/service)
+    navigate(`/reservation-step2/${type}/${facilityName}/${id}`, {
+      state: { step1, step2, file, seniorCitizenIdFile }
+    });
   };
 
   // Helper function to render add-ons with label and indented items
@@ -172,7 +181,7 @@ function ResDetails({ onClose }) {
       const payload = buildReservationPayload(step1, step2, id);
 
       const atLeastOneGuest =
-        (payload.numberOfAdults || 0) + (payload.numberOfChildren || 0) + (payload.numberOfPwds || 0) + (payload.numberOfSeniors || 0) > 0;
+        (payload.numberOfAdults || 0) + (payload.numberOfChildren || 0) + (payload.numberOfPwds || 0) + (payload.numberOfSeniorCitizens || 0) > 0;
       if (!atLeastOneGuest) throw new Error('At least one guest is required.');
       if (!payload.dateOfArrival || !payload.dateOfDeparture)
         throw new Error('Arrival and departure dates are required.');

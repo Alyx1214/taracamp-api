@@ -303,10 +303,16 @@ function ReservationFormStep2() {
       <div className={styles.reservationFormContainer}>
         <div className={styles.contentWrapper}>
           <div className={styles.headerSection}>
-            <button onClick={handleGoBack} className={styles.backButton}>
-              <ArrowLeft size={24} />
-            </button>
-            <h1 className={styles.pageTitle}>RESERVATION FORM</h1>
+            <span
+              className={styles["add-form-back"]}
+              onClick={handleGoBack}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && handleGoBack()}
+            >
+              &larr;
+            </span>
+            <h1 className={styles.title}>RESERVATION FORM</h1>
           </div>
 
           <div className={styles.mainContent}>

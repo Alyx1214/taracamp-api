@@ -55,7 +55,13 @@ export default function TransactionDetails() {
   const SkeletonLoading = () => (
     <div className={styles["transaction-details-container"]}>
       <div className={styles["transaction-details-header"]}>
-        <span className={styles["transaction-details-back"]} onClick={() => navigate('/transactions')}>
+        <span
+          className={styles["add-form-back"]}
+          onClick={() => navigate('/transactions')}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && navigate('/transactions')}
+        >
           &larr;
         </span>
         <h1 className={styles["transaction-details-title"]}>Transaction Details</h1>
@@ -81,9 +87,8 @@ export default function TransactionDetails() {
 
   const Back = (
     <span
-      className={styles["transaction-details-back"]}
+      className={styles["add-form-back"]}
       onClick={() => navigate('/transactions')}
-      style={{ cursor: "pointer" }}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && navigate('/transactions')}

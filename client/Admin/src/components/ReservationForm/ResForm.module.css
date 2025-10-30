@@ -21,6 +21,20 @@
   margin: 0;
 }
 
+/* Add-form styles copied so reservation header matches AddForm look */
+.add-form-back {
+  font-size: 50px;
+  cursor: pointer;
+  color: #233d29;
+}
+
+.title {
+  font-size: 3.5rem;
+  letter-spacing: 2px;
+  color: #5b3a0b;
+  margin: 0;
+}
+
 .backButton {
   background: none;
   border: none;

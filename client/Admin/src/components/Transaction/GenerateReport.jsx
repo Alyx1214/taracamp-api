@@ -95,8 +95,11 @@ export default function GenerateReport() {
     <div className={styles.page}>
       <div className={styles.header}>
         <span
-            className={styles["backBtn"]}
+            className={styles["add-form-back"]}
             onClick={() => navigate(-1)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && navigate(-1)}
             >
             &larr;
         </span>

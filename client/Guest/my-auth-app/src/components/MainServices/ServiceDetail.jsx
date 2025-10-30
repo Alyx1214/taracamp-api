@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import styles from './ServiceDetail.module.css';
 import placeholderImage from '../../assets/conference.jpg';
 import Calendar from './Calendar';
@@ -45,6 +45,7 @@ function MainServicesServiceDetail() {
   const params = useParams();
   const { type, name, facilityName, id } = params;
   const facilityNameParam = name || facilityName;
+  const location = useLocation();
   const [facility, setFacility] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -143,6 +144,28 @@ function MainServicesServiceDetail() {
 
     fetchFacilityData();
   }, [id]);
+
+  // Prefill selected dates when coming back from Reservation Form
+  useEffect(() => {
+    const pre = location.state?.preselectedDates;
+    if (!pre) return;
+
+    if (pre.dateArrival) {
+      const a = new Date(pre.dateArrival);
+      const aFormatted = `${a.getDate()} ${a.toLocaleString('default', { month: 'short' })} ${a.getFullYear()}`;
+      const aDay = a.toLocaleString('default', { weekday: 'long' });
+      setSelectedArrivalDate(pre.dateArrival);
+      setSelectedDate(`${aFormatted} - ${aDay}`);
+    }
+
+    if (pre.dateDeparture) {
+      const d = new Date(pre.dateDeparture);
+      const dFormatted = `${d.getDate()} ${d.toLocaleString('default', { month: 'short' })} ${d.getFullYear()}`;
+      const dDay = d.toLocaleString('default', { weekday: 'long' });
+      setSelectedDepartureDate(pre.dateDeparture);
+      setSelectedDepartureDateDisplay(`${dFormatted} - ${dDay}`);
+    }
+  }, [location.state]);
 
   useEffect(() => {
     const fetchReviews = async () => {
@@ -458,7 +481,7 @@ const getCalendarData = (date) => {
             ...(selectedDepartureDate && { dateDeparture: selectedDepartureDate })
           }
         }),
-        from: `/service-detail/${type}/${facilityNameParam}/${facility.id}`
+        from: `/user/services/${type}/${facilityNameParam}/${facility.id}`
       };
       navigate(target, { state });
     } else {

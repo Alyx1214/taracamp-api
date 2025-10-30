@@ -17,7 +17,8 @@ function SeniorCitizenReservationForm() {
   const numberOfSeniors = parseInt(step1?.guests?.senior || 0, 10) || 0;
   const isSeniorCitizen = numberOfSeniors > 0;
 
-  const [file, setFile] = useState(location.state?.file || null);
+  // Senior Citizen ID file should be independent from the Letter of Intent
+  const [file, setFile] = useState(location.state?.seniorCitizenIdFile || null);
   const [fileError, setFileError] = useState('');
   const fileInputRef = useRef();
 
@@ -38,6 +39,14 @@ function SeniorCitizenReservationForm() {
   };
 
   const handlePrevious = () => {
+    const routeType = String(type || '').toLowerCase();
+    const isGroup = routeType === 'group' || !!step1?.type?.groups || !!step1?.type?.group;
+    if (isGroup) {
+      // For group reservations, go back to Letter of Intent upload step
+      navigate(`/reservation-step3/${type}/${facilityName}/${id}`, { state: { step1, step2, file } });
+      return;
+    }
+    // Otherwise return to step 2
     navigate(`/reservation-step2/${type}/${facilityName}/${id}`, { state: { step1, step2, file } });
   };
 
