@@ -43,7 +43,13 @@ export default function PaymentDetails() {
   const SkeletonLoading = () => (
     <div className={styles["payment-details-container"]}>
       <div className={styles["payment-details-header"]}>
-        <span className={styles["payment-details-back"]} onClick={() => navigate(-1)}>
+        <span
+          className={styles["add-form-back"]}
+          onClick={() => navigate(-1)}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && navigate(-1)}
+        >
           &larr;
         </span>
         <h1 className={styles["payment-details-title"]}>Payment Details</h1>
@@ -164,9 +170,8 @@ export default function PaymentDetails() {
 
   const Back = (
     <span
-      className={styles["payment-details-back"]}
+      className={styles["add-form-back"]}
       onClick={() => navigate('/transactions')}
-      style={{ cursor: "pointer" }}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && navigate('/transactions')}
