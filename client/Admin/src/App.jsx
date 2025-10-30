@@ -34,6 +34,7 @@ import bgImage from './assets/background-blur.png';
 import logo from './assets/logo.png';
 import RequireAuth from './components/Utilities/RequireAuth.jsx';
 import { useTokenManager } from './utils/useTokenManager.js';
+import RoleGuard from './components/Utilities/RoleGuard.jsx';
 
 function AuthLayout() {
   const [authFormState, setAuthFormState] = useState('login');
@@ -94,31 +95,31 @@ function App() {
             <Route index element={<Dashboard />} />
 
             <Route path="dashboard" element={<Dashboard />} />
-            <Route path="reservations" element={<Reservations />} />
-            <Route path="facilities" element={<Facilities />} />
-            <Route path="transactions" element={<Transaction />} />
-            <Route path="user" element={<User />} />
-            <Route path="users/add" element={<AddUserForm />} />
-            <Route path="checkin" element={<CheckInOut />} />
-            <Route path="messages" element={<Messages />} />
-            <Route path="/reservations/add" element={<AddReservation />} />
-            <Route path="/reservation-form" element={<ReservationForm />} />
-            <Route path="/reservation-step2" element={<ReservationFormStep2 />} />
-            <Route path="/reservation-step3" element={<ReservationFormStep3 />} />
-            <Route path="/reservation-step4" element={<ReservationFormStep4 />} />
+            <Route path="reservations" element={<RoleGuard routeKey="reservations"><Reservations /></RoleGuard>} />
+            <Route path="facilities" element={<RoleGuard routeKey="facilities"><Facilities /></RoleGuard>} />
+            <Route path="transactions" element={<RoleGuard routeKey="transactions"><Transaction /></RoleGuard>} />
+            <Route path="user" element={<RoleGuard routeKey="user"><User /></RoleGuard>} />
+            <Route path="users/add" element={<RoleGuard routeKey="user"><AddUserForm /></RoleGuard>} />
+            <Route path="checkin" element={<RoleGuard routeKey="checkin"><CheckInOut /></RoleGuard>} />
+            <Route path="messages" element={<RoleGuard routeKey="messages"><Messages /></RoleGuard>} />
+            <Route path="/reservations/add" element={<RoleGuard routeKey="reservations"><AddReservation /></RoleGuard>} />
+            <Route path="/reservation-form" element={<RoleGuard routeKey="reservations"><ReservationForm /></RoleGuard>} />
+            <Route path="/reservation-step2" element={<RoleGuard routeKey="reservations"><ReservationFormStep2 /></RoleGuard>} />
+            <Route path="/reservation-step3" element={<RoleGuard routeKey="reservations"><ReservationFormStep3 /></RoleGuard>} />
+            <Route path="/reservation-step4" element={<RoleGuard routeKey="reservations"><ReservationFormStep4 /></RoleGuard>} />
 
-            <Route path="/add-facility" element={<AddForm />} />
-            <Route path="/facilities/edit/:id" element={<EditForm />} />
+            <Route path="/add-facility" element={<RoleGuard routeKey="facilities"><AddForm /></RoleGuard>} />
+            <Route path="/facilities/edit/:id" element={<RoleGuard routeKey="facilities"><EditForm /></RoleGuard>} />
 
-            <Route path="/transaction/:id/details" element={<TransactionDetails />} /> 
+            <Route path="/transaction/:id/details" element={<RoleGuard routeKey="transactions"><TransactionDetails /></RoleGuard>} /> 
 
-            <Route path="/payment/:id/details" element={<PaymentDetails />} /> 
-            <Route path="/transactions/report" element={<GenerateReport />} />
+            <Route path="/payment/:id/details" element={<RoleGuard routeKey="transactions"><PaymentDetails /></RoleGuard>} /> 
+            <Route path="/transactions/report" element={<RoleGuard routeKey="transactions"><GenerateReport /></RoleGuard>} />
 
-            <Route path="/pendingRSV/:id/details" element={<PendingRSVDetails />} />
-            <Route path="/approvedRSV/:id/details" element={<ApprovedRSVDetails />} />
-            <Route path="/confirmedIndiv/:id/details" element={<ConfIndivRSVDetails />} />
-            <Route path="/confirmedGroup/:id/details" element={<ConfGroupRSVDetails />} />
+            <Route path="/pendingRSV/:id/details" element={<RoleGuard routeKey="reservations"><PendingRSVDetails /></RoleGuard>} />
+            <Route path="/approvedRSV/:id/details" element={<RoleGuard routeKey="reservations"><ApprovedRSVDetails /></RoleGuard>} />
+            <Route path="/confirmedIndiv/:id/details" element={<RoleGuard routeKey="reservations"><ConfIndivRSVDetails /></RoleGuard>} />
+            <Route path="/confirmedGroup/:id/details" element={<RoleGuard routeKey="reservations"><ConfGroupRSVDetails /></RoleGuard>} />
 
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
