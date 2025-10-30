@@ -13,7 +13,9 @@ function SeniorCitizenReservationForm() {
   const { type, facilityName, id } = useParams();
   const step1 = location.state?.step1 || {};
   const step2 = location.state?.step2 || {};
-  const isSeniorCitizen = String(type || '').toLowerCase() === 'senior-citizen' || !!step1?.type?.seniorCitizen;
+  // Check if there are senior citizens in the guest count
+  const numberOfSeniors = parseInt(step1?.guests?.senior || 0, 10) || 0;
+  const isSeniorCitizen = numberOfSeniors > 0;
 
   const [file, setFile] = useState(location.state?.file || null);
   const [fileError, setFileError] = useState('');
@@ -45,7 +47,16 @@ function SeniorCitizenReservationForm() {
       return;
     }
     setFileError('');
-    navigate(`/reservation-step4/${type}/${facilityName}/${id}`, { state: { step1, step2, file } });
+    // Pass both files: letterOfIntentFile (if exists) and seniorCitizenIdFile
+    const letterOfIntentFile = location.state?.file || null; // From step3 if group
+    navigate(`/reservation-step4/${type}/${facilityName}/${id}`, { 
+      state: { 
+        step1, 
+        step2, 
+        file: letterOfIntentFile, // Letter of Intent file
+        seniorCitizenIdFile: file // Senior Citizen ID file
+      } 
+    });
   };
 
   const handleBoxClick = () => {

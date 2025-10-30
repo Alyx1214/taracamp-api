@@ -1,7 +1,7 @@
 import React from 'react';
 import styles from './Cottages.module.css';
 import placeholderImage from '../../assets/conference.jpg';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 
 function MainServicesCottages({
   facilities,
@@ -9,6 +9,9 @@ function MainServicesCottages({
   searchAttempted,
   loadError,
 }) {
+  const location = useLocation();
+  // Determine the base route prefix based on current location
+  const routePrefix = location.pathname.startsWith('/user/services') ? '/user/services' : '/services';
   const availableFacilities = Array.isArray(facilities) ? facilities : [];
   const displayCottages = availableFacilities;
 
@@ -96,9 +99,9 @@ function MainServicesCottages({
               <h3 className={styles.cottageName}>{cottage?.name || 'Unnamed Cottage'}</h3>
               <p className={styles.cottageInfo}>Capacity: {formatCapacity(cottage?.capacity)}</p>
               <p className={styles.cottageRate}>
-                Price : ₱ {formatPeso(cottage?.ratePerPerson ?? cottage?.rate)}
+                Price : ₱ {formatPeso(cottage?.price)}
               </p>
-              <Link to={`cottages/${encodeURIComponent(cottage?.name || 'unnamed')}/${cottage?._id ?? cottage?.id ?? ''}`} className={styles.checkButton}>
+              <Link to={`${routePrefix}/cottages/${encodeURIComponent(cottage?.name || 'unnamed')}/${cottage?._id ?? cottage?.id ?? ''}`} className={styles.checkButton}>
                 View Details
               </Link>
             </div>
