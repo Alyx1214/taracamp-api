@@ -71,7 +71,12 @@ function ReservationFormStep2() {
     const a = parseInt(step1?.guests?.adult || 0, 10) || 0;
     const c = parseInt(step1?.guests?.children || 0, 10) || 0;
     const p = parseInt(step1?.guests?.pwds || 0, 10) || 0;
-    return a + c + p;
+    const s = parseInt(step1?.guests?.senior || 0, 10) || 0;
+    return a + c + p + s;
+  }, [step1]);
+
+  const numberOfSeniors = useMemo(() => {
+    return parseInt(step1?.guests?.senior || 0, 10) || 0;
   }, [step1]);
 
   useEffect(() => {
@@ -347,14 +352,35 @@ function ReservationFormStep2() {
       selectedAddons: selectedAddons,
     };
 
-    if (step1?.type?.individual) {
-      navigate(`/reservation-step4/${type}/${facilityName}/${id}`, {
-        state: { step1, step2, file: null },
-      });
+    const hasSeniors = numberOfSeniors > 0;
+    const isIndividual = step1?.type?.individual;
+
+    // Determine the next step based on reservation type and senior citizens
+    if (isIndividual) {
+      if (hasSeniors) {
+        // Individual with seniors: go to senior citizen ID upload
+        navigate(`/reservation-step3-senior/${type}/${facilityName}/${id}`, {
+          state: { step1, step2, file: null },
+        });
+      } else {
+        // Individual without seniors: skip to final step
+        navigate(`/reservation-step4/${type}/${facilityName}/${id}`, {
+          state: { step1, step2, file: null },
+        });
+      }
     } else {
-      navigate(`/reservation-step3/${type}/${facilityName}/${id}`, {
-        state: { step1, step2, file },
-      });
+      // Group reservation
+      if (hasSeniors) {
+        // Group with seniors: go to Letter of Intent first, then senior citizen ID
+        navigate(`/reservation-step3/${type}/${facilityName}/${id}`, {
+          state: { step1, step2, file },
+        });
+      } else {
+        // Group without seniors: just Letter of Intent
+        navigate(`/reservation-step3/${type}/${facilityName}/${id}`, {
+          state: { step1, step2, file },
+        });
+      }
     }
   };
 
@@ -467,7 +493,7 @@ function ReservationFormStep2() {
                     </>
                   ) : (
                     <div className={styles.input} style={{ backgroundColor: '#f5f5f5', color: '#333' }}>
-                      Accommodation
+                      {formData.typeService || 'Lodging'}
                     </div>
                   )}
                 </div>

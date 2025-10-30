@@ -139,6 +139,8 @@ function HeaderHome() {
   const msgMenuRef = useRef(null);
   const msgListRef = useRef(null);
   const msgListUserScrolledRef = useRef(false);
+  const messagesLastFetchedRef = useRef(0);
+  const MESSAGE_CACHE_TTL_MS = 2 * 60 * 1000; // 2 minutes - server already handles caching, this is just for instant UX
 
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 992);
 
@@ -243,18 +245,58 @@ function HeaderHome() {
   useEffect(() => {
     let cancelled = false;
     async function loadMessages() {
+      const now = Date.now();
+      const cacheAge = now - messagesLastFetchedRef.current;
+      const hasCache = messages.length > 0;
+      const cacheFresh = cacheAge < MESSAGE_CACHE_TTL_MS;
+      
+      // Use cached messages if available and fresh (< 2 minutes old) for instant UX
+      if (hasCache && cacheFresh && !cancelled) {
+        // Still check if we need to mark as read
+        const unreadCount = messages.filter((m) => !m.isRead).length;
+        if (unreadCount > 0) {
+          try {
+            await markAllMessagesRead();
+            setMessages(arr => arr.map(m => ({ ...m, isRead: true })));
+            setMsgUnreadCount(0);
+          } catch (err) {
+            console.error('Failed to mark messages as read:', err);
+          }
+        }
+        msgListUserScrolledRef.current = false;
+        return;
+      }
+      
+      // Fetch fresh messages
       try {
         setMsgLoading(true);
         const response = await listMessages({ limit: 20 });
         const items = Array.isArray(response?.data) ? response.data : [];
         if (!cancelled) {
           setMessages(sortMessagesAscending(items));
-          setMsgUnreadCount(items.filter((m) => !m.isRead).length);
+          messagesLastFetchedRef.current = Date.now();
+          const unreadCount = items.filter((m) => !m.isRead).length;
+          setMsgUnreadCount(unreadCount);
           msgListUserScrolledRef.current = false;
+          
+          // Automatically mark all messages as read when opening the dropdown
+          if (unreadCount > 0) {
+            try {
+              await markAllMessagesRead();
+              setMessages(arr => arr.map(m => ({ ...m, isRead: true })));
+              setMsgUnreadCount(0);
+            } catch (err) {
+              // Silently fail - badge will refresh from server
+              console.error('Failed to mark messages as read:', err);
+            }
+          }
         }
       } catch {
         if (!cancelled) {
-          setMessages([]);
+          // Don't clear cache on error, just keep existing messages
+          if (messages.length === 0) {
+            setMessages([]);
+          }
         }
       } finally {
         if (!cancelled) setMsgLoading(false);
@@ -430,6 +472,16 @@ function HeaderHome() {
     }
   };
 
+  const handleMarkAllAsRead = async () => {
+    try {
+      await markAllMessagesRead();
+      setMessages(arr => arr.map(m => ({ ...m, isRead: true })));
+      setMsgUnreadCount(0);
+    } catch (err) {
+      console.error('Failed to mark all messages as read:', err);
+    }
+  };
+
   const handleMessageListScroll = useCallback(() => {
     const list = msgListRef.current;
     if (!list) return;
@@ -556,10 +608,7 @@ function HeaderHome() {
                       <div className={styles.headerActions}>
                         <button
                           className={styles.markAllBtn}
-                          onClick={() => {
-                            setMessages(arr => arr.map(m => ({ ...m, isRead: true })));
-                            setMsgUnreadCount(0);
-                          }}
+                          onClick={handleMarkAllAsRead}
                         >
                           Mark all as Read
                         </button>
@@ -708,12 +757,7 @@ function HeaderHome() {
                   <span className={styles.msgHeaderTitle}>Messages</span>
                   <button
                     className={styles.markAllBtn}
-                    onClick={() => {
-                      setMessages(arr => arr.map(m => ({ ...m, isRead: true })));
-                      setMsgUnreadCount(0);
-                      // Optionally persist:
-                      // api('/api/message/mark-all-read', { method: 'POST' }).catch(()=>{});
-                    }}
+                    onClick={handleMarkAllAsRead}
                   >
                     Mark all as Read
                   </button>

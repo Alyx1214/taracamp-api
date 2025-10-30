@@ -38,9 +38,13 @@ export function buildReservationPayload(step1 = {}, step2 = {}, facilityId) {
   const adults   = parseInt(step1?.guests?.adult    || '0', 10) || 0;
   const children = parseInt(step1?.guests?.children || '0', 10) || 0;
   const pwds     = parseInt(step1?.guests?.pwds     || '0', 10) || 0;
+  const seniors  = parseInt(step1?.guests?.senior   || '0', 10) || 0;
   const rooms    = parseInt(step2?.numberOfRooms   || '0', 10) || 0;
-
-  return {
+  
+  // Only include numberOfRooms for dormitories
+  const isDormitory = step2?.typeFacilities?.toLowerCase().includes('dormitory');
+  
+  const payload = {
     guestName: step1.groupAssociation?.trim(),
     homeAddress: step1.homeAddress?.trim(),
     officeAddress: step1.officeAddress?.trim(),
@@ -51,7 +55,7 @@ export function buildReservationPayload(step1 = {}, step2 = {}, facilityId) {
     numberOfAdults: adults,
     numberOfChildren: children,
     numberOfPwds: pwds,
-    numberOfRooms: rooms,
+    numberOfSeniors: seniors,
     emergencyContact: step1.emergencyContact?.trim(),
     emergencyContactPerson: step1.emergencyContactPerson?.trim(),
     dateOfArrival: step2.dateArrival,
@@ -63,4 +67,11 @@ export function buildReservationPayload(step1 = {}, step2 = {}, facilityId) {
     timeOfArrival: to24h(step2.timeArrivalHour || '02', step2.timeArrivalAMPM || 'PM'),
     otherRequests: step2.specialRequests || ''
   };
+  
+  // Only add numberOfRooms if it's a dormitory
+  if (isDormitory && rooms > 0) {
+    payload.numberOfRooms = rooms;
+  }
+  
+  return payload;
 }
