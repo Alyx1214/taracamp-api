@@ -140,6 +140,19 @@ export async function apiPost(path, body, extraOptions = {}) {
 }
 
 
+export async function apiPostBlob(path, body, extraOptions = {}) {
+  const opts = isFormData(body)
+    ? { method: 'POST', body, ...extraOptions }
+    : { method: 'POST', body: body ? JSON.stringify(body) : undefined, ...extraOptions };
+  const res = await rawFetch(path, opts);
+  if (!res.ok) {
+    const data = await safeJson(res);
+    return handle(res, data);
+  }
+  return res.blob();
+}
+
+
 export async function postPaymentWebhook(payload) {
   const res = await rawFetch('/api/payment/webhook', {
     method: 'POST',

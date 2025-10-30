@@ -120,8 +120,8 @@ export default function buildReservationRouter(userSocketMap) {
   }));
 
   r.post('/checkin-or-checkout-reservation/:id', asyncHandler(async (req, res) => {
-    const { status } = req.body;
-    const response = await reservationModule.checkInOrCheckOutReservation(dbHelper, req.params.id, status, req.user);
+    const { status, employeeName } = req.body;
+    const response = await reservationModule.checkInOrCheckOutReservation(dbHelper, req.params.id, status, req.user, { employeeName });
     res.status(response.status).json(response);
   }));
 

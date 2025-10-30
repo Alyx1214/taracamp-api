@@ -1231,7 +1231,7 @@ const reservationModule = {
      * @param {Object} user - The user object containing the user ID and role.
      * @returns {Object} Response data with status, error, message, and updated reservation on success.
      */
-    checkInOrCheckOutReservation: async (dbHelper, reservationId, status, user) => {
+    checkInOrCheckOutReservation: async (dbHelper, reservationId, status, user, options = {}) => {
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
             error: 'Error checking in or checking out reservation',
@@ -1290,10 +1290,22 @@ const reservationModule = {
                 }
             }
 
+            const update = { status };
+            if (status === ReservationStatus.CHECKED_OUT) {
+                const nameFromOptions = typeof options.employeeName === 'string' && options.employeeName.trim().length > 0
+                    ? options.employeeName.trim()
+                    : null;
+                const fallbackName = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || user?.email || null;
+                if (nameFromOptions || fallbackName) {
+                    update.checkedOutBy = nameFromOptions || fallbackName;
+                    update.checkedOutAt = new Date();
+                }
+            }
+
             const updatedReservation = await dbHelper.findOneAndUpdate(
                 'reservation',
                 { _id: reservationId, },
-                { status: status, },
+                update,
                 { new: true, }
             );
 
