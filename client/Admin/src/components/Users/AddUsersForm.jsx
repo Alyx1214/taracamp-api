@@ -48,8 +48,19 @@ export default function AddUserForm({ onAddUser }) {
 
   return (
     <div className={styles["add-user-container"]}>
-      <h2 className={styles["add-user-header"]}>Add New User</h2>
-
+      <div className={styles.header}>
+        <span
+          className={styles["add-form-back"]}
+          onClick={() => navigate('/users')}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && navigate('/users')}
+          aria-label="Go back"
+        >
+          &larr;
+        </span>
+        <h1 className={styles.title}>Add New User</h1>
+      </div>
 
       <form onSubmit={handleSubmit} className={styles["add-user-form"]}>
         {/* Name */}
