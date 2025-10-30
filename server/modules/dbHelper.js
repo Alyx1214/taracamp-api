@@ -116,6 +116,8 @@ const dbHelper = {
                 createdAt: { type: Date, default: Date.now, index: true },
                 userId: { type: mongoose.Schema.Types.ObjectId, ref: 'user', required: false, index: true },
                 reservationCode: { type: String, required: true, unique: true, index: true },
+                checkedOutBy: { type: String, required: false },
+                checkedOutAt: { type: Date, required: false },
             });
 
             ReservationSchema.index({ status: 1, dateOfArrival: 1 });
