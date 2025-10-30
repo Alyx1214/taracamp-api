@@ -4,6 +4,7 @@ import styles from './Notif.module.css';
 import NotifPreview from './NotifPreview';
 import NotifUpload from './NotifUpload';
 import NotifIndiv from './NotifIndiv';
+import NotifReviews from './NotifReviews';
 import { listNotifications, markAllNotificationsRead, markNotificationRead } from '../../apis/notificationApi';
 
 export default function Notif() {
@@ -219,6 +220,16 @@ export default function Notif() {
     );
   }
 
+  if (stage === 'reviews') {
+    return (
+      <NotifReviews
+        onSubmit={() => {
+          setStage('list');
+        }}
+      />
+    );
+  }
+
   return (
     <div className={styles.notifContainer}>
       <div className={styles.headerRow}>
@@ -230,6 +241,24 @@ export default function Notif() {
         )}
       </div>
       <div className={styles.notifList}>
+        {/* Static entry to prompt users to write a review */}
+        {!loading && (
+          <div
+            className={styles.notifItem}
+            onClick={() => setStage('reviews')}
+          >
+            <div className={styles.notifTitleRow}>
+              <span className={styles.notifTitle}>Share your stay</span>
+            </div>
+            <div className={styles.notifBody}>Tell others about your experience by leaving a review.</div>
+            <div className={styles.notifMeta}>
+              <span className={styles.notifSource}>
+                <span className={styles.notifSourceDot} /> Teachers' Camp
+              </span>
+              <span className={styles.notifTime}>Just now</span>
+            </div>
+          </div>
+        )}
         {loading && (
           <div className={styles.skeletonList} role="status" aria-live="polite" aria-busy="true">
             {[...Array(3)].map((_, i) => (

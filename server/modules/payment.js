@@ -1123,18 +1123,20 @@ const paymentModule = {
 };
 
 function computeEstimate({ facilityDoc, adults = 0, children = 0, pwds = 0, seniorCitizens = 0, serviceType, addonsTotal = 0, category, }) {
-    const isAccommodation =
-    serviceType === ServiceType.LODGING ||
-    serviceType === ServiceType.EVENT_AND_LODGING ||
-    facilityDoc?.facilityType === FacilityType.DORMITORY ||
-    facilityDoc?.facilityType === FacilityType.COTTAGE;
+    const isAccommodationFacility = 
+        facilityDoc?.facilityType === FacilityType.DORMITORY ||
+        facilityDoc?.facilityType === FacilityType.COTTAGE;
+    
+    const usePerPersonPricing = 
+        isAccommodationFacility && 
+        (serviceType === ServiceType.LODGING || serviceType === ServiceType.EVENT_AND_LODGING);
 
     const perPersonRate = Number(facilityDoc?.ratePerPerson);
     const flatBookingPrice = Number(facilityDoc?.price ?? facilityDoc?.conferencePrice ?? facilityDoc?.flatPrice);
 
     let baseAmount = 0;
 
-    if (isAccommodation) {
+    if (usePerPersonPricing) {
         if (!Number.isFinite(perPersonRate) || perPersonRate < 0) {
             baseAmount = addonsTotal;
         } else {
@@ -1148,21 +1150,17 @@ function computeEstimate({ facilityDoc, adults = 0, children = 0, pwds = 0, seni
         }
     }
 
-    // Apply service fees and discounts based on category
     let finalAmount = baseAmount;
     
     if (category === Category.PRIVATE) {
-        // Private category: 10% service fee
         finalAmount = baseAmount * 1.10;
     } else if (category === Category.GOVERNMENT || category === Category.DEPED) {
-        // Government and DepEd: 10% service fee + 20% discount
         const withServiceFee = baseAmount * 1.10;
-        finalAmount = withServiceFee * 0.80; // 20% discount
+        finalAmount = withServiceFee * 0.80;
     }
 
-    // Calculate facility fee separately from add-ons
     let facilityFee = 0;
-    if (isAccommodation) {
+    if (usePerPersonPricing) {
         if (Number.isFinite(perPersonRate) && perPersonRate >= 0) {
             facilityFee = adults * perPersonRate + (children + pwds + seniorCitizens) * perPersonRate * 0.80;
         }
@@ -1174,7 +1172,7 @@ function computeEstimate({ facilityDoc, adults = 0, children = 0, pwds = 0, seni
 
     return { 
         amount: finalAmount,
-        model: isAccommodation ? 'perPerson' : 'flat',
+        model: usePerPersonPricing ? 'perPerson' : 'flat',
         baseAmount: baseAmount,
         facilityFee: facilityFee,
         serviceFee: category === Category.PRIVATE || category === Category.GOVERNMENT || category === Category.DEPED ? baseAmount * 0.10 : 0,

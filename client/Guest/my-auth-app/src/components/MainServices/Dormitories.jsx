@@ -1,7 +1,7 @@
 import React from 'react';
 import styles from './Dormitories.module.css';
 import dormitoryPlaceholder from '../../assets/conference.jpg';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 
 function MainServicesDormitories({
   facilities,
@@ -9,6 +9,9 @@ function MainServicesDormitories({
   searchAttempted,
   loadError, 
 }) {
+  const location = useLocation();
+  // Determine the base route prefix based on current location
+  const routePrefix = location.pathname.startsWith('/user/services') ? '/user/services' : '/services';
   const availableFacilities = Array.isArray(facilities) ? facilities : [];
   const displayDorms = availableFacilities;
 
@@ -98,7 +101,7 @@ function MainServicesDormitories({
               <p className={styles.dormitoryRate}>
                 Rates per Person : ₱ {formatPeso(dorm?.ratePerPerson ?? dorm?.rate)}
               </p>
-              <Link to={`dormitories/${encodeURIComponent(dorm?.name || 'unnamed')}/${dorm?._id ?? dorm?.id ?? ''}`} className={styles.checkButton}>
+              <Link to={`${routePrefix}/dormitories/${encodeURIComponent(dorm?.name || 'unnamed')}/${dorm?._id ?? dorm?.id ?? ''}`} className={styles.checkButton}>
                 View Details
               </Link>
             </div>

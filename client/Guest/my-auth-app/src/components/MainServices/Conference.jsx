@@ -1,7 +1,7 @@
 import React from 'react';
 import styles from './Conference.module.css';
 import placeholderImage from '../../assets/conference.jpg';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 
 function MainServicesConference({
   facilities,
@@ -9,6 +9,9 @@ function MainServicesConference({
   searchAttempted,
   loadError,
 }) {
+  const location = useLocation();
+  // Determine the base route prefix based on current location
+  const routePrefix = location.pathname.startsWith('/user/services') ? '/user/services' : '/services';
   const availableFacilities = Array.isArray(facilities) ? facilities : [];
   const displayConferences = availableFacilities;
   const showError = !loading && Boolean(loadError);
@@ -93,7 +96,7 @@ function MainServicesConference({
                 <p className={styles.conferenceCapacity}>Capacity: {hall.capacity}</p>
               )}
               <p className={styles.conferencePrice}>Price: ₱ {formatPrice(hall?.price)}</p>
-              <Link to={`conference/${encodeURIComponent(hall?.name || 'unnamed')}/${hall?._id ?? hall?.id ?? ''}`} className={styles.checkButton}>
+              <Link to={`${routePrefix}/conference/${encodeURIComponent(hall?.name || 'unnamed')}/${hall?._id ?? hall?.id ?? ''}`} className={styles.checkButton}>
                 View Details
               </Link>
             </div>

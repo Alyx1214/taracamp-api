@@ -19,6 +19,7 @@ import ReservationForm from './components/ReservationForm/ResForm';
 import ReservationFormStep2 from './components/ReservationForm/ResForm2';
 import ReservationFormStep3 from './components/ReservationForm/ResForm3';
 import ReservationFormStep4 from './components/ReservationForm/ResDetails';
+import SeniorCitizenReservationForm from './components/ReservationForm/SCBin';
 import RequireAuth from './components/Utilities/RequireAuth'; 
 import backgroundImage from './assets/background-blur.png';
 import VerifyCode from './components/VerifyCode/VerifyCode';
@@ -178,19 +179,30 @@ function App() {
         <Route path="/reservation-form" element={<ReservationForm />} />
         <Route path="/reservation-step2" element={<ReservationFormStep2 />} />
         <Route path="/reservation-step3" element={<ReservationFormStep3 />} />
+        <Route path="/reservation-step3-senior" element={<SeniorCitizenReservationForm />} />
         <Route path="/reservation-step4" element={<ReservationFormStep4 />} />
         <Route path="/reservation-form/:type/:facilityName/:id" element={<ReservationForm />} />
         <Route path="/reservation-step2/:type/:facilityName/:id" element={<ReservationFormStep2 />} />
         <Route path="/reservation-step3/:type/:facilityName/:id" element={<ReservationFormStep3 />} />
+        <Route path="/reservation-step3-senior/:type/:facilityName/:id" element={<SeniorCitizenReservationForm />} />
         <Route path="/reservation-step4/:type/:facilityName/:id" element={<ReservationFormStep4 />} />
       </Route>
     </Routes>
   );
 }
 
+function ScrollToTop() {
+  const location = useLocation();
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }, [location.pathname]);
+  return null;
+}
+
 function AppWrapper() {
   return (
     <Router>
+      <ScrollToTop />
       <App />
     </Router>
   );

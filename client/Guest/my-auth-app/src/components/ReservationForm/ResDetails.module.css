@@ -94,9 +94,32 @@
   margin-top: 0.2rem;
   margin-bottom: 0.5rem;
 }
-.submitBtn {
-  display: block;
+.buttonContainer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
   margin: 1.5rem auto 0 auto;
+  max-width: 1000px;
+  padding: 0 60px;
+}
+.previousBtn {
+  background-color: #4F3718;
+  color: #f5f5f5;
+  border: none;
+  padding: 12px 30px;
+  border-radius: 25px;
+  font-size: 1.1em;
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
+.previousBtn:hover {
+  background-color: #bbb;
+  transform: translateY(-2px);
+}
+.submitBtn {
   background: #4b7c4b;
   color: #fff;
   border: none;
@@ -107,6 +130,7 @@
   box-shadow: 0 2px 8px rgba(0,0,0,0.07);
   cursor: pointer;
   transition: background 0.2s;
+  margin-left: auto;
 }
 .submitBtn:hover {
   background: #335533;

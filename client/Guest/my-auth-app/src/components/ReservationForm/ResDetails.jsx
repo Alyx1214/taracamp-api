@@ -20,8 +20,29 @@ function ResDetails({ onClose }) {
   const [breakdown, setBreakdown] = useState(null);
   const [allAddons, setAllAddons] = useState([]);
   const { type, facilityName, id } = useParams();
-  const { step1 = {}, step2 = {}, file } = location.state || {};
+  const { step1 = {}, step2 = {}, file, seniorCitizenIdFile } = location.state || {};
   const selectedAddons = step2.selectedAddons || [];
+  const numberOfSeniors = parseInt(step1?.guests?.senior || 0, 10) || 0;
+
+  const handlePrevious = () => {
+    const numberOfSeniors = parseInt(step1?.guests?.senior || 0, 10) || 0;
+    const isIndividual = step1?.type?.individual;
+    const hasSeniors = numberOfSeniors > 0;
+    
+    if (hasSeniors && isIndividual) {
+      navigate(`/reservation-step3-senior/${type}/${facilityName}/${id}`, { 
+        state: { step1, step2, file, seniorCitizenIdFile } 
+      });
+    } else if (type === 'Group' || step1?.type?.group) {
+      navigate(`/reservation-step3/${type}/${facilityName}/${id}`, { 
+        state: { step1, step2, file, seniorCitizenIdFile } 
+      });
+    } else {
+      navigate(`/reservation-step2/${type}/${facilityName}/${id}`, { 
+        state: { step1, step2, file, seniorCitizenIdFile } 
+      });
+    }
+  };
 
   // Helper function to render add-ons with label and indented items
   const renderAddOns = () => {
@@ -75,6 +96,7 @@ function ResDetails({ onClose }) {
     const a = parseInt(step1?.guests?.adult || 0, 10) || 0;
     const c = parseInt(step1?.guests?.children || 0, 10) || 0;
     const p = parseInt(step1?.guests?.pwds || 0, 10) || 0;
+    const s = parseInt(step1?.guests?.senior || 0, 10) || 0;
 
     const fid = typeof step2?.facilityIdFromList === 'string' ? step2.facilityIdFromList : id;
 
@@ -86,6 +108,7 @@ function ResDetails({ onClose }) {
           adults: a,
           children: c,
           pwds: p,
+          seniorCitizens: s,
           serviceType: mapServiceType(step2?.typeService),
           category: pickCategory(step1.category),
           addOns: selectedAddons.map(addon => addon.value),
@@ -119,7 +142,8 @@ function ResDetails({ onClose }) {
     const guestsTotal =
       (parseInt(step1?.guests?.adult || '0', 10) || 0) +
       (parseInt(step1?.guests?.children || '0', 10) || 0) +
-      (parseInt(step1?.guests?.pwds || '0', 10) || 0);
+      (parseInt(step1?.guests?.pwds || '0', 10) || 0) +
+      (parseInt(step1?.guests?.senior || '0', 10) || 0);
 
     return {
       group: step1.groupAssociation || 'N/A',
@@ -148,17 +172,18 @@ function ResDetails({ onClose }) {
       const payload = buildReservationPayload(step1, step2, id);
 
       const atLeastOneGuest =
-        (payload.numberOfAdults || 0) + (payload.numberOfChildren || 0) + (payload.numberOfPwds || 0) > 0;
+        (payload.numberOfAdults || 0) + (payload.numberOfChildren || 0) + (payload.numberOfPwds || 0) + (payload.numberOfSeniors || 0) > 0;
       if (!atLeastOneGuest) throw new Error('At least one guest is required.');
       if (!payload.dateOfArrival || !payload.dateOfDeparture)
         throw new Error('Arrival and departure dates are required.');
       if (!payload.timeOfArrival) throw new Error('Time of arrival is required.');
       if (!file && type === 'Group') throw new Error('Letter of Intent file is required.');
+      if (numberOfSeniors > 0 && !seniorCitizenIdFile) throw new Error('Senior Citizen ID file is required when there are senior citizens.');
 
       const facilityForPost = typeof step2?.facilityIdFromList === 'string' ? step2.facilityIdFromList : id;
       const apiPayload = { ...payload, facility: facilityForPost };
 
-      await apiCreateReservation(apiPayload, file);
+      await apiCreateReservation(apiPayload, file, seniorCitizenIdFile);
       setShowOverlay(true); 
     } catch (e) {
       const server = {
@@ -304,14 +329,23 @@ function ResDetails({ onClose }) {
           </div>
         </div>
 
-        <button
-          type="button"
-          className={styles.submitBtn}
-          onClick={handleSubmit}
-          disabled={submitting}
-        >
-          {submitting ? 'Submitting…' : 'Submit'}
-        </button>
+        <div className={styles.buttonContainer}>
+          <button
+            type="button"
+            className={styles.previousBtn}
+            onClick={handlePrevious}
+          >
+            Previous
+          </button>
+          <button
+            type="button"
+            className={styles.submitBtn}
+            onClick={handleSubmit}
+            disabled={submitting}
+          >
+            {submitting ? 'Submitting…' : 'Submit'}
+          </button>
+        </div>
       </div>
 
       {showOverlay && (
