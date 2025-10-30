@@ -10,6 +10,10 @@ function sanitizeObject(obj) {
             disallowedTagsMode: 'discard'
         });
     }
+    // Preserve Mongo ObjectId instances as-is
+    if (obj instanceof mongoose.Types.ObjectId) {
+        return obj;
+    }
     if (obj instanceof Date) {
         return obj;
     }
@@ -112,6 +116,8 @@ const dbHelper = {
                 createdAt: { type: Date, default: Date.now, index: true },
                 userId: { type: mongoose.Schema.Types.ObjectId, ref: 'user', required: false, index: true },
                 reservationCode: { type: String, required: true, unique: true, index: true },
+                checkedOutBy: { type: String, required: false },
+                checkedOutAt: { type: Date, required: false },
             });
 
             ReservationSchema.index({ status: 1, dateOfArrival: 1 });
@@ -294,7 +300,8 @@ const dbHelper = {
 
     createWithTransaction: async (collectionName, document, session) => {
         const sanitizedDoc = sanitizeObject({ ...document, });
-        return await mongoose.model(collectionName).create([sanitizedDoc], { session });
+        const created = await mongoose.model(collectionName).create([sanitizedDoc], { session });
+        return Array.isArray(created) ? created[0] : created;
     },
 
     findOneWithTransaction: async (collectionName, query, options = {}, session) => {

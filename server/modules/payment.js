@@ -58,7 +58,7 @@ const paymentModule = {
                 }
 
                 const requesterUserId = user?.userId;
-                if (!requesterUserId || String(reservation.userId) !== String(requesterUserId) && user?.role !== UserRole.SUPERINTENDENT) {
+                if (!requesterUserId || String(reservation.userId) !== String(requesterUserId) && user?.role !== UserRole.SUPERINTENDENT && user?.role !== UserRole.ACCOUNTING) {
                     responseData.status = Status.FORBIDDEN;
                     responseData.error = 'Not allowed to create payment for this reservation';
                     return responseData;
@@ -674,7 +674,7 @@ const paymentModule = {
                 responseData.error = 'Reservation not found';
                 return responseData;
             }
-            if (String(reservation.userId) !== String(user.userId) && user.role !== UserRole.SUPERINTENDENT) {
+            if (String(reservation.userId) !== String(user.userId) && user.role !== UserRole.SUPERINTENDENT && user.role !== UserRole.ACCOUNTING) {
                 responseData.status = Status.FORBIDDEN;
                 responseData.error = 'Not allowed to access this reservation';
                 return responseData;
@@ -736,7 +736,7 @@ const paymentModule = {
                 responseData.error = 'Reservation not found';
                 return responseData;
             }
-            if (String(reservation.userId) !== String(user.userId) && user.role !== UserRole.SUPERINTENDENT) {
+            if (String(reservation.userId) !== String(user.userId) && user.role !== UserRole.SUPERINTENDENT && user.role !== UserRole.ACCOUNTING) {
                 responseData.status = Status.FORBIDDEN;
                 responseData.error = 'Not allowed to access this reservation';
                 return responseData;
@@ -827,7 +827,7 @@ const paymentModule = {
                 return responseData;
             }
 
-            if (user.role !== UserRole.SUPERINTENDENT && String(reservation.userId) !== String(user.userId)) {
+            if (user.role !== UserRole.SUPERINTENDENT && user.role !== UserRole.ACCOUNTING && String(reservation.userId) !== String(user.userId)) {
                 responseData.status = Status.FORBIDDEN;
                 responseData.error = 'You are not authorized to view this transaction.';
                 return responseData;
@@ -958,7 +958,7 @@ const paymentModule = {
                 return responseData;
             }
 
-            if (user.role !== UserRole.SUPERINTENDENT && String(reservation.userId) !== String(user.userId)) {
+            if (user.role !== UserRole.SUPERINTENDENT && user.role !== UserRole.ACCOUNTING && String(reservation.userId) !== String(user.userId)) {
                 responseData.status = Status.FORBIDDEN;
                 responseData.error = 'You are not authorized to view this payment.';
                 return responseData;

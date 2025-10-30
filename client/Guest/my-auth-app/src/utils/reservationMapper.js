@@ -55,7 +55,7 @@ export function buildReservationPayload(step1 = {}, step2 = {}, facilityId) {
     numberOfAdults: adults,
     numberOfChildren: children,
     numberOfPwds: pwds,
-    numberOfSeniors: seniors,
+    numberOfSeniorCitizens: seniors,
     emergencyContact: step1.emergencyContact?.trim(),
     emergencyContactPerson: step1.emergencyContactPerson?.trim(),
     dateOfArrival: step2.dateArrival,

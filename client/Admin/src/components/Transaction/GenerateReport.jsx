@@ -1,9 +1,8 @@
 import React, { useRef, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaCalendarAlt, FaDownload, FaChevronDown, FaArrowLeft } from "react-icons/fa";
-import html2canvas from "html2canvas";
-import jsPDF from "jspdf";
 import styles from "./GenerateReport.module.css";
+import { downloadAccommodationReportPDF } from "../../apis/reportApi";
 
 export default function GenerateReport() {
   const navigate = useNavigate();
@@ -15,7 +14,6 @@ export default function GenerateReport() {
   const [startDropdownOpen, setStartDropdownOpen] = useState(false);
   const [endDropdownOpen, setEndDropdownOpen] = useState(false);
 
-  const reportRef = useRef(null);
   const startDropdownRef = useRef(null);
   const endDropdownRef = useRef(null);
 
@@ -67,22 +65,16 @@ export default function GenerateReport() {
     return true;
   };
 
+  // We now generate a single PDF for the selected End Date only
+
   const downloadPdf = async () => {
     if (!validateRange()) return;
     setGenerating(true);
     try {
-      const scale = 2;
-      const canvas = await html2canvas(reportRef.current, { scale, useCORS: true, backgroundColor: "#ffffff" });
-      const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF("portrait", "pt", "a4");
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      const ratio = Math.min(pageWidth / canvas.width, pageHeight / canvas.height);
-      const imgRenderWidth = canvas.width * ratio;
-      const imgRenderHeight = canvas.height * ratio;
-      const marginX = (pageWidth - imgRenderWidth) / 2;
-      pdf.addImage(imgData, "PNG", marginX, 20, imgRenderWidth, imgRenderHeight);
-      pdf.save(`report_${startMonth || "from"}_to_${endMonth}.pdf`);
+      const [yearStr, monthStr] = endMonth.split('-');
+      const year = Number(yearStr);
+      const month = Number(monthStr);
+      await downloadAccommodationReportPDF({ year, month });
     } catch (e) {
       console.error(e);
       setError("Failed to generate PDF. Try again.");
