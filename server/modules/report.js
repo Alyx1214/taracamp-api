@@ -59,7 +59,6 @@ const reportModule = {
                                     { $ifNull: ['$numberOfGuests.adult', 0] },
                                     { $ifNull: ['$numberOfGuests.children', 0] },
                                     { $ifNull: ['$numberOfGuests.pwds', 0] },
-                                    // Some data may use seniorCitizen vs seniorCitizens
                                     { $ifNull: ['$numberOfGuests.seniorCitizen', 0] },
                                     { $ifNull: ['$numberOfGuests.seniorCitizens', 0] }
                                 ]
