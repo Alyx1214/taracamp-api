@@ -6,6 +6,7 @@ import NotifUpload from './NotifUpload';
 import NotifIndiv from './NotifIndiv';
 import NotifReviews from './NotifReviews';
 import { listNotifications, markAllNotificationsRead, markNotificationRead } from '../../apis/notificationApi';
+import { updateMealPreference, getReservationById } from '../../apis/reservationApi';
 
 export default function Notif() {
   const navigate = useNavigate();
@@ -14,6 +15,9 @@ export default function Notif() {
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState(null);
   const [stage, setStage] = useState('list');
+  const [mealPreference, setMealPreference] = useState(null);
+  const [isDormitory, setIsDormitory] = useState(false);
+  const [reservationLoaded, setReservationLoaded] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -192,12 +196,65 @@ export default function Notif() {
     );
   }
 
+  // Load reservation data to get current meal preference and check if it's a dormitory
+  useEffect(() => {
+    if (selected?.reservationId && stage === 'indiv') {
+      let cancelled = false;
+      setReservationLoaded(false);
+      (async () => {
+        try {
+          const res = await getReservationById(selected.reservationId);
+          const reservation = res?.reservation || res?.data?.reservation;
+          if (!cancelled && reservation) {
+            setMealPreference(reservation.willAvailMeals);
+            // Check if facility type is Dormitory
+            const facilityType = reservation.facilityType || 
+                                 (reservation.facility?.facilityType) || 
+                                 (typeof reservation.facility === 'object' ? reservation.facility?.facilityType : null);
+            const isDorm = facilityType && 
+                          (String(facilityType).toLowerCase() === 'dormitory' ||
+                           String(facilityType).toLowerCase().includes('dormitory'));
+            setIsDormitory(isDorm || false);
+            setReservationLoaded(true);
+          }
+        } catch (error) {
+          console.error('Failed to load reservation:', error);
+          if (!cancelled) {
+            setReservationLoaded(true); // Still mark as loaded even on error
+          }
+        }
+      })();
+      return () => { cancelled = true; };
+    } else {
+      setMealPreference(null);
+      setIsDormitory(false);
+      setReservationLoaded(false);
+    }
+  }, [selected?.reservationId, stage]);
+
+  async function handleMealPreference(willAvailMeals) {
+    if (!selected?.reservationId) {
+      return;
+    }
+    
+    try {
+      await updateMealPreference(selected.reservationId, willAvailMeals);
+      // Update local state to reflect the change
+      setMealPreference(willAvailMeals);
+    } catch (error) {
+      console.error('Failed to save meal preference:', error);
+    }
+  }
+
   if (selected && stage === 'indiv') {
     return (
       <NotifIndiv
         notif={selected}
-        onBack={() => { setSelected(null); setStage('list'); }}
-        onFoodPref={() => { alert('Open Food Preference form (placeholder)'); }}
+        willAvailMeals={mealPreference}
+        isDormitory={isDormitory}
+        reservationLoaded={reservationLoaded}
+        onBack={() => { setSelected(null); setStage('list'); setMealPreference(null); setIsDormitory(false); setReservationLoaded(false); }}
+        onFoodPref={handleMealPreference}
         onCancel={() => { alert('Open Cancel Booking flow (placeholder)'); }}
       />
     );

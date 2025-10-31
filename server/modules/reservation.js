@@ -48,7 +48,7 @@ const reservationModule = {
                 guestName, homeAddress, officeAddress, category, guestType,
                 telephone, officeTelephone, numberOfAdults, numberOfChildren, numberOfPwds, numberOfSeniorCitizens,
                 emergencyContact, emergencyContactPerson, dateOfArrival, dateOfDeparture, facility,
-                serviceType, timeOfArrival, addOns, otherRequests, guestEmail, numberOfRooms,
+                serviceType, timeOfArrival, addOns, otherRequests, guestEmail,
             } = data;
 
             if (
@@ -383,14 +383,6 @@ const reservationModule = {
                 return responseData;
             }
 
-            if (facilityDoc.facilityType === FacilityType.DORMITORY) {
-                if (!isNonNegativeInteger(numberOfRooms) || parseInt(numberOfRooms) <= 0) {
-                    responseData.status = Status.BAD_REQUEST;
-                    responseData.error = 'Number of rooms is required for dormitory reservations and must be a positive integer';
-                    return responseData;
-                }
-            }
-
             const reservationData = {
                 guestName,
                 homeAddress,
@@ -406,7 +398,6 @@ const reservationModule = {
                     pwds: pwds,
                     seniorCitizen: seniorCitizens,
                 },
-                numberOfRooms: facilityDoc.facilityType === FacilityType.DORMITORY ? parseInt(numberOfRooms) : undefined,
                 emergencyContact,
                 emergencyContactPerson,
                 dateOfArrival: normalizeDateOnly(dateOfArrival),
@@ -1697,6 +1688,72 @@ const reservationModule = {
             responseData.error = 'Error checking availability';
             return responseData;
         }
+    },
+
+    /**
+     * Updates the meal preference for a reservation.
+     * @param {Object} dbHelper - The database helper for database operations.
+     * @param {string} reservationId - The ID of the reservation to update.
+     * @param {boolean} willAvailMeals - Whether the guest will avail meals.
+     * @param {Object} user - The user object containing the user ID and role.
+     * @returns {Object} Response data with status, error, message, and updated reservation on success.
+     */
+    updateMealPreference: async (dbHelper, reservationId, willAvailMeals, user) => {
+        const responseData = {
+            status: Status.INTERNAL_SERVER_ERROR,
+            error: 'Error updating meal preference',
+        };
+        try {
+            if (!user || !user.userId) {
+                responseData.status = Status.UNAUTHORIZED;
+                responseData.error = 'User not logged in';
+                return responseData;
+            }
+
+            if (!reservationId) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Reservation ID is required';
+                return responseData;
+            }
+
+            const reservation = await dbHelper.findOne('reservation', { _id: reservationId });
+            if (!reservation) {
+                responseData.status = Status.NOT_FOUND;
+                responseData.error = 'Reservation not found';
+                return responseData;
+            }
+
+            const isOwner = reservation.userId && String(reservation.userId) === String(user.userId);
+            const isAdmin = user.role === UserRole.ACCOUNTING || user.role === UserRole.SUPERINTENDENT;
+
+            if (!isOwner && !isAdmin) {
+                responseData.status = Status.FORBIDDEN;
+                responseData.error = 'Not authorized to update this reservation';
+                return responseData;
+            }
+
+            const updated = await dbHelper.findOneAndUpdate(
+                'reservation',
+                { _id: reservationId },
+                { willAvailMeals: willAvailMeals === true || willAvailMeals === 'true' },
+                { new: true }
+            );
+
+            responseData.status = Status.OK;
+            responseData.error = null;
+            responseData.message = 'Meal preference updated successfully';
+            responseData.reservation = {
+                _id: updated._id,
+                willAvailMeals: updated.willAvailMeals
+            };
+
+            await invalidateReservationCache();
+        } catch (error) {
+            console.error('Error updating meal preference:', error);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Error updating meal preference';
+        }
+        return responseData;
     },
 };
 

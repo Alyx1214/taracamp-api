@@ -140,5 +140,11 @@ export default function buildReservationRouter(userSocketMap) {
     res.status(response.status).json(response);
   }));
 
+  r.post('/update-meal-preference/:id', asyncHandler(async (req, res) => {
+    const { willAvailMeals } = req.body;
+    const response = await reservationModule.updateMealPreference(dbHelper, req.params.id, willAvailMeals, req.user);
+    res.status(response.status).json(response);
+  }));
+
   return r;
 }

@@ -4,6 +4,9 @@ import { timeAgo } from '../../utils/timeAgo';
 
 export default function NotifIndiv({
   notif = {},
+  willAvailMeals = null,
+  isDormitory = false,
+  reservationLoaded = false,
   onFoodPref = () => {},
   onCancel = () => {},
   onBack = () => {},
@@ -30,25 +33,38 @@ export default function NotifIndiv({
             </>
           )}
         </div>
-        <div className={styles.foodPrefBox}>
-          Thank you for reserving your stay with us! Will you avail meals from Teachers' Camp?
-        </div>
-        <div className={styles.foodPrefBtns}>
-          <button
-            className={`${styles.foodPrefBtn} ${styles.foodPrefYes}`}
-            onClick={() => onFoodPref(true)}
-            aria-label="Yes, I will avail food"
-          >
-            Yes
-          </button>
-          <button
-            className={`${styles.foodPrefBtn} ${styles.foodPrefNo}`}
-            onClick={() => onFoodPref(false)}
-            aria-label="No, I will not avail food"
-          >
-            No
-          </button>
-        </div>
+        {reservationLoaded && !isDormitory && (
+          <>
+            <div className={styles.foodPrefBox}>
+              Thank you for reserving your stay with us! Will you avail meals from Teachers' Camp?
+              {willAvailMeals !== null && (
+                <div style={{ marginTop: '8px', fontSize: '14px', color: '#666' }}>
+                  Your preference: <strong>{willAvailMeals ? 'Yes' : 'No'}</strong>
+                </div>
+              )}
+            </div>
+            <div className={styles.foodPrefBtns}>
+              <button
+                className={`${styles.foodPrefBtn} ${styles.foodPrefYes} ${willAvailMeals === true ? styles.selected || '' : ''}`}
+                onClick={() => onFoodPref(true)}
+                disabled={willAvailMeals === true}
+                aria-label="Yes, I will avail food"
+                style={willAvailMeals === true ? { opacity: 0.7, cursor: 'default' } : {}}
+              >
+                Yes
+              </button>
+              <button
+                className={`${styles.foodPrefBtn} ${styles.foodPrefNo} ${willAvailMeals === false ? styles.selected || '' : ''}`}
+                onClick={() => onFoodPref(false)}
+                disabled={willAvailMeals === false}
+                aria-label="No, I will not avail food"
+                style={willAvailMeals === false ? { opacity: 0.7, cursor: 'default' } : {}}
+              >
+                No
+              </button>
+            </div>
+          </>
+        )}
         <div className={styles.cancelBox}>
           <div className={styles.cancelTitle}>Need to Cancel?</div>
           <div className={styles.cancelText}>

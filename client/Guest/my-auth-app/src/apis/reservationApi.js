@@ -74,6 +74,10 @@ export function cancelReservation(id) {
   return apiPost(`/reservation/cancel-booking/${encodeURIComponent(id)}`, {});
 }
 
+export function updateMealPreference(reservationId, willAvailMeals) {
+  return apiPost(`/reservation/update-meal-preference/${encodeURIComponent(reservationId)}`, { willAvailMeals });
+}
+
 export function decideReservation(id, { decision, reason } = {}) {
   return apiPost(`/reservation/accept-or-decline-reservation/${encodeURIComponent(id)}`, { decision, reason });
 }
