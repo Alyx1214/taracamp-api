@@ -10,7 +10,6 @@ const bucket = storage.bucket(process.env.BUCKET_NAME);
 const APP_TZ_OFFSET = '+08:00';
 const TZ = 'Asia/Manila';
 
-// Helper function to invalidate reservation cache
 const invalidateReservationCache = async () => {
     try {
         const keys = await safeRedisOperations.keys('get_reservations_by_status:*');
@@ -104,11 +103,6 @@ const reservationModule = {
                 return responseData;
             } 
 
-            const initialStatus =
-                guestType === GuestType.INDIVIDUAL
-                    ? ReservationStatus.APPROVED
-                    : ReservationStatus.PENDING;
-            
             if (!isValidPhone(telephone)) {
                 responseData.status = Status.BAD_REQUEST;
                 responseData.error = 'Invalid phone number';
@@ -353,6 +347,11 @@ const reservationModule = {
                     return responseData;
                 }
             }
+
+            const initialStatus =
+                guestType === GuestType.INDIVIDUAL && !seniorCitizenIdFile
+                    ? ReservationStatus.APPROVED
+                    : ReservationStatus.PENDING;
 
             const { amount: totalEstimatedAmount, } = computeEstimate({
                 facilityDoc,
