@@ -529,7 +529,7 @@ function ReservationFormStep2() {
                     </div>
                   </div>
 
-                  {isDormitory && (
+                  {/* {isDormitory && (
                     <div className={styles.formGroup}>
                       <label className={styles.label}>Number of Rooms<span className={styles.requiredAsterisk}>*</span></label>
                       <div className={styles.quantityInput}>
@@ -573,7 +573,7 @@ function ReservationFormStep2() {
                         <div className={styles.fieldError}>{fieldErrors.numberOfRooms}</div>
                       )}
                     </div>
-                  )}
+                  )} */}
                 </div>
               </div>
 
