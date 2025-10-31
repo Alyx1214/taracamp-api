@@ -12,8 +12,8 @@ export function getAllReservationsByStatus(status) {
   return apiGet(`/reservation/get-all-reservations-by-status/${encodeURIComponent(status)}`);
 }
 
-export function estimateAmount({ facility, adults, children, pwds, seniorCitizens, serviceType, category, addOns }) {
-  return apiGet('/reservation/estimate-amount', { facility, adults, children, pwds, seniorCitizens, serviceType, category, addOns });
+export function estimateAmount({ facility, adults, children, pwds, seniorCitizens, serviceType, category, addOns, dateOfArrival, dateOfDeparture }) {
+  return apiGet('/reservation/estimate-amount', { facility, adults, children, pwds, seniorCitizens, serviceType, category, addOns, dateOfArrival, dateOfDeparture });
 }
 
 export function checkAvailability(params) {
@@ -72,6 +72,10 @@ export function updateReservation(id, payload = {}, letterOfIntentFile) {
 
 export function cancelReservation(id) {
   return apiPost(`/reservation/cancel-booking/${encodeURIComponent(id)}`, {});
+}
+
+export function updateMealPreference(reservationId, willAvailMeals) {
+  return apiPost(`/reservation/update-meal-preference/${encodeURIComponent(reservationId)}`, { willAvailMeals });
 }
 
 export function decideReservation(id, { decision, reason } = {}) {

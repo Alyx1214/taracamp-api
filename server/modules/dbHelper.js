@@ -97,7 +97,6 @@ const dbHelper = {
                     pwds: { type: Number, required: false, },
                     seniorCitizen: { type: Number, required: false, },
                 },
-                numberOfRooms: { type: Number, required: false, },
                 emergencyContact: { type: String, required: true, },
                 emergencyContactPerson: { type: String, required: false, },
                 dateOfArrival: { type: Date, required: true, index: true },
@@ -118,6 +117,7 @@ const dbHelper = {
                 reservationCode: { type: String, required: true, unique: true, index: true },
                 checkedOutBy: { type: String, required: false },
                 checkedOutAt: { type: Date, required: false },
+                willAvailMeals: { type: Boolean, required: false },
             });
 
             ReservationSchema.index({ status: 1, dateOfArrival: 1 });
