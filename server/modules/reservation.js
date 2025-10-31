@@ -362,6 +362,8 @@ const reservationModule = {
                 serviceType,
                 addonsTotal,
                 category,
+                dateOfArrival,
+                dateOfDeparture,
             });
 
             if (!Number.isFinite(totalEstimatedAmount)) {
@@ -1582,6 +1584,8 @@ const reservationModule = {
                 serviceType: svcType,
                 addonsTotal,
                 category,
+                dateOfArrival: params.dateOfArrival,
+                dateOfDeparture: params.dateOfDeparture,
             });
 
 
