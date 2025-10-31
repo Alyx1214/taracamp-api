@@ -100,17 +100,26 @@ export default function NotifPreview({
 
   const normalizedGuestType = String(reservation?.guestType || '').toLowerCase();
   const clientTypeFallback = String(clientType || '').toLowerCase();
-  const isPay =
-    normalizedGuestType === 'individual' ||
-    (!reservation?.guestType && clientTypeFallback === 'individual');
+  // Determine isPay based on reservation data - only after reservation is loaded
+  // Show "Loading..." while loading to prevent label flickering
+  const isPay = reservation && reservation.guestType !== undefined && reservation.guestType !== null
+    ? normalizedGuestType === 'individual'
+    : clientTypeFallback === 'individual';
 
-  const confirmLabel = isPay ? 'Pay Now' : 'Confirm Now';
-  const action = isPay ? 'transactions' : 'upload';
+  const confirmLabel = loading || facilityLoading
+    ? 'Loading...'
+    : (isPay ? 'Pay Now' : 'Confirm Now');
+  // Action should match the label - only determine after reservation is loaded
+  const action = (loading || facilityLoading) 
+    ? null 
+    : (isPay ? 'transactions' : 'upload');
   const source = notif.source || 'Teachers Camp';
   const time = notif.timeLabel ? notif.timeLabel : timeAgo(notif.createdAt);
 
   const handleConfirmClick = () => {
     // >>> This is the important part: pass reservationId + action (+ clientType)
+    // Safety check: action should be defined when button is enabled
+    if (!action) return;
     onConfirm({
       action,
       reservationId: notif.reservationId,

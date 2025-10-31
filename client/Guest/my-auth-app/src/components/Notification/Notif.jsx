@@ -10,7 +10,7 @@ import { updateMealPreference, getReservationById } from '../../apis/reservation
 
 export default function Notif() {
   const navigate = useNavigate();
-  const { search } = useLocation();                           
+  const { search, pathname } = useLocation();                           
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState(null);
@@ -18,6 +18,8 @@ export default function Notif() {
   const [mealPreference, setMealPreference] = useState(null);
   const [isDormitory, setIsDormitory] = useState(false);
   const [reservationLoaded, setReservationLoaded] = useState(false);
+  const [uploadClientType, setUploadClientType] = useState('deped');
+  const [uploadReservationId, setUploadReservationId] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -86,11 +88,29 @@ export default function Notif() {
     return () => { cancelled = true; };
   }, []);
 
+  // 👇 Detect /notifications/upload route and switch to upload stage
+  useEffect(() => {
+    if (pathname === '/notifications/upload') {
+      const sp = new URLSearchParams(search);
+      const reservationId = sp.get('reservationId');
+      const clientType = sp.get('clientType') || 'deped';
+      setUploadReservationId(reservationId);
+      setUploadClientType(clientType);
+      setStage('upload');
+    } else if (pathname.startsWith('/notifications')) {
+      // If on notifications route but not upload, reset to list
+      if (stage === 'upload') {
+        setStage('list');
+        setUploadReservationId(null);
+      }
+    }
+  }, [pathname, search, stage]);
+
   // 👇 Detect redirect from Transactions and inject a local payment_success notification
   useEffect(() => {
     const sp = new URLSearchParams(search);
     const isSuccess = sp.get('payment') === 'success' || sp.get('paid') === '1';
-    if (!isSuccess) return;
+    if (!isSuccess || pathname === '/notifications/upload') return;
 
     const reservationId = sp.get('reservationId') || null;
     const localNotif = {
@@ -127,6 +147,42 @@ export default function Notif() {
     // Clean the URL so it won't re-inject on refresh
     navigate('.', { replace: true });
   }, [search, navigate]);
+
+  // Load reservation data to get current meal preference and check if it's a dormitory
+  useEffect(() => {
+    if (selected?.reservationId && stage === 'indiv') {
+      let cancelled = false;
+      setReservationLoaded(false);
+      (async () => {
+        try {
+          const res = await getReservationById(selected.reservationId);
+          const reservation = res?.reservation || res?.data?.reservation;
+          if (!cancelled && reservation) {
+            setMealPreference(reservation.willAvailMeals);
+            // Check if facility type is Dormitory
+            const facilityType = reservation.facilityType || 
+                                 (reservation.facility?.facilityType) || 
+                                 (typeof reservation.facility === 'object' ? reservation.facility?.facilityType : null);
+            const isDorm = facilityType && 
+                          (String(facilityType).toLowerCase() === 'dormitory' ||
+                           String(facilityType).toLowerCase().includes('dormitory'));
+            setIsDormitory(isDorm || false);
+            setReservationLoaded(true);
+          }
+        } catch (error) {
+          console.error('Failed to load reservation:', error);
+          if (!cancelled) {
+            setReservationLoaded(true); // Still mark as loaded even on error
+          }
+        }
+      })();
+      return () => { cancelled = true; };
+    } else {
+      setMealPreference(null);
+      setIsDormitory(false);
+      setReservationLoaded(false);
+    }
+  }, [selected?.reservationId, stage]);
 
   async function markAll() {
     // Only update notifications that are currently unread
@@ -176,12 +232,13 @@ export default function Notif() {
       return;
     }
 
-    // If you want to keep the in-component upload stage, comment out the navigate and use the stage switch below.
-    // setStage('upload');
-
-    navigate(
-      `/notifications/upload?reservationId=${encodeURIComponent(reservationId)}&clientType=${encodeURIComponent(clientType || 'deped')}`
-    );
+    // Switch to upload stage within the same component
+    if (action === 'upload') {
+      setUploadReservationId(reservationId);
+      setUploadClientType(clientType || 'deped');
+      setStage('upload');
+      return;
+    }
   }
 
   if (selected && stage === 'preview') {
@@ -195,42 +252,6 @@ export default function Notif() {
       />
     );
   }
-
-  // Load reservation data to get current meal preference and check if it's a dormitory
-  useEffect(() => {
-    if (selected?.reservationId && stage === 'indiv') {
-      let cancelled = false;
-      setReservationLoaded(false);
-      (async () => {
-        try {
-          const res = await getReservationById(selected.reservationId);
-          const reservation = res?.reservation || res?.data?.reservation;
-          if (!cancelled && reservation) {
-            setMealPreference(reservation.willAvailMeals);
-            // Check if facility type is Dormitory
-            const facilityType = reservation.facilityType || 
-                                 (reservation.facility?.facilityType) || 
-                                 (typeof reservation.facility === 'object' ? reservation.facility?.facilityType : null);
-            const isDorm = facilityType && 
-                          (String(facilityType).toLowerCase() === 'dormitory' ||
-                           String(facilityType).toLowerCase().includes('dormitory'));
-            setIsDormitory(isDorm || false);
-            setReservationLoaded(true);
-          }
-        } catch (error) {
-          console.error('Failed to load reservation:', error);
-          if (!cancelled) {
-            setReservationLoaded(true); // Still mark as loaded even on error
-          }
-        }
-      })();
-      return () => { cancelled = true; };
-    } else {
-      setMealPreference(null);
-      setIsDormitory(false);
-      setReservationLoaded(false);
-    }
-  }, [selected?.reservationId, stage]);
 
   async function handleMealPreference(willAvailMeals) {
     if (!selected?.reservationId) {
@@ -260,19 +281,43 @@ export default function Notif() {
     );
   }
 
-  // Only used if you keep internal stage-based upload instead of routing
-  if (selected && stage === 'upload') {
+  // Handle upload stage (either from route or internal navigation)
+  if (stage === 'upload') {
+    const handleUploadBack = () => {
+      if (pathname === '/notifications/upload') {
+        navigate('/homepage');
+      } else {
+        // Go back to preview if we came from there, otherwise go to list
+        setStage(selected ? 'preview' : 'list');
+      }
+    };
+
+    const handleUploadSubmit = (files) => {
+      console.log('Submit files:', files, 'for reservation:', uploadReservationId || selected?.reservationId);
+      // TODO: Implement actual file upload API call
+      
+      // Mark notification as read if there's a selected notification
+      if (selected?._id) {
+        setNotifications(n => n.map(x => x._id === selected._id ? { ...x, isRead: true } : x));
+      }
+      
+      alert('Documents submitted. Thank you!');
+      
+      if (pathname === '/notifications/upload') {
+        navigate('/homepage');
+      } else {
+        // Return to notification list
+        setSelected(null);
+        setStage('list');
+        setUploadReservationId(null);
+      }
+    };
+
     return (
       <NotifUpload
-        clientType="deped"
-        onBack={() => setStage('preview')}
-        onSubmit={(files) => {
-          console.log('Dummy submit files:', files);
-          setNotifications(n => n.map(x => x._id === selected._id ? { ...x, isRead: true } : x));
-          setSelected(null);
-          setStage('list');
-          alert('Documents submitted (dummy). Thank you!');
-        }}
+        clientType={uploadClientType}
+        onBack={handleUploadBack}
+        onSubmit={handleUploadSubmit}
       />
     );
   }

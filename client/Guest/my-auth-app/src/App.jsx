@@ -24,6 +24,7 @@ import RequireAuth from './components/Utilities/RequireAuth';
 import backgroundImage from './assets/background-blur.png';
 import VerifyCode from './components/VerifyCode/VerifyCode';
 import ResetPassword from './components/ResetPassword/ResetPassword';
+import Notif from './components/Notification/Notif';
 import styles from './App.module.css';
 
 function AuthLayout() {
@@ -170,6 +171,7 @@ function App() {
           path="/homepage/*"
           element={<Homepage onReserveNow={handleHomepageReserveNow} isLoggedIn />}
         />
+        <Route path="/notifications/*" element={<Notif />} />
         <Route path="/history" element={<HistoryPage />} />
         <Route path="/user/services/*" element={<ServicesPage />} />
         <Route path="/faqs" element={<FAQsPage />} />
