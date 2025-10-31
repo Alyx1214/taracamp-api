@@ -223,6 +223,9 @@ export default function Notif() {
   if (stage === 'reviews') {
     return (
       <NotifReviews
+        onBack={() => {
+          setStage('list');
+        }}
         onSubmit={() => {
           setStage('list');
         }}
