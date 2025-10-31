@@ -30,8 +30,9 @@ const paymentModule = {
             status: Status.INTERNAL_SERVER_ERROR,
             error: 'Error creating payment intent',
         };
+        let reservationId = null;
         try {
-            const reservationId = id || data?.reservationId || null;
+            reservationId = id || data?.reservationId || null;
             const {
                 amount: clientAmount,
                 currency = 'PHP',
@@ -1000,6 +1001,8 @@ const paymentModule = {
                     serviceType: reservation?.serviceType,
                     addonsTotal: addonsTotal,
                     category: reservation?.category,
+                    dateOfArrival: reservation?.dateOfArrival,
+                    dateOfDeparture: reservation?.dateOfDeparture,
                 });
                 
                 breakdown.push({
@@ -1064,6 +1067,8 @@ const paymentModule = {
                     serviceType: reservation?.serviceType,
                     addonsTotal: addonsTotal,
                     category: reservation?.category,
+                    dateOfArrival: reservation?.dateOfArrival,
+                    dateOfDeparture: reservation?.dateOfDeparture,
                 });
 
                 // Always show service fee for categories that have it
@@ -1122,16 +1127,29 @@ const paymentModule = {
     },
 };
 
-function computeEstimate({ facilityDoc, adults = 0, children = 0, pwds = 0, seniorCitizens = 0, serviceType, addonsTotal = 0, category, }) {
+function computeEstimate({ facilityDoc, adults = 0, children = 0, pwds = 0, seniorCitizens = 0, serviceType, addonsTotal = 0, category, dateOfArrival, dateOfDeparture, }) {
     const isAccommodationFacility = 
         facilityDoc?.facilityType === FacilityType.DORMITORY ||
         facilityDoc?.facilityType === FacilityType.COTTAGE;
     
+    const perPersonRate = Number(facilityDoc?.ratePerPerson);
+    const hasPerPersonRate = Number.isFinite(perPersonRate) && perPersonRate >= 0;
+    
     const usePerPersonPricing = 
         isAccommodationFacility && 
-        (serviceType === ServiceType.LODGING || serviceType === ServiceType.EVENT_AND_LODGING);
+        (serviceType === ServiceType.LODGING || serviceType === ServiceType.EVENT_AND_LODGING) &&
+        hasPerPersonRate;
 
-    const perPersonRate = Number(facilityDoc?.ratePerPerson);
+    // Calculate number of nights for accommodation facilities
+    let numberOfNights = 1; // Default to 1 night if dates not provided
+    if (isAccommodationFacility && dateOfArrival && dateOfDeparture) {
+        const arrival = dateOfArrival instanceof Date ? dateOfArrival : new Date(dateOfArrival);
+        const departure = dateOfDeparture instanceof Date ? dateOfDeparture : new Date(dateOfDeparture);
+        if (!isNaN(arrival.getTime()) && !isNaN(departure.getTime()) && departure > arrival) {
+            numberOfNights = Math.max(1, Math.ceil((departure - arrival) / (1000 * 60 * 60 * 24)));
+        }
+    }
+
     const flatBookingPrice = Number(facilityDoc?.price ?? facilityDoc?.conferencePrice ?? facilityDoc?.flatPrice);
 
     let baseAmount = 0;
@@ -1140,13 +1158,15 @@ function computeEstimate({ facilityDoc, adults = 0, children = 0, pwds = 0, seni
         if (!Number.isFinite(perPersonRate) || perPersonRate < 0) {
             baseAmount = addonsTotal;
         } else {
-            baseAmount = adults * perPersonRate + (children + pwds + seniorCitizens) * perPersonRate * 0.80 + addonsTotal;
+            const perNightFee = adults * perPersonRate + (children + pwds + seniorCitizens) * perPersonRate * 0.80;
+            baseAmount = (perNightFee * numberOfNights) + addonsTotal;
         }
     } else {
         if (!Number.isFinite(flatBookingPrice) || flatBookingPrice < 0) {
             baseAmount = addonsTotal;
         } else {
-            baseAmount = flatBookingPrice + addonsTotal;
+            // For accommodation facilities, multiply by nights; for events, use flat price
+            baseAmount = (isAccommodationFacility ? flatBookingPrice * numberOfNights : flatBookingPrice) + addonsTotal;
         }
     }
 
@@ -1162,11 +1182,13 @@ function computeEstimate({ facilityDoc, adults = 0, children = 0, pwds = 0, seni
     let facilityFee = 0;
     if (usePerPersonPricing) {
         if (Number.isFinite(perPersonRate) && perPersonRate >= 0) {
-            facilityFee = adults * perPersonRate + (children + pwds + seniorCitizens) * perPersonRate * 0.80;
+            const perNightFee = adults * perPersonRate + (children + pwds + seniorCitizens) * perPersonRate * 0.80;
+            facilityFee = perNightFee * numberOfNights;
         }
     } else {
         if (Number.isFinite(flatBookingPrice) && flatBookingPrice >= 0) {
-            facilityFee = flatBookingPrice;
+            // For accommodation facilities, multiply by nights; for events, use flat price
+            facilityFee = isAccommodationFacility ? flatBookingPrice * numberOfNights : flatBookingPrice;
         }
     }
 
