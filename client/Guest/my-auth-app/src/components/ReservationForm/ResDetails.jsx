@@ -121,6 +121,8 @@ function ResDetails({ onClose }) {
           serviceType: mapServiceType(step2?.typeService),
           category: pickCategory(step1.category),
           addOns: selectedAddons.map(addon => addon.value),
+          dateOfArrival: step2?.dateArrival,
+          dateOfDeparture: step2?.dateDeparture,
         });
         if (!abort) {
           setQuote(data.amount);
