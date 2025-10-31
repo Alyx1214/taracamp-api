@@ -1,92 +1,156 @@
+:root {
+  --overlay-bg: rgba(16, 24, 32, 0.45);
+  --glass-bg: rgba(255, 255, 255, 0.75);
+  --glass-border: rgba(255, 255, 255, 0.6);
+  --brand-700: var(--brand-700, #23472a);
+  --brand-500: var(--brand-500, #4caf50);
+  --text-strong: #034222;
+  --text-muted: #04422f;
+  --shadow: 0 8px 30px rgba(10, 20, 30, 0.15);
+}
+
 .overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(0,0,0,0.2);
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
+  background: var(--overlay-bg);
+  -webkit-backdrop-filter: blur(6px) saturate(1.05);
+  backdrop-filter: blur(6px) saturate(1.05);
   z-index: 1000;
+  padding: 24px;
+  animation: overlayFade 180ms ease-out;
 }
 
 .container {
-  background: #f7f8fa;
-  border-radius: 18px;
   width: 420px;
-  max-width: 90vw;
-  box-shadow: 0 2px 16px rgba(0,0,0,0.08);
+  max-width: 92vw;
+  background: linear-gradient(180deg, rgba(255,255,255,0.85), var(--glass-bg));
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--glass-border);
   overflow: hidden;
   text-align: center;
+  transform-origin: center;
+  animation: popIn 220ms cubic-bezier(.2,.9,.3,1);
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
 }
 
 .header {
-  background: #23472a;
-  height: 48px;
+  height: 56px;
   width: 100%;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--brand-700) 60%, white), var(--brand-500));
+  display: block;
+  position: relative;
 }
 
 .checkmarkWrapper {
-  margin-top: -32px;
+  margin-top: -36px;
   display: flex;
   justify-content: center;
   align-items: center;
 }
 
 .checkmarkCircle {
-  background: #4caf50;
+  background-color: #034222;
+  color: #034222;
   border-radius: 50%;
-  width: 64px;
-  height: 64px;
+  width: 72px;
+  height: 72px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.12);
+  box-shadow: 0 10px 30px rgba(76, 175, 80, 0.18), 0 2px 6px rgba(0,0,0,0.12);
+  border: 4px solid #034222;
 }
 
 .checkmarkIcon {
-  color: #fff;
-  font-size: 36px;
+  color: var(--brand-700); 
+  font-size: 38px;
+  line-height: 1;
+}
+
+.checkmarkIcon svg,
+.checkmarkIcon svg * {
+  fill: currentColor !important;
+  stroke: currentColor !important;
 }
 
 .title {
-  font-weight: 600;
+  font-weight: 700;
   font-size: 1.15rem;
-  margin: 24px 0 8px 0;
+  color: var(--text-strong);
+  margin: 18px 20px 6px;
 }
 
 .desc {
-  color: #444;
+  color: var(--text-muted);
   font-size: 0.98rem;
-  margin: 0 32px 32px 32px;
+  margin: 0 28px 22px;
+  line-height: 1.4;
 }
 
 .buttonRow {
   display: flex;
   justify-content: center;
-  gap: 24px;
-  margin: 24px 0 32px 0;
+  gap: 16px;
+  padding: 18px 24px 26px;
 }
 
 .btnBase {
   min-width: 120px;
-  padding: 12px 0;
-  border-radius: 24px;
+  padding: 10px 18px;
+  border-radius: 999px;
   font-weight: 600;
-  font-size: 1rem;
+  font-size: 0.98rem;
   border: none;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.10);
-  transition: background 0.2s, color 0.2s;
-}
-
-.doneBtn {
-  background: #fff;
-  color: #23472a;
+  transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease;
+  box-shadow: 0 6px 18px rgba(16,24,32,0.08);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  user-select: none;
 }
 
 .reviewBtn {
-  background: #4caf50;
-  color: #fff;
+  background: #23472a;
+  color: #f5f5f5;
+  padding: 12px 20px;
+}
+.reviewBtn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 26px rgba(46,139,87,0.18);
+}
+.reviewBtn:active { transform: translateY(0); }
+
+.doneBtn {
+  background: #4f3718;
+  color: #f5f5f5;
+  border: 1px solid rgba(35, 71, 42, 0.08);
+  backdrop-filter: none;
+}
+.doneBtn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 26px rgba(46,139,87,0.18);
+}
+
+.doneBtn:active { 
+  transform: translateY(0); 
+}
+
+@media (max-width: 420px) {
+  .container { width: 94vw; }
+  .checkmarkCircle { width: 64px; height: 64px; }
+}
+
+@keyframes popIn {
+  from { transform: scale(.98); opacity: 0; }
+  to   { transform: scale(1);    opacity: 1; }
+}
+@keyframes overlayFade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
