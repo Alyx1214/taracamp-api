@@ -16,11 +16,15 @@ const notificationModule = {
         try {
             const { title, message, kind, userId, reservationId, } = data;
 
+            // Ensure userId is a string (Map keys must match exactly)
+            const userIdStr = userId?.toString?.() || String(userId || '');
+            const reservationIdStr = reservationId?.toString?.() || String(reservationId || null);
+
             const doc = {
                 title,
                 isRead: false,
-                userId,
-                reservationId,
+                userId: userIdStr,
+                reservationId: reservationIdStr || null,
                 createdAt: new Date(),
             };
 
@@ -34,7 +38,7 @@ const notificationModule = {
 
             const saved = await dbHelper.create('notification', doc);
 
-            const userWs = userSocketMap?.get(userId);
+            const userWs = userSocketMap?.get(userIdStr);
             if (userWs && userWs.readyState === 1) {
                 userWs.send(JSON.stringify({
                     type: 'notification',
@@ -47,6 +51,7 @@ const notificationModule = {
                         isRead: false,
                         source: "Teachers' Camp",
                         time: 'now',
+                        reservationId: doc.reservationId || null,
                     },
                 }));
             }

@@ -13,6 +13,7 @@ import PendingRSVDetails from "./components/ReservationDetails/PendingRSVDetails
 import ApprovedRSVDetails from "./components/ReservationDetails/ApprovedRSVDetails.jsx";
 import ConfIndivRSVDetails from "./components/ReservationDetails/ConfIndivRSVDetails.jsx";
 import ConfGroupRSVDetails from "./components/ReservationDetails/ConfGroupRSVDetails.jsx";
+import ReservationDetail from "./components/Reservation/ReservationDetail.jsx";
 import AddForm from "../src/components/Facility/AddForm.jsx";
 import EditForm from "../src/components/Facility/EditForm.jsx"; 
 import Transaction from "./components/Transaction/Transaction.jsx";
@@ -111,11 +112,11 @@ function App() {
             <Route path="/add-facility" element={<RoleGuard routeKey="facilities"><AddForm /></RoleGuard>} />
             <Route path="/facilities/edit/:id" element={<RoleGuard routeKey="facilities"><EditForm /></RoleGuard>} />
 
+            <Route path="/reservation/:id/details" element={<RoleGuard routeKey="reservations"><ReservationDetail /></RoleGuard>} />
             <Route path="/transaction/:id/details" element={<RoleGuard routeKey="transactions"><TransactionDetails /></RoleGuard>} /> 
 
             <Route path="/payment/:id/details" element={<RoleGuard routeKey="transactions"><PaymentDetails /></RoleGuard>} /> 
             <Route path="/transactions/report" element={<RoleGuard routeKey="transactions"><GenerateReport /></RoleGuard>} />
-
             <Route path="/pendingRSV/:id/details" element={<RoleGuard routeKey="reservations"><PendingRSVDetails /></RoleGuard>} />
             <Route path="/approvedRSV/:id/details" element={<RoleGuard routeKey="reservations"><ApprovedRSVDetails /></RoleGuard>} />
             <Route path="/confirmedIndiv/:id/details" element={<RoleGuard routeKey="reservations"><ConfIndivRSVDetails /></RoleGuard>} />

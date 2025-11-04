@@ -7,6 +7,8 @@ import { safeRedisOperations } from './redisCircuitBreaker.js';
 dotenv.config();
 
 const PAYMONGO_BASE_URL = process.env.PAYMONGO_BASE_URL || 'https://api.paymongo.com/v1';
+const DOWNPAYMENT_PERCENT = 0.10;
+const DUE_IN_DAYS = 3;
 
 const paymentModule = {
     /**
@@ -754,8 +756,6 @@ const paymentModule = {
                 );
                 totalPaid = (paidRows || []).reduce((acc, p) => acc + (Number(p.amountCentavos || 0) / 100), 0);
             } catch (_) {}
-            const DOWNPAYMENT_PERCENT = 0.10;
-            const DUE_IN_DAYS = 3;
 
             const createdAt = reservation.createdAt ? new Date(reservation.createdAt) : new Date();
             const arrival = reservation.dateOfArrival ? new Date(reservation.dateOfArrival) : null;
@@ -856,9 +856,6 @@ const paymentModule = {
                         { sort: { createdAt: 1, }, }
                     );
                     const totalPaid = (paidRows || []).reduce((acc, p) => acc + (Number(p.amountCentavos || 0) / 100), 0);
-
-                    const DOWNPAYMENT_PERCENT = 0.10;
-                    const DUE_IN_DAYS = 3;
 
                     const createdAt = reservation.createdAt ? new Date(reservation.createdAt) : new Date();
                     const arrival = reservation.dateOfArrival ? new Date(reservation.dateOfArrival) : null;
@@ -1040,7 +1037,6 @@ const paymentModule = {
             const totalPaid = successful.reduce((acc, p) => acc + (Number(p.amountCentavos || 0) / 100), 0);
 
             // Confirmation fee only applies to Private + Individual reservations
-            const DOWNPAYMENT_PERCENT = 0.10;
             const isPrivateAndIndividual = reservation.category === Category.PRIVATE && reservation.guestType === GuestType.INDIVIDUAL;
             const confirmationFee = isPrivateAndIndividual ? totalEstimated * DOWNPAYMENT_PERCENT : 0;
 

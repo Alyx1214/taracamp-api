@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import styles from "./CheckInOuts.module.css";
 import CheckTabs from "./CheckTabs";
 import CheckHead from "./CheckHead";
@@ -7,6 +8,7 @@ import SearchFil from "../SearchFil/SearchFil";
 import { searchReservations, checkInOrCheckOutReservation, deleteReservation } from "../../apis/reservationApi";
 
 export default function CheckInOuts() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("Approved");
   const [searchQuery, setSearchQuery] = useState("");
   const [filters, setFilters] = useState({});
@@ -75,7 +77,16 @@ export default function CheckInOuts() {
   }, [activeTab, searchQuery, filters]);
 
   const renderMenu = (row) => [
-    { label: "View", onClick: () => alert(`Viewing ${row.name}`) },
+    { 
+      label: "View", 
+      onClick: () => {
+        if (!row.id || row.id === "") {
+          alert("Invalid reservation ID. Cannot view details.");
+          return;
+        }
+        navigate(`/reservation/${row.id}/details`);
+      }
+    },
     { label: "Edit", onClick: () => alert(`Editing ${row.name}`) },
   ];
 

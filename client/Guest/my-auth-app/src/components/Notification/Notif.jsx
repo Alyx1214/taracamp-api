@@ -1,16 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom'; 
 import styles from './Notif.module.css';
+import NotifPrev from './NotifPrev';
 import NotifPreview from './NotifPreview';
 import NotifUpload from './NotifUpload';
 import NotifIndiv from './NotifIndiv';
 import NotifReviews from './NotifReviews';
 import { listNotifications, markAllNotificationsRead, markNotificationRead } from '../../apis/notificationApi';
 import { updateMealPreference, getReservationById } from '../../apis/reservationApi';
+import { subscribe, initSocketFresh } from '../../utils/webSocketClient';
 
 export default function Notif() {
   const navigate = useNavigate();
-  const { search } = useLocation();                           
+  const { search, pathname } = useLocation();                           
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState(null);
@@ -18,6 +20,8 @@ export default function Notif() {
   const [mealPreference, setMealPreference] = useState(null);
   const [isDormitory, setIsDormitory] = useState(false);
   const [reservationLoaded, setReservationLoaded] = useState(false);
+  const [uploadClientType, setUploadClientType] = useState('deped');
+  const [uploadReservationId, setUploadReservationId] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -86,11 +90,112 @@ export default function Notif() {
     return () => { cancelled = true; };
   }, []);
 
+  // 👇 Add WebSocket listener for real-time notifications
+  useEffect(() => {
+    // Ensure WebSocket is initialized (HeaderHome manages auto-reconnect)
+    initSocketFresh().catch(() => {});
+
+    const handleWebSocketMessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        
+        if (data.type === 'notification' && data.notification) {
+          const newNotif = data.notification;
+          
+          // Normalize the notification data to match the expected format
+          const normalized = {
+            _id: newNotif.id || String(Date.now()),
+            title: newNotif.title,
+            message: newNotif.message ?? null,
+            kind: newNotif.kind ?? null,
+            createdAt: newNotif.createdAt || new Date(),
+            isRead: false,
+            source: newNotif.source || "Teachers' Camp",
+            timeLabel: newNotif.time || 'Just now',
+            reservationId: newNotif.reservationId || null,
+          };
+
+          // Add to notifications list if it doesn't already exist
+          setNotifications(prev => {
+            const locals = prev.filter(x => typeof x?._id === 'string' && x._id.startsWith('local-'));
+            
+            // Check if notification already exists
+            const exists = prev.some(n => 
+              (n._id && normalized._id && String(n._id) === String(normalized._id)) ||
+              (n.kind === normalized.kind && 
+               n.reservationId && normalized.reservationId &&
+               String(n.reservationId) === String(normalized.reservationId))
+            );
+            
+            if (exists) return prev;
+            
+            // Add new notification at the top and sort
+            const updated = [normalized, ...prev];
+            const sorted = updated.sort((a, b) => {
+              const aTime = new Date(a.createdAt || 0).getTime();
+              const bTime = new Date(b.createdAt || 0).getTime();
+              return bTime - aTime;
+            });
+            
+            // Preserve local notifications
+            const final = [...sorted];
+            locals.forEach(local => {
+              const alreadyExists = sorted.some(serverItem =>
+                serverItem._id && serverItem._id === local._id
+              ) || sorted.some(serverItem =>
+                serverItem.kind === local.kind &&
+                !!serverItem.reservationId &&
+                !!local.reservationId &&
+                String(serverItem.reservationId) === String(local.reservationId)
+              );
+              if (!alreadyExists) {
+                final.unshift(local);
+              }
+            });
+            
+            return final.sort((a, b) => {
+              const aTime = new Date(a.createdAt || 0).getTime();
+              const bTime = new Date(b.createdAt || 0).getTime();
+              return bTime - aTime;
+            });
+          });
+        }
+      } catch (error) {
+        console.error('[Notif] Error parsing WebSocket notification:', error);
+      }
+    };
+
+    // Subscribe to WebSocket messages
+    const unsubscribe = subscribe(handleWebSocketMessage);
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
+  // 👇 Detect /notifications/upload route and switch to upload stage
+  useEffect(() => {
+    if (pathname === '/notifications/upload') {
+      const sp = new URLSearchParams(search);
+      const reservationId = sp.get('reservationId');
+      const clientType = sp.get('clientType') || 'deped';
+      setUploadReservationId(reservationId);
+      setUploadClientType(clientType);
+      setStage('upload');
+    } else if (pathname.startsWith('/notifications')) {
+      // If on notifications route but not upload, reset to list
+      if (stage === 'upload') {
+        setStage('list');
+        setUploadReservationId(null);
+      }
+    }
+  }, [pathname, search, stage]);
+
   // 👇 Detect redirect from Transactions and inject a local payment_success notification
   useEffect(() => {
     const sp = new URLSearchParams(search);
     const isSuccess = sp.get('payment') === 'success' || sp.get('paid') === '1';
-    if (!isSuccess) return;
+    if (!isSuccess || pathname === '/notifications/upload') return;
 
     const reservationId = sp.get('reservationId') || null;
     const localNotif = {
@@ -128,74 +233,6 @@ export default function Notif() {
     navigate('.', { replace: true });
   }, [search, navigate]);
 
-  async function markAll() {
-    // Only update notifications that are currently unread
-    setNotifications(n => n.map(x => 
-      x.isRead ? x : { ...x, isRead: true }
-    ));
-    try {
-      await markAllNotificationsRead();
-    } catch (e) {
-      console.warn('Mark all failed:', e.message);
-    }
-  }
-
-  async function handleClick(notif) {
-    if (!notif.isRead) {
-      setNotifications(n => n.map(x => x._id === notif._id ? { ...x, isRead: true } : x));
-      try {
-        await markNotificationRead({ id: notif._id });
-      } catch (e) {
-        console.warn('Mark read failed:', e.message);
-      }
-    }
-
-    if (notif.kind === 'payment_success') {
-      setSelected(notif);
-      setStage('indiv');
-      return;
-    }
-    if (notif.kind === 'booking_success') {
-      setSelected(notif);
-      setStage('preview');
-      return;
-    }
-  }
-
-  // Route based on what NotifPreview tells us, WITH reservation id.
-  function handlePreviewConfirm(payload) {
-    // payload: { action: 'transactions'|'upload', reservationId: string, clientType: string }
-    if (!payload || !payload.reservationId) return;
-
-    const { action, reservationId, clientType } = payload;
-
-    if (action === 'transactions') {
-      setSelected(null);
-      setStage('list');
-      navigate(`/transactions?reservationId=${encodeURIComponent(reservationId)}`);
-      return;
-    }
-
-    // If you want to keep the in-component upload stage, comment out the navigate and use the stage switch below.
-    // setStage('upload');
-
-    navigate(
-      `/notifications/upload?reservationId=${encodeURIComponent(reservationId)}&clientType=${encodeURIComponent(clientType || 'deped')}`
-    );
-  }
-
-  if (selected && stage === 'preview') {
-    return (
-      <NotifPreview
-        notif={selected}
-        clientType="individual"
-        onBack={() => { setSelected(null); setStage('list'); }}
-        onConfirm={handlePreviewConfirm}
-        onCancel={() => { setSelected(null); }}
-      />
-    );
-  }
-
   // Load reservation data to get current meal preference and check if it's a dormitory
   useEffect(() => {
     if (selected?.reservationId && stage === 'indiv') {
@@ -232,6 +269,96 @@ export default function Notif() {
     }
   }, [selected?.reservationId, stage]);
 
+  async function markAll() {
+    // Only update notifications that are currently unread
+    setNotifications(n => n.map(x => 
+      x.isRead ? x : { ...x, isRead: true }
+    ));
+    try {
+      await markAllNotificationsRead();
+    } catch (e) {
+      console.warn('Mark all failed:', e.message);
+    }
+  }
+
+  async function handleClick(notif) {
+    if (!notif.isRead) {
+      setNotifications(n => n.map(x => x._id === notif._id ? { ...x, isRead: true } : x));
+      try {
+        await markNotificationRead({ id: notif._id });
+      } catch (e) {
+        console.warn('Mark read failed:', e.message);
+      }
+    }
+
+    if (notif.kind === 'payment_success') {
+      setSelected(notif);
+      setStage('indiv');
+      return;
+    }
+    // Check for admin approval notification - show NotifPreview with confirm/cancel buttons
+    if (notif.kind === 'reservation_approved' || 
+        (notif.title && (notif.title.toLowerCase().includes('approved') || notif.title.toLowerCase().includes('approval')))) {
+      setSelected(notif);
+      setStage('approved');
+      return;
+    }
+    // Check for booking success by kind or title - show NotifPrev (simple version)
+    if (notif.kind === 'booking_success' || 
+        (notif.title && notif.title.includes("Congratulations, Camper! You have successfully booked a reservation!"))) {
+      setSelected(notif);
+      setStage('preview');
+      return;
+    }
+  }
+
+  // Route based on what NotifPreview tells us, WITH reservation id.
+  function handlePreviewConfirm(payload) {
+    // payload: { action: 'transactions'|'upload', reservationId: string, clientType: string }
+    if (!payload || !payload.reservationId) return;
+
+    const { action, reservationId, clientType } = payload;
+
+    if (action === 'transactions') {
+      setSelected(null);
+      setStage('list');
+      navigate(`/transactions?reservationId=${encodeURIComponent(reservationId)}`);
+      return;
+    }
+
+    // Switch to upload stage within the same component
+    if (action === 'upload') {
+      setUploadReservationId(reservationId);
+      setUploadClientType(clientType || 'deped');
+      setStage('upload');
+      return;
+    }
+  }
+
+  // Show NotifPreview (full version with confirm/cancel) for admin approval notifications
+  if (selected && stage === 'approved') {
+    return (
+      <NotifPreview
+        notif={selected}
+        clientType="individual"
+        onBack={() => { setSelected(null); setStage('list'); }}
+        onConfirm={handlePreviewConfirm}
+        onCancel={() => { setSelected(null); setStage('list'); }}
+      />
+    );
+  }
+
+  // Show NotifPrev (simple version) for booking success notifications
+  if (selected && stage === 'preview') {
+    return (
+      <NotifPrev
+        notif={selected}
+        clientType="individual"
+        onBack={() => { setSelected(null); setStage('list'); }}
+      />
+    );
+  }
+
   async function handleMealPreference(willAvailMeals) {
     if (!selected?.reservationId) {
       return;
@@ -260,19 +387,44 @@ export default function Notif() {
     );
   }
 
-  // Only used if you keep internal stage-based upload instead of routing
-  if (selected && stage === 'upload') {
+  // Handle upload stage (either from route or internal navigation)
+  if (stage === 'upload') {
+    const handleUploadBack = () => {
+      if (pathname === '/notifications/upload') {
+        navigate('/homepage');
+      } else {
+        // Go back to approved/preview if we came from there, otherwise go to list
+        // Upload can be triggered from NotifPreview (approved stage), so go back to approved
+        setStage(selected ? 'approved' : 'list');
+      }
+    };
+
+    const handleUploadSubmit = (files) => {
+      console.log('Submit files:', files, 'for reservation:', uploadReservationId || selected?.reservationId);
+      // TODO: Implement actual file upload API call
+      
+      // Mark notification as read if there's a selected notification
+      if (selected?._id) {
+        setNotifications(n => n.map(x => x._id === selected._id ? { ...x, isRead: true } : x));
+      }
+      
+      alert('Documents submitted. Thank you!');
+      
+      if (pathname === '/notifications/upload') {
+        navigate('/homepage');
+      } else {
+        // Return to notification list
+        setSelected(null);
+        setStage('list');
+        setUploadReservationId(null);
+      }
+    };
+
     return (
       <NotifUpload
-        clientType="deped"
-        onBack={() => setStage('preview')}
-        onSubmit={(files) => {
-          console.log('Dummy submit files:', files);
-          setNotifications(n => n.map(x => x._id === selected._id ? { ...x, isRead: true } : x));
-          setSelected(null);
-          setStage('list');
-          alert('Documents submitted (dummy). Thank you!');
-        }}
+        clientType={uploadClientType}
+        onBack={handleUploadBack}
+        onSubmit={handleUploadSubmit}
       />
     );
   }

@@ -603,7 +603,7 @@ function HeaderHome() {
                 <div className={styles.fullscreenOverlay} role="dialog" aria-label="Messages">
                   <div className={styles.fullscreenContent}>
                     {/* Header Bar */}
-                    <div className={styles.overlayHeader}>
+                    <div className={styles.msgHeaderRow}>
                       <span className={styles.msgHeaderTitle}>Messages</span>
                       <div className={styles.headerActions}>
                         <button
@@ -734,7 +734,6 @@ function HeaderHome() {
             )}
           </div>
 
-          {/* Messages dropdown that reuses Message.jsx */}
           <div className={styles.accountIconWrapper} ref={msgMenuRef}>
             <button
               className={styles.iconButton}

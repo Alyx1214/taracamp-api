@@ -7,8 +7,6 @@ import styles from './NotifPreview.module.css';
 export default function NotifPreview({
   notif = {},
   clientType = 'individual',       // fallback if reservation.guestType absent
-  onConfirm = () => {},
-  onCancel = () => {},
   onBack = () => {},
 }) {
   const [reservation, setReservation] = useState(null);
@@ -96,7 +94,7 @@ export default function NotifPreview({
     'Congratulations, Camper!  You have successfully booked a reservation!';
   const body =
     notif.message ||
-    "Thank you for choosing Teachers' Camp! Your reservation has been confirmed. We're excited to welcome you and ensure you have a comfortable and memorable stay.";
+    "Thank you for choosing Teachers' Camp! Your reservation has been submitted. Please wait for the approval of your booking.";
 
   const normalizedGuestType = String(reservation?.guestType || '').toLowerCase();
   const clientTypeFallback = String(clientType || '').toLowerCase();
@@ -106,26 +104,12 @@ export default function NotifPreview({
     ? normalizedGuestType === 'individual'
     : clientTypeFallback === 'individual';
 
-  const confirmLabel = loading || facilityLoading
-    ? 'Loading...'
-    : (isPay ? 'Pay Now' : 'Confirm Now');
   // Action should match the label - only determine after reservation is loaded
   const action = (loading || facilityLoading) 
     ? null 
     : (isPay ? 'transactions' : 'upload');
   const source = notif.source || 'Teachers Camp';
   const time = notif.timeLabel ? notif.timeLabel : timeAgo(notif.createdAt);
-
-  const handleConfirmClick = () => {
-    // >>> This is the important part: pass reservationId + action (+ clientType)
-    // Safety check: action should be defined when button is enabled
-    if (!action) return;
-    onConfirm({
-      action,
-      reservationId: notif.reservationId,
-      clientType: normalizedGuestType || clientTypeFallback || 'individual',
-    });
-  };
 
   return (
     <div className={styles.previewContainer}>
@@ -177,31 +161,6 @@ export default function NotifPreview({
             {loading ? 'Loading…' : (reservation?.numGuests ?? '[Insert Number]')}
           </div>
         </div>
-
-        <div className={styles.previewNotice}>
-          Please ensure the confirmation is made before the due date to avoid cancellation of your reservation.
-        </div>
-
-        <button
-          className={styles.previewConfirmBtn}
-          onClick={handleConfirmClick}
-          disabled={loading || facilityLoading || !notif.reservationId}
-        >
-          {confirmLabel}
-        </button>
-
-        <div className={styles.previewCancelBox}>
-          <div className={styles.previewCancelTitle}>Need to Cancel?</div>
-          <div className={styles.previewCancelText}>
-            We understand that plans may change.
-            <br />
-            If you wish to cancel your reservation, please click the cancel button below.
-          </div>
-          <button className={styles.previewCancelBtn} onClick={onCancel}>
-            Cancel Booking
-          </button>
-        </div>
-
         <div className={styles.previewFooter}>Looking forward to seeing you soon!</div>
 
         <div className={styles.previewMeta}>

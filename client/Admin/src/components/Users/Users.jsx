@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useLocation } from "react-router-dom";
 import UnivTable from "../UnivTable/UnivTable.jsx";
 import SearchFil from "../SearchFil/SearchFil.jsx";
 import UsersHeader from "./UsersHeader.jsx";
@@ -8,6 +9,7 @@ import { searchUsers, deleteUser } from "../../apis/userApi";
 
 
 export default function Users() {
+  const location = useLocation();
   const roleTabs = useMemo(
     () => [
       { label: "All", value: "All" },
@@ -20,7 +22,7 @@ export default function Users() {
     []
   );
 
-  const [activeTab, setActiveTab] = useState("All");
+  const [activeTab, setActiveTab] = useState(location.state?.activeTab || "All");
   const [searchQuery, setSearchQuery] = useState("");
   const [filters, setFilters] = useState({});
   const [rawUsers, setRawUsers] = useState([]);
@@ -37,6 +39,13 @@ export default function Users() {
       return "-";
     }
   }
+
+  // Sync activeTab with location state changes
+  useEffect(() => {
+    if (location.state?.activeTab) {
+      setActiveTab(location.state.activeTab);
+    }
+  }, [location.state]);
 
   useEffect(() => {
     let cancelled = false;
