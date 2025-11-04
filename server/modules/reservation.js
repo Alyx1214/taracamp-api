@@ -348,10 +348,7 @@ const reservationModule = {
                 }
             }
 
-            const initialStatus =
-                guestType === GuestType.INDIVIDUAL && !seniorCitizenIdFile
-                    ? ReservationStatus.APPROVED
-                    : ReservationStatus.PENDING;
+            const initialStatus = ReservationStatus.PENDING;
 
             const { amount: totalEstimatedAmount, } = computeEstimate({
                 facilityDoc,
@@ -1184,9 +1181,9 @@ const reservationModule = {
                 return responseData;
             }
 
-            if (reservation.status === ReservationStatus.APPROVED || reservation.status === ReservationStatus.DECLINED) {
+            if (reservation.status !== ReservationStatus.PENDING) {
                 responseData.status = Status.BAD_REQUEST;
-                responseData.error = `Reservation is already ${reservation.status.toLowerCase()}`;
+                responseData.error = `Reservation must be pending before it can be ${status === ReservationStatus.APPROVED ? 'approved' : 'declined'}. Current status: ${reservation.status}`;
                 return responseData;
             }
 

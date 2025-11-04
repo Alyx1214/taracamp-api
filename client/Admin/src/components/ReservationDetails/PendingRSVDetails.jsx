@@ -276,20 +276,22 @@ export default function PendingRSVDetails() {
               <td className={styles["reservation-details-separator"]}>:</td>
               <td>{reservation.serviceType || "N/A"}</td>
             </tr>
-            <tr>
-              <td className={styles["reservation-details-label"]}>Letter of Intent</td>
-              <td className={styles["reservation-details-separator"]}>:</td>
-              <td>
-                <a
-                  href={reservation.letterOfIntentFile || "#"}
-                  className={styles["reservation-details-link"]}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Click to open
-                </a>
-              </td>
-            </tr>
+            {reservation.guestType !== "Individual" && (
+              <tr>
+                <td className={styles["reservation-details-label"]}>Letter of Intent</td>
+                <td className={styles["reservation-details-separator"]}>:</td>
+                <td>
+                  <a
+                    href={reservation.letterOfIntentFile || "#"}
+                    className={styles["reservation-details-link"]}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Click to open
+                  </a>
+                </td>
+              </tr>
+            )}
             <tr>
               <td className={styles["reservation-details-label"]}>Non-Availability Certificate</td>
               <td className={styles["reservation-details-separator"]}>:</td>
