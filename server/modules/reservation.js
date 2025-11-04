@@ -449,9 +449,16 @@ const reservationModule = {
                         throw new Error('You already have a reservation for this facility that overlaps with these dates.');
                     }
 
-                    // Check for any overlapping reservations within transaction
+                    const blockingStatuses = [
+                        ReservationStatus.PENDING,
+                        ReservationStatus.APPROVED,
+                        ReservationStatus.CONFIRMED,
+                        ReservationStatus.CHECKED_IN,
+                    ];
+
                     const overlapping = await dbHelper.findOneWithTransaction('reservation', {
                         facility: facility,
+                        status: { $in: blockingStatuses, },
                         $or: [
                             {
                                 dateOfArrival: { $lte: new Date(dateOfDeparture), },
