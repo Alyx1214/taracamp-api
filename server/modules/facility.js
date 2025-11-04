@@ -639,9 +639,9 @@ const facilityModule = {
                 const arrival = fromAppYMD(arrivalYmd);
                 const checkout = fromAppYMD(departureYmd);
                 if (!arrival || !checkout) return;
-                if (arrival >= checkout) return;
+                if (arrival > checkout) return;
 
-                for (let cur = new Date(arrival); cur < checkout; cur = addAppDays(cur, 1)) {
+                for (let cur = new Date(arrival); cur <= checkout; cur = addAppDays(cur, 1)) {
                     const ymd = toAppYMD(cur);
                     if (ymd) unavailableDates.add(ymd);
                 }
