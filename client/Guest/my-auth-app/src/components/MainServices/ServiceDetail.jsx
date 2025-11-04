@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import styles from './ServiceDetail.module.css';
 import placeholderImage from '../../assets/conference.jpg';
@@ -192,6 +192,43 @@ function MainServicesServiceDetail() {
 
     fetchReviews();
   }, [id]);
+
+  // Compute reserved dates from availableDates - dates that are NOT available
+  // The API returns available dates from today to 6 months ahead
+  // So we compute reserved dates within that same range
+  // This must be before any conditional returns to follow Rules of Hooks
+  const { reservedDatesForCalendar, reservedDatesSet } = useMemo(() => {
+    if (!availableDates || availableDates.length === 0) {
+      return { reservedDatesForCalendar: [], reservedDatesSet: new Set() };
+    }
+
+    const availableSet = new Set(availableDates.filter(Boolean));
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // The API returns dates from today to 6 months ahead
+    const endDate = new Date(today);
+    endDate.setMonth(endDate.getMonth() + 6);
+
+    const reserved = [];
+    const reservedSet = new Set();
+    const currentDate = new Date(today);
+    
+    while (currentDate <= endDate) {
+      const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
+      
+      // If date is not in availableDates, it's reserved
+      // (Calendar component handles past dates separately, so we include them here too for consistency)
+      if (!availableSet.has(dateStr)) {
+        reserved.push(dateStr);
+        reservedSet.add(dateStr);
+      }
+      
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    return { reservedDatesForCalendar: reserved, reservedDatesSet: reservedSet };
+  }, [availableDates]);
 
   if (loading) {
     return (
@@ -621,7 +658,26 @@ const getCalendarData = (date) => {
                   <Calendar
                     selectedDate={selectedArrivalDate || new Date()}
                     onDateSelect={({ date, ymd, formatted }) => {
-                      // trust the calendar’s reserved/past filtering
+                      // Check if the selected date is reserved
+                      if (reservedDatesSet.has(ymd)) {
+                        if (isSelectingDeparture) {
+                          setDepartureDateError('This date is already reserved. Please select another date.');
+                        } else {
+                          setArrivalDateError('This date is already reserved. Please select another date.');
+                        }
+                        return;
+                      }
+
+                      // Check if date is available
+                      if (!availableDates.includes(ymd)) {
+                        if (isSelectingDeparture) {
+                          setDepartureDateError('This date is not available. Please select another date.');
+                        } else {
+                          setArrivalDateError('This date is not available. Please select another date.');
+                        }
+                        return;
+                      }
+
                       if (isSelectingDeparture) {
                         if (selectedArrivalDate && new Date(ymd) <= new Date(selectedArrivalDate)) {
                           setDepartureDateError('Departure date must be after arrival date');
@@ -650,7 +706,7 @@ const getCalendarData = (date) => {
                       setIsSelectingDeparture(false);
                     }}
                     minDate={isSelectingDeparture ? selectedArrivalDate : null}
-                    reservedDates={Array.from(calendarData?.reservedSet ?? [])}
+                    reservedDates={reservedDatesForCalendar}
                   />
                 </div>
               </div>
