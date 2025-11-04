@@ -196,20 +196,22 @@ export default function ApprovedRSVDetails() {
               <td className={styles["reservation-details-separator"]}>:</td>
               <td>{reservation.serviceType || "N/A"}</td>
             </tr>
-            <tr>
-              <td className={styles["reservation-details-label"]}>Letter of Intent</td>
-              <td className={styles["reservation-details-separator"]}>:</td>
-              <td>
-                <a
-                  href={reservation.letterOfIntentFile || "#"}
-                  className={styles["reservation-details-link"]}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Click to open
-                </a>
-              </td>
-            </tr>
+            {reservation.guestType !== "Individual" && (
+              <tr>
+                <td className={styles["reservation-details-label"]}>Letter of Intent</td>
+                <td className={styles["reservation-details-separator"]}>:</td>
+                <td>
+                  <a
+                    href={reservation.letterOfIntentFile || "#"}
+                    className={styles["reservation-details-link"]}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Click to open
+                  </a>
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
         <div className={styles["reservation-details-foot"]}>
@@ -219,18 +221,20 @@ export default function ApprovedRSVDetails() {
             {reservation.status || "N/A"}
           </span>
         </div>
-        <button
-          className={styles["reservation-details-print-btn"]}
-          onClick={() => {
-            if (!reservation.letterOfIntentFile) {
-              alert("No Letter of Intent uploaded.");
-              return;
-            }
-            window.open(reservation.letterOfIntentFile, "_blank");
-          }}
-        >
-          <span className={styles["reservation-details-print-icon"]}>🖨️</span> PRINT LETTER OF INTENT
-        </button>
+        {reservation.guestType !== "Individual" && (
+          <button
+            className={styles["reservation-details-print-btn"]}
+            onClick={() => {
+              if (!reservation.letterOfIntentFile) {
+                alert("No Letter of Intent uploaded.");
+                return;
+              }
+              window.open(reservation.letterOfIntentFile, "_blank");
+            }}
+          >
+            <span className={styles["reservation-details-print-icon"]}>🖨️</span> PRINT LETTER OF INTENT
+          </button>
+        )}
         </div>
       </div>
     </div>
