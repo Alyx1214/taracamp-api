@@ -125,3 +125,6 @@ export const safeRedisOperations = {
 };
 
 export default redisCircuitBreaker;
+
+// Export the circuit breaker instance for state checking
+export { redisCircuitBreaker };

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import styles from './Dashboard.module.css';
 import StatsCard from './StatsCard';
 import MonthlyChart from './MonthlyChart';
@@ -14,6 +15,7 @@ const PendingIcon = () => <Icon icon="mdi:clock-outline" style={{ width: '50px',
 const CancelledIcon = () => <Icon icon="mdi:close-circle" style={{ width: '50px', height: '50px' }}/>;
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [todaysReservations, setTodaysReservations] = useState(0);
   const [monthlyCheckIns, setMonthlyCheckIns] = useState(0);
@@ -74,24 +76,28 @@ const Dashboard = () => {
           value={confirmedReservations}
           label="Confirmed Reservations"
           iconColor="green"
+          onClick={() => navigate('/reservations', { state: { activeTab: 'Confirmed' } })}
         />
         <StatsCard 
           icon={<UsersIcon />}
           value={totalGuestUsers}
           label="Total Users"
           iconColor="gray"
+          onClick={() => navigate('/user', { state: { activeTab: 'Guest' } })}
         />
         <StatsCard 
           icon={<PendingIcon />}
           value={pendingReservations}
           label="Pending Reservations"
           iconColor="brown"
+          onClick={() => navigate('/reservations', { state: { activeTab: 'Pending' } })}
         />
         <StatsCard 
           icon={<CancelledIcon />}
           value={cancelledReservations}
           label="Cancelled Reservations"
           iconColor="green"
+          onClick={() => navigate('/reservations', { state: { activeTab: 'Cancelled' } })}
         />
       </div>
       

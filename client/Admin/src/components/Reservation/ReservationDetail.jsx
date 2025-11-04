@@ -4,7 +4,7 @@ import styles from "./ReservationDetail.module.css";
 import {
   getReservationById,
   decideReservation,
-  uploadApprovalDocument,
+  uploadNonavailabilityCertificate,
 } from "../../apis/reservationApi";
 import ConfirmModal from "../Shared/ConfirmModal";
 
@@ -125,7 +125,7 @@ export default function ReservationDetails() {
     }
     try {
       setUploading(true);
-      await uploadApprovalDocument(id, file);
+      await uploadNonavailabilityCertificate(id, file);
       setHasApprovalDoc(true);
       setApproveError("");
       alert("Non-Availability Certificate uploaded.");
