@@ -42,6 +42,10 @@ export default function Pending({
   const [totalPages, setTotalPages] = useState(parentTotalPages);
   const [totalItems, setTotalItems] = useState(parentTotalItems);
 
+  // Check if user can approve/decline (only Superintendent)
+  const role = (typeof window !== 'undefined' && localStorage.getItem('userRole')) || '';
+  const canApproveDecline = role === 'SUPERINTENDENT';
+
   const itemsPerPage = 15;
   const columns = useMemo(() => ["Name", "Email", "Service Type", "Facility Name", "Date", "Actions"], []);
 
@@ -138,14 +142,32 @@ export default function Pending({
     if (parentOnPageChange) parentOnPageChange(page);
   };
 
-  const renderActions = (row) => (
-    <>
-      <button className={styles["univ-approve-btn"]} onClick={() => onApprove(row)}>Approve</button>
-      <button className={styles["univ-decline-btn"]} onClick={() => promptDecline(row)}>Decline</button>
-    </>
-  );
+  const renderActions = (row) => {
+    if (!canApproveDecline) {
+      return (
+        <button 
+          className={styles["univ-approve-btn"]} 
+          onClick={() => {
+            if (!row.id || row.id === "N/A") {
+              alert("Invalid reservation ID. Cannot view details.");
+              return;
+            }
+            navigate(`/pendingRSV/${row.id}/details`);
+          }}
+        >
+          See Detail
+        </button>
+      );
+    }
+    return (
+      <>
+        <button className={styles["univ-approve-btn"]} onClick={() => onApprove(row)}>Approve</button>
+        <button className={styles["univ-decline-btn"]} onClick={() => promptDecline(row)}>Decline</button>
+      </>
+    );
+  };
 
-  const renderMenu = (row) => [
+  const renderMenu = canApproveDecline ? (row) => [
     {
       label: "See Details",
       onClick: () => {
@@ -156,10 +178,10 @@ export default function Pending({
         navigate(`/pendingRSV/${row.id}/details`);
       },
     },
-  ];
+  ] : null;
 
   if (err) {
-    return <div style={{ padding: 16 }}>Couldn’t load pending reservations: {err}</div>;
+    return <div style={{ padding: 16 }}>Couldn't load pending reservations: {err}</div>;
   }
 
   return (

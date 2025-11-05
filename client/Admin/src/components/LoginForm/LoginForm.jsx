@@ -24,7 +24,14 @@ function LoginForm({ onForgotPassword, onLoginSuccess }) {
         setError('Guest accounts cannot access the Admin portal.');
         return; 
       }
-      persistAuth(data);
+      // Ensure name is included in the auth data
+      persistAuth({
+        accessToken: data.accessToken,
+        refreshToken: data.refreshToken,
+        userId: data.userId,
+        role: data.role,
+        name: data.name || data.userName || null
+      });
       onLoginSuccess();
     } catch (err) {
       setError(err?.data?.error || 'Login failed. Please try again.');

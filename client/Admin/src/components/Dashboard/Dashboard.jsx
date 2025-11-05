@@ -6,6 +6,7 @@ import MonthlyChart from './MonthlyChart';
 import ReservationsCalendar from './ReservationsCalendar';
 import { Icon } from '@iconify/react';
 import { getDashboardStats } from '../../apis/dashboardApi';
+import { getUserFirstName } from '../../utils/auth';
 
 const CalendarIcon = () => <Icon icon="mdi:calendar" style={{ width: '50px', height: '50px' }} />;
 const CheckInIcon = () => <Icon icon="mdi:hotel" style={{ width: '50px', height: '50px' }}/>;
@@ -24,6 +25,40 @@ const Dashboard = () => {
   const [pendingReservations, setPendingReservations] = useState(0);
   const [cancelledReservations, setCancelledReservations] = useState(0);
   const [error, setError] = useState(null);
+
+  const [firstName, setFirstName] = useState(() => getUserFirstName());
+  
+  useEffect(() => {
+    // Check for name updates in localStorage (e.g., after login)
+    const checkName = () => {
+      const name = getUserFirstName();
+      if (name && name !== firstName) {
+        setFirstName(name);
+      }
+    };
+    
+    // Check immediately
+    checkName();
+    
+    // Poll for name updates (in case it's set after component mounts)
+    const interval = setInterval(checkName, 500);
+    
+    // Also listen for storage events (from other tabs or after login)
+    const handleStorageChange = (e) => {
+      if (e.key === 'userName') {
+        const newFirstName = e.newValue ? e.newValue.trim().split(/\s+/)[0] : '';
+        setFirstName(newFirstName);
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [firstName]);
+
+  const welcomeText = firstName ? `Mabuhay, ${firstName}!` : 'Mabuhay!';
 
   useEffect(() => {
     (async () => {
@@ -53,7 +88,7 @@ const Dashboard = () => {
   return (
     <div className={styles.dashboard}>
       <div className={styles.welcomeSection}>
-        <h1 className={styles.welcomeTitle}>Mabuhay, Admin!</h1>
+        <h1 className={styles.welcomeTitle}>{welcomeText}</h1>
       </div>
 
       {error && <div className={styles.errorBox}>{error}</div>}
