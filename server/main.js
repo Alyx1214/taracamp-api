@@ -56,18 +56,34 @@ if (process.env.ALLOWED_ORIGINS) {
   allowedOrigins.push(...additionalOrigins);
 }
 
+console.log('CORS: Configured allowed origins:', allowedOrigins);
+
 app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
+    if (!origin) {
+      console.log('CORS: Request with no origin, allowing');
+      return callback(null, true);
+    }
     
-    if (allowedOrigins.includes(origin)) {
-      callback(null, true);
+    // Normalize origin (remove trailing slash if present)
+    const normalizedOrigin = origin.endsWith('/') ? origin.slice(0, -1) : origin;
+    
+    console.log(`CORS: Checking origin: ${normalizedOrigin}`);
+    
+    if (allowedOrigins.includes(normalizedOrigin)) {
+      console.log(`CORS: Origin ${normalizedOrigin} is allowed`);
+      callback(null, normalizedOrigin);
     } else {
-      callback(new Error('Not allowed by CORS'));
+      console.log(`CORS: Origin ${normalizedOrigin} is NOT allowed`);
+      console.log(`CORS: Allowed origins:`, allowedOrigins);
+      callback(new Error(`Not allowed by CORS: ${normalizedOrigin}`));
     }
   },
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-ID'],
+  exposedHeaders: ['X-Request-ID']
 }));
 
 app.use('/api/v1/payment/webhook', express.raw({ type: 'application/json' }));
