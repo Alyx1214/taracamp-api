@@ -1008,7 +1008,7 @@ const reservationModule = {
             }
 
             const isOwner = reservation.userId && String(reservation.userId) === String(user.userId);
-            if (!isOwner && user.role !== UserRole.SUPERINTENDENT) {
+            if (!isOwner && user.role !== UserRole.SUPERINTENDENT && user.role !== UserRole.FRONTDESK) {
                 responseData.status = Status.FORBIDDEN;
                 responseData.error = 'You are not authorized to cancel this reservation';
                 return responseData;
