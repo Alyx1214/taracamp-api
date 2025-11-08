@@ -4,7 +4,7 @@ import styles from "./CheckTabs.module.css";
 export default function CheckTabs({ value, onChange }) {
   return (
     <div className={styles.checkInOutTabs}>
-      {["Approved", "Check-in", "Check-out"].map((tab) => (
+      {["Confirmed", "Check-in", "Check-out"].map((tab) => (
         <div
           key={tab}
           className={`${styles.checkInOutTab} ${
