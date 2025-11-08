@@ -71,7 +71,13 @@ export default function NotifIndiv({
             We understand that plans may change.<br />
             If you wish to cancel your reservation, please click the cancel button below.
           </div>
-          <button className={styles.cancelBtn} onClick={onCancel}>Cancel Booking</button>
+          <button 
+            className={styles.cancelBtn}
+            type="button"
+            onClick={onCancel}
+          >
+            Cancel Booking
+          </button>
         </div>
         <div className={styles.footerText}>Looking forward to seeing you soon!</div>
         <div className={styles.metaRow}>

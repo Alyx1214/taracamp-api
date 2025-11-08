@@ -19,3 +19,7 @@ export function markNotificationRead({ id }) {
 export function deleteNotification({ id }) {
   return apiPost(`/notification/delete/${id}`);
 }
+
+export function deleteAllNotifications() {
+  return apiPost('/notification/delete-all');
+}
