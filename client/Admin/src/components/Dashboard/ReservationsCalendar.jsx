@@ -23,8 +23,8 @@ const ReservationsCalendar = () => {
   const [facilities, setFacilities] = useState([]);
 
   const year = currentDate.getFullYear();
-  const monthIndex = currentDate.getMonth();   // 0-indexed
-  const monthForApi = monthIndex + 1;          // API expects 1-indexed
+  const monthIndex = currentDate.getMonth();   
+  const monthForApi = monthIndex + 1;         
 
   const getDaysInMonthGrid = (date) => {
     const y = date.getFullYear();

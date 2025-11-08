@@ -1,83 +1,187 @@
 .statsCard {
-  background: white;
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  transition: all 0.3s ease;
-  max-width: 100%;
-  width: 375px;
-  margin: 10px auto; /* Centers the card */
-  height: 150px;
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+  border-radius: 16px;
+  padding: 28px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  margin: 12px;
+  flex: 1;
+  min-width: 250px;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  position: relative;
+  overflow: hidden;
+}
+
+.statsCard::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #1E3C24 0%, #2d5a36 50%, #5b3a0b 100%);
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
+.statsCard:hover::before {
+  opacity: 1;
 }
 
 .statsCard:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  transform: translateY(-4px);
+  border-color: rgba(30, 60, 36, 0.2);
 }
 
-.statsCard.clickable {
+.clickable {
   cursor: pointer;
 }
 
 .cardContent {
-  margin-top: 20px;
   display: flex;
-  align-content: center;
-  justify-content: center;
-  gap: 16px;
-  flex-wrap: wrap; /* Ensures the content adapts on smaller screens */
+  align-items: center;
+  gap: 20px;
 }
 
 .iconContainer {
-  width: 70px;
-  height: 70px;
-  border-radius: 8px;
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px;
-  color: white;
+  font-size: 28px;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: all 0.3s ease;
 }
 
-.iconContainer.green {
-  background: linear-gradient(135deg, #22c55e, #16a34a);
-}
-
-.iconContainer.brown {
-  background: linear-gradient(135deg, #a16207, #854d0e);
-}
-
-.iconContainer.blue {
-  background: linear-gradient(135deg, #3b82f6, #2563eb);
-}
-
-.iconContainer.gray {
-  background: linear-gradient(135deg, #6b7280, #4b5563);
+.statsCard:hover .iconContainer {
+  transform: scale(1.05);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
 }
 
 .textContent {
   flex: 1;
-}
-
-.value {
-  font-size: 40px;
-  font-weight: 700;
-  color: #1f2937;
-  line-height: 1;
-  margin-bottom: 4px;
+  min-width: 0;
 }
 
 .label {
-  font-size: 20px;
-  font-weight: 700;
-  color: #6b7280;
+  font-size: 14px;
+  color: #6c757d;
+  margin-bottom: 10px;
   font-weight: 500;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-/* Responsive Design for smaller screens */
+.value {
+  font-size: 32px;
+  font-weight: 700;
+  color: #2c3e50;
+  line-height: 1.2;
+  background: linear-gradient(135deg, #1E3C24 0%, #2d5a36 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.blue { 
+  background: linear-gradient(135deg, #1E3C24 0%, #2d5a36 100%);
+  color: #ffffff;
+}
+
+.green { 
+  background: linear-gradient(135deg, #2d5a36 0%, #45825a 100%);
+  color: #ffffff;
+}
+
+.orange { 
+  background: linear-gradient(135deg, #5b3a0b 0%, #8a5a1a 100%);
+  color: #ffffff;
+}
+
+.purple { 
+  background: linear-gradient(135deg, #1E3C24 0%, #5b3a0b 100%);
+  color: #ffffff;
+}
+
+/* Responsive styles */
+@media (max-width: 1200px) {
+  .statsCard {
+    min-width: 220px;
+    padding: 24px;
+    margin: 10px;
+  }
+
+  .value {
+    font-size: 28px;
+  }
+
+  .iconContainer {
+    width: 56px;
+    height: 56px;
+    font-size: 24px;
+  }
+
+  .label {
+    font-size: 13px;
+  }
+}
+
 @media (max-width: 768px) {
   .statsCard {
-    width: 100%;
-    padding: 15px; /* Adjust padding for smaller screens */
+    min-width: 100%;
+    padding: 20px;
+    margin: 10px 0;
+  }
+
+  .value {
+    font-size: 24px;
+  }
+
+  .label {
+    font-size: 12px;
+  }
+
+  .iconContainer {
+    width: 52px;
+    height: 52px;
+    font-size: 22px;
+  }
+
+  .cardContent {
+    gap: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .statsCard {
+    padding: 18px;
+    border-radius: 14px;
+  }
+
+  .cardContent {
+    gap: 14px;
+  }
+
+  .value {
+    font-size: 22px;
+  }
+
+  .label {
+    font-size: 11px;
+    margin-bottom: 8px;
+  }
+
+  .iconContainer {
+    width: 48px;
+    height: 48px;
+    font-size: 20px;
+    border-radius: 12px;
   }
 }

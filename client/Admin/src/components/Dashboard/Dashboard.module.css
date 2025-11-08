@@ -1,5 +1,5 @@
 .dashboard {
-  padding: 0;
+  padding: 10px;
   background: transparent;
   min-height: 100%;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -10,10 +10,10 @@
 }
 
 .welcomeTitle {
-  font-size: 36px;
+  font-size: 3rem;
   font-weight: 700;
-  color: #0f172a;
-  margin: 0;
+  color: #1E3C24;
+  margin: 20px;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 

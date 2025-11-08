@@ -9,8 +9,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  z-index: 2500;
-  box-shadow: 0 20px 30px #000000a6;
+  z-index: 1000;
+  box-shadow: 0 20px 25px #0000007c;
+  overflow: hidden;
 }
 
 .header-logo {
@@ -63,7 +64,7 @@
 
 
 .header-icon {
-  font-size: 40px; 
+  font-size: 27px; 
 }
 
 .notification-icon {
