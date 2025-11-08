@@ -58,6 +58,33 @@ r.post('/auto-response/test', asyncHandler(async (req, res) => {
   res.status(response.status).json(response);
 }));
 
+// Admin-only routes for managing user messages
+r.get('/admin/users', asyncHandler(async (req, res) => {
+  const response = await messageModule.listUsersWithMessages(dbHelper, req.user);
+  res.status(response.status).json(response);
+}));
+
+r.get('/admin/user/:userId/messages', asyncHandler(async (req, res) => {
+  const response = await messageModule.getMessagesForUser(
+    dbHelper,
+    req.user,
+    req.params.userId,
+    { limit: req.query.limit, before: req.query.before }
+  );
+  res.status(response.status).json(response);
+}));
+
+r.post('/admin/reply/:userId', asyncHandler(async (req, res) => {
+  const response = await messageModule.sendAdminReply(
+    dbHelper,
+    req.user,
+    req.params.userId,
+    req.body,
+    userSocketMap
+  );
+  res.status(response.status).json(response);
+}));
+
   return r;
 };
 

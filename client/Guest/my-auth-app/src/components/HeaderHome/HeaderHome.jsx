@@ -5,7 +5,7 @@ import mountainLogo from '../../assets/logo.png';
 import Notif from '../Notification/Notif';
 import { countUnreadNotifications } from '../../apis/notificationApi';
 import Message, { MessageSkeleton } from '../Message/Message';
-import { tryRefresh, clearTokens } from '../../apis/api';
+import { tryRefresh, clearTokens, ensureFreshAccess } from '../../apis/api';
 import {
   listMessages,
   countUnreadMessages,
@@ -241,7 +241,7 @@ function HeaderHome() {
     refreshUnreadCount({ force: true }).catch(() => {});
   }, [refreshUnreadCount]);
 
-  // Load messages when opening the dropdown
+  // Load messages when opening the dropdown (following notification pattern)
   useEffect(() => {
     let cancelled = false;
     async function loadMessages() {
@@ -307,7 +307,7 @@ function HeaderHome() {
   }, [isMsgOpen]);
 
 
-  // Unread messages badge: refresh while open
+  // Unread messages badge: refresh while open (following notification pattern - 20 seconds)
   useEffect(() => {
     let timer;
     let cancelled = false;
@@ -341,10 +341,17 @@ function HeaderHome() {
     return () => { cancelled = true; };
   }, [location.pathname]);
 
-  // WebSocket connection and message handling
+  // WebSocket connection and message handling (following notification pattern)
   useEffect(() => {
-    // Initialize WebSocket with fresh token
-    initSocketFresh();
+    // Initialize WebSocket connection and start auto-reconnect
+    const API_ORIGIN = 'https://taracamp-api.onrender.com';
+    
+    // Initialize WebSocket immediately
+    initSocketFresh(API_ORIGIN).catch(() => {});
+    
+    // Start auto-reconnect to maintain the connection
+    // This will check every 30 seconds and reconnect if needed
+    startAutoReconnect(ensureFreshAccess, API_ORIGIN, 30000);
 
     const handleWebSocketMessage = (event) => {
       try {
@@ -357,11 +364,17 @@ function HeaderHome() {
             return;
           }
           
+          // Immediately add to messages list if it doesn't already exist (following notification pattern)
           setMessages(prev => {
             // Check if message already exists to avoid duplicates
             const exists = prev.some(m => m._id === newMessage._id);
             if (exists) return prev;
-            return sortMessagesAscending([...prev, newMessage]);
+            
+            // Add new message and sort by timestamp
+            const updated = sortMessagesAscending([...prev, newMessage]);
+            // Update cache timestamp to reflect new message
+            messagesLastFetchedRef.current = Date.now();
+            return updated;
           });
           
           // Update unread count for non-user messages
@@ -375,11 +388,9 @@ function HeaderHome() {
     // Subscribe to WebSocket messages
     const unsubscribe = subscribe(handleWebSocketMessage);
 
-    // Start auto-reconnect
-    startAutoReconnect();
-
     return () => {
       unsubscribe();
+      // Stop auto-reconnect when component unmounts
       stopAutoReconnect();
     };
   }, []);

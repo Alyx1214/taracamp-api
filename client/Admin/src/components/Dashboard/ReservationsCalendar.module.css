@@ -149,7 +149,7 @@
   align-items: center;
   gap: 1.2rem;
   margin: 1.2rem 0 0.8rem 0;
-  justify-content: center;
+  justify-content: space-between;
 }
 
 .searchInput {
@@ -183,6 +183,7 @@
   background-repeat: no-repeat;
   background-position: right 16px center;
   background-size: 18px;
+  justify-content: flex-end;
 }
 
 .filterSelect:focus {

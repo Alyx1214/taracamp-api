@@ -104,7 +104,7 @@ const Dashboard = () => {
           icon={<CheckInIcon />}
           value={monthlyCheckIns}
           label="Monthly Check-ins"
-          iconColor="brown"
+          iconColor="green"
         />
         <StatsCard 
           icon={<ConfirmedIcon />}
@@ -117,14 +117,14 @@ const Dashboard = () => {
           icon={<UsersIcon />}
           value={totalGuestUsers}
           label="Total Users"
-          iconColor="gray"
+          iconColor="green"
           onClick={() => navigate('/user', { state: { activeTab: 'Guest' } })}
         />
         <StatsCard 
           icon={<PendingIcon />}
           value={pendingReservations}
           label="Pending Reservations"
-          iconColor="brown"
+          iconColor="green"
           onClick={() => navigate('/reservations', { state: { activeTab: 'Pending' } })}
         />
         <StatsCard 

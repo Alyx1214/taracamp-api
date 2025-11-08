@@ -7,8 +7,8 @@ import NotifUpload from './NotifUpload';
 import NotifIndiv from './NotifIndiv';
 import NotifReviews from './NotifReviews';
 import NotifCancel from './NotifCancel';
-import { listNotifications, markAllNotificationsRead, markNotificationRead } from '../../apis/notificationApi';
-import { updateMealPreference, getReservationById } from '../../apis/reservationApi';
+import { listNotifications, markAllNotificationsRead, markNotificationRead, deleteAllNotifications } from '../../apis/notificationApi';
+import { updateMealPreference, getReservationById, cancelReservation } from '../../apis/reservationApi';
 import { subscribe, initSocketFresh } from '../../utils/webSocketClient';
 
 export default function Notif() {
@@ -50,6 +50,9 @@ export default function Notif() {
                 createdAt: n?.createdAt || n?.created_at || null,
                 timeLabel: n?.timeLabel ?? n?.time ?? null,
                 isRead: n?.isRead ?? false, // Ensure isRead is always defined
+                reservationId: n?.reservationId || n?.reservation_id || null,
+                tcampImage: n?.tcampImage || n?.image || null,
+                tcampDocument: n?.tcampDocument || n?.document || n?.attachment || null,
               };
             });
 
@@ -114,6 +117,8 @@ export default function Notif() {
             source: newNotif.source || "Teachers' Camp",
             timeLabel: newNotif.time || 'Just now',
             reservationId: newNotif.reservationId || null,
+            tcampImage: newNotif.tcampImage || newNotif.image || null,
+            tcampDocument: newNotif.tcampDocument || newNotif.document || newNotif.attachment || null,
           };
 
           // Add to notifications list if it doesn't already exist
@@ -282,6 +287,22 @@ export default function Notif() {
     }
   }
 
+  async function clearAll() {
+    if (!window.confirm('Are you sure you want to delete all notifications? This action cannot be undone.')) {
+      return;
+    }
+    
+    try {
+      await deleteAllNotifications();
+      setNotifications([]);
+      setSelected(null);
+      setStage('list');
+    } catch (e) {
+      console.warn('Clear all failed:', e.message);
+      alert('Failed to clear all notifications. Please try again.');
+    }
+  }
+
   async function handleClick(notif) {
     if (!notif.isRead) {
       setNotifications(n => n.map(x => x._id === notif._id ? { ...x, isRead: true } : x));
@@ -351,7 +372,7 @@ export default function Notif() {
         clientType="individual"
         onBack={() => { setSelected(null); setStage('list'); }}
         onConfirm={handlePreviewConfirm}
-        onCancel={() => { setSelected(null); setStage('list'); }}
+        onCancel={handleCancelBooking}
       />
     );
   }
@@ -372,6 +393,8 @@ export default function Notif() {
     return (
       <NotifCancel
         notif={selected}
+        tcampImage={selected.tcampImage || selected.image || null}
+        tcampDocument={selected.tcampDocument || selected.document || selected.attachment || null}
         onBack={() => { setSelected(null); setStage('list'); }}
       />
     );
@@ -391,6 +414,55 @@ export default function Notif() {
     }
   }
 
+  async function handleCancelBooking() {
+    if (!selected?.reservationId) {
+      alert('Reservation ID is missing. Cannot cancel booking.');
+      return;
+    }
+
+    const confirmed = window.confirm(
+      'Are you sure you want to cancel this reservation? This action cannot be undone.'
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      const response = await cancelReservation(selected.reservationId);
+      
+      // The API returns the data object directly if successful (from handle function)
+      // Server response structure: { status: 200, error: null, message: '...', reservation: {...} }
+      const isSuccess = response?.status === 200 && !response?.error;
+      
+      if (isSuccess || response?.message) {
+        // Remove the notification from the list
+        setNotifications(prev => prev.filter(n => n._id !== selected._id));
+        
+        // Show success message
+        alert(response?.message || 'Your reservation has been cancelled successfully.');
+        
+        // Reset state and go back to list
+        setSelected(null);
+        setStage('list');
+        setMealPreference(null);
+        setIsDormitory(false);
+        setReservationLoaded(false);
+        
+        // Optionally refresh notifications to get the cancellation notification
+        // The server should send a cancellation notification via WebSocket
+      } else {
+        throw new Error(response?.error || response?.message || 'Failed to cancel reservation');
+      }
+    } catch (error) {
+      const errorMessage = error?.data?.error || 
+                          error?.data?.message || 
+                          error?.message || 
+                          'Failed to cancel your reservation. Please try again or contact support.';
+      alert(errorMessage);
+    }
+  }
+
   if (selected && stage === 'indiv') {
     return (
       <NotifIndiv
@@ -400,7 +472,7 @@ export default function Notif() {
         reservationLoaded={reservationLoaded}
         onBack={() => { setSelected(null); setStage('list'); setMealPreference(null); setIsDormitory(false); setReservationLoaded(false); }}
         onFoodPref={handleMealPreference}
-        onCancel={() => { alert('Open Cancel Booking flow (placeholder)'); }}
+        onCancel={handleCancelBooking}
       />
     );
   }
@@ -418,7 +490,6 @@ export default function Notif() {
     };
 
     const handleUploadSubmit = (files) => {
-      console.log('Submit files:', files, 'for reservation:', uploadReservationId || selected?.reservationId);
       // TODO: Implement actual file upload API call
       
       // Mark notification as read if there's a selected notification
@@ -465,9 +536,14 @@ export default function Notif() {
       <div className={styles.headerRow}>
         <span className={styles.headerTitle}>Notifications</span>
         {notifications.length > 0 && (
-          <button className={styles.markAllBtn} onClick={markAll}>
-            Mark all as Read
-          </button>
+          <div className={styles.headerActions}>
+            <button className={styles.markAllBtn} onClick={markAll}>
+              Mark all as Read
+            </button>
+            <button className={styles.clearAllBtn} onClick={clearAll}>
+              Clear All
+            </button>
+          </div>
         )}
       </div>
       <div className={styles.notifList}>

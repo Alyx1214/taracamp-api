@@ -244,6 +244,8 @@ export default function Notification({ onMarkAllAsRead }) {
     return (
       <NotificationCancel
         notif={selected}
+        tcampImage={selected.tcampImage || selected.image || null}
+        tcampDocument={selected.tcampDocument || selected.document || selected.attachment || null}
         onBack={() => { setSelected(null); setStage('list'); }}
       />
     );

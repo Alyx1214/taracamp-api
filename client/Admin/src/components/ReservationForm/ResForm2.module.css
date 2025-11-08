@@ -4,7 +4,6 @@
   min-height: 90vh;
   display: flex;
   justify-content: center;
-  font-family: 'Inter', sans-serif;
 }
 
 .contentWrapper {
@@ -20,11 +19,27 @@
   margin: 10px;
 }
 
-/* Add-form styles (copied from AddForm.module.css) so header matches AddForm */
 .add-form-back {
   font-size: 50px;
+  margin-right: 30px;
   cursor: pointer;
   color: #233d29;
+  padding: 0.5rem;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.add-form-back:hover {
+  color: #1E3C24;
+  transform: translateY(-2px);
+}
+
+.add-form-back:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(35, 61, 41, 0.1);
 }
 
 .title {
