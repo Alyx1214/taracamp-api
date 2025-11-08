@@ -34,11 +34,12 @@ const reservationModule = {
      * @param {Object} data - The reservation data.
      * @param {Object} letterOfIntentFile - The Letter of Intent file.
      * @param {Object} seniorCitizenIdFile - The Senior Citizen ID file.
+     * @param {Array} pwdIdFiles - Array of PWD ID files (optional).
      * @param {Object} user - The logged-in user.
      * @param {Object} userSocketMap - The map of user sockets.
      * @return {Promise<Object>} A promise that resolves to an object with the status, error, message, reservationId, and reservation properties.
      */
-    addReservation: async (dbHelper, data, letterOfIntentFile, seniorCitizenIdFile, user) => {
+    addReservation: async (dbHelper, data, letterOfIntentFile, seniorCitizenIdFile, pwdIdFiles, user) => {
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
             error: 'Error on booking reservation',
@@ -349,6 +350,55 @@ const reservationModule = {
                 }
             }
 
+            // Validate and handle PWD ID files
+            if (pwds > 0 && (!pwdIdFiles || !Array.isArray(pwdIdFiles) || pwdIdFiles.length === 0)) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'PWD ID file(s) are required when there are PWD guests in the reservation';
+                return responseData;
+            }
+            
+            if (pwdIdFiles && Array.isArray(pwdIdFiles) && pwdIdFiles.length > 0 && pwds <= 0) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'PWD ID file(s) should only be uploaded when there are PWD guests in the reservation';
+                return responseData;
+            }
+
+            // Handle PWD ID files (will be saved after reservation is created to link reservationId)
+            const pwdIdFileDocs = [];
+            if (pwds > 0 && pwdIdFiles && Array.isArray(pwdIdFiles) && pwdIdFiles.length > 0) {
+                for (const file of pwdIdFiles) {
+                    if (!file) continue;
+                    try {
+                        const filename = `pwd_id/${Date.now()}_${file.originalname.replace(/\s/g, '_')}`;
+                        const blob = bucket.file(filename);
+                        await new Promise((resolve, reject) => {
+                            const stream = blob.createWriteStream({
+                                resumable: false,
+                                contentType: file.mimetype,
+                            });
+                            stream.on('error', reject);
+                            stream.on('finish', resolve);
+                            stream.end(file.buffer);
+                        });
+
+                        const fileDoc = await dbHelper.create('file', {
+                            path: filename,
+                            mimetype: file.mimetype,
+                            size: file.size,
+                            kind: FileKind.SENIOR_CITIZEN_ID, // Using same kind for now
+                            userId: user.userId,
+                            createdAt: new Date(),
+                        });
+                        pwdIdFileDocs.push(fileDoc);
+                    } catch (err) {
+                        console.error('Error uploading PWD ID file:', err);
+                        responseData.status = Status.INTERNAL_SERVER_ERROR;
+                        responseData.error = 'PWD ID file upload failed: ' + err.message;
+                        return responseData;
+                    }
+                }
+            }
+
             // Automatically confirm dormitory reservations for walk-ins (admin creating for guest)
             // Automatically approve reservations created by superintendent
             let initialStatus = ReservationStatus.PENDING;
@@ -516,6 +566,20 @@ const reservationModule = {
                 }
             }
 
+            // Link PWD ID files to reservation
+            if (pwdIdFileDocs && pwdIdFileDocs.length > 0) {
+                for (const fileDoc of pwdIdFileDocs) {
+                    if (fileDoc?._id) {
+                        try {
+                            await dbHelper.findOneAndUpdate('file', { _id: fileDoc._id, }, { reservationId: reservation._id, });
+                        } catch (e) {
+                            console.error('Failed to backfill reservationId on PWD ID file:', e?.message);
+                            // Don't fail the entire request if one file update fails
+                        }
+                    }
+                }
+            }
+
             const reservationObject = reservation.toObject();
             delete reservationObject.letterOfIntentUrl;
             delete reservationObject.__v;
@@ -562,16 +626,113 @@ const reservationModule = {
             return responseData;
             }
 
-            // Try cache first
+            // Try cache first (but skip if cache has old structure without guest counts)
             const cacheKey = `reservation_by_id:${reservationId}`;
             try {
                 const cachedResult = await safeRedisOperations.get(cacheKey);
                 if (cachedResult) {
                     const parsed = JSON.parse(cachedResult);
-                    responseData.status = Status.OK;
-                    responseData.error = null;
-                    responseData.reservation = parsed.reservation;
-                    return responseData;
+                    // Check if cached data has guest count details (new format)
+                    // If not, skip cache and fetch fresh from database
+                    if (parsed.reservation?.numberOfGuests?.adult !== undefined ||
+                        parsed.reservation?.numberOfGuests?.children !== undefined ||
+                        parsed.reservation?.numberOfGuests?.pwds !== undefined ||
+                        parsed.reservation?.numberOfGuests?.seniorCitizen !== undefined) {
+                        responseData.status = Status.OK;
+                        responseData.error = null;
+                        
+                        // Ensure arrays are always present, even if empty
+                        let seniorCitizenIdFiles = Array.isArray(parsed.reservation.seniorCitizenIdFiles) 
+                            ? parsed.reservation.seniorCitizenIdFiles 
+                            : [];
+                        let pwdIdFiles = Array.isArray(parsed.reservation.pwdIdFiles) 
+                            ? parsed.reservation.pwdIdFiles 
+                            : [];
+                        
+                        // Regenerate signed URLs for senior citizen ID files
+                        if (seniorCitizenIdFiles.length > 0) {
+                            const seniorUrlPromises = seniorCitizenIdFiles.map(async (file) => {
+                                if (!file.path) return file;
+                                try {
+                                    const [signedUrl] = await bucket.file(file.path).getSignedUrl({
+                                        version: 'v4',
+                                        expires: Date.now() + 1000 * 60 * 60,
+                                        action: 'read',
+                                    });
+                                    return {
+                                        ...file,
+                                        url: signedUrl,
+                                    };
+                                } catch (err) {
+                                    console.warn('Error generating signed URL for Senior Citizen ID file from cache:', err);
+                                    return file;
+                                }
+                            });
+                            seniorCitizenIdFiles = await Promise.all(seniorUrlPromises);
+                        }
+                        
+                        // Regenerate signed URLs for PWD ID files
+                        if (pwdIdFiles.length > 0) {
+                            const pwdUrlPromises = pwdIdFiles.map(async (file) => {
+                                if (!file.path) return file;
+                                try {
+                                    const [signedUrl] = await bucket.file(file.path).getSignedUrl({
+                                        version: 'v4',
+                                        expires: Date.now() + 1000 * 60 * 60,
+                                        action: 'read',
+                                    });
+                                    return {
+                                        ...file,
+                                        url: signedUrl,
+                                    };
+                                } catch (err) {
+                                    console.warn('Error generating signed URL for PWD ID file from cache:', err);
+                                    return file;
+                                }
+                            });
+                            pwdIdFiles = await Promise.all(pwdUrlPromises);
+                        }
+                        
+                        // Regenerate signed URL for letter of intent if path exists
+                        let letterOfIntentFile = null;
+                        if (parsed.reservation.letterOfIntentFile) {
+                            // If it's already a URL, use it; otherwise try to regenerate from path
+                            if (typeof parsed.reservation.letterOfIntentFile === 'string') {
+                                // It's already a URL, use it
+                                letterOfIntentFile = parsed.reservation.letterOfIntentFile;
+                            }
+                        } else {
+                            // Try to find the file path and generate URL
+                            try {
+                                let loiPath = null;
+                                if (parsed.reservation.letterOfIntentFileId) {
+                                    const f = await dbHelper.findOne('file', { _id: parsed.reservation.letterOfIntentFileId });
+                                    loiPath = f?.path ?? null;
+                                } else {
+                                    const f = await dbHelper.findOne('file', { reservationId, kind: FileKind.LETTER_OF_INTENT });
+                                    loiPath = f?.path ?? null;
+                                }
+                                if (loiPath) {
+                                    [letterOfIntentFile] = await bucket.file(loiPath).getSignedUrl({
+                                        version: 'v4',
+                                        expires: Date.now() + 1000 * 60 * 60,
+                                        action: 'read',
+                                    });
+                                }
+                            } catch (loiError) {
+                                console.warn('Error generating signed URL for LOI file from cache:', loiError);
+                            }
+                        }
+                        
+                        parsed.reservation.seniorCitizenIdFiles = seniorCitizenIdFiles;
+                        parsed.reservation.pwdIdFiles = pwdIdFiles;
+                        parsed.reservation.letterOfIntentFile = letterOfIntentFile;
+                        
+                        responseData.reservation = parsed.reservation;
+                        return responseData;
+                    }
+                    // Cache has old format, invalidate it and fetch fresh
+                    await safeRedisOperations.del(cacheKey);
                 }
             } catch (cacheError) {
                 console.warn('Cache read error for getReservationById:', cacheError);
@@ -581,6 +742,17 @@ const reservationModule = {
             const facilityDoc = reservation?.facility
             ? await dbHelper.findOne('facility', { _id: reservation.facility })
             : null;
+
+            // Fetch user email if userId exists
+            let userEmail = null;
+            if (reservation?.userId) {
+                try {
+                    const userDoc = await dbHelper.findOne('user', { _id: reservation.userId }, { projection: { email: 1 } });
+                    userEmail = userDoc?.email || null;
+                } catch (userError) {
+                    console.warn('Error fetching user email for reservation:', userError);
+                }
+            }
 
             if (!reservation) {
             responseData.status = Status.NOT_FOUND;
@@ -599,16 +771,97 @@ const reservationModule = {
                 loiPath = f?.path ?? null;
             }
             if (loiPath) {
-                [url] = await bucket.file(loiPath).getSignedUrl({
-                version: 'v4',
-                expires: Date.now() + 1000 * 60 * 60,
-                action: 'read',
-                });
+                try {
+                    [url] = await bucket.file(loiPath).getSignedUrl({
+                    version: 'v4',
+                    expires: Date.now() + 1000 * 60 * 60,
+                    action: 'read',
+                    });
+                } catch (signedUrlError) {
+                    console.error('Error generating signed URL for LOI file:', signedUrlError);
+                    // Don't set responseData.error here, just log it
+                    // The URL will remain null, but we'll still return the reservation
+                }
             }
             } catch (urlError) {
-            console.error('Error generating signed URL for LOI:', urlError);
-            responseData.status = Status.INTERNAL_SERVER_ERROR;
-            responseData.error = 'Error generating signed URL for LOI';
+            console.error('Error fetching LOI file:', urlError);
+            // Don't set responseData.error here, just log it
+            // The URL will remain null, but we'll still return the reservation
+            }
+
+            // Fetch Senior Citizen ID files (exclude PWD files which have path prefix 'pwd_id/')
+            let seniorCitizenIdFiles = [];
+            try {
+                const seniorCitizenFiles = await dbHelper.find('file', { 
+                    reservationId, 
+                    kind: FileKind.SENIOR_CITIZEN_ID 
+                });
+                if (seniorCitizenFiles && seniorCitizenFiles.length > 0) {
+                    // Filter out PWD files (they have path prefix 'pwd_id/')
+                    const seniorFiles = seniorCitizenFiles.filter(file => 
+                        !file.path || !file.path.startsWith('pwd_id/')
+                    );
+                    if (seniorFiles.length > 0) {
+                        const urlPromises = seniorFiles.map(async (file) => {
+                            try {
+                                const [signedUrl] = await bucket.file(file.path).getSignedUrl({
+                                    version: 'v4',
+                                    expires: Date.now() + 1000 * 60 * 60,
+                                    action: 'read',
+                                });
+                                return {
+                                    url: signedUrl,
+                                    name: file.originalname || file.name || 'Senior Citizen ID',
+                                    path: file.path,
+                                };
+                            } catch (err) {
+                                console.warn('Error generating signed URL for Senior Citizen ID file:', err);
+                                return null;
+                            }
+                        });
+                        seniorCitizenIdFiles = (await Promise.all(urlPromises)).filter(Boolean);
+                    }
+                }
+            } catch (seniorError) {
+                console.warn('Error fetching Senior Citizen ID files:', seniorError);
+            }
+
+            // Fetch PWD ID files (distinguished by path prefix 'pwd_id/')
+            let pwdIdFiles = [];
+            try {
+                // PWD files are stored with path prefix 'pwd_id/' to distinguish them from senior citizen files
+                const allIdFiles = await dbHelper.find('file', { 
+                    reservationId, 
+                    kind: FileKind.SENIOR_CITIZEN_ID 
+                });
+                if (allIdFiles && allIdFiles.length > 0) {
+                    // Filter files by path prefix to identify PWD files
+                    const pwdFiles = allIdFiles.filter(file => 
+                        file.path && file.path.startsWith('pwd_id/')
+                    );
+                    if (pwdFiles.length > 0) {
+                        const urlPromises = pwdFiles.map(async (file) => {
+                            try {
+                                const [signedUrl] = await bucket.file(file.path).getSignedUrl({
+                                    version: 'v4',
+                                    expires: Date.now() + 1000 * 60 * 60,
+                                    action: 'read',
+                                });
+                                return {
+                                    url: signedUrl,
+                                    name: file.originalname || file.name || 'PWD ID',
+                                    path: file.path,
+                                };
+                            } catch (err) {
+                                console.warn('Error generating signed URL for PWD ID file:', err);
+                                return null;
+                            }
+                        });
+                        pwdIdFiles = (await Promise.all(urlPromises)).filter(Boolean);
+                    }
+                }
+            } catch (pwdError) {
+                console.warn('Error fetching PWD ID files:', pwdError);
             }
 
             let nonAvailabilityUrl = null;
@@ -635,12 +888,10 @@ const reservationModule = {
             }
 
             const reservationObject = reservation.toObject();
-            if (reservationObject.numberOfGuests) {
-            delete reservationObject.numberOfGuests.adult;
-            delete reservationObject.numberOfGuests.children;
-            delete reservationObject.numberOfGuests.pwds;
-            delete reservationObject.numberOfGuests.seniorCitizen;
-            }
+            // Keep guest count details for edit functionality
+            // Note: These fields are preserved to allow editing reservations
+            // The individual guest counts (adult, children, pwds, seniorCitizen) are kept
+            // Only the total is typically needed for display, but we preserve all for editing
 
             const facilityIdStr =
             (facilityDoc?._id && String(facilityDoc._id)) ||
@@ -651,6 +902,8 @@ const reservationModule = {
             _id: facilityIdStr,
             name: facilityDoc?.name ?? facilityDoc?.facilityName ?? null,
             facilityType: facilityDoc?.facilityType ?? reservation.facilityType ?? null,
+            capacity: facilityDoc?.capacity != null ? Number(facilityDoc.capacity) : null,
+            ratePerPerson: facilityDoc?.ratePerPerson != null ? Number(facilityDoc.ratePerPerson) : null,
             };
 
             reservationObject.facilityType = reservationObject.facility.facilityType;
@@ -659,6 +912,17 @@ const reservationModule = {
             reservationObject.letterOfIntentFile = url;
             reservationObject.nonAvailabilityCertFile = nonAvailabilityUrl;
             reservationObject.hasNonAvailabilityCert = hasNonAvailabilityCert || !!reservation.nonAvailabilityCertFileId;
+            // Ensure arrays are always returned, even if empty
+            reservationObject.seniorCitizenIdFiles = Array.isArray(seniorCitizenIdFiles) ? seniorCitizenIdFiles : [];
+            reservationObject.pwdIdFiles = Array.isArray(pwdIdFiles) ? pwdIdFiles : [];
+            
+            // Include user email (account email) if available
+            reservationObject.userEmail = userEmail;
+            
+            // Ensure emergencyContactPerson is included even if undefined
+            if (reservationObject.emergencyContactPerson === undefined) {
+                reservationObject.emergencyContactPerson = reservation.emergencyContactPerson || '';
+            }
 
             // Cache the result (without signed URLs for longer TTL)
             try {
@@ -1651,12 +1915,19 @@ const reservationModule = {
                 ReservationStatus.CHECKED_IN,
             ];
 
-            const overlapping = await dbHelper.findOne('reservation', {
+            const query = {
                 facility: facilityDoc._id,
                 status: { $in: blockingStatuses, },
                 dateOfArrival: { $lt: endDate, },
                 dateOfDeparture: { $gt: startDate, },
-            });
+            };
+
+            // Exclude current reservation when editing
+            if (params.excludeReservationId) {
+                query._id = { $ne: params.excludeReservationId };
+            }
+
+            const overlapping = await dbHelper.findOne('reservation', query);
 
             if (overlapping) {
                 responseData.status = Status.OK;
@@ -1676,6 +1947,492 @@ const reservationModule = {
             responseData.error = 'Error checking availability';
             return responseData;
         }
+    },
+
+    /**
+     * Updates a reservation in the database.
+     * @param {Object} dbHelper - The database helper object.
+     * @param {string} reservationId - The ID of the reservation to update.
+     * @param {Object} data - The reservation data to update.
+     * @param {Object} letterOfIntentFile - The Letter of Intent file (optional).
+     * @param {Object} seniorCitizenIdFiles - Array of Senior Citizen ID files (optional).
+     * @param {Object} pwdIdFiles - Array of PWD ID files (optional).
+     * @param {Object} user - The logged-in user.
+     * @returns {Object} Response data with status, error, message, and updated reservation on success.
+     */
+    updateReservation: async (dbHelper, reservationId, data, letterOfIntentFile, seniorCitizenIdFiles, pwdIdFiles, user) => {
+        const responseData = {
+            status: Status.INTERNAL_SERVER_ERROR,
+            error: 'Error updating reservation',
+        };
+
+        try {
+            if (!reservationId) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Reservation ID is required';
+                return responseData;
+            }
+
+            if (!user || !user.userId) {
+                responseData.status = Status.UNAUTHORIZED;
+                responseData.error = 'User not logged in';
+                return responseData;
+            }
+
+            // Fetch existing reservation
+            const existingReservation = await dbHelper.findOne('reservation', { _id: reservationId });
+            if (!existingReservation) {
+                responseData.status = Status.NOT_FOUND;
+                responseData.error = 'Reservation not found';
+                return responseData;
+            }
+
+            // Check authorization
+            const isOwner = existingReservation.userId && String(existingReservation.userId) === String(user.userId);
+            const isAdmin = user.role === UserRole.ACCOUNTING || user.role === UserRole.SUPERINTENDENT || 
+                           user.role === UserRole.FRONTDESK;
+            const isCreatingForGuest = existingReservation.guestEmail && 
+                                      (user.role === UserRole.ACCOUNTING || user.role === UserRole.SUPERINTENDENT || 
+                                       user.role === UserRole.FRONTDESK);
+
+            if (!isOwner && !isAdmin && !isCreatingForGuest) {
+                responseData.status = Status.FORBIDDEN;
+                responseData.error = 'Not authorized to update this reservation';
+                return responseData;
+            }
+
+            // Extract data fields
+            const {
+                guestName, homeAddress, officeAddress, category, guestType,
+                telephone, officeTelephone, numberOfAdults, numberOfChildren, numberOfPwds, numberOfSeniorCitizens,
+                emergencyContact, emergencyContactPerson, dateOfArrival, dateOfDeparture, facility,
+                serviceType, timeOfArrival, addOns, otherRequests, guestEmail,
+            } = data;
+
+            // Validate required fields if provided
+            if (guestName !== undefined && !isPresent(guestName)) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Guest name is required';
+                return responseData;
+            }
+
+            if (homeAddress !== undefined && !isPresent(homeAddress)) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Home address is required';
+                return responseData;
+            }
+
+            if (category !== undefined && !isValidCategory(category)) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Invalid category';
+                return responseData;
+            }
+
+            if (telephone !== undefined && !isValidPhone(telephone)) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Invalid phone number';
+                return responseData;
+            }
+
+            if (emergencyContact !== undefined && !isValidPhone(emergencyContact)) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Invalid emergency contact number';
+                return responseData;
+            }
+
+            const normalizePhone = (phone) => {
+                if (!phone) return '';
+                return phone.replace(/^\+63/, '').replace(/^0/, '');
+            };
+
+            if (telephone !== undefined && emergencyContact !== undefined && 
+                normalizePhone(telephone) === normalizePhone(emergencyContact)) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Phone number and emergency contact number must be different';
+                return responseData;
+            }
+
+            if (dateOfArrival !== undefined && !isValidDate(dateOfArrival)) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Invalid date format';
+                return responseData;
+            }
+
+            if (dateOfDeparture !== undefined && !isValidDate(dateOfDeparture)) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Invalid date format';
+                return responseData;
+            }
+
+            if (dateOfArrival !== undefined && dateOfDeparture !== undefined && 
+                !isValidDateRange(dateOfArrival, dateOfDeparture, user)) {
+                responseData.status = Status.BAD_REQUEST;
+                const errorMessage = user && (user.role === UserRole.FRONTDESK || user.role === UserRole.SUPERINTENDENT)
+                    ? 'Invalid date range: ensure arrival is today or later and departure is after arrival'
+                    : 'Invalid date range: ensure arrival is today or later, departure is after arrival, and arrival is at least 2 months from today';
+                responseData.error = errorMessage;
+                return responseData;
+            }
+
+            if (timeOfArrival !== undefined && !isValidTime(timeOfArrival)) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Invalid time format';
+                return responseData;
+            }
+
+            if (guestType !== undefined && !isValidGuestType(guestType)) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Invalid guest type';
+                return responseData;
+            }
+
+            if (serviceType !== undefined && !isValidServiceType(serviceType)) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Invalid service type';
+                return responseData;
+            }
+
+            if (otherRequests !== undefined && !isValidLength((otherRequests || '').trim(), 500)) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Requests must be 500 characters or less';
+                return responseData;
+            }
+
+            if (letterOfIntentFile && !isValidFile(letterOfIntentFile)) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Invalid Letter of Intent file';
+                return responseData;
+            }
+
+            // Validate guest counts
+            const adults = numberOfAdults !== undefined ? parseInt(numberOfAdults) : existingReservation.numberOfGuests?.adult || 0;
+            const children = numberOfChildren !== undefined ? parseInt(numberOfChildren) : existingReservation.numberOfGuests?.children || 0;
+            const pwds = numberOfPwds !== undefined ? parseInt(numberOfPwds) : existingReservation.numberOfGuests?.pwds || 0;
+            const seniorCitizens = numberOfSeniorCitizens !== undefined ? parseInt(numberOfSeniorCitizens) : existingReservation.numberOfGuests?.seniorCitizen || 0;
+            const total = adults + children + pwds + seniorCitizens;
+
+            if (numberOfAdults !== undefined && !isNonNegativeInteger(numberOfAdults)) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Number of adults must be a non-negative integer';
+                return responseData;
+            }
+
+            if (numberOfChildren !== undefined && !isNonNegativeInteger(numberOfChildren)) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Number of children must be a non-negative integer';
+                return responseData;
+            }
+
+            if (numberOfPwds !== undefined && !isNonNegativeInteger(numberOfPwds)) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Number of PWDs must be a non-negative integer';
+                return responseData;
+            }
+
+            if (numberOfSeniorCitizens !== undefined && !isNonNegativeInteger(numberOfSeniorCitizens)) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Number of senior citizens must be a non-negative integer';
+                return responseData;
+            }
+
+            if (total <= 0) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'At least one guest is required';
+                return responseData;
+            }
+
+            // Validate facility if provided
+            const facilityId = facility !== undefined ? String(facility) : existingReservation.facility;
+            const facilityDoc = await dbHelper.findOne('facility', { _id: facilityId });
+            if (!facilityDoc) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Selected facility does not exist';
+                return responseData;
+            }
+
+            if (facilityDoc.status !== FacilityStatus.AVAILABLE) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Facility is not available for booking.';
+                return responseData;
+            }
+
+            // Validate capacity
+            if (total > facilityDoc.capacity) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = `Number of guests (${total}) exceeds the facility capacity (${facilityDoc.capacity}).`;
+                return responseData;
+            }
+
+            // Validate addons if provided
+            let addonIds = existingReservation.addOns || [];
+            if (addOns !== undefined) {
+                if (Array.isArray(addOns)) {
+                    addonIds = addOns.filter(isValidObjectId);
+                } else if (typeof addOns === 'string' && addOns.trim()) {
+                    try {
+                        const parsed = JSON.parse(addOns);
+                        if (Array.isArray(parsed)) {
+                            addonIds = parsed.filter(isValidObjectId);
+                        } else {
+                            addonIds = addOns.split(',').map(id => id.trim()).filter(isValidObjectId);
+                        }
+                    } catch {
+                        addonIds = addOns.split(',').map(id => id.trim()).filter(isValidObjectId);
+                    }
+                } else {
+                    addonIds = [];
+                }
+
+                if (addonIds.length > 0) {
+                    const services = await dbHelper.findMany(
+                        'addon',
+                        { _id: { $in: addonIds } },
+                        { projection: { _id: 1, price: 1 } }
+                    );
+                    const foundIds = new Set((services || []).map((s) => String(s._id)));
+                    const unknown = addonIds.filter((id) => !foundIds.has(String(id)));
+                    if (unknown.length) {
+                        responseData.status = Status.BAD_REQUEST;
+                        responseData.error = 'Unknown special service id(s): ' + unknown.join(', ');
+                        return responseData;
+                    }
+                }
+            }
+
+            // Handle file uploads
+            let loiFileDoc = null;
+            if (letterOfIntentFile) {
+                try {
+                    const filename = `letter_of_intent/${Date.now()}_${letterOfIntentFile.originalname.replace(/\s/g, '_')}`;
+                    const blob = bucket.file(filename);
+                    await new Promise((resolve, reject) => {
+                        const stream = blob.createWriteStream({
+                            resumable: false,
+                            contentType: letterOfIntentFile.mimetype,
+                        });
+                        stream.on('error', reject);
+                        stream.on('finish', resolve);
+                        stream.end(letterOfIntentFile.buffer);
+                    });
+
+                    loiFileDoc = await dbHelper.create('file', {
+                        path: filename,
+                        mimetype: letterOfIntentFile.mimetype,
+                        size: letterOfIntentFile.size,
+                        kind: FileKind.LETTER_OF_INTENT,
+                        userId: user.userId,
+                        reservationId: reservationId,
+                        createdAt: new Date(),
+                    });
+                } catch (err) {
+                    responseData.status = Status.INTERNAL_SERVER_ERROR;
+                    responseData.error = 'Letter of Intent upload failed: ' + err.message;
+                    return responseData;
+                }
+            }
+
+            // Handle Senior Citizen ID files
+            const seniorCitizenIdFileDocs = [];
+            if (seniorCitizens > 0 && seniorCitizenIdFiles && Array.isArray(seniorCitizenIdFiles) && seniorCitizenIdFiles.length > 0) {
+                for (const file of seniorCitizenIdFiles) {
+                    if (!file) continue;
+                    try {
+                        const filename = `senior_citizen_id/${Date.now()}_${file.originalname.replace(/\s/g, '_')}`;
+                        const blob = bucket.file(filename);
+                        await new Promise((resolve, reject) => {
+                            const stream = blob.createWriteStream({
+                                resumable: false,
+                                contentType: file.mimetype,
+                            });
+                            stream.on('error', reject);
+                            stream.on('finish', resolve);
+                            stream.end(file.buffer);
+                        });
+
+                        const fileDoc = await dbHelper.create('file', {
+                            path: filename,
+                            mimetype: file.mimetype,
+                            size: file.size,
+                            kind: FileKind.SENIOR_CITIZEN_ID,
+                            userId: user.userId,
+                            reservationId: reservationId,
+                            createdAt: new Date(),
+                        });
+                        seniorCitizenIdFileDocs.push(fileDoc);
+                    } catch (err) {
+                        console.error('Error uploading Senior Citizen ID file:', err);
+                    }
+                }
+            }
+
+            // Handle PWD ID files (similar to Senior Citizen ID)
+            const pwdIdFileDocs = [];
+            if (pwds > 0 && pwdIdFiles && Array.isArray(pwdIdFiles) && pwdIdFiles.length > 0) {
+                for (const file of pwdIdFiles) {
+                    if (!file) continue;
+                    try {
+                        const filename = `pwd_id/${Date.now()}_${file.originalname.replace(/\s/g, '_')}`;
+                        const blob = bucket.file(filename);
+                        await new Promise((resolve, reject) => {
+                            const stream = blob.createWriteStream({
+                                resumable: false,
+                                contentType: file.mimetype,
+                            });
+                            stream.on('error', reject);
+                            stream.on('finish', resolve);
+                            stream.end(file.buffer);
+                        });
+
+                        const fileDoc = await dbHelper.create('file', {
+                            path: filename,
+                            mimetype: file.mimetype,
+                            size: file.size,
+                            kind: FileKind.SENIOR_CITIZEN_ID, // Using same kind for now
+                            userId: user.userId,
+                            reservationId: reservationId,
+                            createdAt: new Date(),
+                        });
+                        pwdIdFileDocs.push(fileDoc);
+                    } catch (err) {
+                        console.error('Error uploading PWD ID file:', err);
+                    }
+                }
+            }
+
+            // Calculate new estimated amount
+            const addonsTotal = addonIds.length > 0
+                ? (await dbHelper.findMany('addon', { _id: { $in: addonIds } }, { projection: { _id: 1, price: 1 } }))
+                    .reduce((sum, s) => sum + (Number(s.price) || 0), 0)
+                : 0;
+
+            const finalCategory = category !== undefined ? category : existingReservation.category;
+            const finalDateOfArrival = dateOfArrival !== undefined ? normalizeDateOnly(dateOfArrival) : existingReservation.dateOfArrival;
+            const finalDateOfDeparture = dateOfDeparture !== undefined ? normalizeDateOnly(dateOfDeparture) : existingReservation.dateOfDeparture;
+
+            const { amount: totalEstimatedAmount } = computeEstimate({
+                facilityDoc,
+                adults,
+                children,
+                pwds,
+                seniorCitizens,
+                serviceType: serviceType !== undefined ? serviceType : existingReservation.serviceType,
+                addonsTotal,
+                category: finalCategory,
+                dateOfArrival: finalDateOfArrival,
+                dateOfDeparture: finalDateOfDeparture,
+            });
+
+            if (!Number.isFinite(totalEstimatedAmount)) {
+                responseData.status = Status.INTERNAL_SERVER_ERROR;
+                responseData.error = 'Failed to compute estimated amount';
+                return responseData;
+            }
+
+            // Build update object
+            const updateData = {};
+            if (guestName !== undefined) updateData.guestName = guestName;
+            if (homeAddress !== undefined) updateData.homeAddress = homeAddress;
+            if (officeAddress !== undefined) updateData.officeAddress = officeAddress;
+            if (category !== undefined) updateData.category = category;
+            if (guestType !== undefined) updateData.guestType = guestType;
+            if (telephone !== undefined) updateData.telephone = telephone;
+            if (officeTelephone !== undefined) updateData.officeTelephone = officeTelephone;
+            if (emergencyContact !== undefined) updateData.emergencyContact = emergencyContact;
+            if (emergencyContactPerson !== undefined) updateData.emergencyContactPerson = emergencyContactPerson;
+            if (dateOfArrival !== undefined) updateData.dateOfArrival = normalizeDateOnly(dateOfArrival);
+            if (dateOfDeparture !== undefined) updateData.dateOfDeparture = normalizeDateOnly(dateOfDeparture);
+            if (timeOfArrival !== undefined) updateData.timeOfArrival = timeOfArrival;
+            if (facility !== undefined) updateData.facility = facilityDoc._id;
+            if (serviceType !== undefined) updateData.serviceType = serviceType;
+            if (addOns !== undefined) updateData.addOns = addonIds;
+            if (otherRequests !== undefined) updateData.otherRequests = otherRequests;
+            if (guestEmail !== undefined) {
+                if (guestEmail && !isValidEmail(guestEmail)) {
+                    responseData.status = Status.BAD_REQUEST;
+                    responseData.error = 'Invalid guest email';
+                    return responseData;
+                }
+                updateData.guestEmail = guestEmail ? guestEmail.trim() : undefined;
+            }
+
+            updateData.numberOfGuests = {
+                total: total,
+                adult: adults,
+                children: children,
+                pwds: pwds,
+                seniorCitizen: seniorCitizens,
+            };
+
+            updateData.totalEstimatedAmount = totalEstimatedAmount;
+
+            if (loiFileDoc) {
+                updateData.letterOfIntentFileId = loiFileDoc._id;
+            }
+
+            // Check for overlapping reservations (excluding current reservation)
+            if (dateOfArrival !== undefined || dateOfDeparture !== undefined || facility !== undefined) {
+                const finalFacility = facility !== undefined ? facilityDoc._id : existingReservation.facility;
+                const finalArrival = dateOfArrival !== undefined ? normalizeDateOnly(dateOfArrival) : existingReservation.dateOfArrival;
+                const finalDeparture = dateOfDeparture !== undefined ? normalizeDateOnly(dateOfDeparture) : existingReservation.dateOfDeparture;
+
+                const blockingStatuses = [
+                    ReservationStatus.PENDING,
+                    ReservationStatus.APPROVED,
+                    ReservationStatus.CONFIRMED,
+                    ReservationStatus.CHECKED_IN,
+                ];
+
+                const overlapping = await dbHelper.findOne('reservation', {
+                    _id: { $ne: reservationId },
+                    facility: finalFacility,
+                    status: { $in: blockingStatuses },
+                    $or: [
+                        {
+                            dateOfArrival: { $lte: finalDeparture },
+                            dateOfDeparture: { $gte: finalArrival },
+                        },
+                    ],
+                });
+
+                if (overlapping) {
+                    responseData.status = Status.BAD_REQUEST;
+                    responseData.error = 'Facility is not available for the selected dates.';
+                    return responseData;
+                }
+            }
+
+            // Update reservation
+            const updatedReservation = await dbHelper.findOneAndUpdate(
+                'reservation',
+                { _id: reservationId },
+                updateData,
+                { new: true }
+            );
+
+            if (!updatedReservation) {
+                responseData.status = Status.INTERNAL_SERVER_ERROR;
+                responseData.error = 'Failed to update reservation';
+                return responseData;
+            }
+
+            const reservationObject = updatedReservation.toObject();
+            delete reservationObject.letterOfIntentUrl;
+            delete reservationObject.__v;
+
+            responseData.status = Status.OK;
+            responseData.error = null;
+            responseData.message = 'Reservation updated successfully';
+            responseData.reservationId = updatedReservation._id.toString();
+            responseData.reservation = reservationObject;
+
+            await invalidateReservationCache();
+        } catch (error) {
+            console.error('Error updating reservation:', error);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Error updating reservation: ' + error.message;
+        }
+
+        return responseData;
     },
 
     /**

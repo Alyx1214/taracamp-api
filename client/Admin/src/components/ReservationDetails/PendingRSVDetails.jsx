@@ -131,7 +131,7 @@ export default function PendingRSVDetails() {
         </div>
 
         {/* Table Rows Skeleton */}
-        <div className={styles["reservation-details-table"]}>
+        <table className={styles["reservation-details-table"]}>
           <tbody>
             {Array.from({ length: 12 }).map((_, index) => (
               <tr key={index}>
@@ -143,7 +143,7 @@ export default function PendingRSVDetails() {
               </tr>
             ))}
           </tbody>
-        </div>
+        </table>
 
         {/* Status and Actions Skeleton */}
         <div className={styles["reservation-details-foot"]}>

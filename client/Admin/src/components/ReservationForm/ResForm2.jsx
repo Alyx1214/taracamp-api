@@ -15,6 +15,9 @@ function ReservationFormStep2() {
   const file = location.state?.file || null;
   const seniorCitizenIdFiles = location.state?.seniorCitizenIdFiles || [];
   const pwdIdFiles = location.state?.pwdIdFiles || [];
+  const reservationId = location.state?.reservationId || null;
+  const isEdit = location.state?.isEdit || false;
+  const userEmail = location.state?.userEmail || null;
 
   useEffect(() => {
     if (!location.state?.step1 || !Object.keys(location.state.step1).length) {
@@ -61,6 +64,26 @@ function ReservationFormStep2() {
       if (location.state.step2.selectedAddons) {
         setSelectedAddons(location.state.step2.selectedAddons);
       }
+      // If editing and original facility exists, add it to options immediately
+      if (isEdit && location.state.step2.facilityName && location.state.step2.facilityLabelFromList) {
+        const originalFacilityId = String(location.state.step2.facilityName);
+        setFacilityOptions(prev => {
+          const exists = prev.some(o => o._id === originalFacilityId);
+          if (!exists) {
+            const capacity = Number(location.state.step2.facilityCapacity) || 0;
+            const ratePerPerson = Number(location.state.step2.facilityRatePerPerson) || 0;
+            return [{
+              _id: originalFacilityId,
+              label: location.state.step2.facilityLabelFromList,
+              capacity: capacity,
+              ratePerPerson: ratePerPerson,
+              status: 'AVAILABLE',
+              __k: originalFacilityId,
+            }, ...prev];
+          }
+          return prev;
+        });
+      }
       hydrated = true;
     }
     if (location.state?.errorsStep2) setFieldErrors(location.state.errorsStep2);
@@ -80,6 +103,40 @@ function ReservationFormStep2() {
     }
   }, [location.state]);
 
+  // Add original facility to options list immediately when editing
+  useEffect(() => {
+    if (isEdit && formData.facilityName && formData.facilityLabelFromList) {
+      const originalFacilityId = String(formData.facilityName);
+      const capacity = Number(formData.facilityCapacity) || 0;
+      const ratePerPerson = Number(formData.facilityRatePerPerson) || 0;
+      
+      setFacilityOptions(prev => {
+        const existingIndex = prev.findIndex(o => o._id === originalFacilityId);
+        
+        if (existingIndex >= 0) {
+          // Update existing facility with correct capacity from formData
+          const updated = [...prev];
+          updated[existingIndex] = {
+            ...updated[existingIndex],
+            capacity: capacity > 0 ? capacity : updated[existingIndex].capacity,
+            ratePerPerson: ratePerPerson > 0 ? ratePerPerson : updated[existingIndex].ratePerPerson,
+          };
+          return updated;
+        } else {
+          // Add original facility if not in list
+          return [{
+            _id: originalFacilityId,
+            label: formData.facilityLabelFromList,
+            capacity: capacity,
+            ratePerPerson: ratePerPerson,
+            status: 'AVAILABLE',
+            __k: originalFacilityId,
+          }, ...prev];
+        }
+      });
+    }
+  }, [isEdit, formData.facilityName, formData.facilityLabelFromList, formData.facilityCapacity, formData.facilityRatePerPerson]);
+
   useEffect(() => {
     try {
       sessionStorage.setItem('reservation.step2', JSON.stringify({ ...formData, selectedAddons }));
@@ -93,7 +150,7 @@ function ReservationFormStep2() {
   }, []);
 
   const handleGoBack = () => {
-    navigate(`/reservation-form`, { state: { step1, step2: formData, file, seniorCitizenIdFiles, pwdIdFiles } });
+    navigate(`/reservation-form`, { state: { step1, step2: formData, file, seniorCitizenIdFiles, pwdIdFiles, reservationId, isEdit, userEmail } });
   };
 
   useEffect(() => {
@@ -154,11 +211,43 @@ function ReservationFormStep2() {
             __k: String(f._id || f.id || `f-${idx}`),
           };
         });
+        
+        // In edit mode, if the original facility exists, ensure it has correct capacity
+        if (isEdit && formData.facilityName && formData.facilityLabelFromList) {
+          const originalFacilityId = String(formData.facilityName);
+          const existingIndex = list.findIndex(o => o._id === originalFacilityId);
+          const capacity = Number(formData.facilityCapacity) || 0;
+          const ratePerPerson = Number(formData.facilityRatePerPerson) || 0;
+          
+          if (existingIndex >= 0) {
+            // Update existing facility with correct capacity from formData
+            list[existingIndex] = {
+              ...list[existingIndex],
+              capacity: capacity > 0 ? capacity : list[existingIndex].capacity,
+              ratePerPerson: ratePerPerson > 0 ? ratePerPerson : list[existingIndex].ratePerPerson,
+            };
+          } else {
+            // Add original facility if not in list
+            list.unshift({
+              _id: originalFacilityId,
+              label: formData.facilityLabelFromList,
+              capacity: capacity,
+              ratePerPerson: ratePerPerson,
+              status: 'AVAILABLE',
+              __k: originalFacilityId,
+            });
+          }
+        }
+        
         setFacilityOptions(list);
 
         setFormData(prev => {
           if (prev.facilityName) {
               const stillExists = list.some(o => o._id === String(prev.facilityName));
+              // In edit mode, preserve the original facility even if not in current list
+              if (!stillExists && isEdit && prev.facilityLabelFromList) {
+                return prev; // Keep the original facility selection
+              }
               return stillExists ? prev : { ...prev, facilityName: '' };
           }
           return prev;
@@ -213,10 +302,14 @@ function ReservationFormStep2() {
   }
 
   const chosenFacility = facilityOptions.find(o => o._id === formData.facilityName);
-  const capacityOk = !chosenFacility || Number(chosenFacility.capacity) >= totalGuests;
+  // When editing, use capacity from formData if available, otherwise use from chosenFacility
+  const facilityCapacity = isEdit && formData.facilityCapacity > 0 
+    ? Number(formData.facilityCapacity) 
+    : (chosenFacility ? Number(chosenFacility.capacity) : 0);
+  const capacityOk = !chosenFacility || facilityCapacity >= totalGuests;
   const capacityMsg =
     chosenFacility && !capacityOk
-      ? `Selected facility capacity is ${chosenFacility.capacity}, but you have ${totalGuests} guests.`
+      ? `Selected facility capacity is ${facilityCapacity}, but you have ${totalGuests} guests.`
       : '';
 
   useEffect(() => {
@@ -237,11 +330,16 @@ function ReservationFormStep2() {
       setCheckingAvail(true);
       setAvailReason('');
       try {
-        const json = await apiCheckAvailability({
+        const params = {
           facility: facilityName,
           start: dateArrival,
           end: dateDeparture,
-        });
+        };
+        // Exclude current reservation when editing
+        if (isEdit && reservationId) {
+          params.excludeReservationId = reservationId;
+        }
+        const json = await apiCheckAvailability(params);
 
         if (availReqId.current !== currentId) return; 
         const available = Boolean(json?.available);
@@ -257,10 +355,10 @@ function ReservationFormStep2() {
     }, 400);
 
     return () => clearTimeout(t);
-  }, [formData.facilityName, formData.dateArrival, formData.dateDeparture, totalGuests, chosenFacility?.capacity, capacityOk]);
+  }, [formData.facilityName, formData.dateArrival, formData.dateDeparture, totalGuests, chosenFacility?.capacity, capacityOk, isEdit, reservationId]);
 
   const handlePrevious = () => {
-    navigate(`/reservation-form`, { state: { step1, step2: formData, file, seniorCitizenIdFiles, pwdIdFiles } });
+    navigate(`/reservation-form`, { state: { step1, step2: formData, file, seniorCitizenIdFiles, pwdIdFiles, reservationId, isEdit, userEmail } });
   };
 
   const handleNext = () => {
@@ -286,7 +384,18 @@ function ReservationFormStep2() {
       return;
     }
 
-    const chosen = facilityOptions.find(o => o._id === formData.facilityName);
+    let chosen = facilityOptions.find(o => o._id === formData.facilityName);
+    
+    // When editing, use facility data from formData if facility not found in options
+    if (!chosen && isEdit && formData.facilityName && formData.facilityLabelFromList) {
+      chosen = {
+        _id: formData.facilityName,
+        label: formData.facilityLabelFromList,
+        capacity: Number(formData.facilityCapacity) || 0,
+        ratePerPerson: Number(formData.facilityRatePerPerson) || 0,
+      };
+    }
+    
     if (!chosen) {
       setFieldErrors(prev => ({ ...prev, facilityName: 'Please select a valid facility.' }));
       return;
@@ -303,11 +412,32 @@ function ReservationFormStep2() {
 
     const isGroup = step1?.type?.groups || false;
     
-    // Skip Step 3 for individual reservations, go directly to Step 4
-    const nextStep = isGroup ? `/reservation-step3` : `/reservation-step4`;
+    // Get current file from location.state to ensure it's up to date
+    const currentFile = location.state?.file || file || null;
+    
+    // Check for seniors and PWDs to determine routing
+    const numberOfSeniors = parseInt(step1?.guests?.senior || 0, 10) || 0;
+    const numberOfPwds = parseInt(step1?.guests?.pwds || 0, 10) || 0;
+    const hasSeniors = numberOfSeniors > 0;
+    const hasPwds = numberOfPwds > 0;
+    
+    let nextStep;
+    if (isGroup) {
+      // Group reservations: go to Letter of Intent first
+      nextStep = `/reservation-step3`;
+    } else if (hasSeniors) {
+      // Individual with seniors: go directly to senior citizen ID upload
+      nextStep = `/reservation-step3-senior`;
+    } else if (hasPwds) {
+      // Individual with PWDs: go directly to PWD ID upload
+      nextStep = `/reservation-step3-pwd`;
+    } else {
+      // Individual without seniors/PWDs: go directly to final step
+      nextStep = `/reservation-step4`;
+    }
     
     navigate(nextStep, {
-      state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles },
+      state: { step1, step2, file: currentFile, seniorCitizenIdFiles, pwdIdFiles, reservationId, isEdit, userEmail },
     });
   };
 
@@ -388,7 +518,7 @@ function ReservationFormStep2() {
                   <label className={styles.label}>Facility Name <span className={styles.required}>*</span></label>
                   <select
                     name="facilityName"
-                    value={formData.facilityName}
+                    value={String(formData.facilityName || '')}
                     onChange={handleInputChange}
                     className={`${styles.input} ${fieldErrors.facilityName ? styles.inputError : ''}`}
                     disabled={!formData.typeFacilities || loadingFacilities}
@@ -399,7 +529,7 @@ function ReservationFormStep2() {
                       const tooSmall = cap < totalGuests;
                       const label = `${o.label} (${cap} pax)`;
                       return (
-                        <option key={o.__k} value={o._id} disabled={tooSmall}>{label}</option>
+                        <option key={o.__k} value={String(o._id)} disabled={tooSmall}>{label}</option>
                       );
                     })}
                   </select>
@@ -581,7 +711,7 @@ function ReservationFormStep2() {
            <div className={styles.summaryContainer}>
               <div className={styles.summaryCard}>
                 <h3 className={styles.summaryTitle}>
-                  {chosenFacility?.label || formData.facilityName || 'Select Facility'}
+                  {chosenFacility?.label || formData.facilityLabelFromList || formData.facilityName || 'Select Facility'}
                 </h3>
 
                 <div className={styles.summaryContent}>

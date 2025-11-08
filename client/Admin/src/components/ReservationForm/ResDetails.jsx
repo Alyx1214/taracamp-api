@@ -4,7 +4,7 @@ import styles from './ResDetails.module.css';
 import ErrorBanner from '../ErrorBanner/ErrorBanner';
 import { buildReservationPayload, mapServiceType } from '../../utils/reservationMapper';
 import ConfirmationOverlay from './ConfirmationOverlay';
-import { estimateAmount as apiEstimateAmount, createReservation as apiCreateReservation, } from '../../apis/reservationApi';
+import { estimateAmount as apiEstimateAmount, createReservation as apiCreateReservation, updateReservation as apiUpdateReservation } from '../../apis/reservationApi';
 import { getAllAddons } from '../../apis/addonsApi';
 
 function ResDetails({ onClose }) {
@@ -18,7 +18,7 @@ function ResDetails({ onClose }) {
   const [breakdown, setBreakdown] = useState(null);
   const [allAddons, setAllAddons] = useState([]);
   const [reservationId, setReservationId] = useState(null);
-  const { step1 = {}, step2 = {}, file, seniorCitizenIdFiles, seniorCitizenIdFile, pwdIdFiles, pwdIdFile } = location.state || {};
+  const { step1 = {}, step2 = {}, file, seniorCitizenIdFiles, seniorCitizenIdFile, pwdIdFiles, pwdIdFile, reservationId: editReservationId, isEdit } = location.state || {};
   const selectedAddons = step2?.selectedAddons || [];
   const isGroup = step1?.type?.groups || false;
   const numberOfSeniors = parseInt(step1?.guests?.senior || 0, 10) || 0;
@@ -161,11 +161,25 @@ function ResDetails({ onClose }) {
       if (numberOfPwds > 0 && pwdFiles.length === 0) throw new Error('At least one PWD ID file is required when there are PWD guests.');
 
       const facilityForPost = typeof step2?.facilityIdFromList === 'string' ? step2.facilityIdFromList : '';
+      const addonIds = selectedAddons.map(addon => addon.value || addon._id).filter(Boolean);
       const apiPayload = { ...payload, facility: facilityForPost };
+      
+      // Include addons in payload if any are selected
+      if (addonIds.length > 0) {
+        apiPayload.addOns = addonIds;
+      }
 
-      const response = await apiCreateReservation(apiPayload, file, seniorCitizenFiles, pwdFiles);
-      if (response?.reservationId) {
-        setReservationId(response.reservationId);
+      let response;
+      if (isEdit && editReservationId) {
+        // Update existing reservation
+        response = await apiUpdateReservation(editReservationId, apiPayload, file, seniorCitizenFiles, pwdFiles);
+        setReservationId(editReservationId);
+      } else {
+        // Create new reservation
+        response = await apiCreateReservation(apiPayload, file, seniorCitizenFiles, pwdFiles);
+        if (response?.reservationId) {
+          setReservationId(response.reservationId);
+        }
       }
       setShowOverlay(true); 
     } catch (e) {
@@ -246,8 +260,8 @@ function ResDetails({ onClose }) {
       <ConfirmationOverlay
         onDone={() => navigate('/reservations', { 
           state: { 
-            activeTab: 'Approved', 
-            refreshTab: 'Approved' 
+            activeTab: isEdit ? 'Approved' : 'Approved', 
+            refreshTab: isEdit ? 'Approved' : 'Approved' 
           } 
         })}
         onReview={() => {
@@ -281,7 +295,7 @@ function ResDetails({ onClose }) {
             <table className={styles.detailsTable}>
               <tbody>
                 <tr><td>Group/Association</td><td>:</td><td>{data.group}</td></tr>
-                <tr><td>Guest Email</td><td>:</td><td>{data.guestEmail}</td></tr>
+                {!isEdit && <tr><td>Guest Email</td><td>:</td><td>{data.guestEmail}</td></tr>}
                 <tr><td>Address</td><td>:</td><td>{data.address}</td></tr>
                 <tr><td>Office Address</td><td>:</td><td>{data.officeAddress}</td></tr>
                 <tr><td>Category</td><td>:</td><td>{data.category}</td></tr>
@@ -346,7 +360,7 @@ function ResDetails({ onClose }) {
           onClick={handleSubmit}
           disabled={submitting}
         >
-          {submitting ? 'Submitting…' : 'Submit'}
+          {submitting ? (isEdit ? 'Updating…' : 'Submitting…') : (isEdit ? 'Update' : 'Submit')}
         </button>
       </div>
     </>

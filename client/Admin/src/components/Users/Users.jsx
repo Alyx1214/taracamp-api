@@ -89,7 +89,7 @@ export default function Users() {
     }));
   }, [rawUsers]);
 
-  const columns = ["ID", "Name", "Email", "Last Logged In", "Role", "Actions"];
+  const columns = ["Name", "Email", "Last Logged In", "Role", "Actions"];
 
   async function handleDelete(row) {
     if (!row?.id) return;
@@ -130,24 +130,19 @@ export default function Users() {
         {error && (
           <div role="alert" style={{ color: '#b00020', marginBottom: '8px' }}>{error}</div>
         )}
-        {loading ? (
-          <div style={{ padding: '16px' }}>Loading users…</div>
-        ) : (
-          <>
-            <UnivTable
-              columns={columns}
-              data={mappedUsers}
-              renderActions={() => (
-                <button className={styles.editBtn}>Edit</button>
-              )}
-              renderMenu={(row) => [
-                { label: "Delete", onClick: () => handleDelete(row) },
-                { label: "View", onClick: () => alert(`Viewing ${row.name}`) },
-              ]}
-            />
-            <Pagination />
-          </>
-        )}
+        <UnivTable
+          columns={columns}
+          data={mappedUsers}
+          loading={loading}
+          renderActions={() => (
+            <button className={styles.editBtn}>Edit</button>
+          )}
+          renderMenu={(row) => [
+            { label: "Delete", onClick: () => handleDelete(row) },
+            { label: "View", onClick: () => alert(`Viewing ${row.name}`) },
+          ]}
+        />
+        {!loading && <Pagination />}
       </div>
     </div>
   );

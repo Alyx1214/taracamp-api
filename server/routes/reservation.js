@@ -103,10 +103,11 @@ export default function buildReservationRouter(userSocketMap) {
       || req.files?.seniorCitizenIdFiles?.[0] 
       || null;
     
-    // Note: pwdIdFiles is accepted but not yet stored in the schema
-    // The files are accepted to prevent "Unexpected field" errors
+    // Handle PWD ID files (multiple files allowed)
+    const pwdIdFiles = req.files?.pwdIdFiles || [];
+    const pwdIdFilesArray = Array.isArray(pwdIdFiles) ? pwdIdFiles : [];
     
-    const response = await reservationModule.addReservation(dbHelper, data, letterOfIntentFile, seniorCitizenIdFile, req.user);
+    const response = await reservationModule.addReservation(dbHelper, data, letterOfIntentFile, seniorCitizenIdFile, pwdIdFilesArray, req.user);
 
     res.status(response.status).json(response);
 
@@ -191,6 +192,59 @@ export default function buildReservationRouter(userSocketMap) {
   r.post('/update-meal-preference/:id', asyncHandler(async (req, res) => {
     const { willAvailMeals } = req.body;
     const response = await reservationModule.updateMealPreference(dbHelper, req.params.id, willAvailMeals, req.user);
+    res.status(response.status).json(response);
+  }));
+
+  r.post('/update-reservation/:id', asyncHandler(async (req, res) => {
+    await runUpload(req, res);
+
+    const raw = req.body || {};
+    const data = { ...raw };
+    // Normalize facility to string
+    if (data.facility !== undefined && data.facility !== null) {
+      data.facility = String(data.facility);
+    }
+    // Parse addOns if sent as JSON/string
+    if (typeof data.addOns === 'string') {
+      try {
+        const parsed = JSON.parse(data.addOns);
+        data.addOns = Array.isArray(parsed) ? parsed : String(data.addOns).split(',');
+      } catch {
+        data.addOns = String(data.addOns)
+          .split(',')
+          .map(s => s.trim())
+          .filter(Boolean);
+      }
+    }
+    // Drop any client-sent file id hints
+    delete data.letterOfIntentFileId;
+    delete data.seniorCitizenIdFileId;
+    delete data.pwdIdFileId;
+    
+    // Handle file uploads - support both singular and plural field names
+    const letterOfIntentFile = req.files?.letterOfIntentFile?.[0] || null;
+    
+    // Support both seniorCitizenIdFile (singular) and seniorCitizenIdFiles (plural)
+    const seniorCitizenIdFiles = req.files?.seniorCitizenIdFiles || req.files?.seniorCitizenIdFile || [];
+    const seniorCitizenIdFilesArray = Array.isArray(seniorCitizenIdFiles) 
+      ? seniorCitizenIdFiles 
+      : seniorCitizenIdFiles.length > 0 
+        ? [seniorCitizenIdFiles[0]] 
+        : [];
+    
+    // Handle PWD ID files
+    const pwdIdFiles = req.files?.pwdIdFiles || [];
+    const pwdIdFilesArray = Array.isArray(pwdIdFiles) ? pwdIdFiles : [];
+    
+    const response = await reservationModule.updateReservation(
+      dbHelper, 
+      req.params.id, 
+      data, 
+      letterOfIntentFile, 
+      seniorCitizenIdFilesArray, 
+      pwdIdFilesArray, 
+      req.user
+    );
     res.status(response.status).json(response);
   }));
 

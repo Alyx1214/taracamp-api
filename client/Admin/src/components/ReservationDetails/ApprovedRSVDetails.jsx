@@ -60,7 +60,7 @@ export default function ApprovedRSVDetails() {
         </div>
 
         {/* Table Rows Skeleton */}
-        <div className={styles["reservation-details-table"]}>
+        <table className={styles["reservation-details-table"]}>
           <tbody>
             {Array.from({ length: 11 }).map((_, index) => (
               <tr key={index}>
@@ -72,7 +72,7 @@ export default function ApprovedRSVDetails() {
               </tr>
             ))}
           </tbody>
-        </div>
+        </table>
 
         {/* Status and Print Button Skeleton */}
         <div className={styles["reservation-details-foot"]}>
