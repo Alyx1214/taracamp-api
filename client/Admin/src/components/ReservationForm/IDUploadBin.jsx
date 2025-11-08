@@ -48,53 +48,62 @@ function IDUploadForm({ idType = 'pwd' }) {
 
   const step1 = location.state?.step1 || {};
   const step2 = location.state?.step2 || {};
+  const reservationId = location.state?.reservationId || null;
+  const isEdit = location.state?.isEdit || false;
+  const userEmail = location.state?.userEmail || null;
   
   // Check if there are guests of this type in the guest count
   const numberOfGuests = parseInt(step1?.guests?.[config.guestKey] || 0, 10) || 0;
   const isRequired = numberOfGuests > 0;
 
   // ID files should be independent from other files
-  const [files, setFiles] = useState(() => {
-    // Initialize from location.state
-    return location.state?.[config.stateKey] || 
+  const getStateFiles = () => {
+    const stateFiles = location.state?.[config.stateKey] || 
       (location.state?.[config.stateKeySingular] ? [location.state[config.stateKeySingular]] : []);
-  });
+    return Array.isArray(stateFiles) ? stateFiles : [];
+  };
+
+  const [files, setFiles] = useState(() => getStateFiles());
   const [fileError, setFileError] = useState('');
   const fileInputRef = useRef();
   const prevLocationStateRef = useRef(location.state);
 
-  // Update files when location.state changes (e.g., when navigating back with files)
+  // Initialize files on mount and update when location.state changes
   useEffect(() => {
-    // Check if location.state has actually changed
-    if (prevLocationStateRef.current === location.state) {
-      return; // No change, skip update
+    const normalizedStateFiles = getStateFiles();
+    
+    // Always set files if they exist in location.state
+    if (normalizedStateFiles.length > 0) {
+      setFiles(prevFiles => {
+        // Check if files are different by comparing URLs and names
+        const currentFileIds = prevFiles.map(f => f.url || f.name || '').sort().join(',');
+        const stateFileIds = normalizedStateFiles.map(f => f.url || f.name || '').sort().join(',');
+        
+        if (currentFileIds !== stateFileIds || prevFiles.length === 0) {
+          return normalizedStateFiles;
+        }
+        return prevFiles;
+      });
     }
+    
     prevLocationStateRef.current = location.state;
+  }, [location.state, config.stateKey, config.stateKeySingular]);
 
-    const stateFiles = location.state?.[config.stateKey] || 
-      (location.state?.[config.stateKeySingular] ? [location.state[config.stateKeySingular]] : []);
-    
-    // Get current file names
-    const currentFileNames = files.map(f => f.name).sort().join(',');
-    const stateFileNames = stateFiles && stateFiles.length > 0 
-      ? stateFiles.map(f => f.name).sort().join(',') 
-      : '';
-    
-    // Update if location.state has files and they're different from current files
-    // This preserves files when navigating back
-    if (stateFiles && stateFiles.length > 0 && currentFileNames !== stateFileNames) {
-      setFiles(stateFiles);
+  // Ensure files are set on initial mount - run after initial render
+  useEffect(() => {
+    const normalizedStateFiles = getStateFiles();
+    if (normalizedStateFiles.length > 0) {
+      setFiles(normalizedStateFiles);
     }
-    // If location.state doesn't have files, keep current files (don't clear them)
-  }, [location.state, config.stateKey, config.stateKeySingular, files]);
+  }, []); // Run only on mount
 
   useEffect(() => {
     if (!step1 || !Object.keys(step1).length || !step2 || !Object.keys(step2).length) {
       navigate(`/reservation-step2`, { 
-        state: { step1, step2, [config.stateKey]: files } 
+        state: { step1, step2, [config.stateKey]: files, reservationId, isEdit, userEmail } 
       });
     }
-  }, [step1, step2, navigate, files, config.stateKey]);
+  }, [step1, step2, navigate, files, config.stateKey, reservationId, isEdit, userEmail]);
 
   useEffect(() => {
     try {
@@ -105,7 +114,7 @@ function IDUploadForm({ idType = 'pwd' }) {
 
   const handleGoBack = () => {
     navigate(`/reservation-step2`, { 
-      state: { step1, step2, [config.stateKey]: files } 
+      state: { step1, step2, [config.stateKey]: files, reservationId, isEdit, userEmail } 
     });
   };
 
@@ -126,7 +135,10 @@ function IDUploadForm({ idType = 'pwd' }) {
             step2, 
             file: location.state?.file, // Preserve Letter of Intent if group
             seniorCitizenIdFiles: location.state?.seniorCitizenIdFiles || [],
-            [config.stateKey]: files 
+            [config.stateKey]: files,
+            reservationId,
+            isEdit,
+            userEmail
           } 
         });
         return;
@@ -141,7 +153,10 @@ function IDUploadForm({ idType = 'pwd' }) {
             step2, 
             file: location.state?.file, 
             seniorCitizenIdFiles: location.state?.seniorCitizenIdFiles || [],
-            [config.stateKey]: files 
+            [config.stateKey]: files,
+            reservationId,
+            isEdit,
+            userEmail
           } 
         });
         return;
@@ -158,7 +173,10 @@ function IDUploadForm({ idType = 'pwd' }) {
             step2, 
             file: location.state?.file, 
             [config.stateKey]: files, // Senior Citizen ID files
-            pwdIdFiles // Preserve PWD files
+            pwdIdFiles, // Preserve PWD files
+            reservationId,
+            isEdit,
+            userEmail
           } 
         });
         return;
@@ -167,7 +185,7 @@ function IDUploadForm({ idType = 'pwd' }) {
     
     // Otherwise return to step 2
     navigate(`/reservation-step2`, { 
-      state: { step1, step2, [config.stateKey]: files } 
+      state: { step1, step2, [config.stateKey]: files, reservationId, isEdit, userEmail } 
     });
   };
 
@@ -196,7 +214,10 @@ function IDUploadForm({ idType = 'pwd' }) {
             step2, 
             file: letterOfIntentFile, // Letter of Intent file
             [config.stateKey]: files, // Senior Citizen ID files (array)
-            pwdIdFiles // Preserve existing PWD files
+            pwdIdFiles, // Preserve existing PWD files
+            reservationId,
+            isEdit,
+            userEmail
           } 
         });
       } else {
@@ -207,7 +228,10 @@ function IDUploadForm({ idType = 'pwd' }) {
             step2, 
             file: letterOfIntentFile, // Letter of Intent file
             [config.stateKey]: files, // Senior Citizen ID files (array)
-            pwdIdFiles // Preserve existing PWD files (should be empty if no PWDs)
+            pwdIdFiles, // Preserve existing PWD files (should be empty if no PWDs)
+            reservationId,
+            isEdit,
+            userEmail
           } 
         });
       }
@@ -219,7 +243,10 @@ function IDUploadForm({ idType = 'pwd' }) {
           step2, 
           file: letterOfIntentFile, // Letter of Intent file
           seniorCitizenIdFiles: location.state?.seniorCitizenIdFiles || [], // Senior Citizen ID files (array)
-          [config.stateKey]: files // PWD ID files (array)
+          [config.stateKey]: files, // PWD ID files (array)
+          reservationId,
+          isEdit,
+          userEmail
         } 
       });
     }
@@ -329,7 +356,23 @@ function IDUploadForm({ idType = 'pwd' }) {
                       gap: '8px'
                     }}
                   >
-                    <span>{f.name}</span>
+                    <span>{f.name || (f.url ? `${config.subtitle} (existing)` : config.subtitle)}</span>
+                    {f.url && (
+                      <a
+                        href={f.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                          color: '#0066cc',
+                          textDecoration: 'underline',
+                          fontSize: '12px',
+                          marginLeft: '4px'
+                        }}
+                      >
+                        View
+                      </a>
+                    )}
                     <button
                       type="button"
                       onClick={(e) => {

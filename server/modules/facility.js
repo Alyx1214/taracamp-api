@@ -508,6 +508,28 @@ const facilityModule = {
                 return responseData;
             }
 
+            // Find all reservations associated with this facility
+            const associatedReservations = await dbHelper.find('reservation', { facility: id, });
+            
+            // Delete all associated reservations and their files
+            if (associatedReservations && associatedReservations.length > 0) {
+                for (const reservation of associatedReservations) {
+                    // Delete all files associated with this reservation
+                    const files = await dbHelper.find('file', { reservationId: reservation._id, });
+                    for (const file of files) {
+                        try {
+                            await bucket.file(file.path).delete();
+                        } catch (err) {
+                            console.warn('Failed to delete file in bucket:', file.path, err.message);
+                        }
+                    }
+                    // Delete file records from database
+                    await dbHelper.deleteMany('file', { reservationId: reservation._id, });
+                }
+                // Delete all associated reservations
+                await dbHelper.deleteMany('reservation', { facility: id, });
+            }
+
             if (facility.images?.length) {
                 try { await deleteImages(facility.images); } catch (imgErr) {
                     console.warn('Failed to delete some images:', imgErr.message);
@@ -519,7 +541,11 @@ const facilityModule = {
             responseData.status = Status.OK;
             responseData.error = null;
             responseData.message = 'Facility deleted successfully';
+            if (associatedReservations && associatedReservations.length > 0) {
+                responseData.message += `. ${associatedReservations.length} associated reservation(s) also deleted.`;
+            }
             responseData.facilityId = id;
+            responseData.deletedReservationsCount = associatedReservations?.length || 0;
 
             await invalidateFacilitiesCache();
         } catch (error) {

@@ -9,6 +9,8 @@ function ReservationForm() {
   const location = useLocation();
   const prevStep2Ref = useRef(location.state?.step2 || null);
   const prevFileRef = useRef(location.state?.file || null);
+  const isEdit = location.state?.isEdit || false;
+  const userEmail = location.state?.userEmail || null;
 
   const [formData, setFormData] = useState({
     groupAssociation: '',
@@ -39,6 +41,9 @@ function ReservationForm() {
     if (location.state?.step1) setFormData(location.state.step1);
     if (location.state?.errorsStep1) setErrors(location.state.errorsStep1);
     if (location.state?.serverError) setServerErr(location.state.serverError);
+    // Update refs when location.state changes
+    if (location.state?.step2) prevStep2Ref.current = location.state.step2;
+    if (location.state?.file !== undefined) prevFileRef.current = location.state.file;
   }, [location.state]);
 
   const hasCategory = useMemo(() => Object.values(formData.category || {}).some(Boolean), [formData.category]);
@@ -134,8 +139,11 @@ function ReservationForm() {
     const step1 = { ...formData };
     const seniorCitizenIdFiles = location.state?.seniorCitizenIdFiles || [];
     const pwdIdFiles = location.state?.pwdIdFiles || [];
+    const reservationId = location.state?.reservationId || null;
+    // Get current file from location.state to ensure it's up to date
+    const currentFile = location.state?.file || prevFileRef.current || null;
     navigate(`/reservation-step2`, {
-      state: { step1, step2: prevStep2Ref.current, file: prevFileRef.current, seniorCitizenIdFiles, pwdIdFiles }
+      state: { step1, step2: prevStep2Ref.current, file: currentFile, seniorCitizenIdFiles, pwdIdFiles, reservationId, isEdit, userEmail }
     });
   };
 
@@ -256,19 +264,21 @@ function ReservationForm() {
                 {errors.phoneNo && <div className={styles.fieldError}>{errors.phoneNo}</div>}
               </div>
 
-              <div className={styles.formGroup}>
-                <label className={styles.label} htmlFor="guestEmail">Guest Email</label>
-                <input
-                  id="guestEmail"
-                  type="email"
-                  name="guestEmail"
-                  value={formData.guestEmail}
-                  onChange={handleInputChange}
-                  className={`${styles.input} ${errors.guestEmail ? styles.inputError : ''}`}
-                  aria-invalid={!!errors.guestEmail}
-                />
-                {errors.guestEmail && <div className={styles.fieldError}>{errors.guestEmail}</div>}
-              </div>
+              {!isEdit && (
+                <div className={styles.formGroup}>
+                  <label className={styles.label} htmlFor="guestEmail">Guest Email</label>
+                  <input
+                    id="guestEmail"
+                    type="email"
+                    name="guestEmail"
+                    value={formData.guestEmail}
+                    onChange={handleInputChange}
+                    className={`${styles.input} ${errors.guestEmail ? styles.inputError : ''}`}
+                    aria-invalid={!!errors.guestEmail}
+                  />
+                  {errors.guestEmail && <div className={styles.fieldError}>{errors.guestEmail}</div>}
+                </div>
+              )}
               <div className={styles.formGroup}>
                 <label className={styles.label} htmlFor="officeTelephoneNo">
                   Office Telephone No.

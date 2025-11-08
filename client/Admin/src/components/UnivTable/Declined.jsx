@@ -80,7 +80,7 @@ export default function Declined({
     } finally {
       if (showLoading) setLoading(false);
     }
-  }, [currentPage, searchQuery, onPaginationUpdate]);
+  }, [currentPage, searchQuery]);
 
   useEffect(() => {
     let cancelled = false;
