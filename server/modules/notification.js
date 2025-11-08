@@ -1,4 +1,4 @@
-import { Status } from '../constants.js';
+import { Status, UserRole } from '../constants.js';
 
 const notificationModule = {
     /**
@@ -170,6 +170,102 @@ const notificationModule = {
             responseData.error = 'Error counting unread notifications';
         }
         return responseData;
+    },
+
+    /**
+     * Deletes all notifications for a given user.
+     * @param {Object} dbHelper - The database helper for database operations.
+     * @param {string} userId - The ID of the user that the notifications belong to.
+     * @returns {Object} The deletion result.
+     */
+    deleteAll: async (dbHelper, userId) => {
+        const responseData = {
+            status: Status.INTERNAL_SERVER_ERROR,
+            error: 'Error deleting all notifications',
+        };
+        try {
+            const result = await dbHelper.deleteMany('notification', { userId });
+            responseData.status = Status.OK;
+            responseData.error = null;
+            responseData.data = result;
+        } catch (error) {
+            console.error('Error deleting all notifications:', error);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Error deleting all notifications';
+        }
+        return responseData;
+    },
+
+    /**
+     * Notifies guest and all admin users about a cancelled reservation.
+     * @param {Object} dbHelper - The database helper for database operations.
+     * @param {Object} reservation - The cancelled reservation object.
+     * @param {Object} userSocketMap - The map of user sockets.
+     * @returns {Promise<void>}
+     */
+    notifyCancellation: async function(dbHelper, reservation, userSocketMap) {
+        try {
+            if (!reservation || !reservation._id) {
+                return;
+            }
+
+            const reservationIdStr = reservation._id?.toString?.() || String(reservation._id || '');
+
+            // Notify guest if reservation has userId
+            if (reservation.userId) {
+                const userIdStr = reservation.userId?.toString?.() || String(reservation.userId || '');
+
+                await this.createAndNotifyUser(
+                    dbHelper,
+                    {
+                        title: 'Reservation Cancellation Notice',
+                        message: "We're sorry to inform you that your reservation has been cancelled. We understand this may cause inconvenience, and we apologize for any disruption to your plans.",
+                        kind: 'reservation_cancelled',
+                        userId: userIdStr,
+                        reservationId: reservationIdStr,
+                    },
+                    userSocketMap
+                ).catch(e => console.warn('Notify cancellation to guest failed:', e?.message));
+            }
+
+            // Notify all admin users about the cancelled reservation
+            try {
+                const adminUsers = await dbHelper.findMany('user', {
+                    role: { $ne: UserRole.GUEST }
+                }, {
+                    projection: { _id: 1 }
+                });
+
+                if (Array.isArray(adminUsers) && adminUsers.length > 0) {
+                    const guestName = reservation.guestName || 'Guest';
+                    const reservationCode = reservation.reservationCode || reservationIdStr;
+
+                    const adminNotificationPromises = adminUsers.map(adminUser => {
+                        const adminUserIdStr = adminUser._id?.toString?.() || String(adminUser._id || '');
+                        return this.createAndNotifyUser(
+                            dbHelper,
+                            {
+                                title: `Reservation Cancelled: ${reservationCode}`,
+                                message: `A reservation by ${guestName} has been cancelled. Reservation Code: ${reservationCode}`,
+                                kind: 'reservation_cancelled_admin',
+                                userId: adminUserIdStr,
+                                reservationId: reservationIdStr,
+                            },
+                            userSocketMap
+                        ).catch(e => {
+                            console.warn(`Failed to notify admin ${adminUserIdStr}:`, e?.message);
+                            return null; // Return null instead of throwing to allow other notifications to proceed
+                        });
+                    });
+
+                    await Promise.all(adminNotificationPromises);
+                }
+            } catch (adminError) {
+                console.warn('Failed to notify admin users:', adminError?.message);
+            }
+        } catch (error) {
+            console.warn('Failed to create cancellation notification:', error?.message);
+        }
     },
 };
 

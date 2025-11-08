@@ -6,6 +6,7 @@ import NotifPreview from './NotifPreview';
 import NotifUpload from './NotifUpload';
 import NotifIndiv from './NotifIndiv';
 import NotifReviews from './NotifReviews';
+import NotifCancel from './NotifCancel';
 import { listNotifications, markAllNotificationsRead, markNotificationRead } from '../../apis/notificationApi';
 import { updateMealPreference, getReservationById } from '../../apis/reservationApi';
 import { subscribe, initSocketFresh } from '../../utils/webSocketClient';
@@ -310,6 +311,13 @@ export default function Notif() {
       setStage('preview');
       return;
     }
+    // Check for cancellation notifications - show NotifCancel
+    if (notif.kind === 'reservation_cancelled' || 
+        (notif.title && (notif.title.toLowerCase().includes('cancelled') || notif.title.toLowerCase().includes('cancellation')))) {
+      setSelected(notif);
+      setStage('cancel');
+      return;
+    }
   }
 
   // Route based on what NotifPreview tells us, WITH reservation id.
@@ -354,6 +362,16 @@ export default function Notif() {
       <NotifPrev
         notif={selected}
         clientType="individual"
+        onBack={() => { setSelected(null); setStage('list'); }}
+      />
+    );
+  }
+
+  // Show NotifCancel for cancellation notifications
+  if (selected && stage === 'cancel') {
+    return (
+      <NotifCancel
+        notif={selected}
         onBack={() => { setSelected(null); setStage('list'); }}
       />
     );
