@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import styles from '../AuthFormContainer/AuthFormContainer.module.css';
+import loginStyles from './LoginForm.module.css';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import { login as apiLogin } from '../../apis/userApi.js';
 import { persistAuth } from '../../utils/auth';
@@ -70,14 +71,14 @@ function LoginForm({ onForgotPassword, onLoginSuccess }) {
             {showPassword ? <FaEyeSlash /> : <FaEye />}
           </span>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', width: '100%' }}>
+        <div className={styles.forgotWrap}>
           <a
             href="#"
             onClick={(e) => {
               e.preventDefault();
               onForgotPassword();
             }}
-            style={{ fontSize: '0.9em', color: '#1E3C24', textDecoration: 'none' }}
+            className={styles.forgotLink}
           >
             Forgot Password?
           </a>
@@ -86,8 +87,8 @@ function LoginForm({ onForgotPassword, onLoginSuccess }) {
           Log In
         </button>
       </form>
-      {loading && <p>Logging in...</p>}
-      {error && <p style={{ color: 'red' }}>{error}</p>}
+      {loading && <p className={styles.formLoading}>Logging in...</p>}
+      {error && <p className={styles.formError}>{error}</p>}
       
     </div>
   );
