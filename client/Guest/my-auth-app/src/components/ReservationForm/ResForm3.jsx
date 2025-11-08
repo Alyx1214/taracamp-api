@@ -20,12 +20,38 @@ function ReservationFormStep3() {
   const [file, setFile] = useState(location.state?.file || null);
   const [fileError, setFileError] = useState('');
   const fileInputRef = useRef();
+  const prevLocationStateRef = useRef(location.state);
+
+  // Update file when location.state changes (e.g., when navigating back with files)
+  useEffect(() => {
+    // Check if location.state has actually changed
+    if (prevLocationStateRef.current === location.state) {
+      return; // No change, skip update
+    }
+    prevLocationStateRef.current = location.state;
+
+    // Only update from location.state if it has a file and it's different from current
+    // This preserves files when navigating back
+    if (location.state?.file) {
+      const currentFileName = file?.name || '';
+      const stateFileName = location.state.file?.name || '';
+      if (currentFileName !== stateFileName) {
+        setFile(location.state.file);
+      }
+    }
+    // If location.state doesn't have a file, keep current file (don't clear it)
+  }, [location.state, file]);
 
   useEffect(() => {
     if (!step1 || !Object.keys(step1).length || !step2 || !Object.keys(step2).length) {
-      navigate(`/reservation-step2/${type}/${facilityName}/${id}`, { state: { step1, step2, file } });
+      // Preserve files when navigating back
+      const seniorCitizenIdFiles = location.state?.seniorCitizenIdFiles || [];
+      const pwdIdFiles = location.state?.pwdIdFiles || [];
+      navigate(`/reservation-step2/${type}/${facilityName}/${id}`, { 
+        state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles } 
+      });
     }
-  }, [step1, step2, type, facilityName, id, navigate]);
+  }, [step1, step2, type, facilityName, id, navigate, file, location.state]);
 
     useEffect(() => {
       try {
@@ -34,11 +60,21 @@ function ReservationFormStep3() {
     }, [file]);
 
   const handleGoBack = () => {
-    navigate(`/reservation-step2/${type}/${facilityName}/${id}`, { state: { step1, step2, file } });
+    // Preserve files from location.state if they exist
+    const seniorCitizenIdFiles = location.state?.seniorCitizenIdFiles || [];
+    const pwdIdFiles = location.state?.pwdIdFiles || [];
+    navigate(`/reservation-step2/${type}/${facilityName}/${id}`, { 
+      state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles } 
+    });
   };
 
   const handlePrevious = () => {
-    navigate(`/reservation-step2/${type}/${facilityName}/${id}`, { state: { step1, step2, file } });
+    // Preserve files from location.state if they exist
+    const seniorCitizenIdFiles = location.state?.seniorCitizenIdFiles || [];
+    const pwdIdFiles = location.state?.pwdIdFiles || [];
+    navigate(`/reservation-step2/${type}/${facilityName}/${id}`, { 
+      state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles } 
+    });
   };
 
   const handleNext = () => {
@@ -47,14 +83,28 @@ function ReservationFormStep3() {
       return;
     }
     setFileError('');
-    // If there are seniors, route to senior citizen ID upload; otherwise go to final step
+    // Priority: Senior Citizen ID -> PWD ID -> Final Step
+    const numberOfPwds = parseInt(step1?.guests?.pwds || 0, 10) || 0;
+    const hasPwds = numberOfPwds > 0;
+    
+    // Preserve files from location.state if they exist
+    const seniorCitizenIdFiles = location.state?.seniorCitizenIdFiles || [];
+    const pwdIdFiles = location.state?.pwdIdFiles || [];
+    
     if (hasSeniors) {
+      // Route to senior citizen ID upload first
       navigate(`/reservation-step3-senior/${type}/${facilityName}/${id}`, { 
-        state: { step1, step2, file } // file is Letter of Intent
+        state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles } // file is Letter of Intent
+      });
+    } else if (hasPwds) {
+      // Route to PWD ID upload
+      navigate(`/reservation-step3-pwd/${type}/${facilityName}/${id}`, { 
+        state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles } // file is Letter of Intent
       });
     } else {
+      // No seniors or PWDs, go to final step
       navigate(`/reservation-step4/${type}/${facilityName}/${id}`, { 
-        state: { step1, step2, file } 
+        state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles } 
       });
     }
   };
@@ -62,6 +112,13 @@ function ReservationFormStep3() {
 
   const handleBoxClick = () => {
     fileInputRef.current?.click();
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      fileInputRef.current?.click();
+    }
   };
 
   const handleFileChange = e => {
@@ -77,15 +134,36 @@ function ReservationFormStep3() {
 
       if (!okType) {
         setFileError('Please upload a PDF or Word document.');
+        // Reset input to allow selecting again
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
         return;
       }
       if (f.size > 5 * 1024 * 1024) {
         setFileError('File is too large. Max 5 MB.');
+        // Reset input to allow selecting again
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
         return;
       }
 
       setFileError('');
       setFile(f);
+      // Reset input to allow selecting the same file again
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleRemoveFile = () => {
+    setFile(null);
+    setFileError('');
+    // Reset input to allow selecting again
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
@@ -111,7 +189,13 @@ function ReservationFormStep3() {
             </div>
             <div className={styles.groupNote}>This section is only for group reservations.</div>
             {isGroup && <div className={styles.groupNote}>This section is required for group reservations.</div>}
-            <div className={styles.uploadBox} onClick={handleBoxClick} role="button" tabIndex={0}>
+            <div 
+              className={styles.uploadBox} 
+              onClick={handleBoxClick} 
+              onKeyDown={handleKeyDown}
+              role="button" 
+              tabIndex={0}
+            >
               <input
                 type="file"
                 accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
@@ -122,6 +206,44 @@ function ReservationFormStep3() {
               <UploadCloud className={styles.uploadIcon} />
               <div className={styles.uploadText}>{file ? file.name : 'Click to upload'}</div>
             </div>
+            {file && (
+              <div style={{ marginTop: 12, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    backgroundColor: '#e8f4fd',
+                    border: '1px solid #b3d8f2',
+                    borderRadius: '8px',
+                    padding: '6px 12px',
+                    fontSize: '13px',
+                    gap: '8px'
+                  }}
+                >
+                  <span>{file.name}</span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRemoveFile();
+                    }}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#666',
+                      cursor: 'pointer',
+                      fontSize: '16px',
+                      lineHeight: '1',
+                      padding: '0',
+                      marginLeft: '4px'
+                    }}
+                    title="Remove file"
+                  >
+                    ×
+                  </button>
+                </div>
+              </div>
+            )}
             {fileError && <div className={styles.fieldError} style={{ marginTop: 8 }}>{fileError}</div>}
 
             <div className={styles.infoText}>Kindly double check the following information before submitting.</div>

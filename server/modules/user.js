@@ -150,7 +150,7 @@ const userModule = {
             }
 
             const userObject = await dbHelper.findOne('user', { email: normalizedEmail }, { 
-                projection: { password: 1, email: 1, role: 1, _id: 1 } 
+                projection: { password: 1, email: 1, role: 1, _id: 1, name: 1 } 
             });
             
             if (!userObject || !userObject.password) {
@@ -205,6 +205,7 @@ const userModule = {
             responseData.jti = jti;
             responseData.userId = userId;
             responseData.role = userObject.role;
+            responseData.name = userObject.name || null;
 
         } catch (error) {
             console.error('Error logging in user:', error);

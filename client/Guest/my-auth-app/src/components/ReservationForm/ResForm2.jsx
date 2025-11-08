@@ -53,7 +53,6 @@ function ReservationFormStep2() {
     timeArrivalAMPM: 'PM',
     customService: '',
     specialRequests: '',
-    numberOfRooms: 1,
   });
 
   const [facilityOptions, setFacilityOptions] = useState([]);
@@ -139,7 +138,12 @@ function ReservationFormStep2() {
 
 
   const handleGoBack = () => {
-    navigate(`/reservation-form/${type}/${facilityName}/${id}`, { state: { step1, step2: formData, file } });
+    // Preserve files from location.state if they exist
+    const seniorCitizenIdFiles = location.state?.seniorCitizenIdFiles || [];
+    const pwdIdFiles = location.state?.pwdIdFiles || [];
+    navigate(`/reservation-form/${type}/${facilityName}/${id}`, { 
+      state: { step1, step2: formData, file, seniorCitizenIdFiles, pwdIdFiles } 
+    });
   };
 
   useEffect(() => {
@@ -286,9 +290,6 @@ function ReservationFormStep2() {
   function validateStep2Local() {
     const e = {};
     if (!formData.typeService) e.typeService = 'Select a service type.';
-    if (isDormitory && (!formData.numberOfRooms || formData.numberOfRooms < 1)) {
-      e.numberOfRooms = 'Number of rooms is required for dormitory reservations.';
-    }
     setFieldErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -311,7 +312,12 @@ function ReservationFormStep2() {
   }, [isDormitory]); 
 
   const handlePrevious = () => {
-    navigate(`/reservation-form/${type}/${facilityName}/${id}`, { state: { step1, step2: formData, file } });
+    // Preserve files from location.state if they exist
+    const seniorCitizenIdFiles = location.state?.seniorCitizenIdFiles || [];
+    const pwdIdFiles = location.state?.pwdIdFiles || [];
+    navigate(`/reservation-form/${type}/${facilityName}/${id}`, { 
+      state: { step1, step2: formData, file, seniorCitizenIdFiles, pwdIdFiles } 
+    });
   };
 
   const handleNext = () => {
@@ -353,32 +359,59 @@ function ReservationFormStep2() {
     };
 
     const hasSeniors = numberOfSeniors > 0;
+    const numberOfPwds = parseInt(step1?.guests?.pwds || 0, 10) || 0;
+    const hasPwds = numberOfPwds > 0;
     const isIndividual = step1?.type?.individual;
 
-    // Determine the next step based on reservation type and senior citizens
+    // Preserve files from location.state if they exist
+    const seniorCitizenIdFiles = location.state?.seniorCitizenIdFiles || [];
+    const pwdIdFiles = location.state?.pwdIdFiles || [];
+
+    // Determine the next step based on reservation type, senior citizens, and PWDs
+    // Priority order: Letter of Intent (if group) -> Senior Citizen ID -> PWD ID -> Final Step
     if (isIndividual) {
-      if (hasSeniors) {
-        // Individual with seniors: go to senior citizen ID upload
+      if (hasSeniors && hasPwds) {
+        // Individual with both: go to senior citizen ID first, then PWD ID
         navigate(`/reservation-step3-senior/${type}/${facilityName}/${id}`, {
-          state: { step1, step2, file: null },
+          state: { step1, step2, file: null, seniorCitizenIdFiles, pwdIdFiles },
+        });
+      } else if (hasSeniors) {
+        // Individual with seniors only: go to senior citizen ID upload
+        navigate(`/reservation-step3-senior/${type}/${facilityName}/${id}`, {
+          state: { step1, step2, file: null, seniorCitizenIdFiles, pwdIdFiles },
+        });
+      } else if (hasPwds) {
+        // Individual with PWDs only: go to PWD ID upload
+        navigate(`/reservation-step3-pwd/${type}/${facilityName}/${id}`, {
+          state: { step1, step2, file: null, seniorCitizenIdFiles, pwdIdFiles },
         });
       } else {
-        // Individual without seniors: skip to final step
+        // Individual without seniors or PWDs: skip to final step
         navigate(`/reservation-step4/${type}/${facilityName}/${id}`, {
-          state: { step1, step2, file: null },
+          state: { step1, step2, file: null, seniorCitizenIdFiles, pwdIdFiles },
         });
       }
     } else {
       // Group reservation
-      if (hasSeniors) {
-        // Group with seniors: go to Letter of Intent first, then senior citizen ID
+      if (hasSeniors && hasPwds) {
+        // Group with both: go to Letter of Intent first, then senior citizen ID, then PWD ID
         navigate(`/reservation-step3/${type}/${facilityName}/${id}`, {
-          state: { step1, step2, file },
+          state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles },
+        });
+      } else if (hasSeniors) {
+        // Group with seniors only: go to Letter of Intent first, then senior citizen ID
+        navigate(`/reservation-step3/${type}/${facilityName}/${id}`, {
+          state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles },
+        });
+      } else if (hasPwds) {
+        // Group with PWDs only: go to Letter of Intent first, then PWD ID
+        navigate(`/reservation-step3/${type}/${facilityName}/${id}`, {
+          state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles },
         });
       } else {
-        // Group without seniors: just Letter of Intent
+        // Group without seniors or PWDs: just Letter of Intent
         navigate(`/reservation-step3/${type}/${facilityName}/${id}`, {
-          state: { step1, step2, file },
+          state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles },
         });
       }
     }
@@ -528,52 +561,6 @@ function ReservationFormStep2() {
                       </select>
                     </div>
                   </div>
-
-                  {/* {isDormitory && (
-                    <div className={styles.formGroup}>
-                      <label className={styles.label}>Number of Rooms<span className={styles.requiredAsterisk}>*</span></label>
-                      <div className={styles.quantityInput}>
-                        <button
-                          type="button"
-                          className={styles.quantityButton}
-                          onClick={() => {
-                            const current = parseInt(formData.numberOfRooms || 1, 10);
-                            if (current > 1) {
-                              setFormData(prev => ({ ...prev, numberOfRooms: current - 1 }));
-                            }
-                          }}
-                          disabled={parseInt(formData.numberOfRooms || 1, 10) <= 1}
-                        >
-                          -
-                        </button>
-                        <input
-                          type="number"
-                          name="numberOfRooms"
-                          value={formData.numberOfRooms || 1}
-                          onChange={handleInputChange}
-                          className={`${styles.quantityInputBox} ${fieldErrors.numberOfRooms ? styles.inputError : ''}`}
-                          min="1"
-                          max="10"
-                        />
-                        <button
-                          type="button"
-                          className={styles.quantityButton}
-                          onClick={() => {
-                            const current = parseInt(formData.numberOfRooms || 1, 10);
-                            if (current < 10) {
-                              setFormData(prev => ({ ...prev, numberOfRooms: current + 1 }));
-                            }
-                          }}
-                          disabled={parseInt(formData.numberOfRooms || 1, 10) >= 10}
-                        >
-                          +
-                        </button>
-                      </div>
-                      {fieldErrors.numberOfRooms && (
-                        <div className={styles.fieldError}>{fieldErrors.numberOfRooms}</div>
-                      )}
-                    </div>
-                  )} */}
                 </div>
               </div>
 
@@ -760,15 +747,6 @@ function ReservationFormStep2() {
                       {selectedAddons.length > 0 ? selectedAddons.map(addon => addon.label).join(', ') : 'None'}
                     </span>
                   </div>
-
-                  {isDormitory && (
-                    <div className={styles.summaryRow}>
-                      <span className={styles.summaryLabel}>Number of Rooms:</span>
-                      <span className={styles.summaryValue}>
-                        {formData.numberOfRooms || 1}
-                      </span>
-                    </div>
-                  )}
 
                   <div className={styles.summaryRow}>
                     <span className={styles.summaryLabel}>Emergency Contact Person:</span>
