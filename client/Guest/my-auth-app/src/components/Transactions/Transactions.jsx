@@ -287,7 +287,7 @@ function Transactions() {
                       title={!reservationId ? 'Select a reservation first' : 'Pay with GCash'}
                     >
                       <img
-                        src="https://upload.wikimedia.org/wikipedia/commons/7/78/GCash_2020_logo.svg"
+                        src="https://logos-world.net/wp-content/uploads/2023/05/GCash-Logo.jpg"
                         alt="GCash"
                         className={styles.channelLogo}
                       />
@@ -299,7 +299,7 @@ function Transactions() {
                       title={!reservationId ? 'Select a reservation first' : 'Pay with GrabPay'}
                     >
                       <img
-                        src="https://upload.wikimedia.org/wikipedia/commons/5/55/Grab_Logo.svg"
+                        src="https://bux.ph/wp-content/uploads/sites/10/2023/07/logo-grabpay.png"
                         alt="GrabPay"
                         className={styles.channelLogo}
                       />
@@ -311,8 +311,8 @@ function Transactions() {
                       title={!reservationId ? 'Select a reservation first' : 'Pay with PayMaya'}
                     >
                       <img
-                        src="https://upload.wikimedia.org/wikipedia/commons/8/8f/Maya_Logo.svg"
-                        alt="PayMaya"
+                        src="https://fameplus.com/uploads/_export_enablers/1661479316374_WeBuildPossibilitieslogo-ChristineRemando.jpg"
+                        alt="DBP"
                         className={styles.channelLogo}
                       />
                     </button>

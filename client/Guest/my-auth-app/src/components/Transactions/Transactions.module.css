@@ -301,9 +301,9 @@
 }
 
 .channelLogo {
-    height: 30px;
-    width: 50%;
-    object-fit: scale-down;
+    height: 40px;
+    width: 40%;
+    /* object-fit: scale-down; */
     margin: 0 auto;
     display: block;
 }
