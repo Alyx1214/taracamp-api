@@ -15,6 +15,22 @@
   font-size: 50px;
   cursor: pointer;
   color: #233d29;
+  padding: 0.5rem;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.add-form-back:hover {
+  color: #1E3C24;
+  transform: translateY(-2px);
+}
+
+.add-form-back:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(35, 61, 41, 0.1);
 }
 
 .title {
