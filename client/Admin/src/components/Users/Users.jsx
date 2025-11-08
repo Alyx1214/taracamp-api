@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import UnivTable from "../UnivTable/UnivTable.jsx";
 import SearchFil from "../SearchFil/SearchFil.jsx";
 import UsersHeader from "./UsersHeader.jsx";
@@ -10,6 +10,7 @@ import { searchUsers, deleteUser } from "../../apis/userApi";
 
 export default function Users() {
   const location = useLocation();
+  const navigate = useNavigate();
   const roleTabs = useMemo(
     () => [
       { label: "All", value: "All" },
@@ -103,6 +104,21 @@ export default function Users() {
     }
   }
 
+  function handleEdit(row) {
+    if (!row?.id) return;
+    // Navigate to edit form with user data
+    navigate(`/users/edit/${row.id}`, {
+      state: {
+        user: {
+          id: row.id,
+          name: row.name || "",
+          email: row.email || "",
+          role: row.role || "",
+        }
+      }
+    });
+  }
+
   return (
     <div className={styles["users-container"]}>
       <UsersHeader />
@@ -134,8 +150,13 @@ export default function Users() {
           columns={columns}
           data={mappedUsers}
           loading={loading}
-          renderActions={() => (
-            <button className={styles.editBtn}>Edit</button>
+          renderActions={(row) => (
+            <button 
+              className={styles.editBtn}
+              onClick={() => handleEdit(row)}
+            >
+              Edit
+            </button>
           )}
           renderMenu={(row) => [
             { label: "Delete", onClick: () => handleDelete(row) },

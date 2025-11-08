@@ -645,6 +645,145 @@ const userModule = {
     },
 
     /**
+     * Updates an existing user.
+     * @param {Object} dbHelper - The database helper for database operations.
+     * @param {string} userId - The ID of the user to update.
+     * @param {Object} data - The data object containing the user details to update.
+     * @param {Object} user - The user object containing the user ID and role.
+     * @returns {Object} Response data with status, error, and a message on success.
+     */
+    updateUser: async (dbHelper, userId, data, user) => {
+        const responseData = {
+            status: Status.INTERNAL_SERVER_ERROR,
+            error: 'Error updating user',
+        };
+
+        try {
+            if (!user || user.role !== UserRole.SUPERINTENDENT) {
+                responseData.status = Status.FORBIDDEN;
+                responseData.error = 'Only superintendent can update a user';
+                return responseData;
+            }
+
+            if (!userId) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Missing user ID';
+                return responseData;
+            }
+
+            const { name, email, role, password } = data;
+            
+            const updateData = {};
+            const validationErrors = [];
+
+            if (name !== undefined) {
+                if (!isPresent(name)) {
+                    validationErrors.push('Name cannot be empty');
+                } else if (!isValidName(name)) {
+                    validationErrors.push('Invalid name format. Name must contain only letters, spaces, hyphens, periods, and apostrophes');
+                } else {
+                    updateData.name = name.trim().replace(/\s+/g, ' ');
+                }
+            }
+
+            if (email !== undefined) {
+                const normalizedEmail = email.toLowerCase().trim();
+                if (!isPresent(email)) {
+                    validationErrors.push('Email cannot be empty');
+                } else if (!isValidEmail(normalizedEmail)) {
+                    validationErrors.push('Invalid email address format');
+                } else {
+                    updateData.email = normalizedEmail;
+                }
+            }
+
+            if (role !== undefined) {
+                if (!isPresent(role)) {
+                    validationErrors.push('Role cannot be empty');
+                } else if (!isValidRole(role)) {
+                    validationErrors.push(`Invalid role. Must be one of: ${Object.values(UserRole).join(', ')}`);
+                } else {
+                    updateData.role = role;
+                }
+            }
+
+            if (password !== undefined && password !== null && password !== '') {
+                if (!isValidPassword(password)) {
+                    validationErrors.push('Password must be 8-128 characters long');
+                } else {
+                    const saltRounds = 12;
+                    updateData.password = await bcrypt.hash(password, saltRounds);
+                }
+            }
+
+            if (validationErrors.length > 0) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = validationErrors.join(', ');
+                return responseData;
+            }
+
+            if (Object.keys(updateData).length === 0) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'No valid fields to update';
+                return responseData;
+            }
+
+            const targetUser = await dbHelper.findOne('user', { _id: userId }, { projection: { _id: 1, email: 1, role: 1 } });
+            if (!targetUser) {
+                responseData.status = Status.NOT_FOUND;
+                responseData.error = 'User not found';
+                return responseData;
+            }
+
+            // Check if email is being changed and if the new email already exists
+            if (updateData.email && updateData.email !== targetUser.email) {
+                const emailExists = await dbHelper.findOne('user', 
+                    { email: updateData.email, _id: { $ne: userId } }, 
+                    { projection: { _id: 1 } }
+                );
+                
+                if (emailExists) {
+                    responseData.status = Status.BAD_REQUEST;
+                    responseData.error = 'Email already exists';
+                    return responseData;
+                }
+            }
+
+            updateData.updatedAt = new Date();
+
+            await dbHelper.updateOne('user', { _id: userId }, updateData);
+            
+            await invalidateUserSearchCache();
+
+            responseData.status = Status.OK;
+            responseData.error = null;
+            responseData.message = 'User updated successfully';
+
+        } catch (error) {
+            console.error('Error updating user:', error);
+
+            if (error?.code === 11000 || error?.code === 'ER_DUP_ENTRY') {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Email already exists';
+            } else if (error?.name === 'ValidationError') {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Invalid data provided: ' + (error.message || 'Validation failed');
+            } else if (error?.name === 'CastError') {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Invalid data format provided';
+            } else if (error?.name === 'MongoError' || error?.name === 'MongoServerError') {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Database constraint violation';
+            } else {
+                responseData.status = Status.INTERNAL_SERVER_ERROR;
+                responseData.error = 'Error updating user';
+            }
+        }
+
+        return responseData;
+    },
+
+    /**
      * Get all users by role.
      * @param {Object} dbHelper - The database helper for database operations.
      * @param {string} role - The role of the users to retrieve.
