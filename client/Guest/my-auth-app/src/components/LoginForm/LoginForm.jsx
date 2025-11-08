@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import styles from '../AuthFormContainer/AuthFormContainer.module.css';
+import loginStyles from './LoginForm.module.css';
 import { FaGoogle, FaFacebook, FaEye, FaEyeSlash } from 'react-icons/fa';
 import { useGoogleLogin } from '@react-oauth/google';
 import { useFacebookLogin } from '@kazion/react-facebook-login';
@@ -100,40 +101,31 @@ function LoginForm({ onForgotPassword, onLoginSuccess }) {
           onChange={(e) => setEmail(e.target.value)}
           required
         />
-        <div style={{ position: 'relative', marginBottom: '20px' }}>
+        <div className={loginStyles.passwordInputWrapper}>
           <input
             type={showPassword ? 'text' : 'password'}
             placeholder="Password"
-            className={styles.formInput}
+            className={`${styles.formInput} ${loginStyles.passwordInput}`}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            style={{ marginBottom: 0 }}
           />
           <span
-            style={{
-              position: 'absolute',
-              right: '15px',
-              top: '50%',
-              transform: 'translateY(-50%)',
-              cursor: 'pointer',
-              color: '#666',
-              fontSize: '1.1em',
-            }}
+            className={loginStyles.passwordToggle}
             onClick={() => setShowPassword((s) => !s)}
             aria-label={showPassword ? 'Hide password' : 'Show password'}
           >
             {showPassword ? <FaEyeSlash /> : <FaEye />}
           </span>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', width: '100%' }}>
+        <div className={loginStyles.forgotPasswordContainer}>
           <a
             href="#"
             onClick={(e) => {
               e.preventDefault();
               onForgotPassword();
             }}
-            style={{ fontSize: '0.9em', color: '#1E3C24', textDecoration: 'none' }}
+            className={loginStyles.forgotPasswordLink}
           >
             Forgot Password?
           </a>
@@ -143,9 +135,9 @@ function LoginForm({ onForgotPassword, onLoginSuccess }) {
         </button>
       </form>
       {loading && <p>Logging in...</p>}
-      {error && <p style={{ color: 'red' }}>{error}</p>}
+      {error && <p className={loginStyles.errorMessage}>{error}</p>}
       {facebookLoading && <p>Logging in with Facebook...</p>}
-      {facebookError && <p style={{ color: 'red' }}>{facebookError}</p>}
+      {facebookError && <p className={loginStyles.errorMessage}>{facebookError}</p>}
       <p className={styles.orSeparator}>or</p>
       <div className={styles.socialLogin}>
         <button

@@ -126,7 +126,7 @@ function SignUpForm({ onRegistrationSuccess }) {
   return (
     <div className={`${commonStyles.formGroup} ${specificStyles.signUpFormGroup}`}>
       <h2 className={specificStyles.signUpFormGroup}>Create an Account</h2>
-      <p style={{ fontSize: '0.8em', marginBottom: '25px', textAlign: 'left' }}>
+      <p className={specificStyles.signUpDescription}>
         Join and Explore the possibilities that Teachers Camp have!
       </p>
 
@@ -140,47 +140,36 @@ function SignUpForm({ onRegistrationSuccess }) {
           required
         />
 
-        <div style={{ display: 'flex', gap: '10px', width: '100%', marginBottom: '15px' }}>
+        <div className={specificStyles.nameInputContainer}>
           <input
             type="text"
             placeholder="First Name"
-            className={`${commonStyles.formInput} ${specificStyles.signUpFormInput}`}
+            className={`${commonStyles.formInput} ${specificStyles.signUpFormInput} ${specificStyles.nameInput}`}
             value={firstName}
             onChange={(e) => setFirstName(e.target.value)}
             required
-            style={{ marginBottom: '0', flex: 1 }}
           />
           <input
             type="text"
             placeholder="Last Name"
-            className={`${commonStyles.formInput} ${specificStyles.signUpFormInput}`}
+            className={`${commonStyles.formInput} ${specificStyles.signUpFormInput} ${specificStyles.nameInput}`}
             value={lastName}
             onChange={(e) => setLastName(e.target.value)}
             required
-            style={{ marginBottom: '0', flex: 1 }}
           />
         </div>
 
-        <div style={{ position: 'relative', marginBottom: '15px', width: '100%' }}>
+        <div className={specificStyles.passwordInputWrapper}>
           <input
             type={showPassword ? 'text' : 'password'}
             placeholder="Password"
-            className={`${commonStyles.formInput} ${specificStyles.signUpFormInput}`}
+            className={`${commonStyles.formInput} ${specificStyles.signUpFormInput} ${specificStyles.passwordInput}`}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            style={{ marginBottom: '0' }}
           />
           <span
-            style={{
-              position: 'absolute',
-              right: '15px',
-              top: '50%',
-              transform: 'translateY(-50%)',
-              cursor: 'pointer',
-              color: '#666',
-              fontSize: '1.1em',
-            }}
+            className={specificStyles.passwordToggle}
             onClick={() => setShowPassword((v) => !v)}
             aria-label={showPassword ? 'Hide password' : 'Show password'}
           >
@@ -188,26 +177,17 @@ function SignUpForm({ onRegistrationSuccess }) {
           </span>
         </div>
 
-        <div style={{ position: 'relative', marginBottom: '20px', width: '100%' }}>
+        <div className={specificStyles.confirmPasswordWrapper}>
           <input
             type={showConfirmPassword ? 'text' : 'password'}
             placeholder="Confirm Password"
-            className={`${commonStyles.formInput} ${specificStyles.signUpFormInput}`}
+            className={`${commonStyles.formInput} ${specificStyles.signUpFormInput} ${specificStyles.confirmPasswordInput}`}
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
             required
-            style={{ marginBottom: '0' }}
           />
           <span
-            style={{
-              position: 'absolute',
-              right: '15px',
-              top: '50%',
-              transform: 'translateY(-50%)',
-              cursor: 'pointer',
-              color: '#666',
-              fontSize: '1.1em',
-            }}
+            className={specificStyles.passwordToggle}
             onClick={() => setShowConfirmPassword((v) => !v)}
             aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
           >
@@ -215,19 +195,19 @@ function SignUpForm({ onRegistrationSuccess }) {
           </span>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '15px', width: '100%' }}>
+        <div className={specificStyles.termsContainer}>
           <input
             type="checkbox"
             id="terms"
             checked={agreedToTerms}
             onChange={(e) => setAgreedToTerms(e.target.checked)}
-            style={{ marginRight: '8px' }}
+            className={specificStyles.termsCheckbox}
           />
-          <label htmlFor="terms" className={commonStyles.formGroup} style={{ fontSize: '0.9em', color: '#666' }}>
+          <label htmlFor="terms" className={`${commonStyles.formGroup} ${specificStyles.termsLabel}`}>
             I agree to the{' '}
             <span
               onClick={() => setShowTermsModal(true)}
-              style={{ cursor: 'pointer', fontWeight: 'bold', textDecoration: 'underline', color: '#4CAF50' }}
+              className={specificStyles.termsLink}
             >
               Terms and Privacy Policy
             </span>
@@ -244,9 +224,9 @@ function SignUpForm({ onRegistrationSuccess }) {
       </form>
 
       {loading && <p>Signing up...</p>}
-      {error && <p style={{ color: 'red' }}>{error}</p>}
+      {error && <p className={specificStyles.errorMessage}>{error}</p>}
       {facebookLoading && <p>Signing up with Facebook...</p>}
-      {facebookError && <p style={{ color: 'red' }}>{facebookError}</p>}
+      {facebookError && <p className={specificStyles.errorMessage}>{facebookError}</p>}
 
       <p className={`${commonStyles.orSeparator} ${specificStyles.signUpOrSeparator}`}>or</p>
 
