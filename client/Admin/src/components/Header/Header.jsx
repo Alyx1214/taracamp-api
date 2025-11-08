@@ -141,7 +141,7 @@ const Header = ({ onHamburgerClick }) => {
           <div 
             className={`${styles["header-action"]} ${styles["header-icon"]} ${styles["notification-icon"]}`}
             onClick={handleNotificationClick}
-            style={{ cursor: 'pointer', position: 'relative' }}
+            style={{ cursor: 'pointer', position: 'center' }}
           >
             <FaBell />
             {unreadCount > 0 && (
@@ -154,8 +154,6 @@ const Header = ({ onHamburgerClick }) => {
             </div>
           )}
         </div>
-        <FaUser className={`${styles["header-action"]} ${styles["header-icon"]}`} />
-        <h1 className={styles["header-title"]}>{welcomeText}</h1>
       </div>
     </header>
   );
