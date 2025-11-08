@@ -22,17 +22,10 @@ export default function TransactionTable({ data = [], loading = false }) {
         className={styles["univ-view-btn"]}
         onClick={() => navigate(`/transaction/${row.id}/details`)}
       >
-        View
+        View Details
       </button>
     </>
   );
-
-  const renderMenu = (row) => [
-    {
-      label: "View Details",
-      onClick: () => navigate(`/transaction/${row.id}/details`),
-    },
-  ];
 
   return (
     <UnivTable
@@ -40,7 +33,6 @@ export default function TransactionTable({ data = [], loading = false }) {
       data={formattedData}
       loading={loading}
       renderActions={renderActions}
-      renderMenu={renderMenu}
     />
   );
 }
