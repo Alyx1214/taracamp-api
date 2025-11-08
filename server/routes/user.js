@@ -112,6 +112,11 @@ export default function buildUserRouter(userSocketMap) {
     res.status(response.status).json(response);
   }));
 
+  r.post('/update-user/:id', basicLimiter, asyncHandler(async (req, res) => {
+    const response = await userModule.updateUser(dbHelper, req.params.id, req.body, req.user);
+    res.status(response.status).json(response);
+  }));
+
   r.post('/delete-user/:id', asyncHandler(async (req, res) => {
     const response = await userModule.deleteUser(dbHelper, req.params.id, req.user);
     res.status(response.status).json(response);

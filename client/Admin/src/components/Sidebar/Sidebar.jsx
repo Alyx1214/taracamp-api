@@ -43,7 +43,7 @@ const Sidebar = ({ isOpen, onClose }) => {
     { key: "facilities", to: "/facilities", icon: <FaBed />, label: "FACILITIES" },
     { key: "reservations", to: "/reservations", icon: <FaClipboardList />, label: "RESERVATIONS" },
     { key: "transactions", to: "/transactions", icon: <FaExchangeAlt />, label: "TRANSACTIONS" },
-    { key: "user", to: "/user", icon: <FaUser />, label: "USER" },
+    { key: "user", to: "/user", icon: <FaUser />, label: "USERS" },
     { key: "checkin", to: "/checkin", icon: <FaDoorOpen />, label: "CHECK-IN/OUT" },
     { key: "messages", to: "/messages", icon: <FaEnvelope />, label: "MESSAGES" },
   ];

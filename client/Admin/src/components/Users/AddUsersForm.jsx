@@ -1,17 +1,33 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { addUser } from "../../apis/userApi";
+import React, { useState, useEffect } from "react";
+import { useNavigate, useLocation, useParams } from "react-router-dom";
+import { addUser, updateUser } from "../../apis/userApi";
 import styles from "./AddUsersForm.module.css";
 
 
 export default function AddUserForm({ onAddUser }) {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { id } = useParams();
+  const isEditMode = Boolean(id || location.state?.user);
+  const userToEdit = location.state?.user || null;
+
   const [formData, setFormData] = useState({
     name: "",
     email: "",
-    role: "Staff", 
+    role: "CRMS Team", 
     password: "",
   });
+
+  useEffect(() => {
+    if (isEditMode && userToEdit) {
+      setFormData({
+        name: userToEdit.name || "",
+        email: userToEdit.email || "",
+        role: userToEdit.role || "CRMS Team",
+        password: "",
+      });
+    }
+  }, [isEditMode, userToEdit]);
 
 
   const handleChange = (e) => {
@@ -25,22 +41,47 @@ export default function AddUserForm({ onAddUser }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.name || !formData.email || !formData.password) {
+    if (!formData.name || !formData.email) {
+      alert("Please fill out all required fields.");
+      return;
+    }
+
+    // Password is required for add mode, optional for edit mode
+    if (!isEditMode && !formData.password) {
       alert("Please fill out all required fields.");
       return;
     }
 
     try {
-      await addUser({
-        name: formData.name,
-        email: formData.email,
-        role: formData.role, 
-        password: formData.password,
-      });
-      alert("User added successfully.");
+      if (isEditMode) {
+        const userId = id || userToEdit?.id;
+        if (!userId) {
+          alert("User ID is required for editing.");
+          return;
+        }
+        const updateData = {
+          name: formData.name,
+          email: formData.email,
+          role: formData.role,
+        };
+        // Only include password if provided
+        if (formData.password && formData.password.trim()) {
+          updateData.password = formData.password;
+        }
+        await updateUser(userId, updateData);
+        alert("User updated successfully.");
+      } else {
+        await addUser({
+          name: formData.name,
+          email: formData.email,
+          role: formData.role, 
+          password: formData.password,
+        });
+        alert("User added successfully.");
+      }
       navigate("/user");
     } catch (err) {
-      const msg = err?.data?.error || err?.message || "Failed to add user";
+      const msg = err?.data?.error || err?.message || (isEditMode ? "Failed to update user" : "Failed to add user");
       alert(msg);
     }
   };
@@ -59,7 +100,7 @@ export default function AddUserForm({ onAddUser }) {
         >
           &larr;
         </span>
-        <h1 className={styles.title}>Add New User</h1>
+        <h1 className={styles.title}>{isEditMode ? "Edit User" : "Add New User"}</h1>
       </div>
 
       <form onSubmit={handleSubmit} className={styles["add-user-form"]}>
@@ -102,17 +143,20 @@ export default function AddUserForm({ onAddUser }) {
             onChange={handleChange}
             className={styles["add-user-select"]}
           >
+            <option value="Guest">Guest</option>
             <option value="Superintendent">Superintendent</option>
             <option value="Frontdesk">Front Desk</option>
+            <option value="CRMS Team">Staff</option>
             <option value="Accounting">Accounting</option>
-            <option value="Staff">Staff</option>
           </select>
         </div>
 
 
         {/* Password */}
         <div>
-          <label className={styles["add-user-label"]}>Password *</label>
+          <label className={styles["add-user-label"]}>
+            Password {isEditMode ? "" : "*"}
+          </label>
           <input
             type="password"
             name="password"
@@ -120,7 +164,7 @@ export default function AddUserForm({ onAddUser }) {
             onChange={handleChange}
             className={styles["add-user-input"]}
             placeholder="Enter password"
-            required
+            required={!isEditMode}
           />
         </div>
 
@@ -136,7 +180,7 @@ export default function AddUserForm({ onAddUser }) {
             Cancel
           </button>
           <button type="submit" className={styles["add-user-submit"]}>
-            Save User
+            {isEditMode ? "Update User" : "Save User"}
           </button>
         </div>
       </form>
