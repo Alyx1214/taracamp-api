@@ -4,7 +4,7 @@ import { OAuth2Client, } from 'google-auth-library';
 import fetch from 'node-fetch';
 import jwtHelper from './jwtHelper.js';
 import redisClient from './redisClient.js';
-import { safeRedisOperations } from './redisCircuitBreaker.js';
+import { safeRedisOperations, redisCircuitBreaker } from './redisCircuitBreaker.js';
 import { v4 as uuidv4, } from 'uuid';
 import crypto from 'crypto';
 
@@ -150,7 +150,7 @@ const userModule = {
             }
 
             const userObject = await dbHelper.findOne('user', { email: normalizedEmail }, { 
-                projection: { password: 1, email: 1, role: 1, _id: 1 } 
+                projection: { password: 1, email: 1, role: 1, _id: 1, name: 1 } 
             });
             
             if (!userObject || !userObject.password) {
@@ -205,6 +205,7 @@ const userModule = {
             responseData.jti = jti;
             responseData.userId = userId;
             responseData.role = userObject.role;
+            responseData.name = userObject.name || null;
 
         } catch (error) {
             console.error('Error logging in user:', error);
@@ -1219,19 +1220,32 @@ const userModule = {
             }
 
             try {
+                // Check if Redis is available before treating null as "token not found"
+                const cbState = redisCircuitBreaker.getState();
+                const redisAvailable = cbState.state === 'CLOSED' || cbState.state === 'HALF_OPEN';
+                
                 const stored = await safeRedisOperations.get(oldKey);
-                if (!stored) {
-                    await revokeAllRefreshTokens(userId);
-                    responseData.status = Status.UNAUTHORIZED;
-                    responseData.error = 'Refresh token reuse detected. All sessions revoked.';
-                    return responseData;
-                }
+                
+                // Only enforce token reuse detection if Redis is available
+                // If Redis is down, we rely on JWT verification only (stateless)
+                if (redisAvailable) {
+                    if (!stored) {
+                        await revokeAllRefreshTokens(userId);
+                        responseData.status = Status.UNAUTHORIZED;
+                        responseData.error = 'Refresh token reuse detected. All sessions revoked.';
+                        return responseData;
+                    }
 
-                if (stored !== refreshToken.trim()) {
-                    await revokeAllRefreshTokens(userId);
-                    responseData.status = Status.UNAUTHORIZED;
-                    responseData.error = 'Refresh token mismatch. All sessions revoked.';
-                    return responseData;
+                    if (stored !== refreshToken.trim()) {
+                        await revokeAllRefreshTokens(userId);
+                        responseData.status = Status.UNAUTHORIZED;
+                        responseData.error = 'Refresh token mismatch. All sessions revoked.';
+                        return responseData;
+                    }
+                } else {
+                    // Redis is down - log warning but allow refresh to proceed
+                    // We rely on JWT signature verification which already happened above
+                    console.warn(`Redis unavailable during token refresh for user ${userId}. Allowing refresh based on JWT verification only.`);
                 }
 
                 const user = await dbHelper.findOne('user', { _id: userId, });

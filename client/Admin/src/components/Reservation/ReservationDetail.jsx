@@ -4,7 +4,7 @@ import styles from "./ReservationDetail.module.css";
 import {
   getReservationById,
   decideReservation,
-  uploadApprovalDocument,
+  uploadNonavailabilityCertificate,
 } from "../../apis/reservationApi";
 import ConfirmModal from "../Shared/ConfirmModal";
 
@@ -55,6 +55,10 @@ export default function ReservationDetails() {
   const [hasApprovalDoc, setHasApprovalDoc] = useState(false);
   const [approveError, setApproveError] = useState("");
   const uploadRef = useRef(null);
+
+  // Check if user can approve/decline (only Superintendent)
+  const role = (typeof window !== 'undefined' && localStorage.getItem('userRole')) || '';
+  const canApproveDecline = role === 'SUPERINTENDENT';
 
   useEffect(() => {
     let cancel = false;
@@ -125,7 +129,7 @@ export default function ReservationDetails() {
     }
     try {
       setUploading(true);
-      await uploadApprovalDocument(id, file);
+      await uploadNonavailabilityCertificate(id, file);
       setHasApprovalDoc(true);
       setApproveError("");
       alert("Non-Availability Certificate uploaded.");
@@ -253,22 +257,24 @@ export default function ReservationDetails() {
       </div>
 
       {/* Actions */}
-      <div className={styles["reservation-actions"]}>
-        <button
-          className={`${styles["reservation-btn"]} ${styles["reservation-btn-decline"]}`}
-          onClick={promptDecline}
-          disabled={submitting}
-        >
-          Decline
-        </button>
-        <button
-          className={`${styles["reservation-btn"]} ${styles["reservation-btn-approve"]}`}
-          onClick={onApprove}
-          disabled={submitting}
-        >
-          {submitting ? "Approving…" : "Approve"}
-        </button>
-      </div>
+      {canApproveDecline && (
+        <div className={styles["reservation-actions"]}>
+          <button
+            className={`${styles["reservation-btn"]} ${styles["reservation-btn-decline"]}`}
+            onClick={promptDecline}
+            disabled={submitting}
+          >
+            Decline
+          </button>
+          <button
+            className={`${styles["reservation-btn"]} ${styles["reservation-btn-approve"]}`}
+            onClick={onApprove}
+            disabled={submitting}
+          >
+            {submitting ? "Approving…" : "Approve"}
+          </button>
+        </div>
+      )}
 
       {/* Decline confirm */}
       <ConfirmModal

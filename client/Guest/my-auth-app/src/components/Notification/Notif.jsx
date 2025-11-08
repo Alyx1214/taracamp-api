@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom'; 
 import styles from './Notif.module.css';
+import NotifPrev from './NotifPrev';
 import NotifPreview from './NotifPreview';
 import NotifUpload from './NotifUpload';
 import NotifIndiv from './NotifIndiv';
 import NotifReviews from './NotifReviews';
 import { listNotifications, markAllNotificationsRead, markNotificationRead } from '../../apis/notificationApi';
 import { updateMealPreference, getReservationById } from '../../apis/reservationApi';
+import { subscribe, initSocketFresh } from '../../utils/webSocketClient';
 
 export default function Notif() {
   const navigate = useNavigate();
@@ -86,6 +88,89 @@ export default function Notif() {
     }
     load();
     return () => { cancelled = true; };
+  }, []);
+
+  // 👇 Add WebSocket listener for real-time notifications
+  useEffect(() => {
+    // Ensure WebSocket is initialized (HeaderHome manages auto-reconnect)
+    initSocketFresh().catch(() => {});
+
+    const handleWebSocketMessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        
+        if (data.type === 'notification' && data.notification) {
+          const newNotif = data.notification;
+          
+          // Normalize the notification data to match the expected format
+          const normalized = {
+            _id: newNotif.id || String(Date.now()),
+            title: newNotif.title,
+            message: newNotif.message ?? null,
+            kind: newNotif.kind ?? null,
+            createdAt: newNotif.createdAt || new Date(),
+            isRead: false,
+            source: newNotif.source || "Teachers' Camp",
+            timeLabel: newNotif.time || 'Just now',
+            reservationId: newNotif.reservationId || null,
+          };
+
+          // Add to notifications list if it doesn't already exist
+          setNotifications(prev => {
+            const locals = prev.filter(x => typeof x?._id === 'string' && x._id.startsWith('local-'));
+            
+            // Check if notification already exists
+            const exists = prev.some(n => 
+              (n._id && normalized._id && String(n._id) === String(normalized._id)) ||
+              (n.kind === normalized.kind && 
+               n.reservationId && normalized.reservationId &&
+               String(n.reservationId) === String(normalized.reservationId))
+            );
+            
+            if (exists) return prev;
+            
+            // Add new notification at the top and sort
+            const updated = [normalized, ...prev];
+            const sorted = updated.sort((a, b) => {
+              const aTime = new Date(a.createdAt || 0).getTime();
+              const bTime = new Date(b.createdAt || 0).getTime();
+              return bTime - aTime;
+            });
+            
+            // Preserve local notifications
+            const final = [...sorted];
+            locals.forEach(local => {
+              const alreadyExists = sorted.some(serverItem =>
+                serverItem._id && serverItem._id === local._id
+              ) || sorted.some(serverItem =>
+                serverItem.kind === local.kind &&
+                !!serverItem.reservationId &&
+                !!local.reservationId &&
+                String(serverItem.reservationId) === String(local.reservationId)
+              );
+              if (!alreadyExists) {
+                final.unshift(local);
+              }
+            });
+            
+            return final.sort((a, b) => {
+              const aTime = new Date(a.createdAt || 0).getTime();
+              const bTime = new Date(b.createdAt || 0).getTime();
+              return bTime - aTime;
+            });
+          });
+        }
+      } catch (error) {
+        console.error('[Notif] Error parsing WebSocket notification:', error);
+      }
+    };
+
+    // Subscribe to WebSocket messages
+    const unsubscribe = subscribe(handleWebSocketMessage);
+
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   // 👇 Detect /notifications/upload route and switch to upload stage
@@ -211,7 +296,16 @@ export default function Notif() {
       setStage('indiv');
       return;
     }
-    if (notif.kind === 'booking_success') {
+    // Check for admin approval notification - show NotifPreview with confirm/cancel buttons
+    if (notif.kind === 'reservation_approved' || 
+        (notif.title && (notif.title.toLowerCase().includes('approved') || notif.title.toLowerCase().includes('approval')))) {
+      setSelected(notif);
+      setStage('approved');
+      return;
+    }
+    // Check for booking success by kind or title - show NotifPrev (simple version)
+    if (notif.kind === 'booking_success' || 
+        (notif.title && notif.title.includes("Congratulations, Camper! You have successfully booked a reservation!"))) {
       setSelected(notif);
       setStage('preview');
       return;
@@ -241,14 +335,26 @@ export default function Notif() {
     }
   }
 
-  if (selected && stage === 'preview') {
+  // Show NotifPreview (full version with confirm/cancel) for admin approval notifications
+  if (selected && stage === 'approved') {
     return (
       <NotifPreview
         notif={selected}
         clientType="individual"
         onBack={() => { setSelected(null); setStage('list'); }}
         onConfirm={handlePreviewConfirm}
-        onCancel={() => { setSelected(null); }}
+        onCancel={() => { setSelected(null); setStage('list'); }}
+      />
+    );
+  }
+
+  // Show NotifPrev (simple version) for booking success notifications
+  if (selected && stage === 'preview') {
+    return (
+      <NotifPrev
+        notif={selected}
+        clientType="individual"
+        onBack={() => { setSelected(null); setStage('list'); }}
       />
     );
   }
@@ -287,8 +393,9 @@ export default function Notif() {
       if (pathname === '/notifications/upload') {
         navigate('/homepage');
       } else {
-        // Go back to preview if we came from there, otherwise go to list
-        setStage(selected ? 'preview' : 'list');
+        // Go back to approved/preview if we came from there, otherwise go to list
+        // Upload can be triggered from NotifPreview (approved stage), so go back to approved
+        setStage(selected ? 'approved' : 'list');
       }
     };
 

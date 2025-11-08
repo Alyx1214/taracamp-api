@@ -42,7 +42,7 @@ app.set('trust proxy', 1);
 await redisClient.connect();
 
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:5174'],
+  origin: ['http://localhost:5173', 'https://taracamp-api.onrender.com', 'http://localhost:5174'],
   credentials: true
 }));
 

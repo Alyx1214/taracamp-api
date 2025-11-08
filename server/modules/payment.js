@@ -7,6 +7,8 @@ import { safeRedisOperations } from './redisCircuitBreaker.js';
 dotenv.config();
 
 const PAYMONGO_BASE_URL = process.env.PAYMONGO_BASE_URL || 'https://api.paymongo.com/v1';
+const DOWNPAYMENT_PERCENT = 0.10;
+const DUE_IN_DAYS = 3;
 
 const paymentModule = {
     /**
@@ -754,8 +756,6 @@ const paymentModule = {
                 );
                 totalPaid = (paidRows || []).reduce((acc, p) => acc + (Number(p.amountCentavos || 0) / 100), 0);
             } catch (_) {}
-            const DOWNPAYMENT_PERCENT = 0.10;
-            const DUE_IN_DAYS = 3;
 
             const createdAt = reservation.createdAt ? new Date(reservation.createdAt) : new Date();
             const arrival = reservation.dateOfArrival ? new Date(reservation.dateOfArrival) : null;
@@ -771,11 +771,7 @@ const paymentModule = {
                 }
             }
 
-            // Confirmation fee only applies to Private + Individual reservations
-            const isPrivateAndIndividual = reservation.category === Category.PRIVATE && reservation.guestType === GuestType.INDIVIDUAL;
-            const downpaymentAmount = isPrivateAndIndividual 
-                ? Math.max(0, Math.round(total * DOWNPAYMENT_PERCENT * 100) / 100)
-                : 0;
+            const downpaymentAmount = calculateConfirmationFee(reservation.category, total);
             const remainingBalance = Math.max(0, Math.round((total - totalPaid) * 100) / 100);
             const isFullyPaid = remainingBalance <= 0;
 
@@ -857,9 +853,6 @@ const paymentModule = {
                     );
                     const totalPaid = (paidRows || []).reduce((acc, p) => acc + (Number(p.amountCentavos || 0) / 100), 0);
 
-                    const DOWNPAYMENT_PERCENT = 0.10;
-                    const DUE_IN_DAYS = 3;
-
                     const createdAt = reservation.createdAt ? new Date(reservation.createdAt) : new Date();
                     const arrival = reservation.dateOfArrival ? new Date(reservation.dateOfArrival) : null;
 
@@ -871,11 +864,7 @@ const paymentModule = {
                         if (due > lastDay) due.setTime(lastDay.getTime());
                     }
 
-                    // Confirmation fee only applies to Private + Individual reservations
-                    const isPrivateAndIndividual = reservation.category === Category.PRIVATE && reservation.guestType === GuestType.INDIVIDUAL;
-                    const downpaymentAmount = isPrivateAndIndividual
-                        ? Math.max(0, Math.round(total * DOWNPAYMENT_PERCENT * 100) / 100)
-                        : 0;
+                    const downpaymentAmount = calculateConfirmationFee(reservation.category, total);
 
                     return {
                         downpaymentAmount,
@@ -1039,10 +1028,7 @@ const paymentModule = {
             );
             const totalPaid = successful.reduce((acc, p) => acc + (Number(p.amountCentavos || 0) / 100), 0);
 
-            // Confirmation fee only applies to Private + Individual reservations
-            const DOWNPAYMENT_PERCENT = 0.10;
-            const isPrivateAndIndividual = reservation.category === Category.PRIVATE && reservation.guestType === GuestType.INDIVIDUAL;
-            const confirmationFee = isPrivateAndIndividual ? totalEstimated * DOWNPAYMENT_PERCENT : 0;
+            const confirmationFee = calculateConfirmationFee(reservation.category, totalEstimated);
 
             const status =
             totalPaid <= 0 ? 'Not Paid' :
@@ -1289,4 +1275,11 @@ function peso(num, withLeadingSpace = false) {
 function fmtAmountOnly(num) {
     const n = Number(num);
     return Number.isFinite(n) ? n.toFixed(2) : '0.00';
+}
+
+function calculateConfirmationFee(category, totalAmount) {
+    const needsConfirmationFee = category === Category.PRIVATE;
+    return needsConfirmationFee 
+        ? Math.max(0, Math.round(totalAmount * DOWNPAYMENT_PERCENT * 100) / 100)
+        : 0;
 }

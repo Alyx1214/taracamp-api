@@ -109,6 +109,12 @@ const Calendar = ({
     }
 
     const ymd = `${y}-${String(m + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    
+    // Check if date is reserved
+    if (reservedSet.has(ymd)) {
+      return;
+    }
+
     const formatted = formatDMonYYYY(chosen);
 
     if (onDateSelect) onDateSelect({ date: chosen, ymd, formatted });

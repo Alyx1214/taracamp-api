@@ -751,6 +751,12 @@
 
 /* Responsive Design */
 @media (max-width: 1024px) {
+  .container {
+    margin: 0 auto;
+    max-width: 1200px;
+    padding: 0;
+  }
+  
   .headerAndDateContainer {
     grid-template-columns: 1fr;
     gap: 1.5rem;

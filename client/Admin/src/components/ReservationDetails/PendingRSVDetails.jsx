@@ -22,6 +22,10 @@ export default function PendingRSVDetails() {
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  // Check if user can approve/decline (only Superintendent)
+  const role = (typeof window !== 'undefined' && localStorage.getItem('userRole')) || '';
+  const canApproveDecline = role === 'SUPERINTENDENT';
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -276,20 +280,22 @@ export default function PendingRSVDetails() {
               <td className={styles["reservation-details-separator"]}>:</td>
               <td>{reservation.serviceType || "N/A"}</td>
             </tr>
-            <tr>
-              <td className={styles["reservation-details-label"]}>Letter of Intent</td>
-              <td className={styles["reservation-details-separator"]}>:</td>
-              <td>
-                <a
-                  href={reservation.letterOfIntentFile || "#"}
-                  className={styles["reservation-details-link"]}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Click to open
-                </a>
-              </td>
-            </tr>
+            {reservation.guestType !== "Individual" && (
+              <tr>
+                <td className={styles["reservation-details-label"]}>Letter of Intent</td>
+                <td className={styles["reservation-details-separator"]}>:</td>
+                <td>
+                  <a
+                    href={reservation.letterOfIntentFile || "#"}
+                    className={styles["reservation-details-link"]}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Click to open
+                  </a>
+                </td>
+              </tr>
+            )}
             <tr>
               <td className={styles["reservation-details-label"]}>Non-Availability Certificate</td>
               <td className={styles["reservation-details-separator"]}>:</td>
@@ -319,26 +325,28 @@ export default function PendingRSVDetails() {
               {reservation.status || "N/A"}
             </span>
           </div>
-          <div className={styles["reservation-details-action-row"]}>
-            <button
-              className={styles["reservation-details-decline-btn"]}
-              onClick={onDecline}
-              disabled={submitting}
-            >
-              <FaTimes className={styles["reservation-details-action-icon"]} />
-              DECLINE
-            </button>
-            {!hasNonAvailability && (
+          {canApproveDecline && (
+            <div className={styles["reservation-details-action-row"]}>
               <button
-                className={styles["reservation-details-approve-btn"]}
-                onClick={onApprove}
+                className={styles["reservation-details-decline-btn"]}
+                onClick={onDecline}
                 disabled={submitting}
               >
-                <FaCheck className={styles["reservation-details-action-icon"]} />
-                {submitting ? "PROCESSING…" : "APPROVE"}
+                <FaTimes className={styles["reservation-details-action-icon"]} />
+                DECLINE
               </button>
-            )}
-          </div>
+              {!hasNonAvailability && (
+                <button
+                  className={styles["reservation-details-approve-btn"]}
+                  onClick={onApprove}
+                  disabled={submitting}
+                >
+                  <FaCheck className={styles["reservation-details-action-icon"]} />
+                  {submitting ? "PROCESSING…" : "APPROVE"}
+                </button>
+              )}
+            </div>
+          )}
         </div>
         {!hasNonAvailability && (
           <div className={styles["reservation-details-upload-section"]}>

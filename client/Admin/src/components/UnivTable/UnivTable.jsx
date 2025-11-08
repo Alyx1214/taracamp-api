@@ -86,13 +86,15 @@ export default function UnivTable({ columns, data, renderActions, renderMenu, lo
                           </>
                         )}
 
-                        <button
-                          className={styles["univ-three-dots-btn"]}
-                          onClick={() => toggleMenu(rowIndex)}
-                          aria-label="More actions"
-                        >
-                          <FaEllipsisV />
-                        </button>
+                        {renderMenu && (
+                          <button
+                            className={styles["univ-three-dots-btn"]}
+                            onClick={() => toggleMenu(rowIndex)}
+                            aria-label="More actions"
+                          >
+                            <FaEllipsisV />
+                          </button>
+                        )}
 
                         {openMenuIndex === rowIndex && renderMenu && (
                           <div className={styles["univ-dropdown-menu"]}>
