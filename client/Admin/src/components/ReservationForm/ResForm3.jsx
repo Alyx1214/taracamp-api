@@ -14,6 +14,8 @@ function ReservationFormStep3() {
   const isGroup = step1?.type?.groups || false;
 
   const [file, setFile] = useState(location.state?.file || null);
+  const seniorCitizenIdFiles = location.state?.seniorCitizenIdFiles || [];
+  const pwdIdFiles = location.state?.pwdIdFiles || [];
   const [fileError, setFileError] = useState('');
   const fileInputRef = useRef();
 
@@ -34,11 +36,11 @@ function ReservationFormStep3() {
   }, [file]);
 
   const handleGoBack = () => {
-    navigate(`/reservation-step2`, { state: { step1, step2, file } });
+    navigate(`/reservation-step2`, { state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles } });
   };
 
   const handlePrevious = () => {
-    navigate(`/reservation-step2`, { state: { step1, step2, file } });
+    navigate(`/reservation-step2`, { state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles } });
   };
 
   const handleNext = () => {
@@ -47,7 +49,33 @@ function ReservationFormStep3() {
       return;
     }
     setFileError('');
-    navigate(`/reservation-step4`, { state: { step1, step2, file } });
+    
+    // Priority: Senior Citizen ID -> PWD ID -> Final Step
+    const numberOfSeniors = parseInt(step1?.guests?.senior || 0, 10) || 0;
+    const numberOfPwds = parseInt(step1?.guests?.pwds || 0, 10) || 0;
+    const hasSeniors = numberOfSeniors > 0;
+    const hasPwds = numberOfPwds > 0;
+    
+    // Preserve files from location.state if they exist
+    const seniorCitizenIdFiles = location.state?.seniorCitizenIdFiles || [];
+    const pwdIdFiles = location.state?.pwdIdFiles || [];
+    
+    if (hasSeniors) {
+      // Route to senior citizen ID upload first
+      navigate(`/reservation-step3-senior`, { 
+        state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles } // file is Letter of Intent
+      });
+    } else if (hasPwds) {
+      // Route to PWD ID upload
+      navigate(`/reservation-step3-pwd`, { 
+        state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles } // file is Letter of Intent
+      });
+    } else {
+      // No seniors or PWDs, go to final step
+      navigate(`/reservation-step4`, { 
+        state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles } 
+      });
+    }
   };
 
   const handleBoxClick = () => {

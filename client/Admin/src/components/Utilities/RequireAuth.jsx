@@ -163,7 +163,7 @@ export default function RequireAuth() {
       if (refreshTimer) clearTimeout(refreshTimer);
       if (checkInterval) clearInterval(checkInterval);
     };
-  }, [tokenVersion, status]);
+  }, [tokenVersion]);
 
   // Listen for storage changes (token updates from other tabs)
   useEffect(() => {
@@ -219,7 +219,14 @@ export default function RequireAuth() {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, []);
 
-  if (status === 'checking') return null; // or a small spinner if desired
-  if (status === 'redirect') return <Navigate to="/auth/login" replace />;
+  if (status === 'checking') {
+    // Show loading state while checking authentication
+    return <div>Loading...</div>;
+  }
+
+  if (status === 'redirect') {
+    return <Navigate to="/auth/login" replace />;
+  }
+
   return <Outlet />;
 }

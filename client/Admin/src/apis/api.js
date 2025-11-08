@@ -46,15 +46,37 @@ async function rawFetch(path, options = {}) {
   if (!headers.has('Content-Type') && options.body && !isFormData(options.body)) {
     headers.set('Content-Type', 'application/json');
   }
-  
-  // Ensure we have a fresh token before making the request
-  const access = await ensureFreshAccess();
-  if (access) headers.set('Authorization', `Bearer ${access}`);
+
+  let access = getAccessToken();
+
+  if (access && !headers.has('Authorization')) {
+    try {
+      const maybeFresh = await ensureFreshAccess();
+      if (maybeFresh) {
+        access = maybeFresh;
+      } else {
+        const payload = decodeJwt(access);
+        const exp = payload?.exp;
+        const now = Math.floor(Date.now() / 1000);
+        if (!exp || exp <= now) {
+          try { clearTokens(); } catch {}
+          access = null;
+        }
+      }
+    } catch (error) {
+      console.warn('Token refresh failed:', error);
+      // Don't clear tokens immediately on refresh failure
+      // Let the 401 response handle it instead
+    }
+  }
+
+  if (access && !headers.has('Authorization')) {
+    headers.set('Authorization', `Bearer ${access}`);
+  }
 
   const res = await fetch(url, { ...options, headers, credentials: 'include' });
   if (res.status !== 401) return res;
 
-  // If we get 401, try one more refresh attempt
   const newAccess = await tryRefresh();
   if (!newAccess) {
     try { clearTokens(); } catch {}
@@ -154,7 +176,7 @@ export async function tryRefresh() {
   return refreshPromise;
 }
 
-export async function ensureFreshAccess(skewSec = 60) {
+export async function ensureFreshAccess(skewSec = 30) {
   const token = getAccessToken();
   if (!token) return null;
 

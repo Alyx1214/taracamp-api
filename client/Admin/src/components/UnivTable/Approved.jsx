@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import UnivTable from "./UnivTable";
 import styles from "./UnivTable.module.css";
@@ -27,7 +27,8 @@ export default function Approved({
   totalPages: parentTotalPages = 1,
   totalItems: parentTotalItems = 0,
   onPageChange: parentOnPageChange,
-  onPaginationUpdate
+  onPaginationUpdate,
+  onRefreshTab
 }) {
   const navigate = useNavigate();
   const [rows, setRows] = useState([]);
@@ -40,56 +41,62 @@ export default function Approved({
 
   const itemsPerPage = 15;
   const columns = useMemo(() => ["Name", "Email", "Service Type", "Facility Name", "Date", "Actions"], []);
+  
+  const fetchApprovedData = useCallback(async (page = currentPage, query = searchQuery, showLoading = true) => {
+    try {
+      if (showLoading) setLoading(true);
+      let res;
+      const skip = (page - 1) * itemsPerPage;
+      const options = { limit: itemsPerPage, skip };
+      
+      if (String(query || '').trim()) {
+        const s = String(query || '').trim();
+        res = await searchReservations({ query: s, ...options });
+        res.reservations = (res?.reservations || []).filter(r => r.status === 'Approved');
+      } else {
+        res = await getAllReservationsByStatus("Approved", options); 
+      }
+      const list = (res?.reservations || []).map(r => ({
+        id: r._id || "N/A",
+        name: r.guestName || "N/A",
+        email: r.guestEmail || "N/A",
+        serviceType: prettifyServiceType(r.serviceType) || "N/A",
+        facilityName: r.facilityName || "N/A",
+        date: formatDateYMDToLong(r.dateOfArrival || r.createdAt),
+        _raw: r,
+      }));
+      
+      setRows(list);
+      // Use real total count from API
+      const totalCount = res?.totalCount || 0;
+      setTotalItems(totalCount);
+      setTotalPages(Math.ceil(totalCount / itemsPerPage));
+      
+      if (onPaginationUpdate) {
+        onPaginationUpdate(Math.ceil(totalCount / itemsPerPage), totalCount);
+      }
+      return list;
+    } catch (e) {
+      setErr(e?.message || "Failed to load");
+      throw e;
+    } finally {
+      if (showLoading) setLoading(false);
+    }
+  }, [currentPage, searchQuery, onPaginationUpdate]);
+
   useEffect(() => {
     let cancelled = false;
-
-    async function fetchApproved() {
+    (async () => {
       try {
-        setLoading(true);
-        let res;
-        const skip = (currentPage - 1) * itemsPerPage;
-        const options = { limit: itemsPerPage, skip };
-        
-        if (String(searchQuery || '').trim()) {
-          const s = String(searchQuery || '').trim();
-          res = await searchReservations({ query: s, ...options });
-          res.reservations = (res?.reservations || []).filter(r => r.status === 'Approved');
-        } else {
-          res = await getAllReservationsByStatus("Approved", options); 
-        }
-        const list = (res?.reservations || []).map(r => ({
-          id: r._id || "N/A",
-          name: r.guestName || "N/A",
-          email: r.guestEmail || "N/A",
-          serviceType: prettifyServiceType(r.serviceType) || "N/A",
-          facilityName: r.facilityName || "N/A",
-          date: formatDateYMDToLong(r.dateOfArrival || r.createdAt),
-          _raw: r,
-        }));
-        
-        if (!cancelled) {
-          setRows(list);
-          // Use real total count from API
-          const totalCount = res?.totalCount || 0;
-          setTotalItems(totalCount);
-          setTotalPages(Math.ceil(totalCount / itemsPerPage));
-          
-          if (onPaginationUpdate) {
-            onPaginationUpdate(Math.ceil(totalCount / itemsPerPage), totalCount);
-          }
-        }
+        await fetchApprovedData();
       } catch (e) {
         if (!cancelled) setErr(e?.message || "Failed to load");
-      } finally {
-        if (!cancelled) setLoading(false);
       }
-    }
-
-    fetchApproved();
+    })();
     return () => {
       cancelled = true;
     };
-  }, [searchQuery, currentPage]);
+  }, [fetchApprovedData]);
 
   // Sync with parent pagination state
   useEffect(() => {
@@ -109,7 +116,15 @@ export default function Approved({
     try {
       setCancellingId(row.id); 
       await cancelReservation(row.id);
-      setRows((prev) => prev.filter((r) => r.id !== row.id));
+      // Remove from list immediately (optimistic update)
+      setRows((prev) => prev.filter((r) => String(r.id) !== String(row.id)));
+      // Refetch the data to ensure we have the latest from server
+      // This ensures cancelled reservations don't appear in the Approved tab
+      await fetchApprovedData(currentPage, searchQuery, false);
+      // Refresh the Cancelled tab so the new reservation appears there
+      if (onRefreshTab) {
+        onRefreshTab("Cancelled");
+      }
     } catch (e) {
       alert(e?.message || "Failed to cancel reservation.");
     } finally {

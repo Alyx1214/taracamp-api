@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import UnivTable from "./UnivTable";
 import styles from "./UnivTable.module.css";
 import { getAllReservationsByStatus, deleteReservation, searchReservations } from "../../apis/reservationApi";
@@ -37,52 +37,60 @@ export default function Cancelled({
 
   const itemsPerPage = 15;
   const columns = useMemo(() => ["Name", "Email", "Service Type", "Facility Name", "Date", "Actions"], []);
+  
+  const fetchCancelledData = useCallback(async (page = currentPage, query = searchQuery, showLoading = true) => {
+    try {
+      if (showLoading) setLoading(true);
+      let res;
+      const skip = (page - 1) * itemsPerPage;
+      const options = { limit: itemsPerPage, skip };
+      
+      if (String(query || '').trim()) {
+        const s = String(query || '').trim();
+        res = await searchReservations({ query: s, ...options });
+        res.reservations = (res?.reservations || []).filter(r => r.status === 'Cancelled');
+      } else {
+        res = await getAllReservationsByStatus("Cancelled", options);
+      }
+      const list = (res?.reservations || []).map(r => ({
+        id: r._id || "N/A",
+        name: r.guestName || "N/A",
+        email: r.guestEmail || "N/A",
+        serviceType: prettifyServiceType(r.serviceType) || "N/A",
+        facilityName: r.facilityName || "N/A",
+        date: formatDateLong(r.dateOfArrival || r.createdAt),
+        _raw: r,
+      }));
+      
+      setRows(list);
+      // Use real total count from API
+      const totalCount = res?.totalCount || 0;
+      setTotalItems(totalCount);
+      setTotalPages(Math.ceil(totalCount / itemsPerPage));
+      
+      if (onPaginationUpdate) {
+        onPaginationUpdate(Math.ceil(totalCount / itemsPerPage), totalCount);
+      }
+      return list;
+    } catch (e) {
+      setErr(e?.message || "Failed to load");
+      throw e;
+    } finally {
+      if (showLoading) setLoading(false);
+    }
+  }, [currentPage, searchQuery, onPaginationUpdate]);
+
   useEffect(() => {
     let cancelled = false;
-    async function fetchCancelled() {
+    (async () => {
       try {
-        setLoading(true);
-        let res;
-        const skip = (currentPage - 1) * itemsPerPage;
-        const options = { limit: itemsPerPage, skip };
-        
-        if (String(searchQuery || '').trim()) {
-          const s = String(searchQuery || '').trim();
-          res = await searchReservations({ query: s, ...options });
-          res.reservations = (res?.reservations || []).filter(r => r.status === 'Cancelled');
-        } else {
-          res = await getAllReservationsByStatus("Cancelled", options);
-        }
-        const list = (res?.reservations || []).map(r => ({
-          id: r._id || "N/A",
-          name: r.guestName || "N/A",
-          email: r.guestEmail || "N/A",
-          serviceType: prettifyServiceType(r.serviceType) || "N/A",
-          facilityName: r.facilityName || "N/A",
-          date: formatDateLong(r.dateOfArrival || r.createdAt),
-          _raw: r,
-        }));
-        
-        if (!cancelled) {
-          setRows(list);
-          // Use real total count from API
-          const totalCount = res?.totalCount || 0;
-          setTotalItems(totalCount);
-          setTotalPages(Math.ceil(totalCount / itemsPerPage));
-          
-          if (onPaginationUpdate) {
-            onPaginationUpdate(Math.ceil(totalCount / itemsPerPage), totalCount);
-          }
-        }
+        await fetchCancelledData();
       } catch (e) {
         if (!cancelled) setErr(e?.message || "Failed to load");
-      } finally {
-        if (!cancelled) setLoading(false);
       }
-    }
-    fetchCancelled();
+    })();
     return () => { cancelled = true; };
-  }, [searchQuery, currentPage]);
+  }, [fetchCancelledData]);
 
   // Sync with parent pagination state
   useEffect(() => {
@@ -101,8 +109,42 @@ export default function Cancelled({
     if (!window.confirm(`Are you sure you want to delete reservation for ${row.name}?`)) return;
     try {
       await deleteReservation(row.id);
-      setRows(prev => prev.filter(r => r.id !== row.id));
       alert("Reservation deleted!");
+      // Remove from list immediately (optimistic update)
+      setRows(prev => prev.filter(r => String(r.id) !== String(row.id)));
+      // Refetch the data to ensure we have the latest from server
+      // This ensures deleted reservations don't appear in the Cancelled tab
+      const skip = (currentPage - 1) * itemsPerPage;
+      const options = { limit: itemsPerPage, skip };
+      let res;
+      if (String(searchQuery || '').trim()) {
+        const s = String(searchQuery || '').trim();
+        res = await searchReservations({ query: s, ...options });
+        res.reservations = (res?.reservations || []).filter(r => r.status === 'Cancelled');
+      } else {
+        res = await getAllReservationsByStatus("Cancelled", options);
+      }
+      // Filter out the deleted reservation ID using string comparison to handle ObjectId vs string
+      const deletedIdStr = String(row.id);
+      const list = (res?.reservations || [])
+        .filter(r => String(r._id) !== deletedIdStr)
+        .map(r => ({
+          id: r._id || "N/A",
+          name: r.guestName || "N/A",
+          email: r.guestEmail || "N/A",
+          serviceType: prettifyServiceType(r.serviceType) || "N/A",
+          facilityName: r.facilityName || "N/A",
+          date: formatDateLong(r.dateOfArrival || r.createdAt),
+          _raw: r,
+        }));
+      setRows(list);
+      // Update total count - subtract 1 for the deleted item
+      const totalCount = Math.max(0, (res?.totalCount || list.length) - 1);
+      setTotalItems(totalCount);
+      setTotalPages(Math.ceil(totalCount / itemsPerPage));
+      if (onPaginationUpdate) {
+        onPaginationUpdate(Math.ceil(totalCount / itemsPerPage), totalCount);
+      }
     } catch (e) {
       alert(e?.message || "Failed to delete reservation.");
     }

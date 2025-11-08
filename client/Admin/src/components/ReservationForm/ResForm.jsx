@@ -19,7 +19,7 @@ function ReservationForm() {
     phoneNo: '',
     guestEmail: '',
     officeTelephoneNo: '',
-    guests: { adult: '', children: '', pwds: '' }, 
+    guests: { adult: '', children: '', pwds: '', senior: '' }, 
     emergencyContactPerson: '',
     emergencyContact: '',
   });
@@ -48,7 +48,8 @@ function ReservationForm() {
     const a = parseInt(formData.guests.adult || '0', 10);
     const c = parseInt(formData.guests.children || '0', 10);
     const p = parseInt(formData.guests.pwds || '0', 10);
-    return (Number.isFinite(a) ? a : 0) + (Number.isFinite(c) ? c : 0) + (Number.isFinite(p) ? p : 0);
+    const s = parseInt(formData.guests.senior || '0', 10);
+    return (Number.isFinite(a) ? a : 0) + (Number.isFinite(c) ? c : 0) + (Number.isFinite(p) ? p : 0) + (Number.isFinite(s) ? s : 0);
   }, [formData.guests]);
 
   const handleInputChange = (e) => {
@@ -76,8 +77,9 @@ function ReservationForm() {
     const { name, value } = e.target;
     const clean = value === '' ? '' : clampNonNegativeInt(value);
     setFormData(prev => ({ ...prev, guests: { ...prev.guests, [name]: clean } }));
-    const guestErrKey = name === 'adult' ? 'guestsAdult' : name === 'children' ? 'guestsChildren' : 'guestsPwds';
-    setErrors(prev => ({ ...prev, [guestErrKey]: undefined, guestsTotal: undefined }));
+    const guestErrKey = name === 'adult' ? 'guestsAdult' : name === 'children' ? 'guestsChildren' : name === 'pwds' ? 'guestsPwds' : 'guestsSenior';
+    // Clear type error when guest count changes since validation depends on both type and guest count
+    setErrors(prev => ({ ...prev, [guestErrKey]: undefined, guestsTotal: undefined, type: undefined }));
   };
 
   const phoneOk = /^(\+63|0)9\d{9}$/.test(formData.phoneNo || '');
@@ -107,11 +109,19 @@ function ReservationForm() {
     const a = parseInt(formData.guests.adult || '0', 10) || 0;
     const c = parseInt(formData.guests.children || '0', 10) || 0;
     const p = parseInt(formData.guests.pwds || '0', 10) || 0;
+    const s = parseInt(formData.guests.senior || '0', 10) || 0;
+    const total = a + c + p + s;
 
     if (a < 0) e.guestsAdult = 'Adult guests cannot be negative.';
     if (c < 0) e.guestsChildren = 'Children cannot be negative.';
     if (p < 0) e.guestsPwds = 'PWD guests cannot be negative.';
-    if (a + c + p <= 0) e.guestsTotal = 'At least 1 guest is required.';
+    if (s < 0) e.guestsSenior = 'Senior citizens cannot be negative.';
+    if (total <= 0) e.guestsTotal = 'At least 1 guest is required.';
+
+    // Validate individual type with more than 50 guests
+    if (formData.type?.individual && total > 50) {
+      e.type = 'Individual reservations are limited to a maximum of 50 guests. Please select "Group" type for more than 50 guests.';
+    }
 
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -122,8 +132,10 @@ function ReservationForm() {
   const handleNext = () => {
     if (!validateStep1()) return;
     const step1 = { ...formData };
+    const seniorCitizenIdFiles = location.state?.seniorCitizenIdFiles || [];
+    const pwdIdFiles = location.state?.pwdIdFiles || [];
     navigate(`/reservation-step2`, {
-      state: { step1, step2: prevStep2Ref.current, file: prevFileRef.current }
+      state: { step1, step2: prevStep2Ref.current, file: prevFileRef.current, seniorCitizenIdFiles, pwdIdFiles }
     });
   };
 
@@ -317,6 +329,20 @@ function ReservationForm() {
                     inputMode="numeric"
                   />
                   {errors.guestsPwds && <div className={styles.fieldError}>{errors.guestsPwds}</div>}
+                </div>
+                <div className={styles.formGroup}>
+                  <label className={styles.label} htmlFor="senior">Senior Citizens</label>
+                  <input
+                    id="senior"
+                    type="number"
+                    name="senior"
+                    {...numberGuardProps}
+                    value={formData.guests.senior}
+                    onChange={handleGuestChange}
+                    className={`${styles.input} ${errors.guestsSenior ? styles.inputError : ''}`}
+                    inputMode="numeric"
+                  />
+                  {errors.guestsSenior && <div className={styles.fieldError}>{errors.guestsSenior}</div>}
                 </div>
                 <div className={styles.formGroup}>
                   <label className={styles.label} htmlFor="guestsTotal">Total Guests<span className={styles.requiredAsterisk}>*</span></label>

@@ -13,6 +13,8 @@ function ReservationFormStep2() {
 
   const step1 = location.state?.step1 || {};
   const file = location.state?.file || null;
+  const seniorCitizenIdFiles = location.state?.seniorCitizenIdFiles || [];
+  const pwdIdFiles = location.state?.pwdIdFiles || [];
 
   useEffect(() => {
     if (!location.state?.step1 || !Object.keys(location.state.step1).length) {
@@ -48,7 +50,8 @@ function ReservationFormStep2() {
     const a = parseInt(step1?.guests?.adult || 0, 10) || 0;
     const c = parseInt(step1?.guests?.children || 0, 10) || 0;
     const p = parseInt(step1?.guests?.pwds || 0, 10) || 0;
-    return a + c + p;
+    const s = parseInt(step1?.guests?.senior || 0, 10) || 0;
+    return a + c + p + s;
   }, [step1]);
 
   useEffect(() => {
@@ -90,7 +93,7 @@ function ReservationFormStep2() {
   }, []);
 
   const handleGoBack = () => {
-    navigate(`/reservation-form`, { state: { step1, step2: formData, file } });
+    navigate(`/reservation-form`, { state: { step1, step2: formData, file, seniorCitizenIdFiles, pwdIdFiles } });
   };
 
   useEffect(() => {
@@ -122,9 +125,19 @@ function ReservationFormStep2() {
       setFacilityOptions([]);
       setErr(null);
       if (!formData.typeFacilities) return;
+      
+      // Build search parameters
+      const searchParams = { type: formData.typeFacilities };
+      
+      // Include date filters if both dates are provided and valid
+      if (formData.dateArrival && formData.dateDeparture && formData.dateDeparture >= formData.dateArrival) {
+        searchParams.checkInDate = formData.dateArrival;
+        searchParams.checkOutDate = formData.dateDeparture;
+      }
+      
       try {
         setLoadingFacilities(true);
-        const json = await searchFacilities({ type: formData.typeFacilities });
+        const json = await searchFacilities(searchParams);
         if (!active) return;
 
         const source = (json?.facilities || json?.data || json || []);
@@ -160,7 +173,7 @@ function ReservationFormStep2() {
     setIsAvailable(null);
     setAvailReason('');
     return () => { active = false; };
-  }, [formData.typeFacilities]);
+  }, [formData.typeFacilities, formData.dateArrival, formData.dateDeparture]);
 
   const handleInputChange = e => {
     const { name, value } = e.target;
@@ -247,7 +260,7 @@ function ReservationFormStep2() {
   }, [formData.facilityName, formData.dateArrival, formData.dateDeparture, totalGuests, chosenFacility?.capacity, capacityOk]);
 
   const handlePrevious = () => {
-    navigate(`/reservation-form`, { state: { step1, step2: formData, file } });
+    navigate(`/reservation-form`, { state: { step1, step2: formData, file, seniorCitizenIdFiles, pwdIdFiles } });
   };
 
   const handleNext = () => {
@@ -294,7 +307,7 @@ function ReservationFormStep2() {
     const nextStep = isGroup ? `/reservation-step3` : `/reservation-step4`;
     
     navigate(nextStep, {
-      state: { step1, step2, file },
+      state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles },
     });
   };
 
