@@ -9,6 +9,7 @@ import ReservationForm from './components/ReservationForm/ResForm.jsx';
 import ReservationFormStep2 from './components/ReservationForm/ResForm2.jsx';
 import ReservationFormStep3 from './components/ReservationForm/ResForm3.jsx';
 import ReservationFormStep4 from './components/ReservationForm/ResDetails.jsx';
+import { SeniorCitizenReservationForm, PWDReservationForm } from './components/ReservationForm/IDUploadBin.jsx';
 import PendingRSVDetails from "./components/ReservationDetails/PendingRSVDetails.jsx";
 import ApprovedRSVDetails from "./components/ReservationDetails/ApprovedRSVDetails.jsx";
 import ConfIndivRSVDetails from "./components/ReservationDetails/ConfIndivRSVDetails.jsx";
@@ -107,6 +108,8 @@ function App() {
             <Route path="/reservation-form" element={<RoleGuard routeKey="reservations"><ReservationForm /></RoleGuard>} />
             <Route path="/reservation-step2" element={<RoleGuard routeKey="reservations"><ReservationFormStep2 /></RoleGuard>} />
             <Route path="/reservation-step3" element={<RoleGuard routeKey="reservations"><ReservationFormStep3 /></RoleGuard>} />
+            <Route path="/reservation-step3-senior" element={<RoleGuard routeKey="reservations"><SeniorCitizenReservationForm /></RoleGuard>} />
+            <Route path="/reservation-step3-pwd" element={<RoleGuard routeKey="reservations"><PWDReservationForm /></RoleGuard>} />
             <Route path="/reservation-step4" element={<RoleGuard routeKey="reservations"><ReservationFormStep4 /></RoleGuard>} />
 
             <Route path="/add-facility" element={<RoleGuard routeKey="facilities"><AddForm /></RoleGuard>} />

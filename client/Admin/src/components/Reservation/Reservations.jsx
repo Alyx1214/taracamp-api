@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useLocation } from "react-router-dom";
 import ReservationsHeader from "./ReservationsHeader";
 import Pagination from "../Pagination/Pagination.jsx";
@@ -19,6 +19,30 @@ export default function Reservations() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
+  
+  // Refresh keys to force re-render of tabs
+  const [refreshKeys, setRefreshKeys] = useState({
+    Pending: 0,
+    Approved: 0,
+    Declined: 0,
+    Cancelled: 0,
+    Confirmed: 0
+  });
+
+  // Function to refresh a specific tab
+  const refreshTab = useCallback((tabName) => {
+    setRefreshKeys(prev => ({
+      ...prev,
+      [tabName]: prev[tabName] + 1
+    }));
+  }, []);
+
+  // Refresh tab on mount if specified in location state
+  useEffect(() => {
+    if (location.state?.refreshTab) {
+      refreshTab(location.state.refreshTab);
+    }
+  }, [location.state?.refreshTab, refreshTab]);
 
   const handleSearch = (value) => {
     setSearchQuery(String(value || "").trim());
@@ -36,6 +60,8 @@ export default function Reservations() {
   const handleTabChange = (tab) => {
     setActiveTab(tab);
     setCurrentPage(1); // Reset to first page when changing tabs
+    // Refresh the tab when switching to it to ensure fresh data
+    refreshTab(tab);
   };
 
   const renderActiveTab = () => {
@@ -47,20 +73,41 @@ export default function Reservations() {
       onPaginationUpdate: (pages, items) => {
         setTotalPages(pages);
         setTotalItems(items);
-      }
+      },
+      onRefreshTab: refreshTab // Pass refresh function to child components
     };
 
     switch (activeTab) {
       case "Pending":
-        return <Pending searchQuery={searchQuery} {...paginationProps} />;
+        return <Pending 
+          key={`pending-${refreshKeys.Pending}`}
+          searchQuery={searchQuery} 
+          {...paginationProps}
+        />;
       case "Approved":
-        return <Approved searchQuery={searchQuery} {...paginationProps} />;
+        return <Approved 
+          key={`approved-${refreshKeys.Approved}`}
+          searchQuery={searchQuery} 
+          {...paginationProps}
+        />;
       case "Declined":
-        return <Declined searchQuery={searchQuery} {...paginationProps} />;
+        return <Declined 
+          key={`declined-${refreshKeys.Declined}`}
+          searchQuery={searchQuery} 
+          {...paginationProps}
+        />;
       case "Cancelled":
-        return <Cancelled searchQuery={searchQuery} {...paginationProps} />;
+        return <Cancelled 
+          key={`cancelled-${refreshKeys.Cancelled}`}
+          searchQuery={searchQuery} 
+          {...paginationProps}
+        />;
       case "Confirmed":
-        return <Confirmed searchQuery={searchQuery} {...paginationProps} />;
+        return <Confirmed 
+          key={`confirmed-${refreshKeys.Confirmed}`}
+          searchQuery={searchQuery} 
+          {...paginationProps}
+        />;
       default:
         return null;
     }

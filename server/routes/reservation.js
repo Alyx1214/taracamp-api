@@ -7,6 +7,7 @@ import { ReservationStatus } from '../constants.js';
 import dbHelper from '../modules/dbHelper.js';
 import reservationModule from '../modules/reservation.js';
 import notificationModule from '../modules/notification.js';
+import jwtHelper from '../modules/jwtHelper.js';
 
 export default function buildReservationRouter(userSocketMap) {
   const r = Router();
@@ -34,7 +35,14 @@ export default function buildReservationRouter(userSocketMap) {
   }));
 
   r.get('/check-availability', asyncHandler(async (req, res) => {
-    const response = await reservationModule.checkAvailability(dbHelper, req.query, req.user || null);
+    // Try to authenticate if token is provided, but don't require it
+    let user = null;
+    const authHeader = req.headers.authorization || '';
+    if (authHeader.startsWith('Bearer ')) {
+      const token = authHeader.split(' ')[1];
+      user = jwtHelper.verifyAccessToken(token);
+    }
+    const response = await reservationModule.checkAvailability(dbHelper, req.query, user);
     res.status(response.status).json(response);
   }));
 

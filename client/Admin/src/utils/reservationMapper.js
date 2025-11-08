@@ -1,26 +1,24 @@
 export function pickCategory(cat = {}) {
-  if (cat.deped) return 'DEPED';
-  if (cat.government) return 'GOVERNMENT';
-  if (cat.private) return 'PRIVATE';
-  return 'OTHERS';
+  if (cat.deped) return 'DepEd';
+  if (cat.government) return 'Government';
+  if (cat.pwds) return 'PWDs';
+  if (cat.private) return 'Private';
+  return 'Others';
 }
 
 export function pickGuestType(t = {}) {
-  return t.groups ? 'GROUP' : 'INDIVIDUAL';
+  return t.groups ? 'Group' : 'Individual';
 }
 
 export function mapServiceType(label = '') {
-  const s = String(label || '').trim().toUpperCase();
-  const allowed = new Set([
-    'MEETING/CONFERENCE',
-    'WEDDING',
-    'BIRTHDAY PARTY',
-    'CORPORATE EVENT',
-    'TRAINING/SEMINAR',
-    'ACCOMMODATION',
-    'OTHER',
-  ]);
-  return allowed.has(s) ? s : 'OTHER';
+  const s = String(label || '').trim();
+  // Server expects: 'Event', 'Event and Lodging', 'Lodging'
+  const validServiceTypes = ['Event', 'Event and Lodging', 'Lodging'];
+  if (validServiceTypes.includes(s)) {
+    return s;
+  }
+  // Default to 'Event' if invalid
+  return 'Event';
 }
 
 export function to24h(hour12, ampm) {
@@ -36,6 +34,7 @@ export function buildReservationPayload(step1 = {}, step2 = {}, facilityId) {
   const adults   = parseInt(step1?.guests?.adult    || '0', 10) || 0;
   const children = parseInt(step1?.guests?.children || '0', 10) || 0;
   const pwds     = parseInt(step1?.guests?.pwds     || '0', 10) || 0;
+  const seniors  = parseInt(step1?.guests?.senior   || '0', 10) || 0;
 
   return {
     guestName: step1.groupAssociation?.trim(),
@@ -49,13 +48,12 @@ export function buildReservationPayload(step1 = {}, step2 = {}, facilityId) {
     numberOfAdults: adults,
     numberOfChildren: children,
     numberOfPwds: pwds,
+    numberOfSeniorCitizens: seniors,
     emergencyContact: step1.emergencyContact?.trim(),
     dateOfArrival: step2.dateArrival,         
     dateOfDeparture: step2.dateDeparture,     
     facility: facilityId,                    
-    serviceType: mapServiceType(
-      String(step2?.typeService || '').toUpperCase() === 'OTHER' ? 'OTHER' : step2?.typeService
-    ),
+    serviceType: mapServiceType(step2?.typeService),
     timeOfArrival: to24h(step2.timeArrivalHour || '2', step2.timeArrivalAMPM || 'PM'),
     otherRequests: step2.specialRequests || ''
   };

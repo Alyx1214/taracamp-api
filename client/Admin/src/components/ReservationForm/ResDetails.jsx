@@ -5,6 +5,7 @@ import ErrorBanner from '../ErrorBanner/ErrorBanner';
 import { buildReservationPayload, mapServiceType } from '../../utils/reservationMapper';
 import ConfirmationOverlay from './ConfirmationOverlay';
 import { estimateAmount as apiEstimateAmount, createReservation as apiCreateReservation, } from '../../apis/reservationApi';
+import { getAllAddons } from '../../apis/addonsApi';
 
 function ResDetails({ onClose }) {
   const navigate = useNavigate();
@@ -14,14 +15,68 @@ function ResDetails({ onClose }) {
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState(null);
   const [quote, setQuote] = useState(null);
-  const { step1 = {}, step2 = {}, file } = location.state || {};
+  const [breakdown, setBreakdown] = useState(null);
+  const [allAddons, setAllAddons] = useState([]);
+  const [reservationId, setReservationId] = useState(null);
+  const { step1 = {}, step2 = {}, file, seniorCitizenIdFiles, seniorCitizenIdFile, pwdIdFiles, pwdIdFile } = location.state || {};
+  const selectedAddons = step2?.selectedAddons || [];
   const isGroup = step1?.type?.groups || false;
+  const numberOfSeniors = parseInt(step1?.guests?.senior || 0, 10) || 0;
+  const numberOfPwds = parseInt(step1?.guests?.pwds || 0, 10) || 0;
+  
+  // Handle backward compatibility: convert single file to array
+  const seniorCitizenFiles = seniorCitizenIdFiles || (seniorCitizenIdFile ? [seniorCitizenIdFile] : []);
+  const pwdFiles = pwdIdFiles || (pwdIdFile ? [pwdIdFile] : []);
+
+  // Helper function to render add-ons with label and indented items
+  const renderAddOns = () => {
+    if (!selectedAddons || selectedAddons.length === 0) {
+      return <tr><td>Add-ons</td><td>:</td><td>₱ 0</td></tr>;
+    }
+    
+    return (
+      <>
+        <tr><td>Add-ons</td><td>:</td><td></td></tr>
+        {selectedAddons.map((selectedAddon, index) => {
+          // Find the full add-on data by matching the value (ID)
+          const addonData = allAddons.find(addon => addon._id === selectedAddon.value || addon._id === selectedAddon._id);
+          const price = addonData?.price || 0;
+          
+          return (
+            <tr key={index}>
+              <td style={{ paddingLeft: '20px' }}>• {selectedAddon.label || selectedAddon.name || 'Unknown'}</td>
+              <td>:</td>
+              <td>₱ {Math.round(price).toLocaleString()}</td>
+            </tr>
+          );
+        })}
+      </>
+    );
+  };
+
+  // Fetch all add-ons to get price information
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await getAllAddons();
+        if (!cancelled && data?.addons) {
+          setAllAddons(data.addons);
+        }
+      } catch (error) {
+        console.error('Failed to fetch add-ons:', error);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     const a = parseInt(step1?.guests?.adult || 0, 10) || 0;
     const c = parseInt(step1?.guests?.children || 0, 10) || 0;
     const p = parseInt(step1?.guests?.pwds || 0, 10) || 0;
+    const s = parseInt(step1?.guests?.senior || 0, 10) || 0;
     const fid = typeof step2?.facilityIdFromList === 'string' ? step2.facilityIdFromList : '';
+    const addonIds = selectedAddons.map(addon => addon.value || addon._id).filter(Boolean);
 
     let abort = false;
     (async () => {
@@ -31,11 +86,24 @@ function ResDetails({ onClose }) {
           adults: a,
           children: c,
           pwds: p,
+          seniorCitizens: s,
           serviceType: mapServiceType(step2?.typeService),
+          addOns: addonIds.length > 0 ? addonIds : undefined,
         });
-        if (!abort) setQuote(data.amount);
+        if (!abort) {
+          setQuote(data.amount);
+          setBreakdown({
+            facilityFee: data.facilityFee || 0,
+            serviceFee: data.serviceFee || 0,
+            discount: data.discount || 0,
+            addonsTotal: data.addonsTotal || 0,
+          });
+        }
       } catch {
-        if (!abort) setQuote(null);
+        if (!abort) {
+          setQuote(null);
+          setBreakdown(null);
+        }
       }
     })();
 
@@ -51,7 +119,8 @@ function ResDetails({ onClose }) {
     const guestsTotal =
       (parseInt(step1?.guests?.adult || '0', 10) || 0) +
       (parseInt(step1?.guests?.children || '0', 10) || 0) +
-      (parseInt(step1?.guests?.pwds || '0', 10) || 0);
+      (parseInt(step1?.guests?.pwds || '0', 10) || 0) +
+      (parseInt(step1?.guests?.senior || '0', 10) || 0);
 
     return {
       group: step1.groupAssociation || 'N/A',
@@ -82,17 +151,22 @@ function ResDetails({ onClose }) {
       const payload = buildReservationPayload(step1, step2, step2?.facilityIdFromList || '');
 
       const atLeastOneGuest =
-        (payload.numberOfAdults || 0) + (payload.numberOfChildren || 0) + (payload.numberOfPwds || 0) > 0;
+        (payload.numberOfAdults || 0) + (payload.numberOfChildren || 0) + (payload.numberOfPwds || 0) + (payload.numberOfSeniorCitizens || 0) > 0;
       if (!atLeastOneGuest) throw new Error('At least one guest is required.');
       if (!payload.dateOfArrival || !payload.dateOfDeparture)
         throw new Error('Arrival and departure dates are required.');
       if (!payload.timeOfArrival) throw new Error('Time of arrival is required.');
       if (isGroup && !file) throw new Error('Letter of Intent file is required for group reservations.');
+      if (numberOfSeniors > 0 && seniorCitizenFiles.length === 0) throw new Error('At least one Senior Citizen ID file is required when there are senior citizens.');
+      if (numberOfPwds > 0 && pwdFiles.length === 0) throw new Error('At least one PWD ID file is required when there are PWD guests.');
 
       const facilityForPost = typeof step2?.facilityIdFromList === 'string' ? step2.facilityIdFromList : '';
       const apiPayload = { ...payload, facility: facilityForPost };
 
-      await apiCreateReservation(apiPayload, file);
+      const response = await apiCreateReservation(apiPayload, file, seniorCitizenFiles, pwdFiles);
+      if (response?.reservationId) {
+        setReservationId(response.reservationId);
+      }
       setShowOverlay(true); 
     } catch (e) {
       const server = {
@@ -170,8 +244,24 @@ function ResDetails({ onClose }) {
   if (showOverlay) {
     return (
       <ConfirmationOverlay
-        onDone={() => navigate('/homepage')}
-        onReview={() => navigate('/reservations')}
+        onDone={() => navigate('/reservations', { 
+          state: { 
+            activeTab: 'Approved', 
+            refreshTab: 'Approved' 
+          } 
+        })}
+        onReview={() => {
+          if (reservationId) {
+            navigate(`/reservation/${reservationId}/details`);
+          } else {
+            navigate('/reservations', { 
+              state: { 
+                activeTab: 'Approved', 
+                refreshTab: 'Approved' 
+              } 
+            });
+          }
+        }}
       />
     );
   }
@@ -205,15 +295,44 @@ function ResDetails({ onClose }) {
                 <tr><td>Type of Facility</td><td>:</td><td>{data.facilityType}</td></tr>
                 <tr><td>Facility Name</td><td>:</td><td>{data.facilityName}</td></tr>
                 <tr><td>Type of Service</td><td>:</td><td>{data.service}</td></tr>
-                <tr className={styles.amountRow}>
-                  <td colSpan={3}>
-                    <div className={styles.amountLine}></div>
-                    <div className={styles.amountLabel}>Total Estimated Amount</div>
-                    <span className={styles.amountValue}>{amountText}</span>
-                  </td>
-                </tr>
               </tbody>
             </table>
+
+            {breakdown && (
+              <>
+                <div className={styles.amountLine}></div>
+                <table className={styles.detailsTable}>
+                  <tbody>
+                    <tr><td><strong>Breakdown of Fees</strong></td><td></td><td></td></tr>
+                    <tr><td>Facility Fee</td><td>:</td><td>₱ {Math.round(breakdown.facilityFee || 0).toLocaleString()}</td></tr>
+                    {renderAddOns()}
+                    <tr><td>10% Service Fee</td><td>:</td><td>₱ {Math.round(breakdown.serviceFee || 0).toLocaleString()}</td></tr>
+                    <tr><td>Discount</td><td>:</td><td>₱ {Math.round(breakdown.discount || 0).toLocaleString()}</td></tr>
+                    <tr className={styles.amountRow}>
+                      <td colSpan={3}>
+                        <div className={styles.amountLine}></div>
+                        <div className={styles.amountLabel}>Total Estimated Amount</div>
+                        <span className={styles.amountValue}>{amountText}</span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </>
+            )}
+
+            {!breakdown && (
+              <table className={styles.detailsTable}>
+                <tbody>
+                  <tr className={styles.amountRow}>
+                    <td colSpan={3}>
+                      <div className={styles.amountLine}></div>
+                      <div className={styles.amountLabel}>Total Estimated Amount</div>
+                      <span className={styles.amountValue}>{amountText}</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            )}
 
             <div className={styles.amountNote}>
               Note that this is just an estimated amount and is subject to change

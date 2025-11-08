@@ -23,21 +23,76 @@ export function searchReservations(params = {}) {
   return apiGet('/reservation/search-reservations', p);
 }
 
-export function estimateAmount({ facility, adults, children, pwds, serviceType }) {
-  return apiGet('/reservation/estimate-amount', { facility, adults, children, pwds, serviceType });
+export function estimateAmount({ facility, adults, children, pwds, seniorCitizens, serviceType, addOns }) {
+  const params = { facility, adults, children, pwds, seniorCitizens, serviceType };
+  if (addOns && Array.isArray(addOns) && addOns.length > 0) {
+    params.addOns = addOns;
+  }
+  return apiGet('/reservation/estimate-amount', params);
 }
 
 export function checkAvailability(params) {
   return apiGet('/reservation/check-availability', params);
 }
 
-export function createReservation(payload = {}, letterOfIntentFile) {
+export function createReservation(payload = {}, letterOfIntentFile, seniorCitizenIdFiles = [], pwdIdFiles = []) {
   const fd = new FormData();
-  Object.entries(payload).forEach(([k, v]) => {
-    if (v === undefined || v === null) return;
-    fd.append(k, typeof v === 'object' ? JSON.stringify(v) : String(v));
+
+  // Avoid leaking internal IDs and force primitives to strings
+  const { letterOfIntentFileId, seniorCitizenIdFileId, pwdIdFileId, ...safe } = payload || {};
+
+  Object.entries(safe).forEach(([key, value]) => {
+    if (value === undefined || value === null) return;
+
+    // Explicitly ensure facility is a plain string
+    if (key === 'facility') {
+      fd.append('facility', String(value));
+      return;
+    }
+
+    // Append arrays as repeated fields (server accepts arrays)
+    if (Array.isArray(value)) {
+      value.forEach((item) => {
+        fd.append(key, String(item));
+      });
+      return;
+    }
+
+    // Files are handled separately; skip here
+    if (typeof File !== 'undefined' && value instanceof File) return;
+    if (typeof Blob !== 'undefined' && value instanceof Blob) return;
+
+    // Primitives -> strings; objects -> JSON string
+    if (typeof value === 'object') {
+      fd.append(key, JSON.stringify(value));
+    } else {
+      fd.append(key, String(value));
+    }
   });
+
+  // Handle Letter of Intent file (single file)
   if (letterOfIntentFile) fd.append('letterOfIntentFile', letterOfIntentFile);
+  
+  // Handle Senior Citizen ID files (multiple files)
+  if (Array.isArray(seniorCitizenIdFiles)) {
+    seniorCitizenIdFiles.forEach((file) => {
+      if (file) fd.append('seniorCitizenIdFiles', file);
+    });
+  } else if (seniorCitizenIdFiles) {
+    // Backward compatibility: single file
+    fd.append('seniorCitizenIdFiles', seniorCitizenIdFiles);
+  }
+  
+  // Handle PWD ID files (multiple files)
+  if (Array.isArray(pwdIdFiles)) {
+    pwdIdFiles.forEach((file) => {
+      if (file) fd.append('pwdIdFiles', file);
+    });
+  } else if (pwdIdFiles) {
+    // Backward compatibility: single file
+    fd.append('pwdIdFiles', pwdIdFiles);
+  }
+  
   return apiPost('/reservation/create-reservation', fd);
 }
 

@@ -94,7 +94,8 @@ function ReservationForm() {
     const clean = value === '' ? '' : clampNonNegativeInt(value);
     setFormData(prev => ({ ...prev, guests: { ...prev.guests, [name]: clean } }));
     const guestErrKey = name === 'adult' ? 'guestsAdult' : name === 'children' ? 'guestsChildren' : name === 'pwds' ? 'guestsPwds' : 'guestsSenior';
-    setErrors(prev => ({ ...prev, [guestErrKey]: undefined, guestsTotal: undefined }));
+    // Clear type error when guest count changes since validation depends on both type and guest count
+    setErrors(prev => ({ ...prev, [guestErrKey]: undefined, guestsTotal: undefined, type: undefined }));
   };
 
   const phoneOk = /^(\+63|0)9\d{9}$/.test(formData.phoneNo || '');
@@ -123,14 +124,20 @@ function ReservationForm() {
     const c = parseInt(formData.guests.children || '0', 10) || 0;
     const p = parseInt(formData.guests.pwds || '0', 10) || 0;
     const s = parseInt(formData.guests.senior || '0', 10) || 0;
+    const total = a + c + p + s;
 
     if (a < 0) e.guestsAdult = 'Adult guests cannot be negative.';
     if (c < 0) e.guestsChildren = 'Children cannot be negative.';
     if (p < 0) e.guestsPwds = 'PWD guests cannot be negative.';
     if (s < 0) e.guestsSenior = 'Senior citizen guests cannot be negative.';
-    if (a + c + p + s <= 0) e.guestsTotal = 'At least 1 guest is required.';
-    if (facility?.capacity && (a + c + p + s) > facility.capacity) {
-      e.guestsTotal = `Total guests (${a + c + p + s}) exceeds facility capacity (${facility.capacity}).`;
+    if (total <= 0) e.guestsTotal = 'At least 1 guest is required.';
+    if (facility?.capacity && total > facility.capacity) {
+      e.guestsTotal = `Total guests (${total}) exceeds facility capacity (${facility.capacity}).`;
+    }
+
+    // Validate individual type with more than 50 guests
+    if (formData.type?.individual && total > 50) {
+      e.type = 'Individual reservations are limited to a maximum of 50 guests. Please select "Group" type for more than 50 guests.';
     }
 
     setErrors(e);

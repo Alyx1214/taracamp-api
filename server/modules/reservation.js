@@ -13,8 +13,9 @@ const TZ = 'Asia/Manila';
 const invalidateReservationCache = async () => {
     try {
         const keys = await safeRedisOperations.keys('get_reservations_by_status:*');
+        const keysV2 = await safeRedisOperations.keys('get_reservations_by_status_v2:*');
         const reservationKeys = await safeRedisOperations.keys('reservation_by_id:*');
-        const allKeys = [...keys, ...reservationKeys];
+        const allKeys = [...keys, ...keysV2, ...reservationKeys];
         if (allKeys && allKeys.length > 0) {
             await safeRedisOperations.del(...allKeys);
         }
@@ -140,7 +141,7 @@ const reservationModule = {
 
             if (!isValidDateRange(dateOfArrival, dateOfDeparture, user)) {
                 responseData.status = Status.BAD_REQUEST;
-                const errorMessage = user && user.role === UserRole.FRONTDESK 
+                const errorMessage = user && (user.role === UserRole.FRONTDESK || user.role === UserRole.SUPERINTENDENT)
                     ? 'Invalid date range: ensure arrival is today or later and departure is after arrival'
                     : 'Invalid date range: ensure arrival is today or later, departure is after arrival, and arrival is at least 2 months from today';
                 responseData.error = errorMessage;
@@ -348,7 +349,14 @@ const reservationModule = {
                 }
             }
 
-            const initialStatus = ReservationStatus.PENDING;
+            // Automatically confirm dormitory reservations for walk-ins (admin creating for guest)
+            // Automatically approve reservations created by superintendent
+            let initialStatus = ReservationStatus.PENDING;
+            if (creatingForGuest && facilityDoc.facilityType === FacilityType.DORMITORY) {
+                initialStatus = ReservationStatus.CONFIRMED;
+            } else if (user && user.role === UserRole.SUPERINTENDENT) {
+                initialStatus = ReservationStatus.APPROVED;
+            }
 
             const { amount: totalEstimatedAmount, } = computeEstimate({
                 facilityDoc,
@@ -831,24 +839,6 @@ const reservationModule = {
             const limitValue = clampLimit(limit);
             const skipValue = clampSkip(skip);
 
-            // Create cache key with all relevant parameters
-            const cacheKey = `get_reservations_by_status_v2:${status}:${limitValue}:${skipValue}:${JSON.stringify(sortOption)}`;
-
-            // Try to get cached result
-            try {
-                const cachedResult = await safeRedisOperations.get(cacheKey);
-                if (cachedResult) {
-                    const parsed = JSON.parse(cachedResult);
-                    responseData.status = Status.OK;
-                    responseData.error = null;
-                    responseData.reservations = parsed.reservations;
-                    responseData.totalCount = parsed.totalCount;
-                    return responseData;
-                }
-            } catch (cacheError) {
-                console.warn('Cache read error for getAllReservationsByStatus:', cacheError);
-            }
-
             const [raw, totalCount] = await Promise.all([
                 dbHelper.findMany(
                     'reservation',
@@ -903,12 +893,6 @@ const reservationModule = {
                 createdAt: r.createdAt,
                 facilityName: facilityById.get(String(r.facility)) ?? null,
             }));
-
-            try {
-                await safeRedisOperations.set(cacheKey, JSON.stringify({ reservations: withEmails, totalCount }), { EX: 60 }); // 1 minute TTL
-            } catch (cacheError) {
-                console.warn('Cache write error for getAllReservationsByStatus:', cacheError);
-            }
 
             responseData.status = Status.OK;
             responseData.error = null;
@@ -1630,7 +1614,7 @@ const reservationModule = {
             }
             if (!isValidDateRange(start, end, user)) {
                 responseData.status = Status.BAD_REQUEST;
-                const errorMessage = user && user.role === UserRole.FRONTDESK 
+                const errorMessage = user && (user.role === UserRole.FRONTDESK || user.role === UserRole.SUPERINTENDENT)
                     ? 'Invalid date range: ensure arrival is today or later and departure is after arrival'
                     : 'Invalid date range: ensure arrival is today or later, departure is after arrival, and arrival is at least 2 months from today';
                 responseData.error = errorMessage;
@@ -1837,8 +1821,8 @@ function isValidDateRange(dateOfArrival, dateOfDeparture, user = null) {
     if (arrival < today) return false;
     if (departure <= arrival) return false;
     
-    // Skip 2-month constraint for frontdesk users
-    if (user && user.role === UserRole.FRONTDESK) {
+    // Skip 2-month constraint for frontdesk and superintendent users
+    if (user && (user.role === UserRole.FRONTDESK || user.role === UserRole.SUPERINTENDENT)) {
         return true;
     }
     
