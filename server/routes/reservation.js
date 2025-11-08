@@ -3,7 +3,7 @@ import multer from 'multer';
 import asyncHandler from '../middleware/asyncHandler.js';
 import { authenticateJWT } from '../middleware/auth.js';
 import { uploadLetter, uploadNonavailabilityCert, uploadSeniorCitizenId } from '../middleware/uploads.js';
-import { ReservationStatus } from '../constants.js';
+import { ReservationStatus, UserRole } from '../constants.js';
 import dbHelper from '../modules/dbHelper.js';
 import reservationModule from '../modules/reservation.js';
 import notificationModule from '../modules/notification.js';
@@ -130,6 +130,19 @@ export default function buildReservationRouter(userSocketMap) {
   r.post('/cancel-booking/:id', asyncHandler(async (req, res) => {
     const response = await reservationModule.cancelBooking(dbHelper, req.params.id, req.user);
     res.status(response.status).json(response);
+
+    if (response.status === 200) {
+      try {
+        const reservation = await dbHelper.findOne('reservation', { _id: req.params.id });
+        if (reservation) {
+          await notificationModule.notifyCancellation(dbHelper, reservation, userSocketMap);
+        } else {
+          console.warn('Reservation not found for cancellation notification:', req.params.id);
+        }
+      } catch (error) {
+        console.error('Failed to create cancellation notification:', error);
+      }
+    }
   }));
 
   r.post('/accept-or-decline-reservation/:id', asyncHandler(async (req, res) => {
@@ -145,22 +158,57 @@ export default function buildReservationRouter(userSocketMap) {
     if (response.status === 200 && status === ReservationStatus.APPROVED && response.reservation) {
       try {
         const reservation = await dbHelper.findOne('reservation', { _id: req.params.id });
-        if (reservation && reservation.userId) {
-          // Ensure userId and reservationId are strings (not ObjectId objects)
-          const userIdStr = reservation.userId?.toString?.() || String(reservation.userId || '');
+        if (reservation) {
           const reservationIdStr = reservation._id?.toString?.() || String(reservation._id || '');
           
-          await notificationModule.createAndNotifyUser(
-            dbHelper,
-            {
-              title: 'Congratulations, Camper! Your reservation has been approved!',
-              message: "Your reservation has been approved. Please proceed with payment or upload required documents to confirm your booking.",
-              kind: 'reservation_approved',
-              userId: userIdStr,
-              reservationId: reservationIdStr,
-            },
-            userSocketMap
-          ).catch(e => console.warn('Notify approval failed:', e?.message));
+          // Notify guest if reservation has userId
+          if (reservation.userId) {
+            // Ensure userId and reservationId are strings (not ObjectId objects)
+            const userIdStr = reservation.userId?.toString?.() || String(reservation.userId || '');
+            
+            await notificationModule.createAndNotifyUser(
+              dbHelper,
+              {
+                title: 'Congratulations, Camper! Your reservation has been approved!',
+                message: "Your reservation has been approved. Please proceed with payment or upload required documents to confirm your booking.",
+                kind: 'reservation_approved',
+                userId: userIdStr,
+                reservationId: reservationIdStr,
+              },
+              userSocketMap
+            ).catch(e => console.warn('Notify approval failed:', e?.message));
+          }
+
+          // Notify all admin users about the approved reservation
+          try {
+            const adminUsers = await dbHelper.findMany('user', {
+              role: { $ne: UserRole.GUEST }
+            }, {
+              projection: { _id: 1 }
+            });
+
+            if (Array.isArray(adminUsers) && adminUsers.length > 0) {
+              // Send notification to each admin user
+              const adminNotificationPromises = adminUsers.map(adminUser => {
+                const adminUserIdStr = adminUser._id?.toString?.() || String(adminUser._id || '');
+                return notificationModule.createAndNotifyUser(
+                  dbHelper,
+                  {
+                    title: 'Congratulations, Camper! Your reservation has been approved!',
+                    message: "Your reservation has been approved. Please proceed with payment or upload required documents to confirm your booking.",
+                    kind: 'reservation_approved_admin',
+                    userId: adminUserIdStr,
+                    reservationId: reservationIdStr,
+                  },
+                  userSocketMap
+                ).catch(e => console.warn(`Failed to notify admin ${adminUserIdStr}:`, e?.message));
+              });
+
+              await Promise.all(adminNotificationPromises);
+            }
+          } catch (adminError) {
+            console.warn('Failed to notify admin users:', adminError?.message);
+          }
         }
       } catch (error) {
         console.warn('Failed to create approval notification:', error?.message);

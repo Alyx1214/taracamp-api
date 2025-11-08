@@ -27,7 +27,7 @@ const AllServices = ({
   const facilitiesList = Array.isArray(facilities) ? facilities : [];
   const source = facilitiesList;
 
-  // Split by type and cap each to 3
+  // Split by type and cap each to 4
   const { dorms, cottages, conferences } = useMemo(() => {
     const list = Array.isArray(source) ? source : [];
     const buckets = list.reduce((acc, item) => {
@@ -39,7 +39,7 @@ const AllServices = ({
 
     const byType = (t) => {
       const key = toKey(t);
-      return (buckets[key] || []).slice(0, 3);
+      return (buckets[key] || []).slice(0, 4);
     };
     return {
       dorms: byType(TYPE.DORMITORY),
@@ -117,7 +117,7 @@ const AllServices = ({
         <section className={styles['service-section']}>
           <h2 className={styles['section-title']}>DORMITORIES</h2>
           <div className={styles['services-grid']}>
-            {Array.from({ length: 3 }).map((_, i) => (
+            {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className={styles.skeletonCard}>
                 <div className={styles.skelImg} />
                 <div className={styles.skelBody}>
@@ -136,7 +136,7 @@ const AllServices = ({
         <section className={styles['service-section']}>
           <h2 className={styles['section-title']}>COTTAGES / GUESTHOUSE</h2>
           <div className={styles['services-grid']}>
-            {Array.from({ length: 3 }).map((_, i) => (
+            {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className={styles.skeletonCard}>
                 <div className={styles.skelImg} />
                 <div className={styles.skelBody}>
@@ -155,7 +155,7 @@ const AllServices = ({
         <section className={styles['service-section']}>
           <h2 className={styles['section-title']}>CONFERENCES</h2>
           <div className={styles['services-grid']}>
-            {Array.from({ length: 3 }).map((_, i) => (
+            {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className={styles.skeletonCard}>
                 <div className={styles.skelImg} />
                 <div className={styles.skelBody}>

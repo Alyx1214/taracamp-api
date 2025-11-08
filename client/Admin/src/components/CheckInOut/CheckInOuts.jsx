@@ -9,7 +9,7 @@ import { searchReservations, checkInOrCheckOutReservation, deleteReservation } f
 
 export default function CheckInOuts() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState("Approved");
+  const [activeTab, setActiveTab] = useState("Confirmed");
   const [searchQuery, setSearchQuery] = useState("");
   const [filters, setFilters] = useState({});
 
@@ -20,7 +20,7 @@ export default function CheckInOuts() {
   const [err, setErr] = useState(null);
 
   const statusForTab = (tab) => {
-    if (tab === "Approved") return "Approved"; 
+    if (tab === "Confirmed") return "Confirmed"; 
     if (tab === "Check-in") return "Checked-in";
     if (tab === "Check-out") return "Checked-out";
     return "";
@@ -226,7 +226,7 @@ export default function CheckInOuts() {
       <div className={styles.content}>
         {err && <div style={{ padding: 12, color: '#b00' }}>{String(err)}</div>}
         {loading && <div style={{ padding: 12 }}>Loading…</div>}
-        {activeTab === "Approved" && (
+        {!loading && activeTab === "Confirmed" && (
           <UnivTable
             columns={columns}
             data={getActiveData()}
@@ -234,7 +234,7 @@ export default function CheckInOuts() {
             renderMenu={renderMenu}
           />
         )}
-        {activeTab === "Check-in" && (
+        {!loading && activeTab === "Check-in" && (
           <UnivTable
             columns={columns}
             data={getActiveData()}
@@ -242,7 +242,7 @@ export default function CheckInOuts() {
             renderMenu={renderMenu}
           />
         )}
-        {activeTab === "Check-out" && (
+        {!loading && activeTab === "Check-out" && (
           <UnivTable
             columns={columns}
             data={getActiveData()}

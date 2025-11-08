@@ -22,25 +22,17 @@ export default function PaymentTable({ data = [], loading = false }) {
           className={styles["univ-view-btn"]}
           onClick={() => navigate(`/payment/${row.id}/details`)}
         >
-          View
+          View Details
         </button>
       </>
     );
   
-    const renderMenu = (row) => [
-      {
-        label: "View Details",
-        onClick: () => navigate(`/payment/${row.id}/details`),
-      },
-    ];
-
   return (
     <UnivTable
       columns={columns}
       data={formattedData}
       loading={loading}
       renderActions={renderActions}
-      renderMenu={renderMenu}
     />
   );
 }

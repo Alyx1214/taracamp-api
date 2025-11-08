@@ -29,4 +29,9 @@ r.post('/mark-all-read', asyncHandler(async (req, res) => {
   res.status(result?.status ?? 200).json(result);
 }));
 
+r.post('/delete-all', asyncHandler(async (req, res) => {
+  const result = await notificationModule.deleteAll(dbHelper, req.user.userId);
+  res.status(result?.status ?? 200).json(result);
+}));
+
 export default r;

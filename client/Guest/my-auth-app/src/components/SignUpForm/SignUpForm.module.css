@@ -42,3 +42,78 @@
 .signUpCheckboxLabel {
     font-size: 0.8em;
 }
+
+.signUpDescription {
+  font-size: 0.8em;
+  margin-bottom: 25px;
+  text-align: left;
+}
+
+.nameInputContainer {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  margin-bottom: 15px;
+}
+
+.nameInput {
+  margin-bottom: 0;
+  flex: 1;
+}
+
+.passwordInputWrapper {
+  position: relative;
+  margin-bottom: 15px;
+  width: 100%;
+}
+
+.passwordInput {
+  margin-bottom: 0;
+}
+
+.passwordToggle {
+  position: absolute;
+  right: 20px;
+  top: 55%;
+  transform: translateY(-50%);
+  cursor: pointer;
+  color: #666;
+  font-size: 1.1em;
+}
+
+.confirmPasswordWrapper {
+  position: relative;
+  margin-bottom: 20px;
+  width: 100%;
+}
+
+.confirmPasswordInput {
+  margin-bottom: 0;
+}
+
+.termsContainer {
+  display: flex;
+  align-items: center;
+  margin-bottom: 15px;
+  width: 100%;
+}
+
+.termsCheckbox {
+  margin-right: 8px;
+}
+
+.termsLabel {
+  font-size: 0.9em;
+  color: #666;
+}
+
+.termsLink {
+  cursor: pointer;
+  font-weight: bold;
+  text-decoration: underline;
+  color: #4CAF50;
+}
+
+.errorMessage {
+  color: red;
+}
