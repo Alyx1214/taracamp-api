@@ -20,11 +20,11 @@ export function checkAvailability(params) {
   return apiGet('/reservation/check-availability', params);
 }
 
-export function createReservation(payload = {}, letterOfIntentFile, seniorCitizenIdFile) {
+export function createReservation(payload = {}, letterOfIntentFile, seniorCitizenIdFiles = [], pwdIdFiles = []) {
   const fd = new FormData();
 
   // Avoid leaking internal IDs and force primitives to strings
-  const { letterOfIntentFileId, seniorCitizenIdFileId, ...safe } = payload || {};
+  const { letterOfIntentFileId, seniorCitizenIdFileId, pwdIdFileId, ...safe } = payload || {};
 
   Object.entries(safe).forEach(([key, value]) => {
     if (value === undefined || value === null) return;
@@ -55,8 +55,29 @@ export function createReservation(payload = {}, letterOfIntentFile, seniorCitize
     }
   });
 
+  // Handle Letter of Intent file (single file)
   if (letterOfIntentFile) fd.append('letterOfIntentFile', letterOfIntentFile);
-  if (seniorCitizenIdFile) fd.append('seniorCitizenIdFile', seniorCitizenIdFile);
+  
+  // Handle Senior Citizen ID files (multiple files)
+  if (Array.isArray(seniorCitizenIdFiles)) {
+    seniorCitizenIdFiles.forEach((file) => {
+      if (file) fd.append('seniorCitizenIdFiles', file);
+    });
+  } else if (seniorCitizenIdFiles) {
+    // Backward compatibility: single file
+    fd.append('seniorCitizenIdFiles', seniorCitizenIdFiles);
+  }
+  
+  // Handle PWD ID files (multiple files)
+  if (Array.isArray(pwdIdFiles)) {
+    pwdIdFiles.forEach((file) => {
+      if (file) fd.append('pwdIdFiles', file);
+    });
+  } else if (pwdIdFiles) {
+    // Backward compatibility: single file
+    fd.append('pwdIdFiles', pwdIdFiles);
+  }
+  
   return apiPost('/reservation/create-reservation', fd);
 }
 

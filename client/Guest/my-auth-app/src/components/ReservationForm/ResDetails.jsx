@@ -20,36 +20,51 @@ function ResDetails({ onClose }) {
   const [breakdown, setBreakdown] = useState(null);
   const [allAddons, setAllAddons] = useState([]);
   const { type, facilityName, id } = useParams();
-  const { step1 = {}, step2 = {}, file, seniorCitizenIdFile } = location.state || {};
+  const { step1 = {}, step2 = {}, file, seniorCitizenIdFiles, seniorCitizenIdFile, pwdIdFiles, pwdIdFile } = location.state || {};
   const selectedAddons = step2.selectedAddons || [];
   const numberOfSeniors = parseInt(step1?.guests?.senior || 0, 10) || 0;
+  const numberOfPwds = parseInt(step1?.guests?.pwds || 0, 10) || 0;
+  
+  // Handle backward compatibility: convert single file to array
+  const seniorCitizenFiles = seniorCitizenIdFiles || (seniorCitizenIdFile ? [seniorCitizenIdFile] : []);
+  const pwdFiles = pwdIdFiles || (pwdIdFile ? [pwdIdFile] : []);
 
   const handlePrevious = () => {
     const numberOfSeniors = parseInt(step1?.guests?.senior || 0, 10) || 0;
+    const numberOfPwds = parseInt(step1?.guests?.pwds || 0, 10) || 0;
     const hasSeniors = numberOfSeniors > 0;
+    const hasPwds = numberOfPwds > 0;
     const routeType = String(type || '').toLowerCase();
     const isIndividual = Boolean(step1?.type?.individual) || routeType === 'individual';
     const isGroup = Boolean(step1?.type?.groups) || routeType === 'group';
 
+    if (hasPwds) {
+      // With PWDs, previous should return to the PWD ID step
+      navigate(`/reservation-step3-pwd/${type}/${facilityName}/${id}`, {
+        state: { step1, step2, file, seniorCitizenIdFiles: seniorCitizenFiles, pwdIdFiles: pwdFiles }
+      });
+      return;
+    }
+
     if (hasSeniors) {
       // With seniors, previous should return to the Senior Citizen ID step
       navigate(`/reservation-step3-senior/${type}/${facilityName}/${id}`, {
-        state: { step1, step2, file, seniorCitizenIdFile }
+        state: { step1, step2, file, seniorCitizenIdFiles: seniorCitizenFiles, pwdIdFiles: [] }
       });
       return;
     }
 
     if (isGroup) {
-      // Group without seniors returns to Letter of Intent step
+      // Group without seniors or PWDs returns to Letter of Intent step
       navigate(`/reservation-step3/${type}/${facilityName}/${id}`, {
-        state: { step1, step2, file, seniorCitizenIdFile }
+        state: { step1, step2, file, seniorCitizenIdFiles: [], pwdIdFiles: [] }
       });
       return;
     }
 
     // Default: go back to step 2 (date/facility/service)
     navigate(`/reservation-step2/${type}/${facilityName}/${id}`, {
-      state: { step1, step2, file, seniorCitizenIdFile }
+      state: { step1, step2, file, seniorCitizenIdFiles: [], pwdIdFiles: [] }
     });
   };
 
@@ -189,12 +204,13 @@ function ResDetails({ onClose }) {
         throw new Error('Arrival and departure dates are required.');
       if (!payload.timeOfArrival) throw new Error('Time of arrival is required.');
       if (!file && type === 'Group') throw new Error('Letter of Intent file is required.');
-      if (numberOfSeniors > 0 && !seniorCitizenIdFile) throw new Error('Senior Citizen ID file is required when there are senior citizens.');
+      if (numberOfSeniors > 0 && seniorCitizenFiles.length === 0) throw new Error('At least one Senior Citizen ID file is required when there are senior citizens.');
+      if (numberOfPwds > 0 && pwdFiles.length === 0) throw new Error('At least one PWD ID file is required when there are PWD guests.');
 
       const facilityForPost = typeof step2?.facilityIdFromList === 'string' ? step2.facilityIdFromList : id;
       const apiPayload = { ...payload, facility: facilityForPost };
 
-      await apiCreateReservation(apiPayload, file, seniorCitizenIdFile);
+      await apiCreateReservation(apiPayload, file, seniorCitizenFiles, pwdFiles);
       setShowOverlay(true); 
     } catch (e) {
       const server = {

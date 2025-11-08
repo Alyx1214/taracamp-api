@@ -71,25 +71,6 @@ async function rawFetch(path, options = {}) {
   return fetch(url, { ...options, headers: retryHeaders, credentials: 'include' });
 }
 
-export async function tryRefresh() {
-  const refresh = getRefreshToken();
-  if (!refresh) return null;
-  try {
-    const res = await fetch(`${API_BASE}${API_V1_PREFIX}/user/refresh-token`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refreshToken: refresh }),
-      credentials: 'include',
-    });
-    if (!res.ok) { clearTokens(); return null; }
-    const data = await res.json().catch(() => ({}));
-    if (data?.accessToken) setAccessToken(data.accessToken);
-    if (data?.refreshToken) setRefreshToken(data.refreshToken);
-    return data?.accessToken || null;
-  } catch {
-    return null;
-  }
-}
 
 function withQuery(path, query) {
   if (!query || typeof query !== 'object') return path;
@@ -111,6 +92,66 @@ function handle(res, data) {
 
 function decodeJwt(token) {
   try { return JSON.parse(atob(token.split('.')[1])); } catch { return {}; }
+}
+
+// Global lock to prevent concurrent token refresh requests
+let refreshPromise = null;
+let refreshLockTime = 0;
+const REFRESH_LOCK_DURATION = 5000; // 5 seconds lock after a refresh
+
+export async function tryRefresh() {
+  const refresh = getRefreshToken();
+  if (!refresh) return null;
+  
+  // Check if a refresh is already in progress
+  const now = Date.now();
+  if (refreshPromise && (now - refreshLockTime) < REFRESH_LOCK_DURATION) {
+    // Wait for the existing refresh to complete
+    try {
+      return await refreshPromise;
+    } catch {
+      // If the existing refresh failed, continue with a new one
+    }
+  }
+  
+  // Start a new refresh
+  refreshLockTime = now;
+  refreshPromise = (async () => {
+    try {
+      // refresh endpoint lives under /api/v1/user/refresh-token per main.js
+      const res = await fetch(`${API_BASE}${API_V1_PREFIX}/user/refresh-token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken: refresh }),
+        credentials: 'include',
+      });
+      
+      if (!res.ok) {
+        // Handle 429 specifically
+        if (res.status === 429) {
+          // Wait a bit and return the current token (don't clear tokens)
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          return getAccessToken(); // Return current token instead of null
+        }
+        clearTokens();
+        return null;
+      }
+      
+      const data = await res.json().catch(() => ({}));
+      if (data?.accessToken) setAccessToken(data.accessToken);
+      if (data?.refreshToken) setRefreshToken(data.refreshToken);
+      return data?.accessToken || null;
+    } catch {
+      return null;
+    } finally {
+      // Clear the promise after a delay to allow other requests to use the new token
+      setTimeout(() => {
+        refreshPromise = null;
+      }, REFRESH_LOCK_DURATION);
+    }
+  })();
+  
+  return refreshPromise;
 }
 
 export async function ensureFreshAccess(skewSec = 60) {

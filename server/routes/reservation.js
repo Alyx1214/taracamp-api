@@ -14,7 +14,9 @@ export default function buildReservationRouter(userSocketMap) {
     new Promise((resolve, reject) => {
       const uploadFields = [
         { name: 'letterOfIntentFile', maxCount: 1 },
-        { name: 'seniorCitizenIdFile', maxCount: 1 }
+        { name: 'seniorCitizenIdFile', maxCount: 1 },
+        { name: 'seniorCitizenIdFiles', maxCount: 10 },
+        { name: 'pwdIdFiles', maxCount: 10 }
       ];
       
       const upload = multer({ storage: multer.memoryStorage() }).fields(uploadFields);
@@ -82,8 +84,20 @@ export default function buildReservationRouter(userSocketMap) {
     // Drop any client-sent file id hints
     delete data.letterOfIntentFileId;
     delete data.seniorCitizenIdFileId;
+    delete data.pwdIdFileId;
+    
+    // Handle file uploads - support both singular and plural field names
     const letterOfIntentFile = req.files?.letterOfIntentFile?.[0] || null;
-    const seniorCitizenIdFile = req.files?.seniorCitizenIdFile?.[0] || null;
+    
+    // Support both seniorCitizenIdFile (singular) and seniorCitizenIdFiles (plural)
+    // Take the first file if multiple are provided (schema only supports one)
+    const seniorCitizenIdFile = req.files?.seniorCitizenIdFile?.[0] 
+      || req.files?.seniorCitizenIdFiles?.[0] 
+      || null;
+    
+    // Note: pwdIdFiles is accepted but not yet stored in the schema
+    // The files are accepted to prevent "Unexpected field" errors
+    
     const response = await reservationModule.addReservation(dbHelper, data, letterOfIntentFile, seniorCitizenIdFile, req.user);
 
     res.status(response.status).json(response);
