@@ -51,7 +51,7 @@ const Dashboard = () => {
   return (
     <div className={styles.dashboard}>
       <div className={styles.welcomeSection}>
-        <h1 className={styles.welcomeTitle}>Mabuhay, Admin!</h1>
+        <h1 className={styles.welcomeTitle}>Mabuhay, Superintendent!</h1>
       </div>
 
       {error && <div className={styles.errorBox}>{error}</div>}

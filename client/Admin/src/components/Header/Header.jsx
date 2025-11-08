@@ -16,7 +16,6 @@ const Header = ({ onHamburgerClick }) => {
       <div className={styles["header-right"]}>
         <FaBell className={`${styles["header-action"]} ${styles["header-icon"]}`} />
         <FaUser className={`${styles["header-action"]} ${styles["header-icon"]}`} />
-        <h1 className={styles["header-title"]}>Welcome Admin!</h1>
       </div>
     </header>
   );
