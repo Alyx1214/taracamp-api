@@ -108,7 +108,8 @@ server.on('upgrade', (req, socket, head) => {
 });
 
 wss.on('connection', (ws, req) => {
-  const userId = req.user.userId;
+  // Ensure userId is a string for consistent Map key matching
+  const userId = req.user.userId?.toString?.() || String(req.user.userId || '');
   userSocketMap.set(userId, ws);
   ws.isAlive = true;
 

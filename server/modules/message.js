@@ -1,4 +1,4 @@
-import { Status } from '../constants.js';
+import { Status, UserRole } from '../constants.js';
 import autoResponseEngine from './autoResponseEngine.js';
 import { safeRedisOperations } from './redisCircuitBreaker.js';
 
@@ -271,9 +271,11 @@ const messageModule = {
             responseData.data = toMessagePayload(saved);
 
             // Broadcast message via WebSocket if userSocketMap is available
-            if (userSocketMap && userSocketMap.has(userId)) {
+            // Ensure userId is a string (Map keys must match exactly)
+            const userIdStr = userId?.toString?.() || String(userId || '');
+            if (userSocketMap && userSocketMap.has(userIdStr)) {
                 try {
-                    const ws = userSocketMap.get(userId);
+                    const ws = userSocketMap.get(userIdStr);
                     if (ws && ws.readyState === 1) { // WebSocket.OPEN
                         ws.send(JSON.stringify({
                             type: 'new_message',
@@ -282,6 +284,43 @@ const messageModule = {
                     }
                 } catch (error) {
                     console.error('Error broadcasting message via WebSocket:', error);
+                }
+            }
+
+            // If this is a user message (from a guest), also broadcast to all admin connections
+            if (isUserMessage && userSocketMap && userSocketMap.size > 0) {
+                try {
+                    // Get all admin users from database
+                    const adminUsers = await dbHelper.findMany('user', {
+                        role: { $ne: UserRole.GUEST }
+                    }, {
+                        limit: 1000 // Reasonable limit for admin users
+                    });
+
+                    if (adminUsers && adminUsers.length > 0) {
+                        const messagePayload = toMessagePayload(saved);
+                        
+                        // Broadcast to each admin's WebSocket connection
+                        for (const adminUser of adminUsers) {
+                            const adminUserIdStr = adminUser._id?.toString?.() || String(adminUser._id || '');
+                            if (userSocketMap.has(adminUserIdStr)) {
+                                try {
+                                    const adminWs = userSocketMap.get(adminUserIdStr);
+                                    if (adminWs && adminWs.readyState === 1) { // WebSocket.OPEN
+                                        adminWs.send(JSON.stringify({
+                                            type: 'new_message',
+                                            data: messagePayload
+                                        }));
+                                    }
+                                } catch (error) {
+                                    console.error(`Error broadcasting message to admin ${adminUserIdStr}:`, error);
+                                }
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error broadcasting message to admins:', error);
+                    // Don't fail the main message send if admin broadcast fails
                 }
             }
 
@@ -316,9 +355,11 @@ const messageModule = {
                                 await invalidateMessageCache(userId);
                                 
                                 // Broadcast automated response via WebSocket
-                                if (userSocketMap && userSocketMap.has(userId)) {
+                                // Ensure userId is a string (Map keys must match exactly)
+                                const userIdStr = userId?.toString?.() || String(userId || '');
+                                if (userSocketMap && userSocketMap.has(userIdStr)) {
                                     try {
-                                        const ws = userSocketMap.get(userId);
+                                        const ws = userSocketMap.get(userIdStr);
                                         if (ws && ws.readyState === 1) { // WebSocket.OPEN
                                             ws.send(JSON.stringify({
                                                 type: 'new_message',
@@ -327,6 +368,40 @@ const messageModule = {
                                         }
                                     } catch (error) {
                                         console.error('Error broadcasting auto-response via WebSocket:', error);
+                                    }
+                                }
+
+                                // Also broadcast auto-response to all admin connections
+                                if (userSocketMap && userSocketMap.size > 0) {
+                                    try {
+                                        const adminUsers = await dbHelper.findMany('user', {
+                                            role: { $ne: UserRole.GUEST }
+                                        }, {
+                                            limit: 1000
+                                        });
+
+                                        if (adminUsers && adminUsers.length > 0) {
+                                            const autoResponsePayload = toMessagePayload(autoResponseSaved);
+                                            
+                                            for (const adminUser of adminUsers) {
+                                                const adminUserIdStr = adminUser._id?.toString?.() || String(adminUser._id || '');
+                                                if (userSocketMap.has(adminUserIdStr)) {
+                                                    try {
+                                                        const adminWs = userSocketMap.get(adminUserIdStr);
+                                                        if (adminWs && adminWs.readyState === 1) { // WebSocket.OPEN
+                                                            adminWs.send(JSON.stringify({
+                                                                type: 'new_message',
+                                                                data: autoResponsePayload
+                                                            }));
+                                                        }
+                                                    } catch (error) {
+                                                        console.error(`Error broadcasting auto-response to admin ${adminUserIdStr}:`, error);
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    } catch (error) {
+                                        console.error('Error broadcasting auto-response to admins:', error);
                                     }
                                 }
                             } catch (error) {
@@ -469,6 +544,293 @@ const messageModule = {
         }
         return responseData;
     },
+
+    /**
+     * Checks if a user is an admin (non-guest).
+     * @param {string} role - The user's role.
+     * @returns {boolean} True if the user is an admin.
+     */
+    isAdmin: (role) => {
+        return role && role !== UserRole.GUEST;
+    },
+
+    /**
+     * Lists all users who have messages (for admin view).
+     * @param {Object} dbHelper - The database helper object.
+     * @param {Object} user - The admin user object.
+     * @returns {Promise<Object>} The response data with list of users.
+     */
+    listUsersWithMessages: async (dbHelper, user) => {
+        const responseData = {
+            status: Status.INTERNAL_SERVER_ERROR,
+            error: 'Error fetching users with messages',
+        };
+        try {
+            if (!user?.userId) {
+                responseData.status = Status.UNAUTHORIZED;
+                responseData.error = 'User not logged in';
+                return responseData;
+            }
+
+            if (!messageModule.isAdmin(user?.role)) {
+                responseData.status = Status.FORBIDDEN;
+                responseData.error = 'Only admins can access this endpoint';
+                return responseData;
+            }
+
+            // Get distinct user IDs from messages
+            const messages = await dbHelper.findMany('message', {}, {
+                sort: { createdAt: -1 },
+                limit: 10000, // Large limit to get all users
+            });
+
+            const userIds = [...new Set(messages.map(m => String(m.userId)).filter(Boolean))];
+            
+            // Get user details for each userId
+            const users = await Promise.all(
+                userIds.map(async (userId) => {
+                    const userDoc = await dbHelper.findOne('user', { _id: userId });
+                    if (!userDoc) return null;
+                    
+                    // Get unread count for this user
+                    const unreadCount = await dbHelper.count('message', { 
+                        userId, 
+                        isRead: { $ne: true } 
+                    });
+                    
+                    // Get last message
+                    const lastMessage = await dbHelper.findOne('message', { userId }, {
+                        sort: { createdAt: -1 }
+                    });
+
+                    return {
+                        _id: userDoc._id?.toString?.() || userDoc._id,
+                        name: userDoc.name || 'Unknown',
+                        email: userDoc.email || '',
+                        role: userDoc.role || '',
+                        unreadCount,
+                        lastMessage: lastMessage ? toMessagePayload(lastMessage) : null,
+                    };
+                })
+            );
+
+            // Filter out nulls and sort by last message time
+            const validUsers = users
+                .filter(u => u !== null)
+                .sort((a, b) => {
+                    if (!a.lastMessage && !b.lastMessage) return 0;
+                    if (!a.lastMessage) return 1;
+                    if (!b.lastMessage) return -1;
+                    return new Date(b.lastMessage.createdAt) - new Date(a.lastMessage.createdAt);
+                });
+
+            responseData.status = Status.OK;
+            responseData.error = null;
+            responseData.data = validUsers;
+        } catch (error) {
+            console.error('Error fetching users with messages:', error);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Error fetching users with messages';
+        }
+        return responseData;
+    },
+
+    /**
+     * Gets messages for a specific user (admin only).
+     * @param {Object} dbHelper - The database helper object.
+     * @param {Object} adminUser - The admin user object.
+     * @param {string} targetUserId - The ID of the user whose messages to retrieve.
+     * @param {Object} options - Query options.
+     * @param {number} [options.limit=50] - The maximum number of messages to return.
+     * @param {string} [options.before] - The date before which messages should be returned.
+     * @returns {Promise<Object>} The response data.
+     */
+    getMessagesForUser: async (dbHelper, adminUser, targetUserId, { limit, before } = {}) => {
+        const responseData = {
+            status: Status.INTERNAL_SERVER_ERROR,
+            error: 'Error fetching messages',
+        };
+        try {
+            if (!adminUser?.userId) {
+                responseData.status = Status.UNAUTHORIZED;
+                responseData.error = 'User not logged in';
+                return responseData;
+            }
+
+            if (!messageModule.isAdmin(adminUser?.role)) {
+                responseData.status = Status.FORBIDDEN;
+                responseData.error = 'Only admins can access this endpoint';
+                return responseData;
+            }
+
+            if (!targetUserId) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Target user ID is required';
+                return responseData;
+            }
+
+            // Use the existing listForUser logic but with targetUserId
+            const limitValue = clampLimit(limit);
+            const query = { userId: targetUserId };
+            if (before) {
+                const beforeDate = new Date(before);
+                if (!Number.isNaN(beforeDate.getTime())) {
+                    query.createdAt = { $lt: beforeDate };
+                }
+            }
+
+            const rows = await dbHelper.findMany('message', query, {
+                sort: { createdAt: -1 },
+                limit: limitValue,
+            });
+
+            const messages = Array.isArray(rows) ? rows.map(toMessagePayload) : [];
+
+            responseData.status = Status.OK;
+            responseData.error = null;
+            responseData.data = messages;
+        } catch (error) {
+            console.error('Error fetching messages for user:', error);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Error fetching messages';
+        }
+        return responseData;
+    },
+
+    /**
+     * Sends a message from an admin to a specific user.
+     * @param {Object} dbHelper - The database helper object.
+     * @param {Object} adminUser - The admin user object.
+     * @param {string} targetUserId - The ID of the user to send the message to.
+     * @param {Object} data - The message data.
+     * @param {Object} userSocketMap - WebSocket map for real-time updates.
+     * @returns {Promise<Object>} The response data with the created message.
+     */
+    sendAdminReply: async (dbHelper, adminUser, targetUserId, data = {}, userSocketMap = null) => {
+        const responseData = {
+            status: Status.INTERNAL_SERVER_ERROR,
+            error: 'Error sending message',
+        };
+        try {
+            if (!adminUser?.userId) {
+                responseData.status = Status.UNAUTHORIZED;
+                responseData.error = 'User not logged in';
+                return responseData;
+            }
+
+            if (!messageModule.isAdmin(adminUser?.role)) {
+                responseData.status = Status.FORBIDDEN;
+                responseData.error = 'Only admins can send replies';
+                return responseData;
+            }
+
+            if (!targetUserId) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Target user ID is required';
+                return responseData;
+            }
+
+            const rawText = data.text ?? data.message ?? '';
+            const text = String(rawText).trim();
+            if (!text) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Message text is required';
+                return responseData;
+            }
+
+            // Verify target user exists
+            const targetUser = await dbHelper.findOne('user', { _id: targetUserId });
+            if (!targetUser) {
+                responseData.status = Status.NOT_FOUND;
+                responseData.error = 'Target user not found';
+                return responseData;
+            }
+
+            // Create message as admin reply (not from user, not auto-response)
+            // This will appear in the same conversation thread as chatbot messages
+            const doc = {
+                userId: targetUserId, // Message belongs to the target user (same conversation thread)
+                text,
+                sender: data.sender || adminUser?.name || 'Admin',
+                role: adminUser?.role || null,
+                isUser: false, // This is an admin reply, appears on left side like chatbot messages
+                isRead: false, // User hasn't read it yet
+                metadata: {
+                    isAdminReply: true,
+                    adminUserId: adminUser?.userId,
+                    timestamp: new Date()
+                }
+            };
+
+            const saved = await dbHelper.create('message', doc);
+            
+            // Invalidate cache after sending new message
+            await invalidateMessageCache(targetUserId);
+
+            responseData.status = Status.CREATED;
+            responseData.error = null;
+            responseData.data = toMessagePayload(saved);
+
+            // Broadcast message via WebSocket to the target user
+            // Use the MongoDB ObjectId string format from the database lookup (most reliable)
+            // This ensures we match the format used when the user connected via WebSocket
+            const targetUserMongoId = targetUser?._id?.toString?.() || targetUser?._id;
+            const targetUserIdStr = targetUserMongoId ? String(targetUserMongoId) : (targetUserId?.toString?.() || String(targetUserId || ''));
+            
+            // Try to find the WebSocket connection
+            let ws = null;
+            if (userSocketMap) {
+                // First try direct lookup with the MongoDB ObjectId string format
+                if (userSocketMap.has(targetUserIdStr)) {
+                    ws = userSocketMap.get(targetUserIdStr);
+                }
+                // If not found, try iterating through the map to find a case-insensitive match
+                // This handles any edge cases where the format might differ slightly
+                else {
+                    for (const [mapUserId, mapWs] of userSocketMap.entries()) {
+                        const mapUserIdStr = String(mapUserId);
+                        // Try exact match first
+                        if (mapUserIdStr === targetUserIdStr) {
+                            ws = mapWs;
+                            break;
+                        }
+                        // Try case-insensitive match
+                        if (mapUserIdStr.toLowerCase() === targetUserIdStr.toLowerCase()) {
+                            ws = mapWs;
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            // Send WebSocket message if connection found
+            if (ws) {
+                try {
+                    if (ws.readyState === 1) { // WebSocket.OPEN
+                        ws.send(JSON.stringify({
+                            type: 'new_message',
+                            data: toMessagePayload(saved)
+                        }));
+                        console.log(`Admin reply broadcasted to user ${targetUserIdStr} via WebSocket`);
+                    } else {
+                        console.log(`WebSocket for user ${targetUserIdStr} is not open (readyState: ${ws?.readyState})`);
+                    }
+                } catch (error) {
+                    console.error('Error broadcasting admin reply via WebSocket:', error);
+                }
+            } else {
+                // Log available user IDs in map for debugging
+                const availableUserIds = userSocketMap ? Array.from(userSocketMap.keys()).slice(0, 5) : [];
+                const mapSize = userSocketMap ? userSocketMap.size : 0;
+                console.log(`User ${targetUserIdStr} not found in WebSocket map (map size: ${mapSize}). Looking for: "${targetUserIdStr}". Available users (sample): ${availableUserIds.join(', ')}`);
+            }
+        } catch (error) {
+            console.error('Error sending admin reply:', error);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Error sending message';
+        }
+        return responseData;
+    },
 };
 
 export default messageModule;
@@ -501,6 +863,7 @@ function toMessagePayload(doc) {
     const createdAt = raw.createdAt ? new Date(raw.createdAt) : new Date();
     return {
         _id: raw._id?.toString?.() ?? raw._id,
+        userId: raw.userId?.toString?.() ?? raw.userId,
         sender: raw.sender || 'System',
         role: raw.role || undefined,
         text: raw.text || '',
