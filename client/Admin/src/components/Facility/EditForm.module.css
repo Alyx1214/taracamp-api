@@ -173,9 +173,9 @@
 }
 
 .cancelBtn {
-  background: #dc3545;
+  background: #4F3718;
   color: #fff;
-  border: 1px solid #dc3545;
+  border: 1px solid #4F3718;
   border-radius: 28px;
   padding: 14px 40px;
   font-size: 1rem;
@@ -185,8 +185,8 @@
 }
 
 .cancelBtn:hover:not(:disabled) {
-  background: #c82333;
-  border-color: #c82333;
+  background: #dc3545; 
+  border-color: #dc3545;
 }
 
 .cancelBtn:disabled {
@@ -197,7 +197,7 @@
 }
 
 .saveBtn {
-  background: #1E3C24;
+  background: #538E5E;
   color: #fff;
   border: none;
   border-radius: 28px;
@@ -210,7 +210,7 @@
 }
 
 .saveBtn:hover:not(:disabled) {
-  background: #4a2f08;
+  background: #3B6F4B;
 }
 
 .saveBtn:disabled {

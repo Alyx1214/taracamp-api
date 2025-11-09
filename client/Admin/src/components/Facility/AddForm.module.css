@@ -191,9 +191,9 @@
 }
 
 .cancelBtn {
-  background: #dc3545;
+  background: #4F3718;
   color: #fff;
-  border: 1px solid #dc3545;
+  border: 1px solid #4F3718;
   border-radius: 28px;
   padding: 0.9rem 2.5rem;
   font-size: 1.05rem;
@@ -203,8 +203,8 @@
 }
 
 .cancelBtn:hover:not(:disabled) {
-  background: #c82333;
-  border-color: #c82333;
+  background: #dc3545; 
+  border-color: #dc3545;
 }
 
 .cancelBtn:disabled {
@@ -236,7 +236,7 @@
 
 .addBtn {
   composes: btnBase;
-  background: linear-gradient(135deg, #4ca16b 0%, #3d8a5a 100%);
+  background: #538E5E; 
 }
 
 .removeBtn {

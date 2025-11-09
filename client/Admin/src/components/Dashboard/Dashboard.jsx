@@ -61,9 +61,12 @@ const Dashboard = () => {
   const welcomeText = firstName ? `Mabuhay, ${firstName}!` : 'Mabuhay!';
 
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       try {
         const payload = await getDashboardStats();
+        if (cancelled) return;
+        
         if (payload && payload.stats) {
           const s = payload.stats;
           setTodaysReservations(s.todaysReservations ?? 0);
@@ -73,16 +76,25 @@ const Dashboard = () => {
           setPendingReservations(s.pendingReservations ?? 0);
           setCancelledReservations(s.cancelledReservations ?? 0);
         } else {
-          console.error("Unexpected dashboard stats payload:", payload);
-          setError("Unexpected dashboard stats payload");
+          if (!cancelled) {
+            console.error("Unexpected dashboard stats payload:", payload);
+            setError("Unexpected dashboard stats payload");
+          }
         }
       } catch (e) {
-        console.error(e);
-        setError(e?.message || "Failed to load dashboard stats");
+        if (!cancelled) {
+          console.error(e);
+          setError(e?.message || "Failed to load dashboard stats");
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   return (

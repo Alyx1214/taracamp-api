@@ -121,7 +121,7 @@
 .add-user-submit {
   margin-top: 2rem;
   padding: 0.9rem 2rem;
-  background-color: #183c2d;
+  background-color: #538E5E;
   color: #fff;
   font-size: 1.1rem;
   font-weight: 600;
@@ -133,5 +133,22 @@
 
 
 .add-user-submit:hover {
-  background-color: #285d40;
+  background-color: #3B6F4B;
+}
+
+.add-user-cancel {
+  margin-top: 2rem;
+  padding: 0.9rem 2rem;
+  background-color: #4F3718;
+  color: #fff;
+  font-size: 1.1rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: background 0.2s ease-in-out;
+}
+
+.add-user-cancel:hover {
+  background-color: #dc3545;
 }

@@ -309,7 +309,7 @@
 
 /* Cancel Button */
 .cancelBtn {
-  background-color: #dc3545;
+  background-color: #4F3718;
   color: white;
   padding: 0.6rem 1.8rem;
   border: none;
@@ -320,7 +320,7 @@
 }
 
 .cancelBtn:hover {
-  background-color: #c82333;
+  background-color: #dc3545;
 }
 
 .cancelBtn:disabled {
@@ -330,7 +330,7 @@
 
 /* Save Button */
 .saveBtn {
-  background-color: #1E3C24;
+  background-color: #538E5E;
   color: white;
   padding: 0.6rem 1.8rem;
   border: none;
@@ -341,7 +341,7 @@
 }
 
 .saveBtn:hover {
-  background-color: #4a3209;
+  background-color: #3B6F4B;
 }
 
 .saveBtn:disabled {
