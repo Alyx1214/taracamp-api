@@ -696,11 +696,11 @@ const facilityModule = {
     /**
      * Searches facilities with optional filters, excluding those that have overlapping reservations.
      * @param {Object} dbHelper - Database helper.
-     * @param {Object} options - {type, query, minPrice, maxPrice, capacity, checkInDate, checkOutDate, includeUnavailable}
+     * @param {Object} options - {type, query, minPrice, maxPrice, capacity, maxCapacity, checkInDate, checkOutDate, includeUnavailable}
      * @returns {Object} Response data with status, error, and facilities on success.
      */
     searchFacilities: async (dbHelper, options = {}) => {
-        const { type, query, minPrice, maxPrice, capacity, checkInDate, checkOutDate, includeUnavailable } = options;
+        const { type, query, minPrice, maxPrice, capacity, maxCapacity, checkInDate, checkOutDate, includeUnavailable } = options;
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
             error: 'Error searching facilities',
@@ -709,7 +709,7 @@ const facilityModule = {
 
         try {
             // Create cache key with all search parameters
-            const cacheKey = `search_facilities:${type || 'all'}:${query || ''}:${minPrice || ''}:${maxPrice || ''}:${capacity || ''}:${checkInDate || ''}:${checkOutDate || ''}:${includeUnavailable || false}`;
+            const cacheKey = `search_facilities:${type || 'all'}:${query || ''}:${minPrice || ''}:${maxPrice || ''}:${capacity || ''}:${maxCapacity || ''}:${checkInDate || ''}:${checkOutDate || ''}:${includeUnavailable || false}`;
 
             // Try to get cached result
             try {
@@ -728,7 +728,11 @@ const facilityModule = {
             let filter = {};
             if (type) filter.facilityType = type.trim();
             if (query) filter.name = new RegExp(query.trim(), 'i');
-            if (capacity) filter.capacity = { $gte: Number(capacity), };
+            if (capacity || maxCapacity) {
+                filter.capacity = {};
+                if (capacity) filter.capacity.$gte = Number(capacity);
+                if (maxCapacity) filter.capacity.$lte = Number(maxCapacity);
+            }
             if (includeUnavailable !== 'true' && includeUnavailable !== true) {
                 filter.status = { $ne: FacilityStatus.UNAVAILABLE };
             }

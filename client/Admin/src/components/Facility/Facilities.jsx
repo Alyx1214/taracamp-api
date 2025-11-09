@@ -18,6 +18,13 @@ export default function Facilities() {
     return location.state?.activeTab || "Dormitory";
   });
   const [searchQuery, setSearchQuery] = useState("");
+  const [filters, setFilters] = useState({
+    minPrice: "",
+    maxPrice: "",
+    capacity: "",
+    maxCapacity: "",
+    sortBy: ""
+  });
   const [isEditing, setIsEditing] = useState(false);
   const [editingData, setEditingData] = useState(null);
 
@@ -27,6 +34,17 @@ export default function Facilities() {
       setActiveTab(location.state.activeTab);
     }
   }, [location.state]);
+
+  // Reset filters when active tab changes
+  useEffect(() => {
+    setFilters({
+      minPrice: "",
+      maxPrice: "",
+      capacity: "",
+      maxCapacity: "",
+      sortBy: ""
+    });
+  }, [activeTab]);
 
   const handleEdit = (facility) => {
     setIsEditing(true);
@@ -44,6 +62,96 @@ export default function Facilities() {
     setEditingData(null);
   };
 
+  const handleApplyFilters = (newFilters) => {
+    setFilters(newFilters || {});
+  };
+
+  const handleClearFilters = () => {
+    setFilters({
+      minPrice: "",
+      maxPrice: "",
+      capacity: "",
+      maxCapacity: "",
+      sortBy: ""
+    });
+  };
+
+  // Define filter fields based on active tab
+  const getFilterFields = () => {
+    if (activeTab === "Add-ons") {
+      return [
+        {
+          name: "minPrice",
+          label: "Min Price",
+          type: "number",
+          placeholder: "0.00",
+          min: "0"
+        },
+        {
+          name: "maxPrice",
+          label: "Max Price",
+          type: "number",
+          placeholder: "999999.99",
+          min: "0"
+        },
+        {
+          name: "sortBy",
+          label: "Sort By",
+          type: "select",
+          options: [
+            { value: "", label: "None" },
+            { value: "name", label: "Name (A-Z)" },
+            { value: "price-asc", label: "Price (Low to High)" },
+            { value: "price-desc", label: "Price (High to Low)" }
+          ]
+        }
+      ];
+    }
+    return [
+      {
+        name: "minPrice",
+        label: "Min Price",
+        type: "number",
+        placeholder: "0.00",
+        min: "0"
+      },
+      {
+        name: "maxPrice",
+        label: "Max Price",
+        type: "number",
+        placeholder: "999999.99",
+        min: "0"
+      },
+      {
+        name: "capacity",
+        label: "Min Capacity",
+        type: "number",
+        placeholder: "1",
+        min: "1"
+      },
+      {
+        name: "maxCapacity",
+        label: "Max Capacity",
+        type: "number",
+        placeholder: "999",
+        min: "1"
+      },
+      {
+        name: "sortBy",
+        label: "Sort By",
+        type: "select",
+        options: [
+          { value: "", label: "None" },
+          { value: "name", label: "Name (A-Z)" },
+          { value: "price-asc", label: "Price (Low to High)" },
+          { value: "price-desc", label: "Price (High to Low)" },
+          { value: "capacity-asc", label: "Capacity (Low to High)" },
+          { value: "capacity-desc", label: "Capacity (High to Low)" }
+        ]
+      }
+    ];
+  };
+
   const renderContent = () => {
     if (isEditing && activeTab === "Add-ons") {
       return (
@@ -56,18 +164,25 @@ export default function Facilities() {
       );
     }
 
+    const commonProps = {
+      searchQuery,
+      filters,
+      onEdit: activeTab !== "Add-ons" ? handleEdit : undefined
+    };
+
     switch (activeTab) {
       case "Dormitory":
-        return <Dormitory searchQuery={searchQuery} />;
+        return <Dormitory {...commonProps} />;
       case "Cottage":
-        return <Cottages searchQuery={searchQuery} />;
+        return <Cottages {...commonProps} />;
       case "Conference":
-        return <Conference searchQuery={searchQuery} />;
+        return <Conference {...commonProps} />;
       case "Add-ons":
         return (
           <OtherService
             onEdit={handleEdit}
             searchQuery={searchQuery}
+            filters={filters}
           />
         );
       default:
@@ -82,7 +197,11 @@ export default function Facilities() {
       {!isEditing && (
         <div className={styles.facilitiesControls}>
           <FaciTypes activeTab={activeTab} setActiveTab={setActiveTab} />
-          <SearchFil onSearch={(q) => setSearchQuery(String(q || "").trim())} />
+          <SearchFil 
+            onSearch={(q) => setSearchQuery(String(q || "").trim())} 
+            onApplyFilters={handleApplyFilters}
+            filterFields={getFilterFields()}
+          />
         </div>
       )}
 

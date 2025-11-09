@@ -168,6 +168,14 @@ const userModule = {
 
             const jti = uuidv4();
             const userId = userObject._id.toString();
+            
+            // Revoke all previous sessions for high-privilege roles to prevent concurrent logins
+            // This prevents security issues if credentials are compromised
+            // const highPrivilegeRoles = [UserRole.SUPERINTENDENT, UserRole.CRMSTEAM, UserRole.ACCOUNTING];
+            // if (highPrivilegeRoles.includes(userObject.role)) {
+            //     await revokeAllRefreshTokens(userId);
+            // }
+            
             const safeUser = {
                 _id: userId,
                 email: userObject.email,

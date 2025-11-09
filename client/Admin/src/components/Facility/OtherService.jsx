@@ -18,7 +18,7 @@ const SkeletonLoader = ({ count = 3 }) => {
   );
 };
 
-export default function OtherService({ onEdit, editable, onSave, onCancel, searchQuery }) {
+export default function OtherService({ onEdit, editable, onSave, onCancel, searchQuery, filters = {} }) {
   const [services, setServices] = useState([]);
   const [originalServices, setOriginalServices] = useState([]);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -29,7 +29,7 @@ export default function OtherService({ onEdit, editable, onSave, onCancel, searc
   const menuRef = useRef(null);
   const searchTimeoutRef = useRef(null);
 
-  const debouncedSearch = useCallback((query) => {
+  const debouncedSearch = useCallback((query, filterParams) => {
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
     }
@@ -39,9 +39,18 @@ export default function OtherService({ onEdit, editable, onSave, onCancel, searc
         setLoading(true);
         setError(null);
         
+        // Build search parameters
+        const searchParams = {
+          ...(query && query.trim() && { query: query.trim() }),
+          ...(filterParams?.minPrice && { minPrice: Number(filterParams.minPrice) }),
+          ...(filterParams?.maxPrice && { maxPrice: Number(filterParams.maxPrice) })
+        };
+        
+        const hasFilters = query?.trim() || filterParams?.minPrice || filterParams?.maxPrice;
+        
         let response;
-        if (query && query.trim()) {
-          response = await searchAddons({ query: query.trim() });
+        if (hasFilters) {
+          response = await searchAddons(searchParams);
         } else {
           response = await getAllAddons();
         }
@@ -49,12 +58,30 @@ export default function OtherService({ onEdit, editable, onSave, onCancel, searc
         const addons = response.addons || response.data?.addons || [];
         
         if (response.status === 200 && addons.length >= 0) {
-          const formattedAddons = addons.map(addon => ({
+          let formattedAddons = addons.map(addon => ({
             id: addon._id,
             name: addon.name,
             price: `P${Number(addon.price).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`,
-            unit: addon.unit
+            unit: addon.unit,
+            priceValue: Number(addon.price) // Store numeric value for sorting
           }));
+          
+          // Apply sorting
+          if (filterParams?.sortBy) {
+            formattedAddons = [...formattedAddons].sort((a, b) => {
+              switch (filterParams.sortBy) {
+                case "name":
+                  return (a.name || "").localeCompare(b.name || "");
+                case "price-asc":
+                  return (a.priceValue || 0) - (b.priceValue || 0);
+                case "price-desc":
+                  return (b.priceValue || 0) - (a.priceValue || 0);
+                default:
+                  return 0;
+              }
+            });
+          }
+          
           setServices(formattedAddons);
           setOriginalServices(cloneAddons(formattedAddons));
         } else {
@@ -72,13 +99,13 @@ export default function OtherService({ onEdit, editable, onSave, onCancel, searc
   }, []);
 
   useEffect(() => {
-    debouncedSearch(searchQuery);
+    debouncedSearch(searchQuery, filters);
     return () => {
       if (searchTimeoutRef.current) {
         clearTimeout(searchTimeoutRef.current);
       }
     };
-  }, [searchQuery, debouncedSearch]);
+  }, [searchQuery, filters?.minPrice, filters?.maxPrice, filters?.sortBy, debouncedSearch]);
 
   useEffect(() => {
     const handleClickOutside = (e) => {

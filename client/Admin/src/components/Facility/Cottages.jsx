@@ -3,7 +3,7 @@ import BoxCard from "./BoxCard";
 import { getFacilitiesByType, deleteFacility, searchFacilities } from "../../apis/facilityApi";
 import styles from "./Cottages.module.css";
 
-export default function Cottages({ onEdit, searchQuery = "" }) {
+export default function Cottages({ onEdit, searchQuery = "", filters = {} }) {
   const [cottages, setCottages] = useState([]);
   const [state, setState] = useState({ loading: true, error: null });
 
@@ -14,9 +14,19 @@ export default function Cottages({ onEdit, searchQuery = "" }) {
       try {
         setState({ loading: true, error: null });
         const q = String(searchQuery || "").trim();
+        
+        // Build search parameters
+        const searchParams = {
+          type: "Cottage",
+          ...(q && { query: q }),
+          ...(filters.minPrice && { minPrice: Number(filters.minPrice) }),
+          ...(filters.maxPrice && { maxPrice: Number(filters.maxPrice) }),
+          ...(filters.capacity && { capacity: Number(filters.capacity) }),
+          ...(filters.maxCapacity && { maxCapacity: Number(filters.maxCapacity) })
+        };
 
-        const res = q
-          ? await searchFacilities({ type: "Cottage", query: q })
+        const res = (q || filters.minPrice || filters.maxPrice || filters.capacity || filters.maxCapacity)
+          ? await searchFacilities(searchParams)
           : await getFacilitiesByType("Cottage");
 
         if (cancelled) return;
@@ -36,13 +46,33 @@ export default function Cottages({ onEdit, searchQuery = "" }) {
           throw new Error('Response missing "facilities" list.');
         }
 
-        const mapped = list.map(f => ({
+        let mapped = list.map(f => ({
           id: f._id ?? f.id,
           name: f.name ?? "Unnamed Cottage",
           capacity: f.capacity,
           rate: f.price ?? f.ratePerPerson ?? 0,
           images: Array.isArray(f.images) ? f.images : [],
         }));
+
+        // Apply sorting
+        if (filters.sortBy) {
+          mapped = [...mapped].sort((a, b) => {
+            switch (filters.sortBy) {
+              case "name":
+                return (a.name || "").localeCompare(b.name || "");
+              case "price-asc":
+                return (a.rate || 0) - (b.rate || 0);
+              case "price-desc":
+                return (b.rate || 0) - (a.rate || 0);
+              case "capacity-asc":
+                return (a.capacity || 0) - (b.capacity || 0);
+              case "capacity-desc":
+                return (b.capacity || 0) - (a.capacity || 0);
+              default:
+                return 0;
+            }
+          });
+        }
 
         setCottages(mapped);
         setState({ loading: false, error: null });
@@ -60,7 +90,7 @@ export default function Cottages({ onEdit, searchQuery = "" }) {
     })();
 
     return () => { cancelled = true; };
-  }, [searchQuery]);
+  }, [searchQuery, filters?.minPrice, filters?.maxPrice, filters?.capacity, filters?.maxCapacity, filters?.sortBy]);
 
   const handleDelete = async (id) => {
     try {
