@@ -1,7 +1,17 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import styles from "./ConfIndivRSVDetails.module.css";
-import { getReservationById } from "../../apis/reservationApi"; 
+import { getReservationById } from "../../apis/reservationApi";
+
+function prettifyServiceType(svc) {
+  if (!svc) return "N/A";
+  return String(svc)
+    .split(/([\/\s])/)
+    .map((w) =>
+      w.match(/[a-z]/i) ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : w
+    )
+    .join("");
+} 
 
 export default function ConfIndivRSVDetails() {
   const { id } = useParams();
@@ -93,9 +103,34 @@ export default function ConfIndivRSVDetails() {
 
   const prettyDate = (dateStr) => {
     if (!dateStr) return "N/A";
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return "N/A";
-    return d.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+    try {
+      // Parse date string to extract date components (avoid timezone issues)
+      const datePart = String(dateStr).split('T')[0].split(' ')[0];
+      const parts = datePart.split('-');
+      
+      if (parts.length === 3) {
+        const year = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10);
+        const day = parseInt(parts[2], 10);
+        
+        if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
+          // Create date in local timezone using date components
+          const date = new Date(year, month - 1, day);
+          return date.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+        }
+      }
+      // Fallback to regular parsing
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return "N/A";
+      // Use UTC methods to avoid timezone shifts
+      const year = d.getUTCFullYear();
+      const month = d.getUTCMonth();
+      const day = d.getUTCDate();
+      const localDate = new Date(year, month, day);
+      return localDate.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+    } catch (e) {
+      return "N/A";
+    }
   };
 
   return (
@@ -174,7 +209,7 @@ export default function ConfIndivRSVDetails() {
             <tr>
               <td className={styles["rsv-details-label"]}>Type of Service</td>
               <td className={styles["rsv-details-separator"]}>:</td>
-              <td>{reservation.serviceType || "N/A"}</td>
+              <td>{prettifyServiceType(reservation.serviceType) || "N/A"}</td>
             </tr>
           </tbody>
         </table>

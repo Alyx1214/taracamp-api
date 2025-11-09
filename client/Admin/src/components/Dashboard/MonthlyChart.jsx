@@ -24,9 +24,12 @@ const MonthlyChart = () => {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
     const fetchData = async () => {
       try {
         const res = await getMonthlyReservations(selectedYear);
+        if (cancelled) return;
+        
         const payload = res?.data; // server: { confirmed: number[12], cancelled: number[12] }
         if (payload && Array.isArray(payload.confirmed) && Array.isArray(payload.cancelled)) {
           setChartData({
@@ -37,7 +40,20 @@ const MonthlyChart = () => {
             ],
           });
         } else {
-          console.error('Unexpected response structure for monthly reservations:', res);
+          if (!cancelled) {
+            console.error('Unexpected response structure for monthly reservations:', res);
+            setChartData({
+              labels: months,
+              datasets: [
+                { label: 'Confirmed', data: [] },
+                { label: 'Cancelled', data: [] },
+              ],
+            });
+          }
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error('Error fetching monthly reservations:', error);
           setChartData({
             labels: months,
             datasets: [
@@ -46,19 +62,13 @@ const MonthlyChart = () => {
             ],
           });
         }
-      } catch (error) {
-        console.error('Error fetching monthly reservations:', error);
-        setChartData({
-          labels: months,
-          datasets: [
-            { label: 'Confirmed', data: [] },
-            { label: 'Cancelled', data: [] },
-          ],
-        });
       }
     };
 
     fetchData();
+    return () => {
+      cancelled = true;
+    };
   }, [selectedYear]);
 
   const drawChart = useCallback(() => {

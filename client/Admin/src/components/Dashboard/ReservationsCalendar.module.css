@@ -124,15 +124,15 @@
   font-weight: 700;
 }
 
-/* Highlight any day that has reservations */
-.dayCell.highlighted {
+/* Highlight any day that has reservations - REMOVED green highlighting */
+/* .dayCell.highlighted {
   background: #dcfce7;
   color: #15803d;
   font-weight: 600;
-}
+} */
 
-/* Small green dot at the bottom center of highlighted days */
-.dayCell.highlighted::after {
+/* Small green dot at the bottom center of highlighted days - REMOVED */
+/* .dayCell.highlighted::after {
   content: '';
   position: absolute;
   bottom: 2px;
@@ -142,6 +142,91 @@
   height: 4px;
   background: #15803d;
   border-radius: 50%;
+} */
+
+/* Available dates - green background when facility is selected */
+.dayCell.available {
+  background: #dcfce7 !important;
+  color: #15803d !important;
+  font-weight: 600;
+  border: 2px solid #22c55e !important;
+}
+
+.dayCell.available:hover {
+  background: #bbf7d0 !important;
+  border-color: #16a34a !important;
+}
+
+/* When a day is both available and has reservations, prioritize available styling */
+.dayCell.available.highlighted {
+  background: #dcfce7 !important;
+  border: 2px solid #22c55e !important;
+}
+
+/* Override today styling when available */
+.dayCell.available.today {
+  background: #dcfce7 !important;
+  color: #15803d !important;
+  border: 2px solid #22c55e !important;
+}
+
+/* Unavailable dates - red background when facility is selected */
+.dayCell.unavailable {
+  background: #fee2e2 !important;
+  color: #dc2626 !important;
+  font-weight: 700 !important;
+  border: 2px solid #ef4444 !important;
+  box-shadow: 0 0 0 1px #dc2626 !important;
+}
+
+/* Ensure unavailable is always visible, even with other classes */
+.dayCell.unavailable.hasDay {
+  background: #fee2e2 !important;
+  color: #dc2626 !important;
+}
+
+.dayCell.unavailable:hover {
+  background: #fecaca !important;
+  border-color: #dc2626 !important;
+  box-shadow: 0 0 0 2px #dc2626 !important;
+}
+
+/* When a day is both unavailable and has reservations, prioritize unavailable styling */
+.dayCell.unavailable.highlighted {
+  background: #fee2e2 !important;
+  color: #dc2626 !important;
+  border: 2px solid #ef4444 !important;
+  box-shadow: 0 0 0 1px #dc2626 !important;
+}
+
+/* Override today styling when unavailable */
+.dayCell.unavailable.today {
+  background: #fee2e2 !important;
+  color: #dc2626 !important;
+  border: 2px solid #ef4444 !important;
+  box-shadow: 0 0 0 1px #dc2626 !important;
+}
+
+/* Unavailable takes precedence over available if both are somehow applied */
+.dayCell.unavailable.available {
+  background: #fee2e2 !important;
+  color: #dc2626 !important;
+  border: 2px solid #ef4444 !important;
+  box-shadow: 0 0 0 1px #dc2626 !important;
+}
+
+/* Red dot indicator for unavailable dates */
+.dayCell.unavailable::after {
+  content: '';
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 6px;
+  height: 6px;
+  background: #dc2626;
+  border-radius: 50%;
+  box-shadow: 0 0 2px rgba(220, 38, 38, 0.5);
 }
 
 .searchRow {

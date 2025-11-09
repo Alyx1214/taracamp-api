@@ -333,16 +333,54 @@ const dashboardModule = {
             const reservations = await dbHelper.aggregate('reservation', [
                 {
                     $match: {
-                        dateOfArrival: { 
-                            $gte: startDate, 
-                            $lt: endDate 
+                        // Include reservations that overlap the month (not just start in it)
+                        dateOfArrival: { $lt: endDate },
+                        dateOfDeparture: { $gte: startDate },
+                        // Exclude Pending, Declined, and Cancelled reservations
+                        status: { 
+                            $nin: [
+                                ReservationStatus.PENDING,
+                                ReservationStatus.DECLINED,
+                                ReservationStatus.CANCELLED
+                            ]
                         }
+                    }
+                },
+                {
+                    // Normalize facility id to ObjectId for lookup
+                    $addFields: {
+                        facilityIdForLookup: {
+                            $cond: [
+                                { $eq: [{ $type: '$facility' }, 'string'] },
+                                { $toObjectId: '$facility' },
+                                '$facility'
+                            ]
+                        }
+                    }
+                },
+                {
+                    $lookup: {
+                        from: 'facilities',
+                        localField: 'facilityIdForLookup',
+                        foreignField: '_id',
+                        as: 'facility'
+                    }
+                },
+                {
+                    $unwind: {
+                        path: '$facility',
+                        preserveNullAndEmptyArrays: true
                     }
                 },
                 {
                     $project: {
                         dateOfArrival: 1,
+                        dateOfDeparture: 1,
                         status: 1,
+                        facility: {
+                            name: { $ifNull: ['$facility.name', null] }
+                        },
+                        facilityName: 1,
                         _id: 0
                     }
                 },
@@ -351,6 +389,10 @@ const dashboardModule = {
                         dateOfArrival: { $dateToString: { 
                             format: "%Y-%m-%dT%H:%M:%S.%LZ", 
                             date: "$dateOfArrival" 
+                        }},
+                        dateOfDeparture: { $dateToString: { 
+                            format: "%Y-%m-%dT%H:%M:%S.%LZ", 
+                            date: "$dateOfDeparture" 
                         }}
                     }
                 }

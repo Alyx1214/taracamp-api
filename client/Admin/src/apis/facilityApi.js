@@ -5,8 +5,19 @@ export function getFacilitiesByType(type) {
   return apiGet(`/facility/get-facilities-by-type/${encodeURIComponent(t)}?includeUnavailable=true`);
 }
 
-export function getAllFacilities() {
-  return apiGet('/facility/get-all-facilities?includeUnavailable=true');
+export function getAllFacilities(options = {}) {
+  const params = new URLSearchParams();
+  params.append('includeUnavailable', 'true');
+  // Request maximum limit to get all facilities (max is 100)
+  if (options.limit !== undefined) {
+    params.append('limit', String(options.limit));
+  } else {
+    params.append('limit', '100'); // Request max limit
+  }
+  if (options.skip !== undefined) {
+    params.append('skip', String(options.skip));
+  }
+  return apiGet(`/facility/get-all-facilities?${params.toString()}`);
 }
 
 export function searchFacilities(params = {}) {
