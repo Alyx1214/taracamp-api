@@ -174,8 +174,7 @@ export default function AddUserForm({ onAddUser }) {
           <button
             type="button"
             onClick={() => navigate("/users")}
-            className={styles["add-user-submit"]}
-            style={{ backgroundColor: "#ccc", color: "#000" }}
+            className={styles["add-user-cancel"]}
           >
             Cancel
           </button>
