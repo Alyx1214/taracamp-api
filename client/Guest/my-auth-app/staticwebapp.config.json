@@ -24,6 +24,8 @@
   "mimeTypes": {
     ".json": "application/json",
     ".js": "application/javascript",
+    ".jsx": "application/javascript",
+    ".mjs": "application/javascript",
     ".css": "text/css"
   }
 }
