@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import PropTypes from 'prop-types';
 import styles from './Message.module.css';
-import weblogo from '../../assets/logo.png';
+import weblogo from '../../assets/logo2.png';
 import { FaPaperclip, FaSmile, FaPaperPlane } from 'react-icons/fa';
 import { listMessages, sendMessage as sendMessageApi } from '../../apis/messageApi';
 import { subscribe } from '../../utils/webSocketClient';
