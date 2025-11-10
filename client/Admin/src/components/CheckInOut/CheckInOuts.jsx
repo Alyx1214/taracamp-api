@@ -18,7 +18,13 @@ export default function CheckInOuts() {
     sortBy: ""
   });
 
-  const columns = ["Name", "Email", "Service Type", "Facility Type", "Arrival Date", "Actions"];
+  // Dynamic columns based on active tab
+  const getColumns = () => {
+    if (activeTab === "Check-in" || activeTab === "Check-out") {
+      return ["Name", "Email", "Service Type", "Facility Type", "Departure Date", "Actions"];
+    }
+    return ["Name", "Email", "Service Type", "Facility Type", "Arrival Date", "Actions"];
+  };
 
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -105,15 +111,29 @@ export default function CheckInOuts() {
         }
         
         const res = await searchReservations(params);
-        let list = (res?.reservations || []).map((r) => ({
-          id: r._id || "",
-          name: r.guestName || "N/A",
-          email: r.guestEmail || "N/A",
-          serviceType: prettifyServiceType(r.serviceType) || "N/A",
-          facilityType: getFacilityType(r),
-          arrivalDate: formatDateYMDToLong(r.dateOfArrival),
-          _raw: r,
-        }));
+        let list = (res?.reservations || []).map((r) => {
+          const baseData = {
+            id: r._id || "",
+            name: r.guestName || "N/A",
+            email: r.guestEmail || "N/A",
+            serviceType: prettifyServiceType(r.serviceType) || "N/A",
+            facilityType: getFacilityType(r),
+            _raw: r,
+          };
+
+          // Use departure date for Check-in and Check-out tabs, arrival date for Confirmed
+          if (activeTab === "Check-in" || activeTab === "Check-out") {
+            return {
+              ...baseData,
+              departureDate: formatDateYMDToLong(r.dateOfDeparture),
+            };
+          } else {
+            return {
+              ...baseData,
+              arrivalDate: formatDateYMDToLong(r.dateOfArrival),
+            };
+          }
+        });
         
         // Apply client-side sorting if needed
         if (filters.sortBy) {
@@ -140,14 +160,14 @@ export default function CheckInOuts() {
         return sorted.sort((a, b) => b.name.localeCompare(a.name));
       case "date-asc":
         return sorted.sort((a, b) => {
-          const dateA = new Date(a._raw?.dateOfArrival);
-          const dateB = new Date(b._raw?.dateOfArrival);
+          const dateA = new Date((activeTab === "Check-in" || activeTab === "Check-out") ? a._raw?.dateOfDeparture : a._raw?.dateOfArrival);
+          const dateB = new Date((activeTab === "Check-in" || activeTab === "Check-out") ? b._raw?.dateOfDeparture : b._raw?.dateOfArrival);
           return dateA - dateB;
         });
       case "date-desc":
         return sorted.sort((a, b) => {
-          const dateA = new Date(a._raw?.dateOfArrival);
-          const dateB = new Date(b._raw?.dateOfArrival);
+          const dateA = new Date((activeTab === "Check-in" || activeTab === "Check-out") ? a._raw?.dateOfDeparture : a._raw?.dateOfArrival);
+          const dateB = new Date((activeTab === "Check-in" || activeTab === "Check-out") ? b._raw?.dateOfDeparture : b._raw?.dateOfArrival);
           return dateB - dateA;
         });
       case "service-asc":
@@ -193,15 +213,28 @@ export default function CheckInOuts() {
       if (filters.sortBy) params.sort = filters.sortBy;
       
       const res = await searchReservations(params);
-      let list = (res?.reservations || []).map((r) => ({
-        id: r._id || "",
-        name: r.guestName || "N/A",
-        email: r.guestEmail || "N/A",
-        serviceType: prettifyServiceType(r.serviceType) || "N/A",
-        facilityType: getFacilityType(r),
-        arrivalDate: formatDateYMDToLong(r.dateOfArrival),
-        _raw: r,
-      }));
+      let list = (res?.reservations || []).map((r) => {
+        const baseData = {
+          id: r._id || "",
+          name: r.guestName || "N/A",
+          email: r.guestEmail || "N/A",
+          serviceType: prettifyServiceType(r.serviceType) || "N/A",
+          facilityType: getFacilityType(r),
+          _raw: r,
+        };
+
+        if (activeTab === "Check-in" || activeTab === "Check-out") {
+          return {
+            ...baseData,
+            departureDate: formatDateYMDToLong(r.dateOfDeparture),
+          };
+        } else {
+          return {
+            ...baseData,
+            arrivalDate: formatDateYMDToLong(r.dateOfArrival),
+          };
+        }
+      });
       
       if (filters.sortBy) {
         list = applySorting(list, filters.sortBy);
@@ -275,15 +308,28 @@ export default function CheckInOuts() {
       if (filters.sortBy) params.sort = filters.sortBy;
       
       const res = await searchReservations(params);
-      let list = (res?.reservations || []).map((r) => ({
-        id: r._id || "",
-        name: r.guestName || "N/A",
-        email: r.guestEmail || "N/A",
-        serviceType: prettifyServiceType(r.serviceType) || "N/A",
-        facilityType: getFacilityType(r),
-        arrivalDate: formatDateYMDToLong(r.dateOfArrival),
-        _raw: r,
-      }));
+      let list = (res?.reservations || []).map((r) => {
+        const baseData = {
+          id: r._id || "",
+          name: r.guestName || "N/A",
+          email: r.guestEmail || "N/A",
+          serviceType: prettifyServiceType(r.serviceType) || "N/A",
+          facilityType: getFacilityType(r),
+          _raw: r,
+        };
+
+        if (activeTab === "Check-in" || activeTab === "Check-out") {
+          return {
+            ...baseData,
+            departureDate: formatDateYMDToLong(r.dateOfDeparture),
+          };
+        } else {
+          return {
+            ...baseData,
+            arrivalDate: formatDateYMDToLong(r.dateOfArrival),
+          };
+        }
+      });
       
       if (filters.sortBy) {
         list = applySorting(list, filters.sortBy);
@@ -313,6 +359,8 @@ export default function CheckInOuts() {
 
   // Define filter fields based on the table columns
   const getFilterFields = () => {
+    const dateLabel = (activeTab === "Check-in" || activeTab === "Check-out") ? "Departure Date" : "Arrival Date";
+    
     return [
       {
         name: "serviceType",
@@ -338,12 +386,12 @@ export default function CheckInOuts() {
       },
       {
         name: "startDate",
-        label: "Arrival Date (From)",
+        label: `${dateLabel} (From)`,
         type: "date"
       },
       {
         name: "endDate",
-        label: "Arrival Date (To)",
+        label: `${dateLabel} (To)`,
         type: "date"
       },
       {
@@ -354,8 +402,8 @@ export default function CheckInOuts() {
           { value: "", label: "None" },
           { value: "name-asc", label: "Name (A-Z)" },
           { value: "name-desc", label: "Name (Z-A)" },
-          { value: "date-asc", label: "Arrival Date (Earliest First)" },
-          { value: "date-desc", label: "Arrival Date (Latest First)" },
+          { value: "date-asc", label: `${dateLabel} (Earliest First)` },
+          { value: "date-desc", label: `${dateLabel} (Latest First)` },
           { value: "service-asc", label: "Service Type (A-Z)" },
           { value: "service-desc", label: "Service Type (Z-A)" },
           { value: "facility-asc", label: "Facility Type (A-Z)" },
@@ -386,7 +434,7 @@ export default function CheckInOuts() {
         {loading && <div style={{ padding: 12 }}>Loading…</div>}
         {!loading && activeTab === "Confirmed" && (
           <UnivTable
-            columns={columns}
+            columns={getColumns()}
             data={getActiveData()}
             renderActions={renderApprovedActions}
             renderMenu={renderMenu}
@@ -394,7 +442,7 @@ export default function CheckInOuts() {
         )}
         {!loading && activeTab === "Check-in" && (
           <UnivTable
-            columns={columns}
+            columns={getColumns()}
             data={getActiveData()}
             renderActions={renderCheckInActions}
             renderMenu={renderMenu}
@@ -402,7 +450,7 @@ export default function CheckInOuts() {
         )}
         {!loading && activeTab === "Check-out" && (
           <UnivTable
-            columns={columns}
+            columns={getColumns()}
             data={getActiveData()}
             renderActions={renderCheckOutActions}
             renderMenu={renderMenu}
