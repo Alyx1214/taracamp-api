@@ -8,14 +8,24 @@ const Reviews = ({ facilityName = "Facility" }) => {
       name: "John Doe",
       rating: 5,
       text: "Outstanding service! The staff was incredibly professional and the facilities were spotless. I felt completely comfortable throughout my entire visit. Highly recommend this place to anyone looking for quality care.",
-      date: "2 weeks ago"
+      date: "2 weeks ago",
+      adminReply: {
+        text: "Thank you so much for your kind words, John! We're thrilled to hear that you had such a positive experience with our team. Your satisfaction is our top priority, and we look forward to serving you again soon.",
+        date: "1 week ago",
+        admin: "Facility Manager"
+      }
     },
     {
       id: 2,
       name: "Jane Smith",
       rating: 4,
       text: "Great experience overall. The booking process was seamless and the staff was very accommodating. The only minor issue was the wait time, but the quality of service made up for it.",
-      date: "1 month ago"
+      date: "1 month ago",
+      adminReply: {
+        text: "Hi Jane, thank you for your feedback! We appreciate your patience regarding the wait time and are actively working on improving our scheduling system to serve you better. We're glad the quality of service met your expectations!",
+        date: "3 weeks ago",
+        admin: "Customer Service Team"
+      }
     },
     {
       id: 3,
@@ -29,7 +39,12 @@ const Reviews = ({ facilityName = "Facility" }) => {
       name: "Sarah Wilson",
       rating: 4,
       text: "Professional service with a personal touch. The team goes above and beyond to ensure customer satisfaction. The facility is well-maintained and the atmosphere is very calming.",
-      date: "1 week ago"
+      date: "1 week ago",
+      adminReply: {
+        text: "Dear Sarah, we truly appreciate your wonderful review! Our team works hard to maintain the highest standards, and it's rewarding to know that our efforts are recognized. Thank you for choosing us!",
+        date: "5 days ago",
+        admin: "Management"
+      }
     }
   ]);
 
@@ -101,6 +116,26 @@ const Reviews = ({ facilityName = "Facility" }) => {
               </div>
             </div>
             <p className={styles.reviewText}>{review.text}</p>
+            
+            {review.adminReply && (
+              <div className={styles.adminReplyContainer}>
+                <div className={styles.adminReplyHeader}>
+                  <div className={styles.adminBadge}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                      <path d="M9 11l3 3L22 4" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    <span className={styles.adminLabel}>Admin Response</span>
+                  </div>
+                  <div className={styles.adminInfo}>
+                    <span className={styles.adminName}>{review.adminReply.admin}</span>
+                    <span className={styles.adminReplyDate}>{review.adminReply.date}</span>
+                  </div>
+                </div>
+                <p className={styles.adminReplyText}>{review.adminReply.text}</p>
+              </div>
+            )}
+            
             <div className={styles.reviewActions}>
               <button className={styles.helpfulBtn}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
