@@ -16,6 +16,13 @@ export default function Reservations() {
   const location = useLocation();
   const [activeTab, setActiveTab] = useState(location.state?.activeTab || "Pending");
   const [searchQuery, setSearchQuery] = useState("");
+  const [filters, setFilters] = useState({
+    serviceType: "",
+    category: "",
+    startDate: "",
+    endDate: "",
+    sortBy: ""
+  });
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
@@ -44,13 +51,26 @@ export default function Reservations() {
     }
   }, [location.state?.refreshTab, refreshTab]);
 
+  // Reset filters when active tab changes
+  useEffect(() => {
+    setFilters({
+      serviceType: "",
+      category: "",
+      startDate: "",
+      endDate: "",
+      sortBy: ""
+    });
+    setCurrentPage(1);
+  }, [activeTab]);
+
   const handleSearch = (value) => {
     setSearchQuery(String(value || "").trim());
     setCurrentPage(1); // Reset to first page when searching
   };
 
-  const handleFilter = () => {
-    console.log("Filter clicked");
+  const handleApplyFilters = (newFilters) => {
+    setFilters(newFilters || {});
+    setCurrentPage(1); // Reset to first page when applying filters
   };
 
   const handlePageChange = (page) => {
@@ -62,6 +82,57 @@ export default function Reservations() {
     setCurrentPage(1); // Reset to first page when changing tabs
     // Refresh the tab when switching to it to ensure fresh data
     refreshTab(tab);
+  };
+
+  // Define filter fields for reservations
+  const getFilterFields = () => {
+    return [
+      {
+        name: "serviceType",
+        label: "Service Type",
+        type: "select",
+        options: [
+          { value: "", label: "All Types" },
+          { value: "Lodging", label: "Lodging" },
+          { value: "Event", label: "Event" },
+          { value: "Event and Lodging", label: "Event and Lodging" }
+        ]
+      },
+      {
+        name: "category",
+        label: "Category",
+        type: "select",
+        options: [
+          { value: "", label: "All Categories" },
+          { value: "DepEd", label: "DepEd" },
+          { value: "Government", label: "Government" },
+          { value: "PWD", label: "PWD" },
+          { value: "Private", label: "Private" }
+        ]
+      },
+      {
+        name: "startDate",
+        label: "Start Date",
+        type: "date"
+      },
+      {
+        name: "endDate",
+        label: "End Date",
+        type: "date"
+      },
+      {
+        name: "sortBy",
+        label: "Sort By",
+        type: "select",
+        options: [
+          { value: "", label: "None" },
+          { value: "date-asc", label: "Date (Earliest First)" },
+          { value: "date-desc", label: "Date (Latest First)" },
+          { value: "service", label: "Service Type (A-Z)" },
+          { value: "category", label: "Category (A-Z)" }
+        ]
+      }
+    ];
   };
 
   const renderActiveTab = () => {
@@ -77,36 +148,37 @@ export default function Reservations() {
       onRefreshTab: refreshTab // Pass refresh function to child components
     };
 
+    const commonProps = {
+      ...paginationProps,
+      searchQuery,
+      filters
+    };
+
     switch (activeTab) {
       case "Pending":
         return <Pending 
           key={`pending-${refreshKeys.Pending}`}
-          searchQuery={searchQuery} 
-          {...paginationProps}
+          {...commonProps}
         />;
       case "Approved":
         return <Approved 
           key={`approved-${refreshKeys.Approved}`}
-          searchQuery={searchQuery} 
-          {...paginationProps}
+          {...commonProps}
         />;
       case "Declined":
         return <Declined 
           key={`declined-${refreshKeys.Declined}`}
-          searchQuery={searchQuery} 
-          {...paginationProps}
+          {...commonProps}
         />;
       case "Cancelled":
         return <Cancelled 
           key={`cancelled-${refreshKeys.Cancelled}`}
-          searchQuery={searchQuery} 
-          {...paginationProps}
+          {...commonProps}
         />;
       case "Confirmed":
         return <Confirmed 
           key={`confirmed-${refreshKeys.Confirmed}`}
-          searchQuery={searchQuery} 
-          {...paginationProps}
+          {...commonProps}
         />;
       default:
         return null;
@@ -123,7 +195,11 @@ export default function Reservations() {
           activeTab={activeTab}
           setActiveTab={handleTabChange}
         />
-        <SearchFil onSearch={handleSearch} onFilter={handleFilter} />
+        <SearchFil 
+          onSearch={handleSearch} 
+          onApplyFilters={handleApplyFilters}
+          filterFields={getFilterFields()}
+        />
       </div>
 
       <div className={styles["reservations-list"]}>

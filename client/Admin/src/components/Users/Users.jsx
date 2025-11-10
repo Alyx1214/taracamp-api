@@ -24,8 +24,12 @@ export default function Users() {
   );
 
   const [activeTab, setActiveTab] = useState(location.state?.activeTab || "All");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [filters, setFilters] = useState({});
+  const [filters, setFilters] = useState({
+    lastLoggedFrom: "",
+    lastLoggedTo: "",
+    role: "",
+    sortBy: ""
+  });
   const [rawUsers, setRawUsers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -48,6 +52,16 @@ export default function Users() {
     }
   }, [location.state]);
 
+  // Reset filters when active tab changes
+  useEffect(() => {
+    setFilters({
+      lastLoggedFrom: "",
+      lastLoggedTo: "",
+      role: "",
+      sortBy: ""
+    });
+  }, [activeTab]);
+
   useEffect(() => {
     let cancelled = false;
     async function load() {
@@ -55,13 +69,33 @@ export default function Users() {
       setError("");
       try {
         const query = { ...filters };
-        if (searchQuery) query.search = searchQuery;
-        if (activeTab && activeTab !== "All" && !query.role) query.role = activeTab;
+        
+        // Apply role filter from active tab or filters
+        if (activeTab && activeTab !== "All") {
+          query.role = activeTab;
+        } else if (filters.role) {
+          query.role = filters.role;
+        }
+
+        // Apply date range filters
+        if (filters.lastLoggedFrom) {
+          query.lastLoggedFrom = filters.lastLoggedFrom;
+        }
+        if (filters.lastLoggedTo) {
+          query.lastLoggedTo = filters.lastLoggedTo;
+        }
+
+        // Apply sorting
+        if (filters.sortBy) {
+          query.sort = filters.sortBy;
+        } else {
+          query.sort = "createdAt:desc";
+        }
+
         query.limit = query.limit ?? 100;
-        query.sort = query.sort ?? "createdAt:desc";
 
         const hasAnyFilter = [
-          'email','name','role','id','createdFrom','createdTo','lastLoggedFrom','lastLoggedTo','search'
+          'email','name','role','id','createdFrom','createdTo','lastLoggedFrom','lastLoggedTo'
         ].some((k) => Boolean(query[k]));
         if (activeTab === 'All' && !hasAnyFilter) {
           query.createdFrom = '1970-01-01';
@@ -78,7 +112,7 @@ export default function Users() {
     }
     load();
     return () => { cancelled = true; };
-  }, [activeTab, searchQuery, filters]);
+  }, [activeTab, filters]);
 
   const mappedUsers = useMemo(() => {
     return (rawUsers || []).map(u => ({
@@ -119,6 +153,54 @@ export default function Users() {
     });
   }
 
+  const handleApplyFilters = (newFilters) => {
+    setFilters(newFilters || {});
+  };
+
+  // Define filter fields for users
+  const getFilterFields = () => {
+    return [
+      {
+        name: "lastLoggedFrom",
+        label: "Last Logged In (From)",
+        type: "date"
+      },
+      {
+        name: "lastLoggedTo",
+        label: "Last Logged In (To)",
+        type: "date"
+      },
+      {
+        name: "role",
+        label: "Role",
+        type: "select",
+        options: [
+          { value: "", label: "All Roles" },
+          { value: "Guest", label: "Guest" },
+          { value: "Frontdesk", label: "Front Desk" },
+          { value: "CRMS Team", label: "Staff" },
+          { value: "Accounting", label: "Accounting" },
+          { value: "Superintendent", label: "Superintendent" }
+        ]
+      },
+      {
+        name: "sortBy",
+        label: "Sort By",
+        type: "select",
+        options: [
+          { value: "", label: "None" },
+          { value: "name:asc", label: "Name (A-Z)" },
+          { value: "name:desc", label: "Name (Z-A)" },
+          { value: "lastLoggedIn:asc", label: "Last Logged In (Earliest First)" },
+          { value: "lastLoggedIn:desc", label: "Last Logged In (Latest First)" },
+          { value: "role:asc", label: "Role (A-Z)" },
+          { value: "createdAt:desc", label: "Created Date (Latest First)" },
+          { value: "createdAt:asc", label: "Created Date (Earliest First)" }
+        ]
+      }
+    ];
+  };
+
   return (
     <div className={styles["users-container"]}>
       <UsersHeader />
@@ -135,10 +217,8 @@ export default function Users() {
           ))}
         </div>
         <SearchFil
-          placeholder="Search users..."
-          onSearch={(query) => setSearchQuery(query)}
-          onApplyFilters={(applied) => setFilters(applied)}
-          filterFields={[{ name: "role", label: "Role", type: "text", placeholder: "e.g. SUPERINTENDENT" }]}
+          onApplyFilters={handleApplyFilters}
+          filterFields={getFilterFields()}
         />
       </div>
 

@@ -14,6 +14,13 @@ export default function Transaction() {
   const [transactions, setTransactions] = useState([]);
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [filters, setFilters] = useState({
+    serviceType: "",
+    startDate: "",
+    endDate: "",
+    paymentMethod: "",
+    sortBy: ""
+  });
 
   useEffect(() => {
     setLoading(true);
@@ -42,55 +49,122 @@ export default function Transaction() {
     }
   }, [activeTab]);
 
-  const handleSearch = async (value) => {
-    const q = (value || "").trim();
-    setLoading(true);
-    if (!q) {
-      if (activeTab === "Transactions") {
-        try {
-          const data = await getAllReservationsByStatus("Checked-out");
-          setTransactions(data.reservations || []);
-        } catch {
-          setTransactions([]);
-        }
-      } else if (activeTab === "Payment") {
-        try {
-          const data = await getAllReservationsByStatus("Confirmed");
-          setPayments(data.reservations || []);
-        } catch {
-          setPayments([]);
-        }
-      }
-      setLoading(false);
-      return;
-    }
+  // Reset filters when active tab changes
+  useEffect(() => {
+    setFilters({
+      serviceType: "",
+      startDate: "",
+      endDate: "",
+      paymentMethod: "",
+      sortBy: ""
+    });
+  }, [activeTab]);
 
-    const params = {
-      query: q,
-      status: activeTab === "Transactions" ? "Checked-out" : "Confirmed",
-    };
-
-    try {
-      const res = await searchReservations(params);
-      const list = res?.reservations || [];
-      if (activeTab === "Transactions") setTransactions(list);
-      else if (activeTab === "Payment") setPayments(list);
-    } catch (err) {
-      console.error("Search failed:", err?.message || err);
-      if (activeTab === "Transactions") setTransactions([]);
-      else if (activeTab === "Payment") setPayments([]);
-    } finally {
-      setLoading(false);
-    }
+  const handleApplyFilters = (newFilters) => {
+    setFilters(newFilters || {});
   };
-  const handleFilter = () => console.log("Filter clicked");
+
+  // Define filter fields based on active tab
+  const getFilterFields = () => {
+    if (activeTab === "Transactions") {
+      return [
+        {
+          name: "serviceType",
+          label: "Service Type",
+          type: "select",
+          options: [
+            { value: "", label: "All Types" },
+            { value: "Lodging", label: "Lodging" },
+            { value: "Event", label: "Event" },
+            { value: "Event and Lodging", label: "Event and Lodging" }
+          ]
+        },
+        {
+          name: "startDate",
+          label: "Start Date",
+          type: "date"
+        },
+        {
+          name: "endDate",
+          label: "End Date",
+          type: "date"
+        },
+        {
+          name: "paymentMethod",
+          label: "Payment Method",
+          type: "select",
+          options: [
+            { value: "", label: "All Methods" },
+            { value: "DBP", label: "DBP" },
+            { value: "GCash", label: "GCash" },
+            { value: "GrabPay", label: "GrabPay" }
+          ]
+        },
+        {
+          name: "sortBy",
+          label: "Sort By",
+          type: "select",
+          options: [
+            { value: "", label: "None" },
+            { value: "date-asc", label: "Date (Earliest First)" },
+            { value: "date-desc", label: "Date (Latest First)" },
+            { value: "amount-asc", label: "Amount (Low to High)" },
+            { value: "amount-desc", label: "Amount (High to Low)" },
+            { value: "service", label: "Service Type (A-Z)" },
+            { value: "payment", label: "Payment Method (A-Z)" }
+          ]
+        }
+      ];
+    } else if (activeTab === "Payment") {
+      return [
+        {
+          name: "serviceType",
+          label: "Service Type",
+          type: "select",
+          options: [
+            { value: "", label: "All Types" },
+            { value: "Lodging", label: "Lodging" },
+            { value: "Event", label: "Event" },
+            { value: "Event and Lodging", label: "Event and Lodging" }
+          ]
+        },
+        {
+          name: "startDate",
+          label: "Start Date",
+          type: "date"
+        },
+        {
+          name: "endDate",
+          label: "End Date",
+          type: "date"
+        },
+        {
+          name: "sortBy",
+          label: "Sort By",
+          type: "select",
+          options: [
+            { value: "", label: "None" },
+            { value: "date-asc", label: "Date (Earliest First)" },
+            { value: "date-desc", label: "Date (Latest First)" },
+            { value: "service", label: "Service Type (A-Z)" }
+          ]
+        }
+      ];
+    }
+    return [];
+  };
 
   const renderActiveTab = () => {
+    const commonProps = {
+      loading,
+      filters
+    };
+
     switch (activeTab) {
         case "Transactions":
-            return <TransactionTable data={transactions} loading={loading} />;
+            return <TransactionTable data={transactions} {...commonProps} />;
         case "Payment":
-            return <PaymentTable data={payments} loading={loading} />;
+            return <PaymentTable data={payments} {...commonProps} />;
         default:
             return null;
     }
@@ -105,7 +179,10 @@ export default function Transaction() {
                 activeTab={activeTab}
                 setActiveTab={setActiveTab}
             />
-            <SearchFil onSearch={handleSearch} onFilter={handleFilter} />
+            <SearchFil 
+              onApplyFilters={handleApplyFilters}
+              filterFields={getFilterFields()}
+            />
       </div>
 
       {renderActiveTab()}

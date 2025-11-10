@@ -10,10 +10,15 @@ import { searchReservations, checkInOrCheckOutReservation, deleteReservation } f
 export default function CheckInOuts() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("Confirmed");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [filters, setFilters] = useState({});
+  const [filters, setFilters] = useState({
+    serviceType: "",
+    facilityType: "",
+    startDate: "",
+    endDate: "",
+    sortBy: ""
+  });
 
-  const columns = ["Name", "Email", "Service Type", "Date", "Actions"];
+  const columns = ["Name", "Email", "Service Type", "Facility Type", "Arrival Date", "Actions"];
 
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -41,6 +46,30 @@ export default function CheckInOuts() {
       .join("");
   };
 
+  const getFacilityType = (reservation) => {
+    // Extract facility type from lodging or event details
+    if (reservation.lodgingDetails && reservation.lodgingDetails.length > 0) {
+      const facilityType = reservation.lodgingDetails[0].facilityType;
+      return prettifyServiceType(facilityType);
+    }
+    if (reservation.eventDetails && reservation.eventDetails.length > 0) {
+      const facilityType = reservation.eventDetails[0].facilityType;
+      return prettifyServiceType(facilityType);
+    }
+    return "N/A";
+  };
+
+  // Reset filters when active tab changes
+  useEffect(() => {
+    setFilters({
+      serviceType: "",
+      facilityType: "",
+      startDate: "",
+      endDate: "",
+      sortBy: ""
+    });
+  }, [activeTab]);
+
   useEffect(() => {
     let cancelled = false;
     async function load() {
@@ -49,22 +78,48 @@ export default function CheckInOuts() {
         setErr(null);
         const status = statusForTab(activeTab);
         if (!status) { setRows([]); return; }
+        
         const params = { status };
-        const combinedQuery = [searchQuery, filters?.serviceType].filter(Boolean).join(" ").trim();
-        if (combinedQuery) params.query = combinedQuery;
-        if (filters?.date) {
-          params.start = filters.date;
-          params.end = filters.date;
+        
+        // Apply service type filter
+        if (filters.serviceType) {
+          params.serviceType = filters.serviceType;
         }
+        
+        // Apply facility type filter
+        if (filters.facilityType) {
+          params.facilityType = filters.facilityType;
+        }
+        
+        // Apply date range filter
+        if (filters.startDate) {
+          params.start = filters.startDate;
+        }
+        if (filters.endDate) {
+          params.end = filters.endDate;
+        }
+        
+        // Apply sorting
+        if (filters.sortBy) {
+          params.sort = filters.sortBy;
+        }
+        
         const res = await searchReservations(params);
-        const list = (res?.reservations || []).map((r) => ({
+        let list = (res?.reservations || []).map((r) => ({
           id: r._id || "",
           name: r.guestName || "N/A",
           email: r.guestEmail || "N/A",
           serviceType: prettifyServiceType(r.serviceType) || "N/A",
-          date: formatDateYMDToLong(r.dateOfArrival || r.createdAt),
+          facilityType: getFacilityType(r),
+          arrivalDate: formatDateYMDToLong(r.dateOfArrival),
           _raw: r,
         }));
+        
+        // Apply client-side sorting if needed
+        if (filters.sortBy) {
+          list = applySorting(list, filters.sortBy);
+        }
+        
         if (!cancelled) setRows(list);
       } catch (e) {
         if (!cancelled) setErr(e?.data?.error || e?.message || "Failed to load reservations");
@@ -74,7 +129,39 @@ export default function CheckInOuts() {
     }
     load();
     return () => { cancelled = true; };
-  }, [activeTab, searchQuery, filters]);
+  }, [activeTab, filters]);
+
+  const applySorting = (data, sortBy) => {
+    const sorted = [...data];
+    switch (sortBy) {
+      case "name-asc":
+        return sorted.sort((a, b) => a.name.localeCompare(b.name));
+      case "name-desc":
+        return sorted.sort((a, b) => b.name.localeCompare(a.name));
+      case "date-asc":
+        return sorted.sort((a, b) => {
+          const dateA = new Date(a._raw?.dateOfArrival);
+          const dateB = new Date(b._raw?.dateOfArrival);
+          return dateA - dateB;
+        });
+      case "date-desc":
+        return sorted.sort((a, b) => {
+          const dateA = new Date(a._raw?.dateOfArrival);
+          const dateB = new Date(b._raw?.dateOfArrival);
+          return dateB - dateA;
+        });
+      case "service-asc":
+        return sorted.sort((a, b) => a.serviceType.localeCompare(b.serviceType));
+      case "service-desc":
+        return sorted.sort((a, b) => b.serviceType.localeCompare(a.serviceType));
+      case "facility-asc":
+        return sorted.sort((a, b) => a.facilityType.localeCompare(b.facilityType));
+      case "facility-desc":
+        return sorted.sort((a, b) => b.facilityType.localeCompare(a.facilityType));
+      default:
+        return sorted;
+    }
+  };
 
   const renderMenu = (row) => [
     { 
@@ -99,18 +186,27 @@ export default function CheckInOuts() {
       // Refresh with current filters
       const status = statusForTab(activeTab);
       const params = { status };
-      const combinedQuery = [searchQuery, filters?.serviceType].filter(Boolean).join(" ").trim();
-      if (combinedQuery) params.query = combinedQuery;
-      if (filters?.date) { params.start = filters.date; params.end = filters.date; }
+      if (filters.serviceType) params.serviceType = filters.serviceType;
+      if (filters.facilityType) params.facilityType = filters.facilityType;
+      if (filters.startDate) params.start = filters.startDate;
+      if (filters.endDate) params.end = filters.endDate;
+      if (filters.sortBy) params.sort = filters.sortBy;
+      
       const res = await searchReservations(params);
-      const list = (res?.reservations || []).map((r) => ({
+      let list = (res?.reservations || []).map((r) => ({
         id: r._id || "",
         name: r.guestName || "N/A",
         email: r.guestEmail || "N/A",
         serviceType: prettifyServiceType(r.serviceType) || "N/A",
-        date: formatDateYMDToLong(r.dateOfArrival || r.createdAt),
+        facilityType: getFacilityType(r),
+        arrivalDate: formatDateYMDToLong(r.dateOfArrival),
         _raw: r,
       }));
+      
+      if (filters.sortBy) {
+        list = applySorting(list, filters.sortBy);
+      }
+      
       setRows(list);
     } catch (e) {
       alert(e?.data?.error || e?.message || 'Action failed');
@@ -172,18 +268,27 @@ export default function CheckInOuts() {
       // Refresh current tab with filters after delete
       const status = statusForTab(activeTab);
       const params = { status };
-      const combinedQuery = [searchQuery, filters?.serviceType].filter(Boolean).join(" ").trim();
-      if (combinedQuery) params.query = combinedQuery;
-      if (filters?.date) { params.start = filters.date; params.end = filters.date; }
+      if (filters.serviceType) params.serviceType = filters.serviceType;
+      if (filters.facilityType) params.facilityType = filters.facilityType;
+      if (filters.startDate) params.start = filters.startDate;
+      if (filters.endDate) params.end = filters.endDate;
+      if (filters.sortBy) params.sort = filters.sortBy;
+      
       const res = await searchReservations(params);
-      const list = (res?.reservations || []).map((r) => ({
+      let list = (res?.reservations || []).map((r) => ({
         id: r._id || "",
         name: r.guestName || "N/A",
         email: r.guestEmail || "N/A",
         serviceType: prettifyServiceType(r.serviceType) || "N/A",
-        date: formatDateYMDToLong(r.dateOfArrival || r.createdAt),
+        facilityType: getFacilityType(r),
+        arrivalDate: formatDateYMDToLong(r.dateOfArrival),
         _raw: r,
       }));
+      
+      if (filters.sortBy) {
+        list = applySorting(list, filters.sortBy);
+      }
+      
       setRows(list);
     } catch (e) {
       alert(e?.data?.error || e?.message || 'Failed to delete reservation');
@@ -202,6 +307,64 @@ export default function CheckInOuts() {
     </button>
   );
 
+  const handleApplyFilters = (newFilters) => {
+    setFilters(newFilters || {});
+  };
+
+  // Define filter fields based on the table columns
+  const getFilterFields = () => {
+    return [
+      {
+        name: "serviceType",
+        label: "Service Type",
+        type: "select",
+        options: [
+          { value: "", label: "All Types" },
+          { value: "Lodging", label: "Lodging" },
+          { value: "Event", label: "Event" },
+          { value: "Event and Lodging", label: "Event and Lodging" }
+        ]
+      },
+      {
+        name: "facilityType",
+        label: "Facility Type",
+        type: "select",
+        options: [
+          { value: "", label: "All Facilities" },
+          { value: "Dormitory", label: "Dormitory" },
+          { value: "Cottage", label: "Cottage" },
+          { value: "Conference", label: "Conference" }
+        ]
+      },
+      {
+        name: "startDate",
+        label: "Arrival Date (From)",
+        type: "date"
+      },
+      {
+        name: "endDate",
+        label: "Arrival Date (To)",
+        type: "date"
+      },
+      {
+        name: "sortBy",
+        label: "Sort By",
+        type: "select",
+        options: [
+          { value: "", label: "None" },
+          { value: "name-asc", label: "Name (A-Z)" },
+          { value: "name-desc", label: "Name (Z-A)" },
+          { value: "date-asc", label: "Arrival Date (Earliest First)" },
+          { value: "date-desc", label: "Arrival Date (Latest First)" },
+          { value: "service-asc", label: "Service Type (A-Z)" },
+          { value: "service-desc", label: "Service Type (Z-A)" },
+          { value: "facility-asc", label: "Facility Type (A-Z)" },
+          { value: "facility-desc", label: "Facility Type (Z-A)" }
+        ]
+      }
+    ];
+  };
+
   // Server-side filtering; just render rows
   const getActiveData = () => rows;
 
@@ -213,13 +376,8 @@ export default function CheckInOuts() {
         <CheckTabs value={activeTab} onChange={setActiveTab} />
 
         <SearchFil
-          placeholder={`Search in ${activeTab}`}
-          onSearch={setSearchQuery}
-          onApplyFilters={setFilters}
-          filterFields={[
-            { name: "serviceType", label: "Service Type", placeholder: "Event / Lodging" },
-            { name: "date", label: "Date", type: "date" },
-          ]}
+          onApplyFilters={handleApplyFilters}
+          filterFields={getFilterFields()}
         />
       </div>
 
