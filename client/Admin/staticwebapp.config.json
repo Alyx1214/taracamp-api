@@ -1,7 +1,15 @@
 {
   "navigationFallback": {
     "rewrite": "/index.html",
-    "exclude": ["/api/*", "/ws/*", "*.{css,scss,js,jsx,mjs,map,json,ico,png,jpg,jpeg,gif,svg,woff,woff2,ttf,eot}"]
+    "exclude": [
+      "/api/*",
+      "/ws/*",
+      "/*.{css,scss,js,jsx,mjs,map,json,ico,png,jpg,jpeg,gif,svg,woff,woff2,ttf,eot}",
+      "/src/*",
+      "/assets/*",
+      "/dist/*",
+      "/node_modules/*"
+    ]
   },
   "responseOverrides": {
     "404": {
