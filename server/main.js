@@ -2,6 +2,7 @@ import express from 'express';
 import http from 'http';
 import path from 'path';
 import cors from 'cors';
+import helmet from 'helmet';
 import dotenv from 'dotenv';
 import { WebSocketServer } from 'ws';
 import { fileURLToPath } from 'url';
@@ -41,23 +42,7 @@ const app = express();
 app.set('trust proxy', 1);
 await redisClient.connect();
 
-const allowedOrigins = [
-  'http://localhost:5173', 
-  'http://localhost:3000', 
-  'http://localhost:5174', 
-  'https://taracamp-api.vercel.app', 
-  'https://taracamp-api-admin.vercel.app',
-  'https://taracamp-7bx0cbsyw-alyssas-projects-927ddea5.vercel.app'
-];
-
-// Add any additional origins from environment variable
-if (process.env.ALLOWED_ORIGINS) {
-  const additionalOrigins = process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim());
-  allowedOrigins.push(...additionalOrigins);
-}
-
-console.log('CORS: Configured allowed origins:', allowedOrigins);
-
+app.use(helmet());
 app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (like mobile apps or curl requests)

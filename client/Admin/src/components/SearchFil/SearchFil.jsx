@@ -92,16 +92,31 @@ export default function SearchFil({
               {filterFields.map((field, index) => (
                 <div key={index} className={styles.overlayInputRow}>
                   <label htmlFor={field.name}>{field.label}:</label>
-                  <input
-                    type={field.type || "text"}
-                    id={field.name}
-                    placeholder={field.placeholder || ""}
-                    className={styles.overlayInput}
-                    value={filterValues[field.name] || ""}
-                    onChange={(e) => handleFilterValueChange(field.name, e.target.value)}
-                    min={field.min || undefined}
-                    max={field.max || undefined}
-                  />
+                  {field.type === "select" ? (
+                    <select
+                      id={field.name}
+                      className={styles.overlayInput}
+                      value={filterValues[field.name] || ""}
+                      onChange={(e) => handleFilterValueChange(field.name, e.target.value)}
+                    >
+                      {field.options?.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type={field.type || "text"}
+                      id={field.name}
+                      placeholder={field.placeholder || ""}
+                      className={styles.overlayInput}
+                      value={filterValues[field.name] || ""}
+                      onChange={(e) => handleFilterValueChange(field.name, e.target.value)}
+                      min={field.min || undefined}
+                      max={field.max || undefined}
+                    />
+                  )}
                 </div>
               ))}
             </div>

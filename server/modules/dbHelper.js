@@ -169,6 +169,7 @@ const dbHelper = {
                 text: { type: String, required: true, maxlength: 2000, },
                 isUser: { type: Boolean, default: false, },
                 isRead: { type: Boolean, default: false, },
+                metadata: { type: mongoose.Schema.Types.Mixed, required: false, },
                 createdAt: { type: Date, default: Date.now, index: true, },
                 updatedAt: { type: Date, required: false, },
             });

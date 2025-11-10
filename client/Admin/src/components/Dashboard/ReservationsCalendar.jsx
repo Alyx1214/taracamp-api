@@ -178,18 +178,6 @@ const ReservationsCalendar = () => {
     };
   }, [facilities.length]);
 
-  // Clear unavailable dates when no facility is selected
-  useEffect(() => {
-    const q = (searchQuery || "").trim().toLowerCase();
-    const hasFilter = facilityFilter !== "All";
-    const hasSearch = q.length > 0;
-    
-    if (!hasFilter && !hasSearch) {
-      // No facility selected - clear the unavailable dates
-      setUnavailableDates(new Set());
-    }
-  }, [searchQuery, facilityFilter]);
-
   useEffect(() => {
     let cancelled = false;
     const fetchMonth = async () => {
