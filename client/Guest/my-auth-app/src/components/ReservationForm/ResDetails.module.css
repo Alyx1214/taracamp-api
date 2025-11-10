@@ -136,3 +136,9 @@
 .submitBtn:hover {
   background: #335533;
 }
+
+@media (max-width: 768px) {
+  .overlay {
+    padding-top: 20%;
+  }
+}

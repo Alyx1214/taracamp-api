@@ -409,6 +409,11 @@
   .mainContent {
     flex-direction: column;
   }
+
+  .formCard {
+    max-width: 100%;
+    margin: 0 auto 20px auto;
+  }
   
   .summaryContainer {
     width: 100%;
@@ -422,6 +427,10 @@
 
 @media (max-width: 768px) {
   .summaryContainer {
+    margin-top: 0px;
     margin-bottom: 1rem;
+    max-width: 100%;
+    padding: 20px;
+    padding-top: 0px;
   }
 }
