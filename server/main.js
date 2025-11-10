@@ -2,6 +2,7 @@ import express from 'express';
 import http from 'http';
 import path from 'path';
 import cors from 'cors';
+import helmet from 'helmet';
 import dotenv from 'dotenv';
 import { WebSocketServer } from 'ws';
 import { fileURLToPath } from 'url';
@@ -41,6 +42,7 @@ const app = express();
 app.set('trust proxy', 1);
 await redisClient.connect();
 
+app.use(helmet());
 app.use(cors({
   origin: ['http://localhost:5173', 'https://taracamp-api.onrender.com', 'http://localhost:5174'],
   credentials: true

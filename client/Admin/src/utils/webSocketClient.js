@@ -32,7 +32,7 @@ function wireSocket(ws) {
   ws.onerror = () => {};
 }
 
-export function initSocket(token, apiOrigin = 'https://taracamp-api.onrender.com') {
+export function initSocket(token, apiOrigin = 'http://localhost:3000') {
   if (socket && socket.readyState <= 1 && token === lastToken) return socket;
 
   try { socket?.close(); } catch {}
@@ -49,7 +49,7 @@ export function initSocket(token, apiOrigin = 'https://taracamp-api.onrender.com
   return socket;
 }
 
-export async function initSocketFresh(apiOrigin = 'https://taracamp-api.onrender.com') {
+export async function initSocketFresh(apiOrigin = 'http://localhost:3000') {
   const token = await ensureFreshAccess();
   if (!token) {
     closeSocket();
@@ -58,7 +58,7 @@ export async function initSocketFresh(apiOrigin = 'https://taracamp-api.onrender
   return initSocket(token, apiOrigin);
 }
 
-export function startAutoReconnect(getToken = ensureFreshAccess, apiOrigin = 'https://taracamp-api.onrender.com', intervalMs = 30000) {
+export function startAutoReconnect(getToken = ensureFreshAccess, apiOrigin = 'http://localhost:3000', intervalMs = 30000) {
   stopAutoReconnect();
 
   async function tick() {
