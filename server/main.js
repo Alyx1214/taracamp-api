@@ -36,6 +36,11 @@ dotenv.config({ path: path.resolve(__dirname, '.env') });
 const port = process.env.PORT || 3000;
 const dbConnectionString = process.env.DB_CONN;
 
+// Parse allowed origins from environment variable (comma-separated)
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim()).filter(origin => origin)
+  : [];
+
 dbHelper.connect(dbConnectionString);
 
 const app = express();
@@ -55,6 +60,12 @@ app.use(cors({
     const normalizedOrigin = origin.endsWith('/') ? origin.slice(0, -1) : origin;
     
     console.log(`CORS: Checking origin: ${normalizedOrigin}`);
+    
+    // If no allowed origins configured, allow all (for development)
+    if (allowedOrigins.length === 0) {
+      console.log('CORS: No allowed origins configured, allowing all');
+      return callback(null, true);
+    }
     
     if (allowedOrigins.includes(normalizedOrigin)) {
       console.log(`CORS: Origin ${normalizedOrigin} is allowed`);
