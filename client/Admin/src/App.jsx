@@ -26,6 +26,7 @@ import CheckInOut from "./components/CheckInOut/CheckInOuts.jsx";
 import Messages from "./components/Messages/Messages.jsx";
 import User from "./components/Users/Users.jsx";
 import AddUserForm from "./components/Users/AddUsersForm.jsx";
+import Manage from "./components/Facility/Manage.jsx";
 
 // Auth views (copied structure)
 import AuthFormContainer from './components/AuthFormContainer/AuthFormContainer.jsx';
@@ -117,6 +118,7 @@ function App() {
 
             <Route path="/add-facility" element={<RoleGuard routeKey="facilities"><AddForm /></RoleGuard>} />
             <Route path="/facilities/edit/:id" element={<RoleGuard routeKey="facilities"><EditForm /></RoleGuard>} />
+            <Route path="/facilities/manage/:id" element={<RoleGuard routeKey="facilities"><Manage /></RoleGuard>} />
 
             <Route path="/reservation/:id/details" element={<RoleGuard routeKey="reservations"><ReservationDetail /></RoleGuard>} />
             <Route path="/transaction/:id/details" element={<RoleGuard routeKey="transactions"><TransactionDetails /></RoleGuard>} /> 
@@ -127,6 +129,7 @@ function App() {
             <Route path="/approvedRSV/:id/details" element={<RoleGuard routeKey="reservations"><ApprovedRSVDetails /></RoleGuard>} />
             <Route path="/confirmedIndiv/:id/details" element={<RoleGuard routeKey="reservations"><ConfIndivRSVDetails /></RoleGuard>} />
             <Route path="/confirmedGroup/:id/details" element={<RoleGuard routeKey="reservations"><ConfGroupRSVDetails /></RoleGuard>} />
+  
 
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
