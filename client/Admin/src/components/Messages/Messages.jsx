@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { Search } from "lucide-react";
+import { Search, MoreVertical, Trash2 } from "lucide-react";
 import styles from "./Messages.module.css";
 import { listUsersWithMessages, getMessagesForUser, sendAdminReply } from "../../apis/messageApi";
 import { subscribe, initSocketFresh, startAutoReconnect, stopAutoReconnect } from "../../utils/webSocketClient";
@@ -13,6 +13,9 @@ export default function Messages() {
     const [sending, setSending] = useState(false);
     const [error, setError] = useState(null);
     const [searchQuery, setSearchQuery] = useState("");
+    const [sidebarWidth, setSidebarWidth] = useState(280);
+    const [isResizing, setIsResizing] = useState(false);
+    const [hoveredUserId, setHoveredUserId] = useState(null);
     const messagesEndRef = useRef(null);
 
     // Load users with messages
@@ -119,6 +122,31 @@ export default function Messages() {
         };
     }, [activeUserId]);
 
+    // Handle resizing
+    useEffect(() => {
+        const handleMouseMove = (e) => {
+            if (!isResizing) return;
+            const newWidth = e.clientX - 40; // 40px is the left padding
+            if (newWidth >= 200 && newWidth <= 500) {
+                setSidebarWidth(newWidth);
+            }
+        };
+
+        const handleMouseUp = () => {
+            setIsResizing(false);
+        };
+
+        if (isResizing) {
+            document.addEventListener('mousemove', handleMouseMove);
+            document.addEventListener('mouseup', handleMouseUp);
+        }
+
+        return () => {
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+        };
+    }, [isResizing]);
+
     const handleSend = useCallback(async (e) => {
         e.preventDefault();
         if (!input.trim() || !activeUserId || sending) return;
@@ -155,6 +183,19 @@ export default function Messages() {
         }
     }, [input, activeUserId, sending]);
 
+    const handleDeleteChat = useCallback((userId, e) => {
+        e.stopPropagation();
+        if (window.confirm('Are you sure you want to delete this conversation?')) {
+            // Add your delete API call here
+            console.log('Deleting chat for user:', userId);
+            // After successful delete:
+            setUsers(prev => prev.filter(u => u._id !== userId));
+            if (activeUserId === userId) {
+                setActiveUserId(users.length > 1 ? users[0]._id : null);
+            }
+        }
+    }, [activeUserId, users]);
+
     const filteredUsers = users.filter(user => {
         if (!searchQuery) return true;
         const query = searchQuery.toLowerCase();
@@ -168,6 +209,17 @@ export default function Messages() {
 
     const handleSearchClick = () => {
         // Search is handled by filteredUsers automatically
+    };
+
+    const handleResizeStart = (e) => {
+        e.preventDefault();
+        setIsResizing(true);
+    };
+
+    // Helper function to check if user has unread messages from client
+    const hasUnreadClientMessages = (user) => {
+        // Check if user has unreadCount property (messages from client not read by admin)
+        return user.unreadCount && user.unreadCount > 0;
     };
 
     return (
@@ -200,7 +252,7 @@ export default function Messages() {
             )}
 
             <div className={styles["messenger-container"]}>
-                <aside className={styles["messenger-sidebar"]}>
+                <aside className={styles["messenger-sidebar"]} style={{ width: `${sidebarWidth}px` }}>
                     <h2 className={styles["messenger-title"]}>Chats</h2>
                     {loading ? (
                         <div style={{ padding: "20px", textAlign: "center" }}>Loading...</div>
@@ -217,24 +269,27 @@ export default function Messages() {
                                         activeUserId === user._id ? styles["active"] : ""
                                     }`}
                                     onClick={() => setActiveUserId(user._id)}
+                                    onMouseEnter={() => setHoveredUserId(user._id)}
+                                    onMouseLeave={() => setHoveredUserId(null)}
                                 >
-                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-                                        <span>{user.name || "Unknown"}</span>
-                                        {user.unreadCount > 0 && (
-                                            <span style={{
-                                                background: "#007bff",
-                                                color: "white",
-                                                borderRadius: "50%",
-                                                width: "20px",
-                                                height: "20px",
-                                                display: "flex",
-                                                alignItems: "center",
-                                                justifyContent: "center",
-                                                fontSize: "12px",
-                                                fontWeight: "bold"
-                                            }}>
-                                                {user.unreadCount}
-                                            </span>
+                                    <div className={styles["user-item-content"]}>
+                                        <div className={styles["user-info"]}>
+                                            {hasUnreadClientMessages(user) && (
+                                                <span 
+                                                    className={styles["unread-indicator"]} 
+                                                    title={`${user.unreadCount} unread message${user.unreadCount > 1 ? 's' : ''} from client`}
+                                                />
+                                            )}
+                                            <span className={styles["user-name"]}>{user.name || "Unknown"}</span>
+                                        </div>
+                                        {hoveredUserId === user._id && (
+                                            <button
+                                                className={styles["delete-btn"]}
+                                                onClick={(e) => handleDeleteChat(user._id, e)}
+                                                aria-label="Delete conversation"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
                                         )}
                                     </div>
                                 </li>
@@ -242,6 +297,12 @@ export default function Messages() {
                         </ul>
                     )}
                 </aside>
+                
+                <div 
+                    className={styles["resizer"]}
+                    onMouseDown={handleResizeStart}
+                />
+
                 <main className={styles["messenger-main"]}>
                     {activeUser ? (
                         <>
