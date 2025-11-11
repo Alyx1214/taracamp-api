@@ -35,7 +35,7 @@ const Sidebar = ({ isOpen, onClose }) => {
   const roleAllowedKeys = {
     'CRMS TEAM': new Set(["dashboard", "facilities", "reservations", "transactions"]),
     'ACCOUNTING': new Set(["dashboard", "transactions"]),
-    'FRONTDESK': new Set(["dashboard", "facilities", "reservations", "transactions", "checkin"]),
+    'FRONTDESK': new Set(["dashboard", "facilities", "reservations", "transactions", "checkin", "messages"]),
   };
 
   const allItems = [
