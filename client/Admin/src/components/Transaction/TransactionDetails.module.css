@@ -143,3 +143,17 @@
   height: 1.1rem;
   border-radius: 4px;
 }
+
+.transaction-details-divider {
+  border: none;
+  border-top: 1px solid #ddd;
+  margin: 2rem 0;
+}
+
+.transaction-details-section-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #5b3a0b;
+  margin-bottom: 1.5rem;
+  letter-spacing: 0.5px;
+}

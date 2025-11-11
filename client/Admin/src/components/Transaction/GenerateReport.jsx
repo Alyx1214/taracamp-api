@@ -18,10 +18,6 @@ export default function GenerateReport() {
   const endDropdownRef = useRef(null);
 
   useEffect(() => {
-    if (endMonth) setStartMonth(endMonth);
-  }, [endMonth]);
-
-  useEffect(() => {
     const onDocClick = (e) => {
       if (startDropdownRef.current && !startDropdownRef.current.contains(e.target)) {
         setStartDropdownOpen(false);

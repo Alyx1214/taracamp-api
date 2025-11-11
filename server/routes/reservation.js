@@ -189,7 +189,6 @@ export default function buildReservationRouter(userSocketMap) {
 
             if (Array.isArray(adminUsers) && adminUsers.length > 0) {
               const guestName = reservation.guestName || 'Guest';
-              const reservationCode = reservation.reservationCode || reservationIdStr;
               
               // Send notification to each admin user
               const adminNotificationPromises = adminUsers.map(adminUser => {
@@ -197,8 +196,8 @@ export default function buildReservationRouter(userSocketMap) {
                 return notificationModule.createAndNotifyUser(
                   dbHelper,
                   {
-                    title: `Reservation Approved: ${reservationCode}`,
-                    message: `A reservation by ${guestName} has been approved. Reservation Code: ${reservationCode}`,
+                    title: 'Reservation Approved',
+                    message: `A reservation by ${guestName} has been approved.`,
                     kind: 'reservation_approved_admin',
                     userId: adminUserIdStr,
                     reservationId: reservationIdStr,

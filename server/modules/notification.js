@@ -238,15 +238,14 @@ const notificationModule = {
 
                 if (Array.isArray(adminUsers) && adminUsers.length > 0) {
                     const guestName = reservation.guestName || 'Guest';
-                    const reservationCode = reservation.reservationCode || reservationIdStr;
 
                     const adminNotificationPromises = adminUsers.map(adminUser => {
                         const adminUserIdStr = adminUser._id?.toString?.() || String(adminUser._id || '');
                         return this.createAndNotifyUser(
                             dbHelper,
                             {
-                                title: `Reservation Cancelled: ${reservationCode}`,
-                                message: `A reservation by ${guestName} has been cancelled. Reservation Code: ${reservationCode}`,
+                                title: 'Reservation Cancelled',
+                                message: `A reservation by ${guestName} has been cancelled.`,
                                 kind: 'reservation_cancelled_admin',
                                 userId: adminUserIdStr,
                                 reservationId: reservationIdStr,

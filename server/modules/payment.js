@@ -899,13 +899,49 @@ const paymentModule = {
             const dateIso = latest?.paidAt || firstPayment?.createdAt || reservation?.createdAt || null;
             const paymentMethod = latest?.paymentMethodType || null;
 
+            // Calculate report details
+            const facilityName = facility?.name || facility?.label || 'N/A';
+            
+            // Use checkedInAt if available (actual check-in date), otherwise fall back to dateOfArrival (scheduled)
+            const checkInDate = reservation.checkedInAt || reservation.dateOfArrival;
+            const checkInFormatted = checkInDate ? fmtDate(checkInDate) : 'N/A';
+            const checkOutFormatted = reservation.dateOfDeparture ? fmtDate(reservation.dateOfDeparture) : 'N/A';
+            
+            // Calculate number of nights
+            const nights = (reservation.dateOfArrival && reservation.dateOfDeparture)
+                ? Math.max(0, Math.ceil((new Date(reservation.dateOfDeparture) - new Date(reservation.dateOfArrival)) / (1000 * 60 * 60 * 24)))
+                : 0;
+            
+            // Calculate number of guests
+            const numGuests = reservation?.numberOfGuests?.total ?? (
+                (reservation?.numberOfGuests?.adult ?? 0) +
+                (reservation?.numberOfGuests?.children ?? 0) +
+                (reservation?.numberOfGuests?.pwds ?? 0) +
+                (reservation?.numberOfGuests?.seniorCitizen ?? reservation?.numberOfGuests?.seniorCitizens ?? 0)
+            );
+            
+            // Determine category
+            const isDepEd = reservation.category === Category.DEPED;
+            const isPrivate = reservation.category === Category.PRIVATE;
+            const category = isDepEd ? 'DepEd' : (isPrivate ? 'Private' : 'Non-DepEd');
+            
+            // Get contact number (try multiple fields)
+            const contact = reservation.telephone || reservation.contactNo || reservation.contactNumber || 
+                           reservation.mobile || reservation.phoneNumber || reservation.phone || 'N/A';
+            
+            // Get address
+            const address = reservation.homeAddress || 'N/A';
+            
+            // Get check-out employee
+            const checkOutEmployee = reservation.checkOutEmployee || reservation.checkedOutBy || reservation.coEmployee || 'N/A';
+
             const view = {
-                id: (reservation._id?.toString() || '').slice(-4) || '—',
+                id: (reservation._id?.toString() || '').slice(-4) || 'N/A',
                 referenceNumber: latest ? String(latest._id) : 'N/A',
-                name: reservationUser ? reservationUser.name : reservation.guestName || '—',
+                name: reservationUser ? reservationUser.name : reservation.guestName || 'N/A',
                 confirmationFee: peso(summaryRaw?.downpaymentAmount ?? 0),
-                paymentDue: summaryRaw?.dueDate ? fmtDate(summaryRaw.dueDate) : '—',
-                date: dateIso ? fmtDate(dateIso) : '—',
+                paymentDue: summaryRaw?.dueDate ? fmtDate(summaryRaw.dueDate) : 'N/A',
+                date: dateIso ? fmtDate(dateIso) : 'N/A',
                 paymentMethod: methodLabel(paymentMethod),
                 status: (() => {
                     const total = Number(reservation.totalEstimatedAmount) || 0;
@@ -916,6 +952,17 @@ const paymentModule = {
                     if (remainingBalance <= 0) return 'Fully Paid';
                     return 'Partially Paid';
                 })(),
+                // Report details
+                reservationCode: reservation.reservationCode || 'N/A',
+                facilityUsed: facilityName,
+                checkInDate: checkInFormatted,
+                checkOutDate: checkOutFormatted,
+                numberOfNights: nights,
+                numberOfGuests: numGuests,
+                category: category,
+                checkOutEmployee: checkOutEmployee,
+                contactNumber: contact,
+                address: address,
             };
 
             responseData.status = Status.OK;
@@ -1098,7 +1145,7 @@ const paymentModule = {
             const view = {
                 id: (reservation._id?.toString()),
                 referenceNumber,
-                name: reservationUser?.name || reservation.guestName || '—',
+                name: reservationUser?.name || reservation.guestName || 'N/A',
                 confirmationFee: peso(confirmationFee),             
                 breakdown,                                          
                 addons,
@@ -1250,14 +1297,14 @@ function toCentavos(amount) {
 }
 
 function fmtDate(iso) {
-    if (!iso) return '—';
+    if (!iso) return 'N/A';
     const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return '—';
+    if (Number.isNaN(d.getTime())) return 'N/A';
     return d.toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: '2-digit', });
 }
 
 function methodLabel(t) {
-    if (!t) return '—';
+    if (!t) return 'N/A';
     const m = String(t).toLowerCase();
     if (m === 'gcash') return 'GCash';
     if (m === 'card') return 'Card';

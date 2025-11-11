@@ -427,9 +427,12 @@ const reservationModule = {
                 return responseData;
             }
 
+            // Generate unique reservation code using shortened timestamp + random for better readability
             const timestamp = Date.now();
-            const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-            const reservationCode = `TC${timestamp}${random}`;
+            // Use last 8 digits of timestamp (still unique for ~3 years) + 4-digit random
+            const shortTimestamp = timestamp.toString().slice(-8);
+            const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+            const reservationCode = `TC${shortTimestamp}${random}`;
 
             // Validate capacity and dormitory requirements before transaction
             if (total > facilityDoc.capacity) {
@@ -533,15 +536,38 @@ const reservationModule = {
                     reservation = await dbHelper.createWithTransaction('reservation', reservationData, session);
                 });
             } catch (transactionError) {
-                if (transactionError.message.includes('Facility is not available for booking') ||
+                // Handle duplicate reservation code error
+                if (transactionError?.code === 11000 && transactionError?.keyPattern?.reservationCode) {
+                    // Retry with a new code if duplicate key error
+                    const retryTimestamp = Date.now();
+                    const retryShortTimestamp = retryTimestamp.toString().slice(-8);
+                    const retryRandom = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+                    reservationData.reservationCode = `TC${retryShortTimestamp}${retryRandom}`;
+                    
+                    try {
+                        await dbHelper.withTransaction(async (session) => {
+                            reservation = await dbHelper.createWithTransaction('reservation', reservationData, session);
+                        });
+                    } catch (retryError) {
+                        if (retryError.message.includes('Facility is not available for booking') ||
+                            retryError.message.includes('already have a reservation') ||
+                            retryError.message.includes('not available for the selected dates')) {
+                            responseData.status = Status.BAD_REQUEST;
+                            responseData.error = retryError.message;
+                            return responseData;
+                        }
+                        throw retryError;
+                    }
+                } else if (transactionError.message.includes('Facility is not available for booking') ||
                     transactionError.message.includes('already have a reservation') ||
                     transactionError.message.includes('not available for the selected dates')) {
                     responseData.status = Status.BAD_REQUEST;
                     responseData.error = transactionError.message;
                     return responseData;
+                } else {
+                    // Re-throw unexpected errors
+                    throw transactionError;
                 }
-                // Re-throw unexpected errors
-                throw transactionError;
             }
 
             if (loiFileDoc?._id) {
@@ -1650,6 +1676,9 @@ const reservationModule = {
             }
 
             const update = { status };
+            if (status === ReservationStatus.CHECKED_IN) {
+                update.checkedInAt = new Date();
+            }
             if (status === ReservationStatus.CHECKED_OUT) {
                 const nameFromOptions = typeof options.employeeName === 'string' && options.employeeName.trim().length > 0
                     ? options.employeeName.trim()
