@@ -33,9 +33,13 @@ export default function Manage() {
               setFormData({
                 capacity: firstRoom.capacity?.toString() || "",
                 quantity: firstRoom.quantity?.toString() || "",
+                name: firstRoom.name || "",
+                status: firstRoom.status || "Available",
                 extraRows: extraRooms.map(room => ({
                   capacity: room.capacity?.toString() || "",
                   quantity: room.quantity?.toString() || "",
+                  name: room.name || "",
+                  status: room.status || "Available",
                 })),
               });
             } else if (facility) {
@@ -43,6 +47,8 @@ export default function Manage() {
               setFormData({
                 capacity: facility.capacity || "",
                 quantity: facility.quantity || "",
+                name: facility.name || "",
+                status: facility.status || "Available",
                 extraRows: facility.extraRows || [],
               });
             }
@@ -51,6 +57,8 @@ export default function Manage() {
           setFormData({
             capacity: facility.capacity || "",
             quantity: facility.quantity || "",
+            name: facility.name || "",
+            status: facility.status || "Available",
             extraRows: facility.extraRows || [],
           });
         }
@@ -61,6 +69,8 @@ export default function Manage() {
           setFormData({
             capacity: facility.capacity || "",
             quantity: facility.quantity || "",
+            name: facility.name || "",
+            status: facility.status || "Available",
             extraRows: facility.extraRows || [],
           });
         }
@@ -78,7 +88,7 @@ export default function Manage() {
   const handleAddRow = () => {
     setFormData((prev) => ({
       ...prev,
-      extraRows: [...prev.extraRows, { capacity: "", quantity: "" }],
+      extraRows: [...prev.extraRows, { capacity: "", quantity: "", name: "", status: "Available" }],
     }));
   };
 
@@ -109,13 +119,13 @@ export default function Manage() {
       }
 
       // Validate that at least one room configuration is provided
-      const hasMainRoom = formData.capacity && formData.quantity;
+      const hasMainRoom = formData.capacity && formData.quantity && formData.name;
       const hasExtraRooms = formData.extraRows.some(
-        (row) => row.capacity && row.quantity
+        (row) => row.capacity && row.quantity && row.name
       );
 
       if (!hasMainRoom && !hasExtraRooms) {
-        alert("Please provide at least one room configuration (capacity and quantity).");
+        alert("Please provide at least one room configuration (name, capacity, and quantity).");
         setLoading(false);
         return;
       }
@@ -123,6 +133,8 @@ export default function Manage() {
       const response = await updateRooms(facilityId, {
         capacity: formData.capacity,
         quantity: formData.quantity,
+        name: formData.name,
+        status: formData.status,
         extraRows: formData.extraRows,
       });
 
@@ -162,8 +174,20 @@ export default function Manage() {
       {/* Room Configuration Section */}
       <div className={styles.section}>
         <h3 className={styles.sectionTitle}>Manage Room</h3>
-        
+
+        {/* Main room row: Name | Capacity | Status | Add */}
         <div className={styles.formRow}>
+          <label>
+            Name:
+            <input
+              type="text"
+              name="name"
+              value={formData.name}
+              onChange={handleChange}
+              placeholder="Enter room name"
+            />
+          </label>
+
           <label>
             Capacity:
             <input
@@ -176,17 +200,18 @@ export default function Manage() {
           </label>
 
           <label>
-            Quantity:
-            <input
-              type="number"
-              name="quantity"
-              value={formData.quantity}
+            Status:
+            <select
+              name="status"
+              value={formData.status}
               onChange={handleChange}
-              placeholder="Enter quantity"
-            />
+            >
+              <option value="Available">Available</option>
+              <option value="Unavailable">Unavailable</option>
+            </select>
           </label>
 
-          <div style={{ display: "flex", alignItems: "flex-end", gap: 8 }}>
+          <div className={styles.actionCell}>
             <button
               type="button"
               className={styles.addBtn}
@@ -198,41 +223,57 @@ export default function Manage() {
           </div>
         </div>
 
+        {/* Extra room rows */}
         {formData.extraRows.map((row, idx) => (
-          <div className={styles.formRow} key={`extra-row-${idx}`}>
-            <label>
-              Capacity:
-              <input
-                type="number"
-                value={row.capacity}
-                onChange={(e) =>
-                  handleExtraRowChange(idx, "capacity", e.target.value)
-                }
-                placeholder="Enter capacity"
-              />
-            </label>
+          <div key={`extra-row-${idx}`}>
+            <div className={styles.formRow}>
+              <label>
+                Name:
+                <input
+                  type="text"
+                  value={row.name}
+                  onChange={(e) =>
+                    handleExtraRowChange(idx, "name", e.target.value)
+                  }
+                  placeholder="Enter room name"
+                />
+              </label>
 
-            <label>
-              Quantity:
-              <input
-                type="number"
-                value={row.quantity}
-                onChange={(e) =>
-                  handleExtraRowChange(idx, "quantity", e.target.value)
-                }
-                placeholder="Enter quantity"
-              />
-            </label>
+              <label>
+                Capacity:
+                <input
+                  type="number"
+                  value={row.capacity}
+                  onChange={(e) =>
+                    handleExtraRowChange(idx, "capacity", e.target.value)
+                  }
+                  placeholder="Enter capacity"
+                />
+              </label>
 
-            <div style={{ display: "flex", alignItems: "flex-end", gap: 8 }}>
-              <button
-                type="button"
-                className={styles.removeBtn}
-                onClick={() => handleRemoveRow(idx)}
-              >
-                <span className={styles.btnIcon}>×</span>
-                Remove
-              </button>
+              <label>
+                Status:
+                <select
+                  value={row.status}
+                  onChange={(e) =>
+                    handleExtraRowChange(idx, "status", e.target.value)
+                  }
+                >
+                  <option value="Available">Available</option>
+                  <option value="Unavailable">Unavailable</option>
+                </select>
+              </label>
+
+              <div className={styles.actionCell}>
+                <button
+                  type="button"
+                  className={styles.removeBtn}
+                  onClick={() => handleRemoveRow(idx)}
+                >
+                  <span className={styles.btnIcon}>×</span>
+                  Remove
+                </button>
+              </div>
             </div>
           </div>
         ))}

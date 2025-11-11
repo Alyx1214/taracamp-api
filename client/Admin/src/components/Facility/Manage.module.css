@@ -63,23 +63,42 @@
 }
 
 .formRow {
-  display: flex;
-  gap: 1.5rem;
+  display: grid;
+  /* Name | Capacity | Status | Add/Remove button */
+  grid-template-columns: minmax(110px, 0.5fr) minmax(110px, 0.5fr) minmax(110px, 0.5fr) minmax(110px, auto);
+  gap: 0.5rem;
   margin-bottom: 1.2rem;
+  align-items: end;
+  justify-content: flex-start;
+}
+
+.actionCell {
+  justify-self: end;
+  align-self: end;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.addBtn,
+.removeBtn {
+  min-width: 110px; 
+  padding: 0.6rem 1.2rem;
 }
 
 .formRow label {
-  flex: 1;
-  display: block;
-  font-weight: 700;
+  display: flex;
+  flex-direction: column;
+  font-weight: 600;     
   color: #1E3C24;
-  font-size: 0.95rem;
-  letter-spacing: 0.2px;
+  font-size: 0.85rem;    
+  letter-spacing: 0.1px; 
+  line-height: 1.2;     
 }
 
-.formRow input {
+.formRow input,
+.formRow select {
   width: 100%;
-  margin-top: 0.5rem;
+  margin-top: 0.35rem;  
   padding: 10px 14px;
   border: 2px solid #cdb9a6;
   border-radius: 10px;
@@ -89,17 +108,42 @@
   color: #374151;
   transition: all 0.3s ease;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  font-family: inherit;
 }
 
-.formRow input:hover {
+.formRow select {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23374151' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  padding-right: 2.5rem;
+}
+
+.formRow input:hover,
+.formRow select:hover {
   border-color: #b8a594;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
 }
 
-.formRow input:focus {
+.formRow input:focus,
+.formRow select:focus {
   border-color: #5b3a0b;
   box-shadow: 0 0 0 3px rgba(91, 58, 11, 0.1);
   background: #fffbf7;
+}
+
+.formRow input::placeholder {
+  color: #9ca3af;
+  opacity: 1;
+}
+
+.buttonRow {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin: 1.5rem 0;
+  padding: 1rem 0;
 }
 
 .buttonContainer {
@@ -198,211 +242,13 @@
   transform: rotate(-90deg) scale(1.1);
 }
 
-/* Reviews Section */
-.reviewsContainer {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-.noReviews {
-  text-align: center;
-  color: #6b7280;
-  font-size: 1.1rem;
-  padding: 2rem;
-}
-
-.reviewCard {
-  background: #f9fafb;
-  border-radius: 12px;
-  padding: 1.5rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  transition: all 0.3s ease;
-}
-
-.reviewCard:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  transform: translateY(-2px);
-}
-
-.reviewHidden {
-  opacity: 0.6;
-  border: 2px dashed #d1d5db;
-}
-
-.reviewHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 1rem;
-}
-
-.reviewUser h4 {
-  margin: 0 0 0.5rem 0;
-  color: #1E3C24;
-  font-size: 1.1rem;
-  font-weight: 700;
-}
-
-.reviewRating {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.starFilled {
-  color: #fbbf24;
-  font-size: 1rem;
-}
-
-.starEmpty {
-  color: #d1d5db;
-  font-size: 1rem;
-}
-
-.ratingText {
-  color: #6b7280;
-  font-size: 0.9rem;
-  font-weight: 600;
-}
-
-.reviewDate {
-  color: #9ca3af;
-  font-size: 0.85rem;
-}
-
-.reviewComment {
-  color: #374151;
-  line-height: 1.6;
-  margin-bottom: 1rem;
-}
-
-.hiddenBadge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  background: #fef3c7;
-  color: #92400e;
-  padding: 0.4rem 0.8rem;
-  border-radius: 6px;
-  font-size: 0.85rem;
-  font-weight: 600;
-  margin-bottom: 1rem;
-}
-
-.adminReply {
-  background: #e0f2fe;
-  border-left: 4px solid #0284c7;
-  padding: 1rem;
-  border-radius: 8px;
-  margin-bottom: 1rem;
-}
-
-.adminReply strong {
-  color: #0369a1;
-  display: block;
-  margin-bottom: 0.5rem;
-}
-
-.adminReply p {
-  color: #374151;
-  margin: 0;
-  line-height: 1.5;
-}
-
-.reviewActions {
-  display: flex;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-}
-
-.actionBtn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  background: #f3f4f6;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  color: #374151;
-  font-size: 0.875rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.actionBtn:hover {
-  background: #e5e7eb;
-  border-color: #9ca3af;
-  transform: translateY(-1px);
-}
-
-.deleteBtn {
-  color: #dc2626;
-}
-
-.deleteBtn:hover {
-  background: #fee2e2;
-  border-color: #fca5a5;
-}
-
-.replyForm {
-  margin-top: 1rem;
-  padding-top: 1rem;
-  border-top: 1px solid #e5e7eb;
-}
-
-.replyTextarea {
-  width: 100%;
-  padding: 0.75rem;
-  border: 2px solid #d1d5db;
-  border-radius: 8px;
-  font-family: inherit;
-  font-size: 0.95rem;
-  resize: vertical;
-  transition: all 0.3s ease;
-}
-
-.replyTextarea:focus {
-  outline: none;
-  border-color: #5b3a0b;
-  box-shadow: 0 0 0 3px rgba(91, 58, 11, 0.1);
-}
-
-.replyActions {
-  display: flex;
-  gap: 0.75rem;
-  margin-top: 0.75rem;
-}
-
-.replySubmitBtn {
-  padding: 0.6rem 1.5rem;
-  background: #4ca16b;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.replySubmitBtn:hover {
-  background: #3d8a5a;
-  transform: translateY(-1px);
-}
-
-.replyCancelBtn {
-  padding: 0.6rem 1.5rem;
-  background: #f3f4f6;
-  color: #374151;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.replyCancelBtn:hover {
-  background: #e5e7eb;
-  transform: translateY(-1px);
+/* Optional: responsive stacking */
+@media (max-width: 900px) {
+  .formRow {
+    grid-template-columns: 1fr 1fr;
+  }
+  .actionCell {
+    grid-column: 1 / -1; /* button goes full width on small screens */
+    justify-self: start;
+  }
 }
