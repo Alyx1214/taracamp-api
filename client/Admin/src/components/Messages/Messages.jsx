@@ -274,12 +274,10 @@ export default function Messages() {
                                 >
                                     <div className={styles["user-item-content"]}>
                                         <div className={styles["user-info"]}>
-                                            {hasUnreadClientMessages(user) && (
-                                                <span 
-                                                    className={styles["unread-indicator"]} 
-                                                    title={`${user.unreadCount} unread message${user.unreadCount > 1 ? 's' : ''} from client`}
-                                                />
-                                            )}
+                                            <span 
+                                                className={styles["unread-indicator"]} 
+                                                title={hasUnreadClientMessages(user) ? `${user.unreadCount} unread message${user.unreadCount > 1 ? 's' : ''} from client` : "User is online"}
+                                            />
                                             <span className={styles["user-name"]}>{user.name || "Unknown"}</span>
                                         </div>
                                         {hoveredUserId === user._id && (

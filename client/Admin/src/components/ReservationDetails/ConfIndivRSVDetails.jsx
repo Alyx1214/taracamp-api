@@ -43,7 +43,7 @@ export default function ConfIndivRSVDetails() {
 
   const handleBack = () => {
     if (fromCheckInOut) {
-      navigate('/checkin', { state: { activeTab: activeTab || 'Confirmed', filters } });
+      navigate('/checkinouts', { state: { activeTab: activeTab || 'Confirmed', filters } });
     } else {
       navigate('/reservations', { state: { activeTab: 'Confirmed', filters, searchQuery, currentPage } });
     }
@@ -85,11 +85,6 @@ export default function ConfIndivRSVDetails() {
             <div className={`${styles["skeleton-status-label"]} ${styles["skeleton"]}`}></div>
             <div className={`${styles["skeleton-status-value"]} ${styles["skeleton"]}`}></div>
           </div>
-        </div>
-
-        {/* Food Preferences Button Skeleton */}
-        <div className={styles["rsv-details-link"]}>
-          <div className={`${styles["skeleton-food-btn"]} ${styles["skeleton"]}`}></div>
         </div>
       </div>
     </div>
@@ -221,24 +216,17 @@ export default function ConfIndivRSVDetails() {
               <td className={styles["rsv-details-separator"]}>:</td>
               <td>{prettifyServiceType(reservation.serviceType) || "N/A"}</td>
             </tr>
+            <tr>
+              <td className={styles["rsv-details-label"]}>Food Preferences</td>
+              <td className={styles["rsv-details-separator"]}>:</td>
+              <td>{reservation.foodPreferences || "N/A"}</td>
+            </tr>
           </tbody>
         </table>
-        {/* Add other tables/fields for payment as needed */}
         <hr className={styles["rsv-details-divider"]} />
-        {/* Example: */}
-        {/* <table className={styles["rsv-details-table"]}> ... </table> */}
         <div className={styles["rsv-details-status-row"]}>
           <span className={styles["rsv-details-status-label"]}>Status:</span>
           <span className={styles["rsv-details-status-value"]}>{reservation.status || "N/A"}</span>
-        </div>
-        {/* Food Preferences Button */}
-        <div className={styles["rsv-details-link"]}>
-          <button
-            className={styles["rsv-details-food-link"]}
-            onClick={() => navigate(`/reservation/${reservation._id}/food-preferences`)}
-          >
-            {reservation.foodPreferences || "Guest Food Preferences"}
-          </button>
         </div>
       </div>
     </div>

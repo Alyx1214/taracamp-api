@@ -1,19 +1,19 @@
 /* Container */
-.reservation-details-container {
+.cancelled-reservation-details-container {
   padding: 2.5rem 2rem 3rem 2rem;
   background: linear-gradient(135deg, #f8fafb 0%, #e8f5e9 100%);
   min-height: 100vh;
 }
 
 /* Header Section */
-.reservation-details-header {
+.cancelled-reservation-details-header {
   display: flex;
   align-items: center;
   gap: 1.2rem;
   margin-bottom: 2.5rem;
 }
 
-.reservation-details-back {
+.cancelled-reservation-details-back {
   font-size: 50px;
   color: #233d29;
   cursor: pointer;
@@ -28,12 +28,12 @@
   height: 50px;
 }
 
-.reservation-details-back:hover {
+.cancelled-reservation-details-back:hover {
   color: #4ca16b;
   transform: translateX(-4px);
 }
 
-.reservation-details-title {
+.cancelled-reservation-details-title {
   color: #233d29;
   font-size: 2.5rem;
   font-weight: 800;
@@ -43,7 +43,7 @@
 }
 
 /* Main Card */
-.reservation-details-card {
+.cancelled-reservation-details-card {
   background: white;
   border: none;
   border-radius: 24px;
@@ -56,7 +56,7 @@
   overflow: hidden;
 }
 
-.reservation-details-card::before {
+.cancelled-reservation-details-card::before {
   content: '';
   position: absolute;
   top: 0;
@@ -78,7 +78,7 @@
 }
 
 /* Header Row */
-.reservation-details-row {
+.cancelled-reservation-details-row {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
@@ -87,7 +87,7 @@
   border-bottom: 2px solid #f0f0f0;
 }
 
-.reservation-details-facility {
+.cancelled-reservation-details-facility {
   font-weight: 800;
   font-size: 2rem;
   color: #1E3C24;
@@ -95,7 +95,7 @@
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
-.reservation-details-date {
+.cancelled-reservation-details-date {
   font-weight: 700;
   font-size: 1.15rem;
   color: #5b3a0b;
@@ -107,22 +107,22 @@
 }
 
 /* Details Table */
-.reservation-details-table {
+.cancelled-reservation-details-table {
   width: 100%;
   border-collapse: collapse;
   margin-bottom: 1rem;
 }
 
-.reservation-details-table tr {
+.cancelled-reservation-details-table tr {
   border-bottom: 1px solid #f5f5f5;
   transition: all 0.3s ease;
 }
 
-.reservation-details-table tr:last-child {
+.cancelled-reservation-details-table tr:last-child {
   border-bottom: none;
 }
 
-.reservation-details-label {
+.cancelled-reservation-details-label {
   font-weight: 600;
   color: #5b3a0b;
   padding: 0.3rem 0.3rem 0.3rem 0;
@@ -132,7 +132,7 @@
   font-size: 0.2rem;
 }
 
-.reservation-details-separator {
+.cancelled-reservation-details-separator {
   width: 20px;
   text-align: center;
   font-weight: 700;
@@ -141,7 +141,7 @@
   padding: 0.8rem 0;
 }
 
-.reservation-details-table td {
+.cancelled-reservation-details-table td {
   font-size: 0.9rem;
   color: #232323;
   padding: 0.8rem 0.5rem;
@@ -149,7 +149,7 @@
   font-weight: 600;
 }
 
-.reservation-details-link {
+.cancelled-reservation-details-link {
   color: #2563eb;
   text-decoration: none;
   font-size: 1.05rem;
@@ -159,7 +159,7 @@
   transition: all 0.3s ease;
 }
 
-.reservation-details-link::after {
+.cancelled-reservation-details-link::after {
   content: '';
   position: absolute;
   bottom: -2px;
@@ -170,16 +170,16 @@
   transition: width 0.3s ease;
 }
 
-.reservation-details-link:hover::after {
+.cancelled-reservation-details-link:hover::after {
   width: 100%;
 }
 
-.reservation-details-link:hover {
+.cancelled-reservation-details-link:hover {
   color: #1d4ed8;
 }
 
 /* Footer Section */
-.reservation-details-foot {
+.cancelled-reservation-details-foot {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -188,22 +188,22 @@
   margin-bottom: auto;
 }
 
-/* Status Row - Green for Approved */
-.reservation-details-status-row {
+/* Status Row - Gray for Cancelled */
+.cancelled-reservation-details-status-row {
   font-size: 1.15rem;
   font-weight: 700;
   color: #444;
   display: flex;
   align-items: center;
   gap: 0.8rem;
-  background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+  background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
   padding: 0.6rem 1.5rem;
   border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(76, 161, 107, 0.15);
-  border: 1px solid rgba(76, 161, 107, 0.2);
+  box-shadow: 0 4px 12px rgba(107, 114, 128, 0.15);
+  border: 1px solid rgba(107, 114, 128, 0.2);
 }
 
-.reservation-details-status-label {
+.cancelled-reservation-details-status-label {
   color: #78716c;
   font-weight: 700;
   font-size: 1rem;
@@ -211,8 +211,8 @@
   letter-spacing: 0.5px;
 }
 
-.reservation-details-status-value {
-  color: #16a34a;
+.cancelled-reservation-details-status-value {
+  color: #6b7280;
   font-weight: 800;
   font-size: 1.05rem;
   text-transform: uppercase;
@@ -220,11 +220,11 @@
   padding: 0.4rem 1rem;
   border-radius: 8px;
   letter-spacing: 1px;
-  box-shadow: 0 2px 6px rgba(76, 161, 107, 0.2);
+  box-shadow: 0 2px 6px rgba(107, 114, 128, 0.2);
 }
 
 /* Print Button */
-.reservation-details-print-btn {
+.cancelled-reservation-details-print-btn {
   background: linear-gradient(135deg, #233d29 0%, #1a2d1f 100%);
   color: #fff;
   border: none;
@@ -244,7 +244,7 @@
   overflow: hidden;
 }
 
-.reservation-details-print-btn::before {
+.cancelled-reservation-details-print-btn::before {
   content: '';
   position: absolute;
   top: 0;
@@ -255,26 +255,26 @@
   transition: left 0.5s ease;
 }
 
-.reservation-details-print-btn:hover::before {
+.cancelled-reservation-details-print-btn:hover::before {
   left: 100%;
 }
 
-.reservation-details-print-btn:hover {
+.cancelled-reservation-details-print-btn:hover {
   background: linear-gradient(135deg, #1a2d1f 0%, #0f1d13 100%);
   transform: translateY(-3px);
   box-shadow: 0 6px 20px rgba(35, 61, 41, 0.4);
 }
 
-.reservation-details-print-btn:active {
+.cancelled-reservation-details-print-btn:active {
   transform: translateY(0);
 }
 
-.reservation-details-print-icon {
+.cancelled-reservation-details-print-icon {
   font-size: 1.3rem;
   transition: transform 0.3s ease;
 }
 
-.reservation-details-print-btn:hover .reservation-details-print-icon {
+.cancelled-reservation-details-print-btn:hover .cancelled-reservation-details-print-icon {
   transform: scale(1.1) rotate(5deg);
 }
 
@@ -385,27 +385,184 @@
 
 /* Responsive Design */
 @media (max-width: 768px) {
-  .reservation-details-container {
+  .cancelled-reservation-details-container {
     padding: 2rem 1rem;
   }
 
-  .reservation-details-card {
+  .cancelled-reservation-details-card {
     padding: 2rem 1.5rem;
   }
 
-  .reservation-details-row {
+  .cancelled-reservation-details-row {
     flex-direction: column;
     gap: 1rem;
   }
 
-  .reservation-details-foot {
+  .cancelled-reservation-details-foot {
     flex-direction: column;
     gap: 1.5rem;
     align-items: stretch;
   }
 
-  .reservation-details-print-btn {
+  .cancelled-reservation-details-print-btn {
     width: 100%;
     justify-content: center;
   }
+}
+
+/* Legacy classes - kept for compatibility */
+.cancelled-reservation-page {
+  max-width: 800px;
+  margin: 20px auto;
+  font-family: Arial, sans-serif;
+  padding: 20px;
+  background: #fff;
+}
+
+.cancelled-reservation-header {
+  display: flex;
+  align-items: center;
+  border: 1px solid #ddd;
+  padding: 12px 16px;
+  border-radius: 6px;
+  margin-bottom: 20px;
+  background: #f9f9f9;
+}
+
+.cancelled-reservation-back {
+  border: none;
+  background: none;
+  font-size: 20px;
+  cursor: pointer;
+  margin-right: 10px;
+}
+
+.cancelled-reservation-title {
+  font-size: 20px;
+  font-weight: bold;
+}
+
+.cancelled-reservation-banner {
+  display: flex;
+  justify-content: space-between;
+  background: #eef2f7;
+  padding: 12px 16px;
+  border-radius: 6px;
+  margin-bottom: 20px;
+  font-weight: bold;
+}
+
+.cancelled-reservation-banner-title {
+  font-size: 16px;
+}
+
+.cancelled-reservation-banner-date {
+  font-size: 14px;
+  color: #555;
+}
+
+.cancelled-reservation-grid {
+  display: grid;
+  grid-template-columns: 200px 10px 1fr;
+  row-gap: 12px;
+  column-gap: 10px;
+  padding: 16px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  margin-bottom: 20px;
+  background: #fff;
+}
+
+.cancelled-reservation-label {
+  font-weight: 600;
+  color: #333;
+}
+
+.cancelled-reservation-colon {
+  text-align: center;
+}
+
+.cancelled-reservation-value {
+  color: #555;
+}
+
+.cancelled-reservation-status-line {
+  display: grid;
+  grid-template-columns: 200px 10px 1fr;
+  align-items: center;
+  padding: 12px 16px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  margin-bottom: 20px;
+  background: #fafafa;
+}
+
+.cancelled-reservation-status-badge {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 20px;
+  background: #ffcc00;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.cancelled-reservation-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.cancelled-reservation-btn {
+  padding: 10px 18px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.cancelled-reservation-btn-decline {
+  background: #f44336;
+  color: #fff;
+}
+
+.cancelled-reservation-btn-approve {
+  background: #4caf50;
+  color: #fff;
+}
+
+.cancelled-reservation-upload-wrap {
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 16px;
+  background: #f9f9f9;
+}
+
+.cancelled-reservation-upload-title {
+  font-weight: bold;
+  margin-bottom: 6px;
+}
+
+.cancelled-reservation-upload-note {
+  font-size: 13px;
+  color: #777;
+  margin-bottom: 10px;
+}
+
+.cancelled-reservation-upload-row {
+  display: flex;
+  gap: 10px;
+}
+
+.cancelled-reservation-file {
+  flex: 1;
+}
+
+.cancelled-reservation-send {
+  background: #007bff;
+  border: none;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
 }

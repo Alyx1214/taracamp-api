@@ -13,6 +13,8 @@ import { SeniorCitizenReservationForm, PWDReservationForm } from './components/R
 import EditReservation from './components/ReservationForm/EditReservation.jsx';
 import PendingRSVDetails from "./components/ReservationDetails/PendingRSVDetails.jsx";
 import ApprovedRSVDetails from "./components/ReservationDetails/ApprovedRSVDetails.jsx";
+import DeclinedRSVDetails from "./components/ReservationDetails/DeclinedRSVDetails.jsx";
+import CancelledRSVDetails from "./components/ReservationDetails/CancelledRSVDetails.jsx";
 import ConfIndivRSVDetails from "./components/ReservationDetails/ConfIndivRSVDetails.jsx";
 import ConfGroupRSVDetails from "./components/ReservationDetails/ConfGroupRSVDetails.jsx";
 import ReservationDetail from "./components/Reservation/ReservationDetail.jsx";
@@ -117,6 +119,7 @@ function App() {
             <Route path="/reservation-step4" element={<RoleGuard routeKey="reservations"><ReservationFormStep4 /></RoleGuard>} />
             <Route path="/reservations/:id/edit" element={<RoleGuard routeKey="reservations"><EditReservation /></RoleGuard>} />
 
+
             <Route path="/add-facility" element={<RoleGuard routeKey="facilities"><AddForm /></RoleGuard>} />
             <Route path="/facilities/edit/:id" element={<RoleGuard routeKey="facilities"><EditForm /></RoleGuard>} />
             <Route path="/facilities/manage/:id" element={<RoleGuard routeKey="facilities"><Manage /></RoleGuard>} />
@@ -128,7 +131,9 @@ function App() {
             <Route path="/payment/:id/details" element={<RoleGuard routeKey="transactions"><PaymentDetails /></RoleGuard>} /> 
             <Route path="/transactions/report" element={<RoleGuard routeKey="transactions"><GenerateReport /></RoleGuard>} />
             <Route path="/pendingRSV/:id/details" element={<RoleGuard routeKey="reservations"><PendingRSVDetails /></RoleGuard>} />
+            <Route path="/declinedRSV/:id/details" element={<RoleGuard routeKey="reservations"><DeclinedRSVDetails /></RoleGuard>} />
             <Route path="/approvedRSV/:id/details" element={<RoleGuard routeKey="reservations"><ApprovedRSVDetails /></RoleGuard>} />
+            <Route path="/cancelledRSV/:id/details" element={<RoleGuard routeKey="reservations"><CancelledRSVDetails /></RoleGuard>} />
             <Route path="/confirmedIndiv/:id/details" element={<RoleGuard routeKey="reservations"><ConfIndivRSVDetails /></RoleGuard>} />
             <Route path="/confirmedGroup/:id/details" element={<RoleGuard routeKey="reservations"><ConfGroupRSVDetails /></RoleGuard>} />
   

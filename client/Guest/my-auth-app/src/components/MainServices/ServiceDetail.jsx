@@ -69,20 +69,6 @@ function MainServicesServiceDetail() {
   const [arrivalDateError, setArrivalDateError] = useState('');
   const [departureDateError, setDepartureDateError] = useState('');
   const [isReviewsOpen, setIsReviewsOpen] = useState(false);
-  const [dummyReviews] = useState([
-    {
-      id: 1,
-      name: "John Doe",
-      rating: 3,
-      text: "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book."
-    },
-    {
-      id: 2,
-      name: "Jane Smith",
-      rating: 5,
-      text: "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book."
-    }
-  ]);
   const navigate = useNavigate();
   const { isLoggedIn } = useAuth();
   const API = import.meta.env.VITE_API_URL; 
@@ -560,11 +546,12 @@ const getCalendarData = (date) => {
   // Handle case where type might be 'undefined' string or actual undefined
   const facilityType = facility?.facilityType || (type && type !== 'undefined' ? type : 'Unknown');
   
-  const displayPrice = facilityType === 'Conference' 
+  // Conference and Cottage use 'price', Dormitory uses 'ratePerPerson'
+  const displayPrice = (facilityType === 'Conference' || facilityType === 'Cottage')
     ? (facility.price || 0)
     : (facility.ratePerPerson || 0);
 
-  const priceLabel = facilityType === 'Conference' 
+  const priceLabel = (facilityType === 'Conference' || facilityType === 'Cottage')
     ? 'Price' 
     : 'Rates per Person';
 
@@ -746,7 +733,7 @@ const getCalendarData = (date) => {
               </div>
               
               {isReviewsOpen ? (
-                <Reviews facilityName={facility.name} />
+                <Reviews facilityName={facility.name} facilityId={id} />
               ) : (
                 <>
                   <div className={styles.reviewFilters}>
@@ -791,21 +778,8 @@ const getCalendarData = (date) => {
                       })}
                     </div>
                   ) : (
-                    <div className={styles.reviewsList}>
-                      {dummyReviews.map((review) => (
-                        <div key={review.id} className={styles.reviewCard}>
-                          <div className={styles.reviewCardHeader}>
-                            <div className={styles.reviewAvatar}></div>
-                            <div className={styles.reviewCardInfo}>
-                              <h4 className={styles.reviewCardName}>{review.name}</h4>
-                              <div className={styles.reviewCardStars}>
-                                {renderStars(review.rating)}
-                              </div>
-                            </div>
-                          </div>
-                          <p className={styles.reviewCardText}>{review.text}</p>
-                        </div>
-                      ))}
+                    <div className={styles.reviewContent}>
+                      <p>No reviews yet.</p>
                     </div>
                   )}
                 </>

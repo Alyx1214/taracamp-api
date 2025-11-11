@@ -2,6 +2,12 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { FaStar, FaReply, FaTrash, FaEyeSlash, FaEye } from "react-icons/fa";
 import styles from "./Reviews.module.css";
+import { 
+  getReviewsByFacilityId, 
+  deleteReview, 
+  addAdminReply, 
+  toggleReviewVisibility 
+} from "../../apis/api";
 
 export default function Reviews() {
   const navigate = useNavigate();
@@ -9,75 +15,108 @@ export default function Reviews() {
   const location = useLocation();
   const { category, facility } = location.state || {};
 
-  const [reviews, setReviews] = useState([
-    {
-      id: 1,
-      userName: "John Doe",
-      rating: 5,
-      comment: "Amazing facility! Very clean and well-maintained.",
-      date: "2024-11-10",
-      hidden: false,
-      adminReply: null,
-    },
-    {
-      id: 2,
-      userName: "Jane Smith",
-      rating: 4,
-      comment: "Good experience overall, staff was friendly.",
-      date: "2024-11-08",
-      hidden: false,
-      adminReply: "Thank you for your feedback!",
-    },
-    {
-      id: 3,
-      userName: "Mike Johnson",
-      rating: 3,
-      comment: "Decent place but could use some improvements.",
-      date: "2024-11-05",
-      hidden: false,
-      adminReply: null,
-    },
-  ]);
-
+  const [reviews, setReviews] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [replyingTo, setReplyingTo] = useState(null);
   const [replyText, setReplyText] = useState("");
 
   useEffect(() => {
-    // TODO: Fetch reviews from API
+    fetchReviews();
   }, [id]);
 
-  const handleReplySubmit = (reviewId) => {
-    if (!replyText.trim()) return;
+  const fetchReviews = async () => {
+    if (!id) {
+      setLoading(false);
+      return;
+    }
 
-    setReviews((prev) =>
-      prev.map((review) =>
-        review.id === reviewId
-          ? { ...review, adminReply: replyText }
-          : review
-      )
-    );
-
-    setReplyingTo(null);
-    setReplyText("");
-    // TODO: API call to save reply
-  };
-
-  const handleDeleteReview = (reviewId) => {
-    if (window.confirm("Are you sure you want to delete this review?")) {
-      setReviews((prev) => prev.filter((review) => review.id !== reviewId));
-      // TODO: API call to delete review
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await getReviewsByFacilityId(id);
+      
+      if (response.reviews) {
+        // Map backend data to frontend format
+        const mappedReviews = response.reviews.map((review) => ({
+          id: review.id,
+          userName: review.authorName || "Anonymous",
+          // Convert overall rating (1-10) to 1-5 scale for display
+          rating: Math.max(1, Math.ceil((review.rating?.overall || 1) / 2)),
+          comment: review.text,
+          date: review.createdAt ? new Date(review.createdAt).toLocaleDateString() : "Unknown",
+          hidden: review.hidden || false,
+          adminReply: review.adminReply || null,
+        }));
+        setReviews(mappedReviews);
+      } else {
+        setReviews([]);
+      }
+    } catch (err) {
+      console.error("Error fetching reviews:", err);
+      setError(err.message || "Failed to fetch reviews");
+      setReviews([]);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleToggleHidden = (reviewId) => {
-    setReviews((prev) =>
-      prev.map((review) =>
-        review.id === reviewId
-          ? { ...review, hidden: !review.hidden }
-          : review
-      )
-    );
-    // TODO: API call to toggle visibility
+  const handleReplySubmit = async (reviewId) => {
+    if (!replyText.trim()) return;
+
+    try {
+      await addAdminReply(reviewId, replyText.trim());
+      // Update local state
+      setReviews((prev) =>
+        prev.map((review) =>
+          review.id === reviewId
+            ? { ...review, adminReply: replyText.trim() }
+            : review
+        )
+      );
+      setReplyingTo(null);
+      setReplyText("");
+    } catch (err) {
+      console.error("Error adding admin reply:", err);
+      alert(err.message || "Failed to add reply");
+    }
+  };
+
+  const handleDeleteReview = async (reviewId) => {
+    if (!window.confirm("Are you sure you want to delete this review?")) {
+      return;
+    }
+
+    try {
+      await deleteReview(reviewId);
+      // Remove from local state
+      setReviews((prev) => prev.filter((review) => review.id !== reviewId));
+    } catch (err) {
+      console.error("Error deleting review:", err);
+      alert(err.message || "Failed to delete review");
+    }
+  };
+
+  const handleToggleHidden = async (reviewId) => {
+    const review = reviews.find((r) => r.id === reviewId);
+    if (!review) return;
+
+    const newHiddenState = !review.hidden;
+
+    try {
+      await toggleReviewVisibility(reviewId, newHiddenState);
+      // Update local state
+      setReviews((prev) =>
+        prev.map((review) =>
+          review.id === reviewId
+            ? { ...review, hidden: newHiddenState }
+            : review
+        )
+      );
+    } catch (err) {
+      console.error("Error toggling visibility:", err);
+      alert(err.message || "Failed to toggle visibility");
+    }
   };
 
   const renderStars = (rating) => {
@@ -108,10 +147,17 @@ export default function Reviews() {
       <div className={styles.section}>
         <h3 className={styles.sectionTitle}>Customer Reviews</h3>
         
-        <div className={styles.reviewsList}>
-          {reviews.length === 0 ? (
-            <p className={styles.noReviews}>No reviews yet.</p>
-          ) : (
+        {loading ? (
+          <p className={styles.noReviews}>Loading reviews...</p>
+        ) : error ? (
+          <p className={styles.noReviews} style={{ color: "#ef4444" }}>
+            Error: {error}
+          </p>
+        ) : (
+          <div className={styles.reviewsList}>
+            {reviews.length === 0 ? (
+              <p className={styles.noReviews}>No reviews yet.</p>
+            ) : (
             reviews.map((review) => (
               <div
                 key={review.id}
@@ -209,8 +255,9 @@ export default function Reviews() {
                 )}
               </div>
             ))
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

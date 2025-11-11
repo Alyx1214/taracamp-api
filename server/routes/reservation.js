@@ -188,14 +188,17 @@ export default function buildReservationRouter(userSocketMap) {
             });
 
             if (Array.isArray(adminUsers) && adminUsers.length > 0) {
+              const guestName = reservation.guestName || 'Guest';
+              const reservationCode = reservation.reservationCode || reservationIdStr;
+              
               // Send notification to each admin user
               const adminNotificationPromises = adminUsers.map(adminUser => {
                 const adminUserIdStr = adminUser._id?.toString?.() || String(adminUser._id || '');
                 return notificationModule.createAndNotifyUser(
                   dbHelper,
                   {
-                    title: 'Congratulations, Camper! Your reservation has been approved!',
-                    message: "Your reservation has been approved. Please proceed with payment or upload required documents to confirm your booking.",
+                    title: `Reservation Approved: ${reservationCode}`,
+                    message: `A reservation by ${guestName} has been approved. Reservation Code: ${reservationCode}`,
                     kind: 'reservation_approved_admin',
                     userId: adminUserIdStr,
                     reservationId: reservationIdStr,

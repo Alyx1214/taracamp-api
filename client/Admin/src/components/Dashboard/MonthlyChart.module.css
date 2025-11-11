@@ -1,7 +1,7 @@
 .chartContainer {
   background: white;
   border-radius: 12px;
-  padding: 15px;
+  padding: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   grid-column: span 1;
   height: 100%;
@@ -11,29 +11,29 @@
 
 .chartHeader {
   justify-content: space-between;
-  gap: 50px;
+  gap: 30px;
   align-items: center;
-  margin: 30px;
+  margin: 20px;
 }
 
 .chartTitle {
   display: inline-block;
   width: 48%;
   color: #1E3C24;
-  font: Montserrat;
-  font-size: 24px;
+  font-family: Montserrat, sans-serif;
+  font-size: 2rem;
   font-style: normal;
   font-weight: 900;
 }
 
 .legend {
-  display:flex;
+  display: flex;
 }
 
 .legendItem {
   align-items: left;
   gap: 1px;
-  font-size: 14px;
+  font-size: 12px;
   color: #6b7280;
   display: inline-block;
   width: 15%;
@@ -41,28 +41,28 @@
 }
 
 .legendDot {
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
 }
 
 .legendDot.completed {
   background: #04CE00;
   display: inline-block;
-  width: 12px;
-  margin-right: 10px;
+  width: 10px;
+  margin-right: 8px;
 }
 
 .legendDot.cancelled {
   background: #E65A2D;
   display: inline-block;
-  width: 12px;
-  margin-right: 10px;
+  width: 10px;
+  margin-right: 8px;
 }
 
 .canvas {
   width: 100%;
-  height: 380px;
+  height: 320px;
   display: block;
   transition: opacity 0.3s ease;
   flex: 1;
@@ -80,11 +80,11 @@
 }
 
 .yearSelect {
-  padding: 10px 40px 10px 16px;
+  padding: 8px 36px 8px 14px;
   border: 2px solid #d1d5db;
   border-radius: 10px;
   background: white;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   color: #1E3C24;
   cursor: pointer;
@@ -93,11 +93,11 @@
   appearance: none;
   -webkit-appearance: none;
   -moz-appearance: none;
-  min-width: 120px;
-  background-image: url("data:image/svg+xml,%3Csvg width='20' height='20' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M6 9L12 15L18 9' stroke='%231E3C24' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  min-width: 110px;
+  background-image: url("data:image/svg+xml,%3Csvg width='18' height='18' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M6 9L12 15L18 9' stroke='%231E3C24' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: right 12px center;
-  background-size: 20px;
+  background-position: right 10px center;
+  background-size: 18px;
 }
 
 .yearSelect:hover {
@@ -117,4 +117,34 @@
 .yearSelect:active {
   transform: translateY(0);
   box-shadow: 0 2px 4px rgba(83, 142, 94, 0.2);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .chartContainer {
+    padding: 10px;
+  }
+
+  .chartHeader {
+    margin: 15px;
+    gap: 20px;
+  }
+
+  .chartTitle {
+    font-size: 18px;
+  }
+
+  .legendItem {
+    font-size: 11px;
+  }
+
+  .canvas {
+    height: 280px;
+  }
+
+  .yearSelect {
+    font-size: 12px;
+    padding: 7px 32px 7px 12px;
+    min-width: 100px;
+  }
 }

@@ -102,9 +102,10 @@ const reviewModule = {
      * @param {Object} dbHelper - The database helper object.
      * @param {string} facilityId - The facility ID.
      * @param {Object} options - Query options (limit, skip, sort).
+     * @param {Object} user - Optional authenticated user (for admin access to hidden reviews).
      * @return {Promise<Object>} The response data.
      */
-    getReviewsByFacility: async (dbHelper, facilityId, options = {}) => {
+    getReviewsByFacility: async (dbHelper, facilityId, options = {}, user = null) => {
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
             error: 'Error fetching reviews',
@@ -120,11 +121,20 @@ const reviewModule = {
                 return responseData;
             }
 
+            // Check if user is admin - admins can see hidden reviews
+            const isAdmin = user && (user.role === UserRole.CRMSTEAM || user.role === UserRole.SUPERINTENDENT);
+            
+            // Build query - filter out hidden reviews for non-admins
+            const query = { facilityId };
+            if (!isAdmin) {
+                query.hidden = { $ne: true };
+            }
+
             const { limit = 10, skip = 0, sort = { createdAt: -1 } } = options;
 
             // Get reviews
             const reviews = await dbHelper.findMany('review',
-                { facilityId },
+                query,
                 {
                     projection: { __v: 0 },
                     sort: sort,
@@ -133,8 +143,12 @@ const reviewModule = {
                 }
             );
 
-            // Calculate average ratings
-            const allReviews = await dbHelper.find('review', { facilityId });
+            // Calculate average ratings - also filter hidden reviews for non-admins
+            const allReviewsQuery = { facilityId };
+            if (!isAdmin) {
+                allReviewsQuery.hidden = { $ne: true };
+            }
+            const allReviews = await dbHelper.find('review', allReviewsQuery);
             const averageRatings = calculateAverageRatings(allReviews);
 
             const reviewsWithUserData = reviews.map(review => ({
@@ -143,6 +157,8 @@ const reviewModule = {
                 authorName: review.authorName || 'Anonymous',
                 rating: review.rating,
                 isVerified: review.isVerified,
+                adminReply: review.adminReply || null,
+                hidden: review.hidden || false,
                 createdAt: review.createdAt
             }));
 
@@ -362,6 +378,132 @@ const reviewModule = {
             console.error('Error fetching user reviews:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
             responseData.error = 'Error fetching user reviews';
+        }
+        return responseData;
+    },
+
+    /**
+     * Adds or updates an admin reply to a review.
+     * @param {Object} dbHelper - The database helper object.
+     * @param {string} reviewId - The review ID.
+     * @param {string} replyText - The admin reply text.
+     * @param {Object} user - The authenticated user (must be admin).
+     * @return {Promise<Object>} The response data.
+     */
+    addAdminReply: async (dbHelper, reviewId, replyText, user) => {
+        const responseData = {
+            status: Status.INTERNAL_SERVER_ERROR,
+            error: 'Error adding admin reply',
+        };
+
+        try {
+            if (!reviewId) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Missing review ID';
+                return responseData;
+            }
+
+            if (!user || !user.userId) {
+                responseData.status = Status.UNAUTHORIZED;
+                responseData.error = 'User not logged in';
+                return responseData;
+            }
+
+            // Check if user is admin
+            if (user.role !== UserRole.CRMSTEAM && user.role !== UserRole.SUPERINTENDENT) {
+                responseData.status = Status.FORBIDDEN;
+                responseData.error = 'Only admins can add replies to reviews';
+                return responseData;
+            }
+
+            if (replyText && replyText.length > 1000) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Admin reply cannot exceed 1000 characters';
+                return responseData;
+            }
+
+            const review = await dbHelper.findOne('review', { _id: reviewId });
+            if (!review) {
+                responseData.status = Status.NOT_FOUND;
+                responseData.error = 'Review not found';
+                return responseData;
+            }
+
+            const updateData = {
+                adminReply: replyText ? replyText.trim() : null,
+                updatedAt: new Date()
+            };
+
+            await dbHelper.updateOne('review', { _id: reviewId }, { $set: updateData });
+
+            responseData.status = Status.OK;
+            responseData.error = null;
+            responseData.message = replyText ? 'Admin reply added successfully' : 'Admin reply removed successfully';
+            responseData.reviewId = reviewId;
+        } catch (error) {
+            console.error('Error adding admin reply:', error);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Error adding admin reply';
+        }
+        return responseData;
+    },
+
+    /**
+     * Toggles the visibility (hidden status) of a review.
+     * @param {Object} dbHelper - The database helper object.
+     * @param {string} reviewId - The review ID.
+     * @param {boolean} hidden - Whether the review should be hidden.
+     * @param {Object} user - The authenticated user (must be admin).
+     * @return {Promise<Object>} The response data.
+     */
+    toggleReviewVisibility: async (dbHelper, reviewId, hidden, user) => {
+        const responseData = {
+            status: Status.INTERNAL_SERVER_ERROR,
+            error: 'Error toggling review visibility',
+        };
+
+        try {
+            if (!reviewId) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Missing review ID';
+                return responseData;
+            }
+
+            if (!user || !user.userId) {
+                responseData.status = Status.UNAUTHORIZED;
+                responseData.error = 'User not logged in';
+                return responseData;
+            }
+
+            // Check if user is admin
+            if (user.role !== UserRole.CRMSTEAM && user.role !== UserRole.SUPERINTENDENT) {
+                responseData.status = Status.FORBIDDEN;
+                responseData.error = 'Only admins can toggle review visibility';
+                return responseData;
+            }
+
+            const review = await dbHelper.findOne('review', { _id: reviewId });
+            if (!review) {
+                responseData.status = Status.NOT_FOUND;
+                responseData.error = 'Review not found';
+                return responseData;
+            }
+
+            await dbHelper.updateOne('review', { _id: reviewId }, { 
+                $set: { 
+                    hidden: !!hidden,
+                    updatedAt: new Date()
+                } 
+            });
+
+            responseData.status = Status.OK;
+            responseData.error = null;
+            responseData.message = hidden ? 'Review hidden successfully' : 'Review unhidden successfully';
+            responseData.reviewId = reviewId;
+        } catch (error) {
+            console.error('Error toggling review visibility:', error);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Error toggling review visibility';
         }
         return responseData;
     }
