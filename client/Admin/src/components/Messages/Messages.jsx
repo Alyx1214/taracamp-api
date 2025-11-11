@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Search, MoreVertical, Trash2 } from "lucide-react";
 import styles from "./Messages.module.css";
-import { listUsersWithMessages, getMessagesForUser, sendAdminReply } from "../../apis/messageApi";
+import { listUsersWithMessages, getMessagesForUser, sendAdminReply, deleteConversation } from "../../apis/messageApi";
 import { subscribe, initSocketFresh, startAutoReconnect, stopAutoReconnect } from "../../utils/webSocketClient";
 
 export default function Messages() {
@@ -58,6 +58,17 @@ export default function Messages() {
                 const messagesList = Array.isArray(response?.data) ? response.data : [];
                 if (!cancelled) {
                     setMessages([...messagesList].reverse());
+                    // Refresh users list to update unread counts (messages are marked as read on server)
+                    listUsersWithMessages()
+                        .then(response => {
+                            if (!cancelled) {
+                                const usersList = Array.isArray(response?.data) ? response.data : [];
+                                setUsers(usersList);
+                            }
+                        })
+                        .catch((err) => {
+                            console.error('Error refreshing users list:', err);
+                        });
                 }
             } catch (err) {
                 if (!cancelled) {
@@ -85,32 +96,76 @@ export default function Messages() {
                 const data = JSON.parse(event.data);
                 if (data.type === 'new_message' && data.data) {
                     const newMessage = data.data;
-                    const messageUserId = newMessage.userId;
+                    if (!newMessage || !newMessage.userId) {
+                        console.warn('Received invalid message format:', newMessage);
+                        return;
+                    }
                     
-                    if (messageUserId && activeUserId && messageUserId.toString() === activeUserId.toString()) {
+                    const messageUserId = String(newMessage.userId);
+                    const currentActiveUserId = activeUserId ? String(activeUserId) : null;
+                    
+                    // Normalize IDs for comparison - ensure both are strings
+                    const isForActiveUser = currentActiveUserId && messageUserId === currentActiveUserId;
+                    
+                    // If message is for the currently active user, add it to messages immediately
+                    if (isForActiveUser) {
                         setMessages(prev => {
-                            const exists = prev.some(m => m._id === newMessage._id);
-                            if (exists) return prev;
+                            // Check if message already exists to avoid duplicates
+                            const exists = prev.some(m => {
+                                const prevId = m._id ? String(m._id) : null;
+                                const newId = newMessage._id ? String(newMessage._id) : null;
+                                return prevId && newId && prevId === newId;
+                            });
+                            if (exists) {
+                                return prev;
+                            }
+                            // Add new message to the end
                             return [...prev, newMessage];
                         });
-                        
+                    }
+                    
+                    // Always update users list when receiving a new message from a guest
+                    // This ensures the sidebar shows updated unread counts and last message
+                    if (newMessage.isUser) {
+                        // For guest messages, always refresh the users list
+                        listUsersWithMessages()
+                            .then(response => {
+                                const usersList = Array.isArray(response?.data) ? response.data : [];
+                                setUsers(usersList);
+                                
+                                // If this message is for the active user, ensure it's in the messages list
+                                // (in case activeUserId was null when message arrived)
+                                if (isForActiveUser) {
+                                    setMessages(prev => {
+                                        const exists = prev.some(m => {
+                                            const prevId = m._id ? String(m._id) : null;
+                                            const newId = newMessage._id ? String(newMessage._id) : null;
+                                            return prevId && newId && prevId === newId;
+                                        });
+                                        if (!exists) {
+                                            return [...prev, newMessage];
+                                        }
+                                        return prev;
+                                    });
+                                }
+                            })
+                            .catch((err) => {
+                                console.error('Error updating users list:', err);
+                            });
+                    } else if (!newMessage.isUser && isForActiveUser) {
+                        // Admin reply to active user - update users list too
                         listUsersWithMessages()
                             .then(response => {
                                 const usersList = Array.isArray(response?.data) ? response.data : [];
                                 setUsers(usersList);
                             })
-                            .catch(() => {});
-                    } else if (messageUserId && newMessage.isUser) {
-                        listUsersWithMessages()
-                            .then(response => {
-                                const usersList = Array.isArray(response?.data) ? response.data : [];
-                                setUsers(usersList);
-                            })
-                            .catch(() => {});
+                            .catch((err) => {
+                                console.error('Error updating users list:', err);
+                            });
                     }
                 }
             } catch (error) {
-                console.error('Error parsing WebSocket message:', error);
+                console.error('Error parsing WebSocket message:', error, event.data);
             }
         };
 
@@ -183,18 +238,37 @@ export default function Messages() {
         }
     }, [input, activeUserId, sending]);
 
-    const handleDeleteChat = useCallback((userId, e) => {
+    const handleDeleteChat = useCallback(async (userId, e) => {
         e.stopPropagation();
-        if (window.confirm('Are you sure you want to delete this conversation?')) {
-            // Add your delete API call here
-            console.log('Deleting chat for user:', userId);
-            // After successful delete:
-            setUsers(prev => prev.filter(u => u._id !== userId));
-            if (activeUserId === userId) {
-                setActiveUserId(users.length > 1 ? users[0]._id : null);
-            }
+        if (!window.confirm('Are you sure you want to delete this conversation? This action cannot be undone.')) {
+            return;
         }
-    }, [activeUserId, users]);
+
+        try {
+            const response = await deleteConversation(userId);
+            if (response?.status === 200 || response?.data?.status === 200) {
+                // Remove user from list
+                setUsers(prev => {
+                    const updated = prev.filter(u => u._id !== userId);
+                    // If this was the active user, switch to another user or clear
+                    if (activeUserId === userId) {
+                        if (updated.length > 0) {
+                            setActiveUserId(updated[0]._id);
+                        } else {
+                            setActiveUserId(null);
+                            setMessages([]);
+                        }
+                    }
+                    return updated;
+                });
+            } else {
+                setError(response?.data?.error || response?.error || 'Failed to delete conversation');
+            }
+        } catch (err) {
+            setError(err?.data?.error || err?.message || 'Failed to delete conversation');
+            console.error('Error deleting conversation:', err);
+        }
+    }, [activeUserId]);
 
     const filteredUsers = users.filter(user => {
         if (!searchQuery) return true;
@@ -219,7 +293,8 @@ export default function Messages() {
     // Helper function to check if user has unread messages from client
     const hasUnreadClientMessages = (user) => {
         // Check if user has unreadCount property (messages from client not read by admin)
-        return user.unreadCount && user.unreadCount > 0;
+        const count = Number(user?.unreadCount) || 0;
+        return count > 0;
     };
 
     return (
@@ -274,10 +349,13 @@ export default function Messages() {
                                 >
                                     <div className={styles["user-item-content"]}>
                                         <div className={styles["user-info"]}>
-                                            <span 
-                                                className={styles["unread-indicator"]} 
-                                                title={hasUnreadClientMessages(user) ? `${user.unreadCount} unread message${user.unreadCount > 1 ? 's' : ''} from client` : "User is online"}
-                                            />
+                                            {hasUnreadClientMessages(user) ? (
+                                                <span 
+                                                    className={styles["unread-indicator"]} 
+                                                    title="New message"
+                                                    aria-label="New message"
+                                                />
+                                            ) : null}
                                             <span className={styles["user-name"]}>{user.name || "Unknown"}</span>
                                         </div>
                                         {hoveredUserId === user._id && (

@@ -65,7 +65,7 @@ export default function ConfIndivRSVDetails() {
         </div>
 
         {/* Table Rows Skeleton */}
-        <div className={styles["rsv-details-table"]}>
+        <table className={styles["rsv-details-table"]}>
           <tbody>
             {Array.from({ length: 8 }).map((_, index) => (
               <tr key={index}>
@@ -77,7 +77,7 @@ export default function ConfIndivRSVDetails() {
               </tr>
             ))}
           </tbody>
-        </div>
+        </table>
 
         {/* Status Skeleton */}
         <div className={styles["rsv-details-status-row"]}>
