@@ -142,7 +142,7 @@ const dbHelper = {
                 price: { type: Number, required: false, },
                 status: { type: String, enum: Object.values(FacilityStatus), default: FacilityStatus.AVAILABLE, required: true, },
                 images: { type: [String], default: [] },
-                rooms: { type: [{ capacity: Number, quantity: Number }], default: [] },
+                rooms: { type: [{ name: String, capacity: Number, status: String }], default: [] },
                 createdAt: { type: Date, default: Date.now, },
             });
 

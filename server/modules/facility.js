@@ -835,34 +835,60 @@ const facilityModule = {
                 return responseData;
             }
 
-            const { capacity, quantity, extraRows } = data;
+            const { capacity, name, status, extraRows } = data;
 
-            // Build rooms array from main capacity/quantity and extraRows
+            // Build rooms array from main name/capacity/status and extraRows
             const rooms = [];
             
             // Add main room configuration if provided
-            if (isPresent(capacity) && isPresent(quantity)) {
+            if (isPresent(name) && isPresent(capacity)) {
                 const cap = parseInt(String(capacity).replace(/,/g, ''), 10);
-                const qty = parseInt(String(quantity).replace(/,/g, ''), 10);
-                if (cap > 0 && qty > 0) {
-                    rooms.push({ capacity: cap, quantity: qty });
+                if (cap > 0) {
+                    const mainRoom = { 
+                        name: String(name).trim(),
+                        capacity: cap
+                    };
+                    // Add status if provided and validate it
+                    if (isPresent(status)) {
+                        const statusValue = String(status).trim();
+                        if (!isValidFacilityStatus(statusValue)) {
+                            responseData.status = Status.BAD_REQUEST;
+                            responseData.error = `Invalid status value: ${statusValue}. Status must be either "Available" or "Unavailable".`;
+                            return responseData;
+                        }
+                        mainRoom.status = statusValue;
+                    }
+                    rooms.push(mainRoom);
                 }
             }
 
             // Add extra room configurations
             if (Array.isArray(extraRows)) {
-                extraRows.forEach((row) => {
-                    if (row && isPresent(row.capacity) && isPresent(row.quantity)) {
+                for (const row of extraRows) {
+                    if (row && isPresent(row.name) && isPresent(row.capacity)) {
                         const cap = parseInt(String(row.capacity).replace(/,/g, ''), 10);
-                        const qty = parseInt(String(row.quantity).replace(/,/g, ''), 10);
-                        if (cap > 0 && qty > 0) {
-                            rooms.push({ capacity: cap, quantity: qty });
+                        if (cap > 0) {
+                            const extraRoom = { 
+                                name: String(row.name).trim(),
+                                capacity: cap
+                            };
+                            // Add status if provided and validate it
+                            if (isPresent(row.status)) {
+                                const statusValue = String(row.status).trim();
+                                if (!isValidFacilityStatus(statusValue)) {
+                                    responseData.status = Status.BAD_REQUEST;
+                                    responseData.error = `Invalid status value: ${statusValue}. Status must be either "Available" or "Unavailable".`;
+                                    return responseData;
+                                }
+                                extraRoom.status = statusValue;
+                            }
+                            rooms.push(extraRoom);
                         }
                     }
-                });
+                }
             }
 
-            const updateData = { rooms };
+            const updateData = { $set: { rooms } };
 
             await Promise.all([
                 dbHelper.updateOne('facility', { _id: id }, updateData),
