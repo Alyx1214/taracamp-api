@@ -199,11 +199,27 @@ export default function CheckInOuts() {
     { 
       label: "View", 
       onClick: () => {
-        if (!row.id || row.id === "") {
+        if (!row.id || row.id === "N/A") {
           alert("Invalid reservation ID. Cannot view details.");
           return;
         }
-        navigate(`/reservation/${row.id}/details`);
+        row.guestType === "GROUP"
+          ? navigate(`/confirmedGroup/${row.id}/details`, {
+              // state: {
+              //   activeTab: 'Confirmed',
+              //   filters,
+              //   searchQuery,
+              //   currentPage
+              // }
+            })
+          : navigate(`/confirmedIndiv/${row.id}/details`, {
+              // state: {
+              //   activeTab: 'Confirmed',
+              //   filters,
+              //   searchQuery,
+              //   currentPage
+              // }
+            });
       }
     },
     { label: "Edit", onClick: () => alert(`Editing ${row.name}`) },
