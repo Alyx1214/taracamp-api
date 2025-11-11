@@ -9,6 +9,7 @@ import NotifReviews from './NotifReviews';
 import NotifCancel from './NotifCancel';
 import { listNotifications, markAllNotificationsRead, markNotificationRead, deleteAllNotifications } from '../../apis/notificationApi';
 import { updateMealPreference, getReservationById, cancelReservation } from '../../apis/reservationApi';
+import { addReview } from '../../apis/reviewsApi';
 import { subscribe, initSocketFresh } from '../../utils/webSocketClient';
 
 export default function Notif() {
@@ -339,6 +340,13 @@ export default function Notif() {
       setStage('cancel');
       return;
     }
+    // Check for checkout review request - show NotifReviews
+    if (notif.kind === 'checkout_review_request' || 
+        (notif.title && notif.title === 'Share your stay')) {
+      setSelected(notif);
+      setStage('reviews');
+      return;
+    }
   }
 
   // Route based on what NotifPreview tells us, WITH reservation id.
@@ -521,11 +529,80 @@ export default function Notif() {
   if (stage === 'reviews') {
     return (
       <NotifReviews
+        initial={{
+          title: selected?.title || 'Share your stay',
+          body: selected?.message || 'Tell others about your experience by leaving a review.',
+          source: selected?.source || "Teachers' Camp",
+          time: selected?.timeLabel || selected?.createdAt || new Date(),
+        }}
         onBack={() => {
+          setSelected(null);
           setStage('list');
         }}
-        onSubmit={() => {
-          setStage('list');
+        onSubmit={async (payload) => {
+          try {
+            // Validate that all ratings are provided (1-5 stars)
+            if (!payload.location || !payload.service || !payload.cleanliness || !payload.overall) {
+              alert('Please provide ratings for all categories (Location, Service, Cleanliness, and Overall).');
+              return;
+            }
+
+            // Get reservation to find facilityId
+            if (!selected?.reservationId) {
+              alert('Reservation ID is missing. Cannot submit review.');
+              return;
+            }
+
+            const reservationRes = await getReservationById(selected.reservationId);
+            const reservation = reservationRes?.reservation || reservationRes?.data?.reservation;
+            
+            if (!reservation) {
+              alert('Reservation not found. Cannot submit review.');
+              return;
+            }
+
+            // Extract facilityId from reservation
+            const facilityObj = typeof reservation.facility === 'object' ? reservation.facility : null;
+            const facilityId =
+              facilityObj?._id ||
+              reservation.facilityId ||
+              (typeof reservation.facility === 'string' ? reservation.facility : null);
+
+            if (!facilityId) {
+              alert('Facility ID is missing. Cannot submit review.');
+              return;
+            }
+
+            // Convert 1-5 star ratings to 1-10 scale (multiply by 2)
+            // Prepare review data according to backend API
+            const reviewData = {
+              facilityId: String(facilityId),
+              reservationId: selected.reservationId,
+              rating: {
+                location: payload.location * 2,
+                service: payload.service * 2,
+                cleanliness: payload.cleanliness * 2,
+                overall: payload.overall * 2,
+              },
+              text: payload.comment || '',
+            };
+
+            // Submit review
+            const response = await addReview(reviewData);
+            
+            if (response?.status === 201 || response?.message) {
+              alert(response?.message || 'Review submitted successfully!');
+              // Remove the notification from the list
+              setNotifications(prev => prev.filter(n => n._id !== selected._id));
+              setSelected(null);
+              setStage('list');
+            } else {
+              throw new Error(response?.error || 'Failed to submit review');
+            }
+          } catch (error) {
+            console.error('Error submitting review:', error);
+            alert(error?.data?.error || error?.message || 'Failed to submit review. Please try again.');
+          }
         }}
       />
     );
@@ -547,24 +624,6 @@ export default function Notif() {
         )}
       </div>
       <div className={styles.notifList}>
-        {/* Static entry to prompt users to write a review */}
-        {!loading && (
-          <div
-            className={styles.notifItem}
-            onClick={() => setStage('reviews')}
-          >
-            <div className={styles.notifTitleRow}>
-              <span className={styles.notifTitle}>Share your stay</span>
-            </div>
-            <div className={styles.notifBody}>Tell others about your experience by leaving a review.</div>
-            <div className={styles.notifMeta}>
-              <span className={styles.notifSource}>
-                <span className={styles.notifSourceDot} /> Teachers' Camp
-              </span>
-              <span className={styles.notifTime}>Just now</span>
-            </div>
-          </div>
-        )}
         {loading && (
           <div className={styles.skeletonList} role="status" aria-live="polite" aria-busy="true">
             {[...Array(3)].map((_, i) => (

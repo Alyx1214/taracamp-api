@@ -63,4 +63,14 @@ r.post('/delete-facility/:id', asyncHandler(async (req, res) => {
   res.status(response.status).json(response);
 }));
 
+r.post('/update-rooms/:id', asyncHandler(async (req, res) => {
+  const response = await facilityModule.updateRooms(
+    dbHelper,
+    req.params.id,
+    req.body,
+    req.user
+  );
+  res.status(response.status).json(response);
+}));
+
 export default r;

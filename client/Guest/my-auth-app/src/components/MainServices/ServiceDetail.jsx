@@ -748,86 +748,63 @@ const getCalendarData = (date) => {
                 <Reviews facilityName={facility.name} />
               ) : (
                 <>
-                  <div className={styles.reviewScores}>
-                    <div className={styles.scoreItem}>
-                      <span className={styles.scoreLabel}>Location</span>
-                      <span className={styles.scoreValue}>{averageRatings.location}</span>
-                    </div>
-                    <div className={styles.scoreItem}>
-                      <span className={styles.scoreLabel}>Service</span>
-                      <span className={styles.scoreValue}>{averageRatings.service}</span>
-                    </div>
-                    <div className={styles.scoreItem}>
-                      <span className={styles.scoreLabel}>Cleanliness</span>
-                      <span className={styles.scoreValue}>{averageRatings.cleanliness}</span>
-                    </div>
+                  <div className={styles.reviewFilters}>
+                    <button className={styles.filterButton}>
+                      Location {Math.round(averageRatings.location * 10) / 10 || 0}
+                    </button>
+                    <button className={styles.filterButton}>
+                      Service {Math.round(averageRatings.service * 10) / 10 || 0}
+                    </button>
+                    <button className={styles.filterButton}>
+                      Cleanliness {Math.round(averageRatings.cleanliness * 10) / 10 || 0}
+                    </button>
                   </div>
                   
                   {reviewsLoading ? (
                     <div className={styles.reviewContent}>
                       <p>Loading reviews...</p>
                     </div>
-                  ) : reviews.length > 0 && currentReview ? (
-                    <>
-                      <div className={styles.reviewContent}>
-                        <p className={styles.reviewText}>
-                          {currentReview.text}
-                        </p>
-                        <div className={styles.reviewMeta}>
-                          <span className={styles.reviewAuthor}>
-                            {currentReview.authorName || 'Anonymous'}
-                            {currentReview.isVerified && ' ✓'}
-                          </span>
-                        </div>
-                      </div>
-                      
-                      <div className={styles.reviewNavigation}>
-                        <button 
-                          className={styles.navButton}
-                          onClick={handlePrevReview}
-                          aria-label="Previous review"
-                        >
-                          ❮
-                        </button>
-                        <div className={styles.reviewDots}>
-                          {reviews.map((_, index) => (
-                            <span 
-                              key={index}
-                              className={`${styles.dot} ${index === currentReviewIndex ? styles.active : ''}`}
-                              onClick={() => handleDotClick(index)}
-                              role="button"
-                              tabIndex={0}
-                              aria-label={`Go to review ${index + 1}`}
-                            ></span>
-                          ))}
-                        </div>
-                        <button 
-                          className={styles.navButton}
-                          onClick={handleNextReview}
-                          aria-label="Next review"
-                        >
-                          ❯
-                        </button>
-                      </div>
-                    </>
-                  ) : (
-                    <div className={styles.reviewContent}>
-                      <div className={styles.dummyReviewsList}>
-                        {dummyReviews.map((review) => (
-                          <div key={review.id} className={styles.dummyReviewCard}>
-                            <div className={styles.dummyReviewHeader}>
-                              <div className={styles.dummyAvatar}></div>
-                              <div className={styles.dummyReviewInfo}>
-                                <h3 className={styles.dummyReviewerName}>{review.name}</h3>
-                                <div className={styles.dummyRating}>
-                                  {renderStars(review.rating)}
+                  ) : reviews.length > 0 ? (
+                    <div className={styles.reviewsList}>
+                      {reviews.map((review, index) => {
+                        // Convert 1-10 rating to 1-5 stars (divide by 2, round to nearest)
+                        // Backend stores ratings as 1-10, so we divide by 2 to get 1-5 stars
+                        const overallRating = review.rating?.overall || 0;
+                        const starRating = overallRating > 0 ? Math.round(overallRating / 2) : 0;
+                        return (
+                          <div key={review.id || index} className={styles.reviewCard}>
+                            <div className={styles.reviewCardHeader}>
+                              <div className={styles.reviewAvatar}></div>
+                              <div className={styles.reviewCardInfo}>
+                                <h4 className={styles.reviewCardName}>
+                                  {review.authorName || 'Anonymous'}
+                                </h4>
+                                <div className={styles.reviewCardStars}>
+                                  {renderStars(starRating)}
                                 </div>
                               </div>
                             </div>
-                            <p className={styles.dummyReviewText}>{review.text}</p>
+                            <p className={styles.reviewCardText}>{review.text}</p>
                           </div>
-                        ))}
-                      </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className={styles.reviewsList}>
+                      {dummyReviews.map((review) => (
+                        <div key={review.id} className={styles.reviewCard}>
+                          <div className={styles.reviewCardHeader}>
+                            <div className={styles.reviewAvatar}></div>
+                            <div className={styles.reviewCardInfo}>
+                              <h4 className={styles.reviewCardName}>{review.name}</h4>
+                              <div className={styles.reviewCardStars}>
+                                {renderStars(review.rating)}
+                              </div>
+                            </div>
+                          </div>
+                          <p className={styles.reviewCardText}>{review.text}</p>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </>
