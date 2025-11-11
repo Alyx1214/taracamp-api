@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import UnivTable from "./UnivTable";
 import styles from "./UnivTable.module.css";
 import { deleteReservation, searchReservations } from "../../apis/reservationApi"; 
+import ConfirmModal from "../Shared/ConfirmModal";
 
 function formatDateLong(dateStr) {
   if (!dateStr) return "N/A";
@@ -34,9 +35,16 @@ export default function Declined({
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState(null);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [selectedRow, setSelectedRow] = useState(null);
+  const [deleting, setDeleting] = useState(false);
   const [currentPage, setCurrentPage] = useState(parentCurrentPage);
   const [totalPages, setTotalPages] = useState(parentTotalPages);
   const [totalItems, setTotalItems] = useState(parentTotalItems);
+
+  // Check if user can delete (only Superintendent)
+  const role = (typeof window !== 'undefined' && localStorage.getItem('userRole')) || '';
+  const canDelete = role === 'SUPERINTENDENT';
   
   const itemsPerPage = 15;
   const columns = useMemo(() => ["Name", "Email", "Service Type", "Facility Name", "Date", "Actions"], []);
@@ -119,20 +127,28 @@ export default function Declined({
     setTotalItems(parentTotalItems);
   }, [parentTotalItems]);
 
-  const handleDelete = async (row) => {
-    if (!window.confirm(`Are you sure you want to delete reservation for ${row.name}?`)) return;
+  function promptDelete(row) {
+    setSelectedRow(row);
+    setConfirmDeleteOpen(true);
+  }
+
+  async function confirmDelete() {
+    if (!selectedRow) return;
     try {
-      await deleteReservation(row.id);
-      alert("Reservation deleted!");
+      setDeleting(true);
+      await deleteReservation(selectedRow.id);
       // Remove from list immediately (optimistic update)
-      setRows(prev => prev.filter(r => String(r.id) !== String(row.id)));
+      setRows(prev => prev.filter(r => String(r.id) !== String(selectedRow.id)));
       // Refetch the data to ensure we have the latest from server
-      // This ensures deleted reservations don't appear in the Declined tab
       await fetchDeclinedData(currentPage, searchQuery, filters, false);
+      setConfirmDeleteOpen(false);
+      setSelectedRow(null);
     } catch (e) {
       alert(e?.message || "Failed to delete reservation.");
+    } finally {
+      setDeleting(false);
     }
-  };
+  }
 
   const handlePageChange = (page) => {
     setCurrentPage(page);
@@ -141,15 +157,38 @@ export default function Declined({
     }
   };
 
-  const renderActions = (row) => (
-    <>
-      <button className={styles["univ-decline-btn"]} onClick={() => handleDelete(row)}>
+  const renderActions = (row) => {
+    if (!canDelete) {
+      return (
+        <button 
+          className={styles["univ-approve-btn"]} 
+          onClick={() => {
+            if (!row.id || row.id === "N/A") {
+              alert("Invalid reservation ID. Cannot view details.");
+              return;
+            }
+            navigate(`/declinedRSV/${row.id}/details`, {
+              state: {
+                activeTab: 'Declined',
+                filters,
+                searchQuery,
+                currentPage
+              }
+            });
+          }}
+        >
+          See Detail
+        </button>
+      );
+    }
+    return (
+      <button className={styles["univ-decline-btn"]} onClick={() => promptDelete(row)}>
         Delete
       </button>
-    </>
-  );
+    );
+  };
 
-  const renderMenu = (row) => [
+  const renderMenu = canDelete ? (row) => [
     {
       label: "View Details",
       onClick: () => {
@@ -167,19 +206,40 @@ export default function Declined({
         });
       },
     },
-  ];
+  ] : null;
 
   if (err) {
-    return <div style={{ padding: 16 }}>Couldn’t load declined reservations: {err}</div>;
+    return <div style={{ padding: 16 }}>Couldn't load declined reservations: {err}</div>;
   }
 
   return (
-    <UnivTable
-      columns={columns}
-      data={rows}
-      loading={loading}
-      renderActions={renderActions}
-      renderMenu={renderMenu}
-    />
+    <>
+      <UnivTable
+        columns={columns}
+        data={rows}
+        loading={loading}
+        renderActions={renderActions}
+        renderMenu={renderMenu}
+        onPageChange={handlePageChange}
+        currentPage={currentPage}
+        totalPages={totalPages}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        open={confirmDeleteOpen}
+        title="Delete Reservation"
+        message={`Are you sure you want to permanently delete the reservation for ${selectedRow?.name || 'this guest'}? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        confirming={deleting}
+        variant="delete"
+        onCancel={() => {
+          setConfirmDeleteOpen(false);
+          setSelectedRow(null);
+        }}
+        onConfirm={confirmDelete}
+      />
+    </>
   );
 }
