@@ -663,10 +663,13 @@ const messageModule = {
                         isRead: { $ne: true } 
                     });
                     
-                    // Get last message
-                    const lastMessage = await dbHelper.findOne('message', { userId }, {
-                        sort: { createdAt: -1 }
+                    // Get last message (regardless of sender - user or admin)
+                    // Use findMany with limit 1 since findOne doesn't support sort
+                    const lastMessages = await dbHelper.findMany('message', { userId }, {
+                        sort: { createdAt: -1 },
+                        limit: 1
                     });
+                    const lastMessage = lastMessages && lastMessages.length > 0 ? lastMessages[0] : null;
 
                     return {
                         _id: userDoc._id?.toString?.() || userDoc._id,
@@ -893,11 +896,6 @@ const messageModule = {
                 } catch (error) {
                     console.error('Error broadcasting admin reply via WebSocket:', error);
                 }
-            } else {
-                // Log available user IDs in map for debugging
-                const availableUserIds = userSocketMap ? Array.from(userSocketMap.keys()).slice(0, 5) : [];
-                const mapSize = userSocketMap ? userSocketMap.size : 0;
-                console.log(`User ${targetUserIdStr} not found in WebSocket map (map size: ${mapSize}). Looking for: "${targetUserIdStr}". Available users (sample): ${availableUserIds.join(', ')}`);
             }
         } catch (error) {
             console.error('Error sending admin reply:', error);

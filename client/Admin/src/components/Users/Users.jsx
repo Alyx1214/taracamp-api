@@ -36,10 +36,22 @@ export default function Users() {
   const [error, setError] = useState("");
 
   function formatDate(dt) {
-    if (!dt) return "-";
+    // Handle null, undefined, empty string, or 0
+    if (dt === null || dt === undefined || dt === "" || dt === 0) return "-";
+    
     try {
-      const d = new Date(dt);
+      // Handle both timestamp (number) and date string/object
+      const d = typeof dt === 'number' ? new Date(dt) : new Date(dt);
+      
+      // Check if date is valid
       if (Number.isNaN(d.getTime())) return "-";
+      
+      // Check if timestamp is reasonable (not epoch 0 or before 1970)
+      const timestamp = d.getTime();
+      if (timestamp <= 0) {
+        return "-";
+      }
+      
       return d.toLocaleString();
     } catch {
       return "-";
@@ -106,9 +118,11 @@ export default function Users() {
           'search', 'email', 'name', 'role', 'id', 'createdFrom', 'createdTo', 'lastLoggedFrom', 'lastLoggedTo'
         ].some((k) => Boolean(query[k]));
         
-        // If no filters and on "All" tab, add a default date filter to get all users
+        // If no filters and on "All" tab, add a date range filter to get all users
+        // Use a wide date range that covers all possible dates
         if (activeTab === 'All' && !hasAnyFilter) {
           query.createdFrom = '1970-01-01';
+          query.createdTo = '2099-12-31';
         }
 
         const res = await searchUsers(query);
@@ -129,7 +143,7 @@ export default function Users() {
       id: u?._id || "",
       name: u?.name || "",
       email: u?.email || "",
-      lastloggedin: formatDate(u?.lastLoggedIn),
+      lastLoggedIn: formatDate(u?.lastLoggedIn),
       role: u?.role || "",
     }));
   }, [rawUsers]);

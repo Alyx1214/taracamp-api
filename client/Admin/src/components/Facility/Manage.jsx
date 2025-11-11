@@ -10,9 +10,7 @@ export default function Manage() {
   const { category, facility } = location.state || {};
 
   const [formData, setFormData] = useState({
-    capacity: "",
-    quantity: "",
-    extraRows: [],
+    rooms: [],
   });
 
   const [loading, setLoading] = useState(false);
@@ -28,73 +26,53 @@ export default function Manage() {
             const facilityData = response.facility;
             // If facility has rooms, load them
             if (facilityData.rooms && Array.isArray(facilityData.rooms) && facilityData.rooms.length > 0) {
-              const firstRoom = facilityData.rooms[0];
-              const extraRooms = facilityData.rooms.slice(1);
               setFormData({
-                capacity: firstRoom.capacity?.toString() || "",
-                quantity: firstRoom.quantity?.toString() || "",
-                extraRows: extraRooms.map(room => ({
+                rooms: facilityData.rooms.map(room => ({
                   capacity: room.capacity?.toString() || "",
-                  quantity: room.quantity?.toString() || "",
+                  name: room.name || "",
+                  status: room.status || "Available",
                 })),
               });
-            } else if (facility) {
-              // Fallback to facility from state if no rooms data
+            } else {
+              // Start with empty rooms array if no rooms exist
               setFormData({
-                capacity: facility.capacity || "",
-                quantity: facility.quantity || "",
-                extraRows: facility.extraRows || [],
+                rooms: [],
               });
             }
           }
-        } else if (facility) {
-          setFormData({
-            capacity: facility.capacity || "",
-            quantity: facility.quantity || "",
-            extraRows: facility.extraRows || [],
-          });
         }
       } catch (error) {
         console.error("Error loading facility data:", error);
-        // Fallback to facility from state on error
-        if (facility) {
-          setFormData({
-            capacity: facility.capacity || "",
-            quantity: facility.quantity || "",
-            extraRows: facility.extraRows || [],
-          });
-        }
+        // Start with empty rooms array on error
+        setFormData({
+          rooms: [],
+        });
       }
     };
 
     loadFacilityData();
   }, [id, facility]);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
   const handleAddRow = () => {
     setFormData((prev) => ({
       ...prev,
-      extraRows: [...prev.extraRows, { capacity: "", quantity: "" }],
+      rooms: [...prev.rooms, { capacity: "", name: "", status: "Available" }],
     }));
   };
 
   const handleRemoveRow = (index) => {
     setFormData((prev) => {
-      const extra = Array.from(prev.extraRows);
-      extra.splice(index, 1);
-      return { ...prev, extraRows: extra };
+      const rooms = Array.from(prev.rooms);
+      rooms.splice(index, 1);
+      return { ...prev, rooms };
     });
   };
 
-  const handleExtraRowChange = (index, field, value) => {
+  const handleRoomChange = (index, field, value) => {
     setFormData((prev) => {
-      const extra = Array.from(prev.extraRows);
-      extra[index] = { ...extra[index], [field]: value };
-      return { ...prev, extraRows: extra };
+      const rooms = Array.from(prev.rooms);
+      rooms[index] = { ...rooms[index], [field]: value };
+      return { ...prev, rooms };
     });
   };
 
@@ -109,21 +87,25 @@ export default function Manage() {
       }
 
       // Validate that at least one room configuration is provided
-      const hasMainRoom = formData.capacity && formData.quantity;
-      const hasExtraRooms = formData.extraRows.some(
-        (row) => row.capacity && row.quantity
+      const hasValidRooms = formData.rooms.some(
+        (room) => room.capacity && room.name
       );
 
-      if (!hasMainRoom && !hasExtraRooms) {
-        alert("Please provide at least one room configuration (capacity and quantity).");
+      if (!hasValidRooms) {
+        alert("Please provide at least one room configuration (name and capacity).");
         setLoading(false);
         return;
       }
 
+      // Split rooms into first room and extra rows for backend compatibility
+      const firstRoom = formData.rooms[0] || {};
+      const extraRows = formData.rooms.slice(1);
+
       const response = await updateRooms(facilityId, {
-        capacity: formData.capacity,
-        quantity: formData.quantity,
-        extraRows: formData.extraRows,
+        capacity: firstRoom.capacity,
+        name: firstRoom.name,
+        status: firstRoom.status,
+        extraRows: extraRows,
       });
 
       if (response?.error || (response?.status && response.status >= 400)) {
@@ -161,81 +143,81 @@ export default function Manage() {
 
       {/* Room Configuration Section */}
       <div className={styles.section}>
-        <h3 className={styles.sectionTitle}>Manage Room</h3>
-        
-        <div className={styles.formRow}>
-          <label>
-            Capacity:
-            <input
-              type="number"
-              name="capacity"
-              value={formData.capacity}
-              onChange={handleChange}
-              placeholder="Enter capacity"
-            />
-          </label>
+        <h3 className={styles.sectionTitle}>Manage Rooms</h3>
 
-          <label>
-            Quantity:
-            <input
-              type="number"
-              name="quantity"
-              value={formData.quantity}
-              onChange={handleChange}
-              placeholder="Enter quantity"
-            />
-          </label>
-
-          <div style={{ display: "flex", alignItems: "flex-end", gap: 8 }}>
-            <button
-              type="button"
-              className={styles.addBtn}
-              onClick={handleAddRow}
-            >
-              <span className={styles.btnIcon}>+</span>
-              Add
-            </button>
+        {/* All room rows */}
+        {formData.rooms.length === 0 && (
+          <div style={{ marginBottom: "1rem", color: "#666" }}>
+            No rooms configured. Click "Add Room" to add a room.
           </div>
-        </div>
+        )}
 
-        {formData.extraRows.map((row, idx) => (
-          <div className={styles.formRow} key={`extra-row-${idx}`}>
-            <label>
-              Capacity:
-              <input
-                type="number"
-                value={row.capacity}
-                onChange={(e) =>
-                  handleExtraRowChange(idx, "capacity", e.target.value)
-                }
-                placeholder="Enter capacity"
-              />
-            </label>
+        {formData.rooms.map((room, idx) => (
+          <div key={`room-${idx}`} style={{ marginBottom: "1rem" }}>
+            <div className={styles.formRow}>
+              <label>
+                Name:
+                <input
+                  type="text"
+                  value={room.name || ""}
+                  onChange={(e) =>
+                    handleRoomChange(idx, "name", e.target.value)
+                  }
+                  placeholder="Enter room name"
+                />
+              </label>
 
-            <label>
-              Quantity:
-              <input
-                type="number"
-                value={row.quantity}
-                onChange={(e) =>
-                  handleExtraRowChange(idx, "quantity", e.target.value)
-                }
-                placeholder="Enter quantity"
-              />
-            </label>
+              <label>
+                Capacity:
+                <input
+                  type="number"
+                  value={room.capacity || ""}
+                  onChange={(e) =>
+                    handleRoomChange(idx, "capacity", e.target.value)
+                  }
+                  placeholder="Enter capacity"
+                />
+              </label>
 
-            <div style={{ display: "flex", alignItems: "flex-end", gap: 8 }}>
-              <button
-                type="button"
-                className={styles.removeBtn}
-                onClick={() => handleRemoveRow(idx)}
-              >
-                <span className={styles.btnIcon}>×</span>
-                Remove
-              </button>
+              <label>
+                Status:
+                <select
+                  value={room.status || "Available"}
+                  onChange={(e) =>
+                    handleRoomChange(idx, "status", e.target.value)
+                  }
+                >
+                  <option value="Available">Available</option>
+                  <option value="Unavailable">Unavailable</option>
+                </select>
+              </label>
+
+              <div className={styles.actionCell}>
+                <button
+                  type="button"
+                  className={styles.removeBtn}
+                  onClick={() => handleRemoveRow(idx)}
+                >
+                  <span className={styles.btnIcon}>×</span>
+                  Remove
+                </button>
+              </div>
             </div>
           </div>
         ))}
+
+        {/* Add Room button */}
+        <div style={{ marginTop: "1rem" }}>
+          <button
+            type="button"
+            className={styles.addBtn}
+            onClick={handleAddRow}
+            style={{ padding: "0.5rem 1rem" }}
+          >
+            <span className={styles.btnIcon}>+</span>
+            Add Room
+          </button>
+        </div>
 
         <div className={styles.buttonContainer}>
           <button

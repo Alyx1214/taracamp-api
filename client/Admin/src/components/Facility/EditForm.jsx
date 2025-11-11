@@ -25,6 +25,7 @@ export default function EditForm() {
   const [formData, setFormData] = useState({
     name: "",
     rate: "",
+    ratePerPerson: "",     // added to hold dormitory per-person rate
     baseRate: "",
     discountRate: "",
     capacity: "",
@@ -85,7 +86,8 @@ export default function EditForm() {
 
         setFormData({
           name: data.name || "",
-          rate: data.price || data.ratePerPerson || "",
+          rate: data.price || data.rate || data.ratePerPerson || "",
+          ratePerPerson: data.ratePerPerson || data.price || data.rate || "",
           baseRate: data.baseRate || "",
           discountRate: data.discountRate || "",
           capacity: data.capacity || "",
@@ -210,7 +212,7 @@ export default function EditForm() {
           payload.price = formData.rate;
         } else if (facilityType === "Dormitory") {
           payload.capacity = formData.capacity;
-          payload.ratePerPerson = formData.rate;
+          payload.ratePerPerson = formData.ratePerPerson; // use the dormitory-specific field
         }
 
         await updateFacility(id, payload);
@@ -338,136 +340,56 @@ export default function EditForm() {
                 />
               </label>
 
-              <label>
-                {isSpecialService || facilityType === "Conference" || facilityType === "Cottage" ? "Price:" : "Rate per Person:"}
-                <input
-                  type="number"
-                  name="rate"
-                  value={formData.rate}
-                  onChange={handleChange}
-                  required
-                />
-              </label>
-            </div>
-
-            <div className={styles.formRow}>
-              <label>
-                {isSpecialService || facilityType === "Conference" || facilityType === "Cottage" ? "Price:" : "Facility Rate (Inclusive of 10% Service Fee):"}
-                <input
-                  type="number"
-                  name="baseRate"
-                  value={formData.baseRate}
-                  onChange={handleChange}
-                  required
-                />
-              </label>
-
-              <label>
-                {isSpecialService || facilityType === "Conference" || facilityType === "Cottage" ? "Price:" : "Discounted Facility Rate:"}
-                <input
-                  type="number"
-                  name="discountRate"
-                  value={formData.discountRate}
-                  onChange={handleChange}
-                  required
-                />
-              </label>
-            </div>
-
-            <div className={styles.formRow}>
-              {!isSpecialService && (
-                <>
-                  <label>
-                    Capacity:
-                    <input
-                      type="number"
-                      name="capacity"
-                      value={formData.capacity}
-                      onChange={handleChange}
-                      required
-                    />
-                  </label>
-
-                  <label>
-                    Quantity:
-                    <input
-                      type="number"
-                      name="quantity"
-                      value={formData.quantity}
-                      onChange={handleChange}
-                      required
-                    />
-                  </label>
-
-                  <div style={{ display: "flex", alignItems: "flex-end", gap: 8 }}>
-                    <button
-                      type="button"
-                      className={styles.addBtn}
-                      onClick={() =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          extraRows: [...(prev.extraRows || []), { capacity: "", quantity: "" }],
-                        }))
-                      }
-                    >
-                      Add
-                    </button>
-                  </div>
-                </>
+              {facilityType === "Dormitory" ? (
+                <label>
+                  Rate per Person:
+                  <input
+                    type="number"
+                    name="ratePerPerson"
+                    value={formData.ratePerPerson}
+                    onChange={handleChange}
+                    required
+                  />
+                </label>
+              ) : (
+                <label>
+                  Rate per Excess Capacity:
+                  <input
+                    type="number"
+                    name="rate"
+                    value={formData.rate}
+                    onChange={handleChange}
+                    required
+                  />
+                </label>
               )}
             </div>
 
-            {!isSpecialService && (formData.extraRows || []).map((row, idx) => (
-              <div className={styles.formRow} key={`extra-row-${idx}`}>
+            {facilityType !== "Dormitory" && (
+              <div className={styles.formRow}>
                 <label>
-                  Capacity:
+                  {facilityType === "Conference" || facilityType === "Cottage" ? "Facility Rate (Inclusive of 10% Service Fee)" : "Facility Rate (Inclusive of 10% Service Fee):"}
                   <input
                     type="number"
-                    value={row.capacity}
-                    onChange={(e) =>
-                      setFormData((prev) => {
-                        const extra = Array.from(prev.extraRows || []);
-                        extra[idx] = { ...extra[idx], capacity: e.target.value };
-                        return { ...prev, extraRows: extra };
-                      })
-                    }
+                    name="baseRate"
+                    value={formData.baseRate}
+                    onChange={handleChange}
                     required
                   />
                 </label>
 
                 <label>
-                  Quantity:
+                  {facilityType === "Conference" || facilityType === "Cottage" ? "Discounted Facility Rate:" : "Discounted Facility Rate:"}
                   <input
                     type="number"
-                    value={row.quantity}
-                    onChange={(e) =>
-                      setFormData((prev) => {
-                        const extra = Array.from(prev.extraRows || []);
-                        extra[idx] = { ...extra[idx], quantity: e.target.value };
-                        return { ...prev, extraRows: extra };
-                      })
-                    }
+                    name="discountRate"
+                    value={formData.discountRate}
+                    onChange={handleChange}
                     required
                   />
                 </label>
-
-                <div style={{ display: "flex", alignItems: "flex-end", gap: 8 }}>
-                  <button
-                    type="button"
-                    className={styles.removeBtn}
-                    onClick={() =>
-                      setFormData((prev) => {
-                        const extra = Array.from(prev.extraRows || []);
-                        extra.splice(idx, 1);
-                        return { ...prev, extraRows: extra };
-                      })
-                    }
-                  >
-                    Remove
-                  </button>
-                </div>
               </div>
-            ))}
+            )}      
 
             <div className={styles.formRow}>
               {isSpecialService ? (
@@ -488,17 +410,30 @@ export default function EditForm() {
                   </select>
                 </label>
               ) : (
+                <>
                 <label>
                   Status:
                   <select
-                    name="status"
-                    value={formData.status}
-                    onChange={handleChange}
+                  name="status"
+                  value={formData.status}
+                  onChange={handleChange}
                   >
-                    <option value="Available">Available</option>
-                    <option value="Unavailable">Unavailable</option>
+                  <option value="Available">Available</option>
+                  <option value="Unavailable">Unavailable</option>
                   </select>
                 </label>
+
+                <label>
+                  Capacity:
+                  <input
+                    type="number"
+                    name="capacity"
+                    value={formData.capacity}
+                    onChange={handleChange}
+                    required
+                  />
+                </label>
+              </>
               )}
             </div>
 

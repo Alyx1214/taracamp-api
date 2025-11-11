@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { Search, MoreVertical, Trash2 } from "lucide-react";
 import styles from "./Messages.module.css";
 import { listUsersWithMessages, getMessagesForUser, sendAdminReply, deleteConversation } from "../../apis/messageApi";
@@ -28,7 +28,17 @@ export default function Messages() {
                 const response = await listUsersWithMessages();
                 const usersList = Array.isArray(response?.data) ? response.data : [];
                 if (!cancelled) {
-                    setUsers(usersList);
+                    // Debug: log first user to check lastMessage structure
+                    if (usersList.length > 0 && process.env.NODE_ENV === 'development') {
+                        console.log('Users with messages:', usersList.map(u => ({
+                            name: u.name,
+                            hasLastMessage: !!u.lastMessage,
+                            lastMessageDate: u.lastMessage?.createdAt,
+                            lastMessageText: u.lastMessage?.text?.substring(0, 50)
+                        })));
+                    }
+                    // Create a new array reference to ensure React detects the change
+                    setUsers([...usersList]);
                     if (usersList.length > 0) {
                         setActiveUserId(prev => prev || usersList[0]._id);
                     }
@@ -63,7 +73,8 @@ export default function Messages() {
                         .then(response => {
                             if (!cancelled) {
                                 const usersList = Array.isArray(response?.data) ? response.data : [];
-                                setUsers(usersList);
+                                // Create a new array reference to ensure React detects the change
+                                setUsers([...usersList]);
                             }
                         })
                         .catch((err) => {
@@ -124,44 +135,82 @@ export default function Messages() {
                         });
                     }
                     
-                    // Always update users list when receiving a new message from a guest
-                    // This ensures the sidebar shows updated unread counts and last message
-                    if (newMessage.isUser) {
-                        // For guest messages, always refresh the users list
-                        listUsersWithMessages()
-                            .then(response => {
-                                const usersList = Array.isArray(response?.data) ? response.data : [];
-                                setUsers(usersList);
-                                
-                                // If this message is for the active user, ensure it's in the messages list
-                                // (in case activeUserId was null when message arrived)
-                                if (isForActiveUser) {
-                                    setMessages(prev => {
-                                        const exists = prev.some(m => {
-                                            const prevId = m._id ? String(m._id) : null;
-                                            const newId = newMessage._id ? String(newMessage._id) : null;
-                                            return prevId && newId && prevId === newId;
-                                        });
-                                        if (!exists) {
-                                            return [...prev, newMessage];
-                                        }
-                                        return prev;
+                    // Update users list in real-time when receiving any new message (from guest or admin)
+                    // Update local state immediately for instant UI update and sorting
+                    setUsers(prevUsers => {
+                        const updatedUsers = prevUsers.map(user => {
+                            const userIdStr = String(user._id);
+                            if (userIdStr === messageUserId) {
+                                // Update this user's lastMessage with the new message
+                                return {
+                                    ...user,
+                                    lastMessage: {
+                                        _id: newMessage._id,
+                                        userId: newMessage.userId,
+                                        sender: newMessage.sender || (newMessage.isUser ? user.name : 'Admin'),
+                                        text: newMessage.text,
+                                        isUser: newMessage.isUser,
+                                        isRead: newMessage.isRead,
+                                        timeLabel: newMessage.timeLabel || 'now',
+                                        createdAt: newMessage.createdAt
+                                    },
+                                    // Update unread count if it's a user message
+                                    unreadCount: newMessage.isUser && !newMessage.isRead 
+                                        ? (user.unreadCount || 0) + 1 
+                                        : (newMessage.isUser && newMessage.isRead ? Math.max(0, (user.unreadCount || 0) - 1) : user.unreadCount)
+                                };
+                            }
+                            return user;
+                        });
+                        
+                        // If user doesn't exist in the list, fetch from server
+                        const userExists = updatedUsers.some(u => String(u._id) === messageUserId);
+                        if (!userExists) {
+                            // User not in list, fetch from server (async, won't block UI update)
+                            setTimeout(() => {
+                                listUsersWithMessages()
+                                    .then(response => {
+                                        const usersList = Array.isArray(response?.data) ? response.data : [];
+                                        setUsers([...usersList]);
+                                    })
+                                    .catch((err) => {
+                                        console.error('Error fetching users list:', err);
                                     });
-                                }
-                            })
-                            .catch((err) => {
-                                console.error('Error updating users list:', err);
-                            });
-                    } else if (!newMessage.isUser && isForActiveUser) {
-                        // Admin reply to active user - update users list too
+                            }, 0);
+                        }
+                        
+                        // Return updated users - useMemo will automatically re-sort
+                        // Create a new array reference to ensure React detects the change
+                        return [...updatedUsers];
+                    });
+                    
+                    // Also fetch from server in background to ensure consistency
+                    // This runs after the immediate update to sync with server state
+                    setTimeout(() => {
                         listUsersWithMessages()
                             .then(response => {
                                 const usersList = Array.isArray(response?.data) ? response.data : [];
-                                setUsers(usersList);
+                                setUsers([...usersList]);
                             })
                             .catch((err) => {
                                 console.error('Error updating users list:', err);
                             });
+                    }, 500); // Small delay to avoid race conditions
+                    
+                    // If this message is for the active user, ensure it's in the messages list
+                    // (in case activeUserId was null when message arrived)
+                    if (isForActiveUser) {
+                        setMessages(prev => {
+                            const exists = prev.some(m => {
+                                const prevId = m._id ? String(m._id) : null;
+                                const newId = newMessage._id ? String(newMessage._id) : null;
+                                return prevId && newId && prevId === newId;
+                            });
+                            if (!exists) {
+                                return [...prev, newMessage];
+                            }
+                            return prev;
+                        });
                     }
                 }
             } catch (error) {
@@ -228,6 +277,33 @@ export default function Messages() {
                     const withoutTemp = prev.filter(m => m._id !== optimisticMessage._id);
                     return [...withoutTemp, savedMessage];
                 });
+                
+                // Immediately update users list to trigger real-time sorting
+                setUsers(prevUsers => {
+                    const updatedUsers = prevUsers.map(user => {
+                        const userIdStr = String(user._id);
+                        const activeUserIdStr = String(activeUserId);
+                        if (userIdStr === activeUserIdStr) {
+                            // Update this user's lastMessage with the admin's reply
+                            return {
+                                ...user,
+                                lastMessage: {
+                                    _id: savedMessage._id,
+                                    userId: savedMessage.userId,
+                                    sender: savedMessage.sender || 'Admin',
+                                    text: savedMessage.text,
+                                    isUser: savedMessage.isUser || false,
+                                    isRead: savedMessage.isRead || false,
+                                    timeLabel: savedMessage.timeLabel || 'now',
+                                    createdAt: savedMessage.createdAt
+                                }
+                            };
+                        }
+                        return user;
+                    });
+                    // Create a new array reference to ensure React detects the change
+                    return [...updatedUsers];
+                });
             }
         } catch (err) {
             setMessages(prev => prev.filter(m => m._id !== optimisticMessage._id));
@@ -270,7 +346,79 @@ export default function Messages() {
         }
     }, [activeUserId]);
 
-    const filteredUsers = users.filter(user => {
+    // Sort users by latest message (regardless of sender) - most recent first
+    // Use useMemo to ensure sorting recalculates when users state changes
+    const sortedUsers = useMemo(() => {
+        if (process.env.NODE_ENV === 'development') {
+            console.log('Re-sorting users list, count:', users.length);
+        }
+        return [...users].sort((a, b) => {
+        const aLastMessage = a.lastMessage;
+        const bLastMessage = b.lastMessage;
+        
+        // Users without messages go to the end
+        if (!aLastMessage && !bLastMessage) return 0;
+        if (!aLastMessage) return 1;
+        if (!bLastMessage) return -1;
+        
+        // Sort by createdAt timestamp (most recent first)
+        // Handle different date formats (Date object, ISO string, timestamp)
+        let aTime = 0;
+        let bTime = 0;
+        
+        try {
+            if (aLastMessage && aLastMessage.createdAt) {
+                const dateValue = aLastMessage.createdAt;
+                if (dateValue instanceof Date) {
+                    aTime = dateValue.getTime();
+                } else if (typeof dateValue === 'string' || typeof dateValue === 'number') {
+                    const date = new Date(dateValue);
+                    aTime = isNaN(date.getTime()) ? 0 : date.getTime();
+                }
+            }
+        } catch (e) {
+            console.warn('Error parsing date for user', a.name, aLastMessage?.createdAt, e);
+            aTime = 0;
+        }
+        
+        try {
+            if (bLastMessage && bLastMessage.createdAt) {
+                const dateValue = bLastMessage.createdAt;
+                if (dateValue instanceof Date) {
+                    bTime = dateValue.getTime();
+                } else if (typeof dateValue === 'string' || typeof dateValue === 'number') {
+                    const date = new Date(dateValue);
+                    bTime = isNaN(date.getTime()) ? 0 : date.getTime();
+                }
+            }
+        } catch (e) {
+            console.warn('Error parsing date for user', b.name, bLastMessage?.createdAt, e);
+            bTime = 0;
+        }
+        
+        // Debug logging (can be removed later)
+        if (process.env.NODE_ENV === 'development') {
+            console.log('Sorting:', {
+                a: a.name,
+                aTime,
+                aDate: aLastMessage?.createdAt,
+                aDateType: typeof aLastMessage?.createdAt,
+                b: b.name,
+                bTime,
+                bDate: bLastMessage?.createdAt,
+                bDateType: typeof bLastMessage?.createdAt,
+                result: bTime - aTime
+            });
+        }
+        
+        // Most recent first (descending order)
+        // If times are equal, maintain original order
+        if (bTime === aTime) return 0;
+        return bTime - aTime;
+        });
+    }, [users]);
+
+    const filteredUsers = sortedUsers.filter(user => {
         if (!searchQuery) return true;
         const query = searchQuery.toLowerCase();
         return (
