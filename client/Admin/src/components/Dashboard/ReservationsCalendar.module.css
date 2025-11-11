@@ -3,6 +3,9 @@
   border-radius: 12px;
   padding: 24px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Two-row header: title on top, month + arrows below */
@@ -71,7 +74,12 @@
   line-height: 1.2;
 }
 
-.calendar { width: 100%; }
+.calendar { 
+  width: 100%;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
 
 .weekdaysHeader {
   margin-top: 5%;
@@ -95,6 +103,7 @@
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   gap: 5px;
+  flex: 1;
 }
 
 .dayCell {
@@ -123,26 +132,6 @@
   color: #1e40af;
   font-weight: 700;
 }
-
-/* Highlight any day that has reservations - REMOVED green highlighting */
-/* .dayCell.highlighted {
-  background: #dcfce7;
-  color: #15803d;
-  font-weight: 600;
-} */
-
-/* Small green dot at the bottom center of highlighted days - REMOVED */
-/* .dayCell.highlighted::after {
-  content: '';
-  position: absolute;
-  bottom: 2px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 4px;
-  height: 4px;
-  background: #15803d;
-  border-radius: 50%;
-} */
 
 /* Available dates - green background when facility is selected */
 .dayCell.available {

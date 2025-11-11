@@ -201,37 +201,89 @@
 }
 
 .reviewText {
-  margin: 0 0 15px 0;
+  margin: 0;
   line-height: 1.6;
   color: #4B5563;
   font-size: 15px;
 }
 
-.reviewActions {
-  display: flex;
-  justify-content: flex-end;
-}
-
-.helpfulBtn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: linear-gradient(135deg, #F3F4F6, #E5E7EB);
-  border: 1px solid #D1D5DB;
-  padding: 8px 16px;
-  border-radius: 20px;
-  font-size: 13px;
-  font-weight: 600;
-  color: #6B7280;
-  cursor: pointer;
+/* Admin Reply Styles */
+.adminReplyContainer {
+  background: linear-gradient(135deg, rgba(107, 79, 60, 0.05) 0%, rgba(139, 111, 92, 0.08) 100%);
+  border-left: 4px solid #6b4f3c;
+  border-radius: 12px;
+  padding: 16px 18px;
+  margin-top: 15px;
+  position: relative;
+  backdrop-filter: blur(10px);
   transition: all 0.3s ease;
 }
 
-.helpfulBtn:hover {
+.adminReplyContainer:hover {
+  background: linear-gradient(135deg, rgba(107, 79, 60, 0.08) 0%, rgba(139, 111, 92, 0.12) 100%);
+  transform: translateX(4px);
+  box-shadow: 0 4px 12px rgba(107, 79, 60, 0.15);
+}
+
+.adminReplyHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.adminBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   background: linear-gradient(135deg, #6b4f3c, #8b6f5c);
   color: white;
-  transform: translateY(-1px);
-  box-shadow: 0 5px 15px rgba(107, 79, 60, 0.3);
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(107, 79, 60, 0.3);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.adminBadge svg {
+  width: 14px;
+  height: 14px;
+}
+
+.adminLabel {
+  line-height: 1;
+}
+
+.adminInfo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.adminName {
+  font-size: 14px;
+  font-weight: 600;
+  color: #6b4f3c;
+}
+
+.adminReplyDate {
+  font-size: 12px;
+  color: #9CA3AF;
+  font-weight: 500;
+}
+
+.adminReplyText {
+  margin: 0;
+  line-height: 1.6;
+  color: #4B5563;
+  font-size: 14px;
+  font-style: italic;
+  padding-left: 4px;
 }
 
 /* Responsive Design */
@@ -269,6 +321,15 @@
   .avatarText {
     font-size: 16px;
   }
+  
+  .adminReplyContainer {
+    padding: 14px 16px;
+  }
+  
+  .adminReplyHeader {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
 
 @media (max-width: 480px) {
@@ -301,5 +362,19 @@
     flex-direction: column;
     align-items: flex-start;
     gap: 6px;
+  }
+  
+  .adminReplyContainer {
+    padding: 12px 14px;
+    margin-top: 12px;
+  }
+  
+  .adminBadge {
+    font-size: 11px;
+    padding: 3px 10px;
+  }
+  
+  .adminReplyText {
+    font-size: 13px;
   }
 }

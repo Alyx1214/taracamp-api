@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState, useRef } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
-import { FaArrowLeft, FaUpload } from "react-icons/fa";
+import { FaUpload } from "react-icons/fa";
 import styles from "./EditForm.module.css";
 
 import { getFacilityById, updateFacility } from "../../apis/facilityApi";
@@ -11,23 +11,8 @@ const MAX_IMAGES = 5;
 const FACILITY_ENUM = {
   Dormitory: "Dormitory",
   Cottages: "Cottage",
-  Cottage: "Cottage", // Handle both "Cottages" and "Cottage"
+  Cottage: "Cottage",
   Conference: "Conference",
-};
-
-const getSingularLabel = (category) => {
-  switch (category) {
-    case "Dormitory":
-      return "Dormitory";
-    case "Cottages":
-      return "Cottage";
-    case "Conference":
-      return "Conference";
-    case "Add-ons":
-      return "Service";
-    default:
-      return "Facility";
-  }
 };
 
 export default function EditForm() {
@@ -37,19 +22,22 @@ export default function EditForm() {
   const { category: categoryFromState } = location.state || {};
 
   const [category, setCategory] = useState(categoryFromState || "");
-  const [form, setForm] = useState({
+  const [formData, setFormData] = useState({
     name: "",
     rate: "",
+    baseRate: "",
+    discountRate: "",
     capacity: "",
+    quantity: "",
     status: "Available",
     unit: "",
-    // images: file objects selected (max 5)
     images: Array(MAX_IMAGES).fill(null),
-    // previewUrls: string urls to show previews
     previewUrls: Array(MAX_IMAGES).fill(null),
+    extraRows: [],
   });
 
   const createdObjectUrls = useRef(new Set());
+  const inputRefs = useRef([]);
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -79,7 +67,7 @@ export default function EditForm() {
           (data.facilityType === "Dormitory"
             ? "Dormitory"
             : data.facilityType === "Cottage"
-            ? "Cottages"
+            ? "Cottage"
             : data.facilityType === "Conference"
             ? "Conference"
             : "");
@@ -95,15 +83,18 @@ export default function EditForm() {
           previews[0] = data.images;
         }
 
-
-        setForm({
+        setFormData({
           name: data.name || "",
           rate: data.price || data.ratePerPerson || "",
+          baseRate: data.baseRate || "",
+          discountRate: data.discountRate || "",
           capacity: data.capacity || "",
+          quantity: data.quantity || "",
           status: data.status || "Available",
           unit: data.unit || "",
           images: Array(MAX_IMAGES).fill(null),
           previewUrls: previews,
+          extraRows: data.extraRows || [],
         });
       } catch (e) {
         if (!cancelled) setError("Failed to load facility details.");
@@ -129,14 +120,13 @@ export default function EditForm() {
     };
   }, []);
 
-  const onChange = (e) => {
+  const handleChange = (e) => {
     const { name, value } = e.target;
-    setForm((p) => ({ ...p, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSlotChange = (index, files) => {
-    const file = files && files[0] ? files[0] : null;
-    setForm((prev) => {
+  const handleSlotChange = (index, file) => {
+    setFormData((prev) => {
       const nextImages = Array.from(prev.images);
       const nextPreviews = Array.from(prev.previewUrls);
 
@@ -163,7 +153,7 @@ export default function EditForm() {
   };
 
   const removeImage = (index) => {
-    setForm((prev) => {
+    setFormData((prev) => {
       const nextImages = Array.from(prev.images);
       const nextPreviews = Array.from(prev.previewUrls);
 
@@ -181,10 +171,8 @@ export default function EditForm() {
     });
   };
 
-  const fileInputRefs = useRef([]);
-
-  const openFileDialog = (index) => {
-    const el = fileInputRefs.current[index];
+  const openSlot = (index) => {
+    const el = inputRefs.current[index];
     if (el) el.click();
   };
 
@@ -197,28 +185,32 @@ export default function EditForm() {
     try {
       if (isSpecialService) {
         await updateAddon(id, {
-          name: form.name,
-          price: form.rate,
-          unit: form.unit,
+          name: formData.name,
+          price: formData.rate,
+          unit: formData.unit,
         });
       } else {
         const payload = {
-          name: form.name,
+          name: formData.name,
           facilityType,
-          status: form.status,
-          images: (form.images || []).filter(Boolean),
+          status: formData.status,
+          images: (formData.images || []).filter(Boolean),
+          baseRate: formData.baseRate,
+          discountRate: formData.discountRate,
+          quantity: formData.quantity,
+          extraRows: formData.extraRows,
         };
 
-        if ((form.images || []).filter(Boolean).length > 0) {
-          payload.image = (form.images || []).filter(Boolean)[0];
+        if ((formData.images || []).filter(Boolean).length > 0) {
+          payload.image = (formData.images || []).filter(Boolean)[0];
         }
 
         if (facilityType === "Conference" || facilityType === "Cottage") {
-          payload.capacity = form.capacity;
-          payload.price = form.rate;
+          payload.capacity = formData.capacity;
+          payload.price = formData.rate;
         } else if (facilityType === "Dormitory") {
-          payload.capacity = form.capacity;
-          payload.ratePerPerson = form.rate;
+          payload.capacity = formData.capacity;
+          payload.ratePerPerson = formData.rate;
         }
 
         await updateFacility(id, payload);
@@ -226,7 +218,6 @@ export default function EditForm() {
 
       setSuccess("Saved successfully");
       
-      // Navigate back to the correct tab based on category
       setTimeout(() => {
         if (isSpecialService) {
           navigate('/facilities', { state: { activeTab: 'Add-ons' } });
@@ -240,6 +231,8 @@ export default function EditForm() {
       setSubmitting(false);
     }
   };
+
+  const selectedCount = (formData.images || []).filter(Boolean).length;
 
   return (
     <div className={styles.editFormContainer}>
@@ -256,7 +249,9 @@ export default function EditForm() {
         >
           &larr;
         </span>
-        <h2 className={styles.title}>{category || "FACILITY"}</h2>
+        <h2 className={styles.title}>
+          {category.charAt(0).toUpperCase() + category.slice(1).toLowerCase()}
+        </h2>
       </div>
 
       {loading ? (
@@ -264,222 +259,274 @@ export default function EditForm() {
       ) : (
         <>
           {!isSpecialService && (
-            <div className={styles.imageUploadGrid}>
-              {Array.from({ length: MAX_IMAGES }).map((_, idx) => (
-                <label
-                  key={idx}
-                  className={styles.imageBoxSlot}
-                  onClick={() => openFileDialog(idx)}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && openFileDialog(idx)}
-                >
-                  {form.previewUrls[idx] ? (
-                    <img
-                      src={form.previewUrls[idx]}
-                      alt={`preview-${idx}`}
-                      className={styles.previewImage}
+            <>
+              <div className={styles.imageUploadGrid}>
+                {Array.from({ length: MAX_IMAGES }).map((_, idx) => {
+                  const isLarge = idx === 0;
+                  return (
+                    <div
+                      key={idx}
+                      className={`${styles.imageBoxSlot} ${
+                        isLarge ? styles.uploadSlotLarge : styles.uploadSlotSmall
+                      }`}
+                      onClick={() => openSlot(idx)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && openSlot(idx)}
+                    >
+                      {formData.previewUrls[idx] ? (
+                        <div className={styles.uploadPreview}>
+                          <img
+                            src={formData.previewUrls[idx]}
+                            alt={`preview-${idx}`}
+                            className={styles.previewImage}
+                          />
+                          <button
+                            type="button"
+                            className={styles.removeImageBtn}
+                            onClick={(ev) => {
+                              ev.stopPropagation();
+                              removeImage(idx);
+                            }}
+                            aria-label={`Remove image ${idx + 1}`}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ) : (
+                        <div className={styles.uploadPlaceholder}>
+                          <FaUpload className={styles.placeholderIcon} />
+                        </div>
+                      )}
+
+                      <input
+                        ref={(el) => (inputRefs.current[idx] = el)}
+                        type="file"
+                        accept="image/png,image/jpeg"
+                        onChange={(e) => {
+                          const f = e.target.files && e.target.files[0];
+                          handleSlotChange(idx, f || null);
+                        }}
+                        hidden
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+
+              {selectedCount > 0 && (
+                <div style={{ marginBottom: 16 }}>
+                  <small>
+                    Selected ({selectedCount}):{" "}
+                    {(formData.images || []).filter(Boolean).map((f) => f.name).join(", ")}
+                  </small>
+                </div>
+              )}
+            </>
+          )}
+
+          <form onSubmit={handleSubmit} className={styles.form}>
+            <div className={styles.formRow}>
+              <label>
+                {category} Name:
+                <input
+                  type="text"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleChange}
+                  required
+                />
+              </label>
+
+              <label>
+                {isSpecialService || facilityType === "Conference" || facilityType === "Cottage" ? "Price:" : "Rate per Person:"}
+                <input
+                  type="number"
+                  name="rate"
+                  value={formData.rate}
+                  onChange={handleChange}
+                  required
+                />
+              </label>
+            </div>
+
+            <div className={styles.formRow}>
+              <label>
+                {isSpecialService || facilityType === "Conference" || facilityType === "Cottage" ? "Price:" : "Facility Rate (Inclusive of 10% Service Fee):"}
+                <input
+                  type="number"
+                  name="baseRate"
+                  value={formData.baseRate}
+                  onChange={handleChange}
+                  required
+                />
+              </label>
+
+              <label>
+                {isSpecialService || facilityType === "Conference" || facilityType === "Cottage" ? "Price:" : "Discounted Facility Rate:"}
+                <input
+                  type="number"
+                  name="discountRate"
+                  value={formData.discountRate}
+                  onChange={handleChange}
+                  required
+                />
+              </label>
+            </div>
+
+            <div className={styles.formRow}>
+              {!isSpecialService && (
+                <>
+                  <label>
+                    Capacity:
+                    <input
+                      type="number"
+                      name="capacity"
+                      value={formData.capacity}
+                      onChange={handleChange}
+                      required
                     />
-                  ) : (
-                    <FaUpload className={styles.placeholderIcon} />
-                  )}
+                  </label>
 
-                  <input
-                    ref={(el) => (fileInputRefs.current[idx] = el)}
-                    type="file"
-                    name={`image-${idx}`}
-                    accept="image/png,image/jpeg"
-                    onChange={(e) => handleSlotChange(idx, e.target.files)}
-                    hidden
-                  />
+                  <label>
+                    Quantity:
+                    <input
+                      type="number"
+                      name="quantity"
+                      value={formData.quantity}
+                      onChange={handleChange}
+                      required
+                    />
+                  </label>
 
-                  {form.images[idx] && (
+                  <div style={{ display: "flex", alignItems: "flex-end", gap: 8 }}>
                     <button
                       type="button"
-                      className={styles.removeImageBtn}
-                      onClick={(ev) => {
-                        ev.stopPropagation();
-                        removeImage(idx);
-                        }}
-                        aria-label={`Remove image ${idx + 1}`}
-                      >
-                        ✕
-                      </button>
-                      )}
-                    </label>
-                    ))}
-                  </div>
-                  )}
-
-                  <form onSubmit={handleSubmit} className={styles.form}>
-                  <div className={styles.formRow}>
-                    <label>
-                    {getSingularLabel(category)} Name:
-                    <input type="text" name="name" value={form.name} onChange={onChange} required />
-                    </label>
-
-                    <label>
-                    {(facilityType === "Conference" || facilityType === "Cottage" || isSpecialService) ? "Price" : "Rate per Person"}:
-                    <input type="number" name="rate" value={form.rate} onChange={onChange} required />
-                    </label>
-                  </div>
-
-                  <div className={styles.formRow}>
-                    <label>
-                    {(facilityType === "Conference" || facilityType === "Cottage" || isSpecialService) ? "Price" : "Facility Rate (inclusive of 10% Service Fee):"}
-                    <input type="number" name="baseRate" value={form.baseRate} onChange={onChange} required />
-                    </label>
-
-                    <label>
-                    {(facilityType === "Conference" || facilityType === "Cottage" || isSpecialService) ? "Price" : "Discounted Facility Rate:"}
-                    <input type="number" name="discountRate" value={form.discountRate} onChange={onChange} required />
-                    </label>
-                  </div>
-
-                  <div className={styles.formRow}>
-                    {!isSpecialService &&
-                    (facilityType === "Dormitory" || facilityType === "Conference") && (
-                      <label>
-                      Capacity:
-                      <input type="number" name="capacity" value={form.capacity} onChange={onChange} required />
-                      </label>
-                    )}
-
-                    {!isSpecialService &&
-                    (facilityType === "Dormitory" || facilityType === "Conference") && (
-                      <label>
-                      Quantity:
-                      <input type="number" name="quantity" value={form.quantity} onChange={onChange} required />
-                      </label>
-                    )}
-
-                    {!isSpecialService &&
-                      (facilityType === "Dormitory" || facilityType === "Conference") && (
-                        <div
-                          className={styles.addBtnCell}
-                          style={{ display: "flex", alignItems: "center", gap: "8px" }}
-                        >
-                          <button
-                            type="button"
-                            className={styles.addBtn}
-                            onClick={() =>
-                              setForm((p) => ({
-                                ...p,
-                                extraRows: [...(p.extraRows || []), { capacity: "", quantity: "" }],
-                              }))
-                            }
-                            aria-label="Add capacity row"
-                            style={{ alignSelf: "center", marginTop: 0 }}
-                          >
-                            Add
-                          </button>
-                        </div>
-                      )}
-                  </div>
-                  
-                  {!isSpecialService &&
-                    (facilityType === "Dormitory" || facilityType === "Conference") && (
-                    <div className={styles.extraRowsBelow}>
-                      {(form.extraRows || []).map((r, idx) => (
-                        <div className={styles.formRow} key={idx}>
-                          <label>
-                            Capacity:
-                            <input
-                              type="number"
-                              name={`extra_capacity_${idx}`}
-                              value={r.capacity || ""}
-                              onChange={(e) =>
-                                setForm((p) => {
-                                  const next = { ...p };
-                                  next.extraRows = Array.isArray(next.extraRows) ? [...next.extraRows] : [];
-                                  next.extraRows[idx] = { ...(next.extraRows[idx] || {}), capacity: e.target.value };
-                                  return next;
-                                })
-                              }
-                            />
-                          </label>
-                          <label>
-                            Quantity:
-                            <input
-                              type="number"
-                              name={`extra_quantity_${idx}`}
-                              value={r.quantity || ""}
-                              onChange={(e) =>
-                                setForm((p) => {
-                                  const next = { ...p };
-                                  next.extraRows = Array.isArray(next.extraRows) ? [...next.extraRows] : [];
-                                  next.extraRows[idx] = { ...(next.extraRows[idx] || {}), quantity: e.target.value };
-                                  return next;
-                                })
-                              }
-                            />
-                          </label>
-                          <button
-                            type="button"
-                            className={styles.removeBtn}
-                            onClick={() =>
-                              setForm((p) => {
-                                const next = { ...p };
-                                next.extraRows = Array.isArray(next.extraRows) ? [...next.extraRows] : [];
-                                next.extraRows.splice(idx, 1);
-                                return next;
-                              })
-                            }
-                          >
-                            Remove
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  <div className={styles.formRow}>
-                    {!isSpecialService && (
-                    <label>
-                      Status:
-                      <select name="status" value={form.status} onChange={onChange}>
-                      <option value="Available">Available</option>
-                      <option value="Unavailable">Unavailable</option>
-                      </select>
-                    </label>
-                    )}
-
-                    {isSpecialService && (
-                    <label>
-                      Unit:
-                      <input type="text" name="unit" value={form.unit} onChange={onChange} />
-                    </label>
-                    )}
-                  </div>
-
-                  <div className={styles.actions}>
-                    <button 
-                    type="button" 
-                    className={styles.cancelBtn} 
-                    onClick={() => {
-                      if (isSpecialService) {
-                      navigate('/facilities', { state: { activeTab: 'Add-ons' } });
-                      } else {
-                      navigate('/facilities', { state: { activeTab: category } });
+                      className={styles.addBtn}
+                      onClick={() =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          extraRows: [...(prev.extraRows || []), { capacity: "", quantity: "" }],
+                        }))
                       }
-                    }}
-                    disabled={submitting}
                     >
-                    Cancel
-                    </button>
-                    <button type="submit" className={styles.saveBtn} disabled={submitting}>
-                    {submitting ? "Saving..." : "Save Changes"}
+                      Add
                     </button>
                   </div>
+                </>
+              )}
+            </div>
 
-                  {(error || success) && (
-                    <p className={`${styles.statusMessage} ${error ? styles.errorMessage : styles.successMessage}`}>
-                      {error || success}
-                    </p>
-                  )}
-                </form>
-              </>
-            )}
-          </div>
-        );
-      }
+            {!isSpecialService && (formData.extraRows || []).map((row, idx) => (
+              <div className={styles.formRow} key={`extra-row-${idx}`}>
+                <label>
+                  Capacity:
+                  <input
+                    type="number"
+                    value={row.capacity}
+                    onChange={(e) =>
+                      setFormData((prev) => {
+                        const extra = Array.from(prev.extraRows || []);
+                        extra[idx] = { ...extra[idx], capacity: e.target.value };
+                        return { ...prev, extraRows: extra };
+                      })
+                    }
+                    required
+                  />
+                </label>
+
+                <label>
+                  Quantity:
+                  <input
+                    type="number"
+                    value={row.quantity}
+                    onChange={(e) =>
+                      setFormData((prev) => {
+                        const extra = Array.from(prev.extraRows || []);
+                        extra[idx] = { ...extra[idx], quantity: e.target.value };
+                        return { ...prev, extraRows: extra };
+                      })
+                    }
+                    required
+                  />
+                </label>
+
+                <div style={{ display: "flex", alignItems: "flex-end", gap: 8 }}>
+                  <button
+                    type="button"
+                    className={styles.removeBtn}
+                    onClick={() =>
+                      setFormData((prev) => {
+                        const extra = Array.from(prev.extraRows || []);
+                        extra.splice(idx, 1);
+                        return { ...prev, extraRows: extra };
+                      })
+                    }
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+            ))}
+
+            <div className={styles.formRow}>
+              {isSpecialService ? (
+                <label>
+                  Unit:
+                  <select
+                    name="unit"
+                    value={formData.unit}
+                    onChange={handleChange}
+                    required
+                  >
+                    <option value="">Select unit</option>
+                    <option value="day">day</option>
+                    <option value="pc">pc</option>
+                    <option value="watts">watts</option>
+                    <option value="mins">mins</option>
+                    <option value="cert">cert</option>
+                  </select>
+                </label>
+              ) : (
+                <label>
+                  Status:
+                  <select
+                    name="status"
+                    value={formData.status}
+                    onChange={handleChange}
+                  >
+                    <option value="Available">Available</option>
+                    <option value="Unavailable">Unavailable</option>
+                  </select>
+                </label>
+              )}
+            </div>
+
+            {error && <p style={{ color: 'red' }}>{error}</p>}
+            {success && <p style={{ color: 'green' }}>{success}</p>}
+
+            <div className={styles.actions}>
+              <button
+                type="button"
+                className={styles.cancelBtn}
+                onClick={() => {
+                  if (isSpecialService) {
+                    navigate('/facilities', { state: { activeTab: 'Add-ons' } });
+                  } else {
+                    navigate('/facilities', { state: { activeTab: category } });
+                  }
+                }}
+                disabled={submitting}
+              >
+                Cancel
+              </button>
+              <button type="submit" className={styles.saveBtn} disabled={submitting}>
+                {submitting ? "Saving..." : "Save Changes"}
+              </button>
+            </div>
+          </form>
+        </>
+      )}
+    </div>
+  );
+}

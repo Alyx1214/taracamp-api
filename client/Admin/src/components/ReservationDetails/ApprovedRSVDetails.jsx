@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import styles from "./ApprovedRSVDetails.module.css";
 import { getReservationById } from "../../apis/reservationApi";
 
@@ -48,6 +48,8 @@ function prettifyServiceType(svc) {
 export default function ApprovedRSVDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const { filters, searchQuery, currentPage } = location.state || {};
   const [reservation, setReservation] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -82,7 +84,7 @@ export default function ApprovedRSVDetails() {
   const SkeletonLoading = () => (
     <div className={styles["reservation-details-container"]}>
       <div className={styles["reservation-details-header"]}>
-        <span className={styles["reservation-details-back"]} onClick={() => navigate('/reservations', { state: { activeTab: 'Approved' } })}>
+        <span className={styles["reservation-details-back"]} onClick={() => navigate('/reservations', { state: { activeTab: 'Approved', filters, searchQuery, currentPage } })}>
           &larr;
         </span>
         <h1 className={styles["reservation-details-title"]}>Reservation Details</h1>
@@ -131,7 +133,7 @@ export default function ApprovedRSVDetails() {
         <div className={styles["rsv-details-header"]}>
           <span
             className={styles["rsv-details-back"]}
-            onClick={() => navigate('/reservations', { state: { activeTab: 'Approved' } })}
+            onClick={() => navigate('/reservations', { state: { activeTab: 'Approved', filters, searchQuery, currentPage } })}
           >
             &larr;
           </span>
@@ -149,7 +151,7 @@ export default function ApprovedRSVDetails() {
       <div className={styles["reservation-details-header"]}>
         <span
           className={styles["reservation-details-back"]}
-          onClick={() => navigate('/reservations', { state: { activeTab: 'Approved' } })}
+          onClick={() => navigate('/reservations', { state: { activeTab: 'Approved', filters, searchQuery, currentPage } })}
         >
           &larr;
         </span>

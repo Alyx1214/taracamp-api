@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaEdit, FaTrash } from "react-icons/fa";
+import { FaEdit, FaTrash, FaDoorOpen } from "react-icons/fa";
 import styles from "./BoxCard.module.css";
 import ConfirmDeleteModal from "./ConfirmDeleteModal";
 
@@ -47,13 +47,16 @@ export default function BoxCard({ facilities, onDelete, type, onEdit }) {
 
   const handleEditClick = (facility) => {
     setOpenMenuIndex(null);
-    if (onEdit) {
-      onEdit(facility.id, type, facility);
-    } else {
-      navigate(`/facilities/edit/${facility.id}`, {
-        state: { category: type, facility },
-      });
-    }
+    navigate(`/facilities/edit/${facility.id}`, {
+      state: { category: type, facility },
+    });
+  };
+
+  const handleManageRoomsClick = (facility) => {
+    setOpenMenuIndex(null);
+    navigate(`/facilities/manage/${facility.id}`, {
+      state: { category: type, facility },
+    });
   };
 
   const handleDeleteClick = (facility) => {
@@ -68,12 +71,14 @@ export default function BoxCard({ facilities, onDelete, type, onEdit }) {
     setSelectedFacility(null);
   };
 
+  const showManageRooms = type === "Dormitory" || type === "Cottages";
+
   return (
     <>
       <div className={styles["boxcards-container"]}>
         {facilities.map((facility, index) => {
           const images = Array.isArray(facility.images) ? facility.images : [];
-          const primary = images[0] || "/placeholder.jpg"; // your placeholder path
+          const primary = images[0] || "/placeholder.jpg";
 
           return (
             <div
@@ -84,7 +89,7 @@ export default function BoxCard({ facilities, onDelete, type, onEdit }) {
               <div
                 className={styles["card-image"]}
                 style={{
-                  backgroundImage: `url("${primary}")`, // quote URL for signed URLs with query params
+                  backgroundImage: `url("${primary}")`,
                   backgroundSize: "cover",
                   backgroundPosition: "center",
                 }}
@@ -123,6 +128,14 @@ export default function BoxCard({ facilities, onDelete, type, onEdit }) {
                   className={styles["dropdown-menu"]}
                   ref={(el) => (menuRefs.current[index] = el)}
                 >
+                  {showManageRooms && (
+                    <div
+                      className={styles["dropdown-item"]}
+                      onClick={() => handleManageRoomsClick(facility)}
+                    >
+                      <FaDoorOpen className={styles.icon} /> Manage Rooms
+                    </div>
+                  )}
                   <div
                     className={styles["dropdown-item"]}
                     onClick={() => handleEditClick(facility)}

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { FaBars, FaBell, FaUser } from "react-icons/fa";
 import styles from "./Header.module.css"; 
 import webLogo from "../../assets/weblogo.png"; 
@@ -12,6 +12,7 @@ const MIN_UNREAD_REFRESH_MS = 1200;
 
 const Header = ({ onHamburgerClick }) => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [firstName, setFirstName] = useState(() => getUserFirstName());
   const [unreadCount, setUnreadCount] = useState(0);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
@@ -177,13 +178,23 @@ const Header = ({ onHamburgerClick }) => {
     setUnreadCount(0);
   };
 
+  const handleLogoClick = () => {
+    navigate('/dashboard');
+  };
+
   return (
     <header className={styles.header}>
       <div className={styles["header-left"]}>
         <div className={styles.hamburger} onClick={onHamburgerClick}>
           <FaBars />
         </div>
-        <img src={webLogo} alt="Website Logo" className={styles["header-logo"]} />
+        <img 
+          src={webLogo} 
+          alt="Website Logo" 
+          className={styles["header-logo"]} 
+          onClick={handleLogoClick}
+          style={{ cursor: 'pointer' }}
+        />
       </div>
 
       <div className={styles["header-right"]}>

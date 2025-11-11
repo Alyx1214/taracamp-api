@@ -1098,15 +1098,18 @@ const reservationModule = {
                 return responseData;
             }
 
-            const { limit, skip, sort, } = options || {};
+            const { limit, skip, sort } = options || {};
             const sortOption = sort ? parseSort(sort) : { createdAt: -1, };
             const limitValue = clampLimit(limit);
             const skipValue = clampSkip(skip);
 
+            // Simple status-only filter (for filtered queries, use searchReservations)
+            const filter = { status };
+
             const [raw, totalCount] = await Promise.all([
                 dbHelper.findMany(
                     'reservation',
-                    { status, },
+                    filter,
                     {
                         projection: { 
                             _id: 1,
@@ -1115,14 +1118,15 @@ const reservationModule = {
                             serviceType: 1, 
                             createdAt: 1,
                             userId: 1,
-                            facility: 1
+                            facility: 1,
+                            dateOfArrival: 1
                         },
                         sort: sortOption,
                         limit: limitValue,
                         skip: skipValue,
                     }
                 ),
-                dbHelper.count('reservation', { status })
+                dbHelper.count('reservation', filter)
             ]);
 
             const list = (raw || []).map((r) => (typeof r.toObject === 'function' ? r.toObject() : r));
@@ -1203,14 +1207,26 @@ const reservationModule = {
                 accountEmail,
                 status,
                 serviceType,
+                category,
                 facility,
+                facilityType,
                 query,
                 start,
+                startDate,
                 end,
+                endDate,
+                dateField,
+                paymentMethod,
                 limit,
                 skip,
                 sort,
             } = options || {};
+            
+            // Support both 'start'/'end' and 'startDate'/'endDate' parameter names
+            const dateStart = start || startDate;
+            const dateEnd = end || endDate;
+            // Default to dateOfArrival if dateField not specified (for backward compatibility)
+            const dateFieldToUse = dateField || 'dateOfArrival';
 
             const filter = {};
 
@@ -1247,8 +1263,54 @@ const reservationModule = {
                 filter.serviceType = serviceType;
             }
 
+            if (isPresent(category)) {
+                filter.category = category;
+            }
+
             if (isPresent(facility)) {
                 filter.facility = facility;
+            }
+
+            // Filter by facility type - need to look up facilities first
+            if (isPresent(facilityType)) {
+                try {
+                    const facilitiesWithType = await dbHelper.findMany(
+                        'facility',
+                        { facilityType: String(facilityType).trim(), },
+                        { projection: { _id: 1, }, }
+                    );
+                    const facilityIds = (facilitiesWithType || []).map((f) => String(f._id));
+                    if (facilityIds.length === 0) {
+                        // No facilities match this type, return empty result
+                        responseData.status = Status.OK;
+                        responseData.error = null;
+                        responseData.reservations = [];
+                        responseData.totalCount = 0;
+                        return responseData;
+                    }
+                    // If facility filter already exists, intersect with facilityType results
+                    if (filter.facility) {
+                        const existingFacilityId = String(filter.facility);
+                        if (!facilityIds.includes(existingFacilityId)) {
+                            // Facility doesn't match type, return empty
+                            responseData.status = Status.OK;
+                            responseData.error = null;
+                            responseData.reservations = [];
+                            responseData.totalCount = 0;
+                            return responseData;
+                        }
+                        // Facility matches type, keep existing filter
+                    } else {
+                        // Filter by facility IDs that match the type
+                        // MongoDB will handle string ObjectId conversion automatically
+                        filter.facility = { $in: facilityIds, };
+                    }
+                } catch (facilityTypeError) {
+                    console.error('Error filtering by facility type:', facilityTypeError);
+                    responseData.status = Status.INTERNAL_SERVER_ERROR;
+                    responseData.error = 'Error filtering by facility type';
+                    return responseData;
+                }
             }
 
             if (isPresent(query)) {
@@ -1296,44 +1358,81 @@ const reservationModule = {
                 filter.$or = or;
             }
 
-            if (isPresent(start) && isPresent(end) && isValidDate(start) && isValidDate(end)) {
-                const sYMD = String(start).split('T')[0].split(' ')[0];
-                const eYMD = String(end).split('T')[0].split(' ')[0];
-                filter.$and = (filter.$and || []).concat([
-                    {
-                        $expr: {
-                            $and: [
-                                {
-                                    $lte: [
-                                        {
-                                            $cond: [
-                                                { $eq: [{ $type: '$dateOfArrival', }, 'string',], },
-                                                { $dateFromString: { dateString: '$dateOfArrival', timezone: TZ, }, },
-                                                { $dateTrunc: { date: '$dateOfArrival', unit: 'day', timezone: TZ, }, },
-                                            ],
-                                        },
-                                        { $dateFromString: { dateString: eYMD, timezone: TZ, }, },
-                                    ],
-                                },
-                                {
-                                    $gte: [
-                                        {
-                                            $cond: [
-                                                { $eq: [{ $type: '$dateOfDeparture', }, 'string',], },
-                                                { $dateFromString: { dateString: '$dateOfDeparture', timezone: TZ, }, },
-                                                { $dateTrunc: { date: '$dateOfDeparture', unit: 'day', timezone: TZ, }, },
-                                            ],
-                                        },
-                                        { $dateFromString: { dateString: sYMD, timezone: TZ, }, },
-                                    ],
-                                },
-                            ],
-                        },
-                    },
-                ]);
+            // Date range filtering - support dateOfArrival, dateOfDeparture, or createdAt
+            // Support filtering with just startDate, just endDate, or both
+            if (isPresent(dateStart) && isValidDate(dateStart)) {
+                const sYMD = String(dateStart).split('T')[0].split(' ')[0];
+                const startDate = new Date(sYMD + 'T00:00:00' + APP_TZ_OFFSET);
+                const dateFieldKey = dateFieldToUse;
+                filter[dateFieldKey] = filter[dateFieldKey] || {};
+                filter[dateFieldKey].$gte = startDate;
+            }
+            
+            if (isPresent(dateEnd) && isValidDate(dateEnd)) {
+                const eYMD = String(dateEnd).split('T')[0].split(' ')[0];
+                // Add 1 day and subtract 1 millisecond to include the entire end date
+                const endDate = new Date(eYMD + 'T00:00:00' + APP_TZ_OFFSET);
+                endDate.setDate(endDate.getDate() + 1);
+                endDate.setMilliseconds(endDate.getMilliseconds() - 1);
+                const dateFieldKey = dateFieldToUse;
+                filter[dateFieldKey] = filter[dateFieldKey] || {};
+                filter[dateFieldKey].$lte = endDate;
             }
 
-            if (Object.keys(filter).length === 0) {
+            // Filter by payment method if provided
+            if (isPresent(paymentMethod)) {
+                // Map frontend payment method values to database values
+                const paymentMethodMap = {
+                    'DBP': 'bank_transfer',
+                    'GCash': 'gcash',
+                    'GrabPay': 'grab_pay',
+                    'gcash': 'gcash',
+                    'grab_pay': 'grab_pay',
+                    'card': 'card',
+                    'paymaya': 'paymaya',
+                };
+                const dbPaymentMethod = paymentMethodMap[paymentMethod] || paymentMethod;
+                
+                const payments = await dbHelper.findMany(
+                    'payment',
+                    { paymentMethodType: dbPaymentMethod },
+                    { projection: { reservationId: 1 } }
+                );
+                const reservationIdsWithPaymentMethod = (payments || [])
+                    .map(p => p.reservationId)
+                    .filter(Boolean)
+                    .map(String);
+                
+                if (reservationIdsWithPaymentMethod.length === 0) {
+                    // No reservations with this payment method, return empty
+                    responseData.status = Status.OK;
+                    responseData.error = null;
+                    responseData.reservations = [];
+                    responseData.totalCount = 0;
+                    return responseData;
+                }
+                
+                // Add reservation ID filter
+                if (filter._id) {
+                    // If _id filter already exists, intersect with payment method results
+                    const existingIds = Array.isArray(filter._id.$in) ? filter._id.$in : [filter._id];
+                    const intersection = existingIds.filter(id => reservationIdsWithPaymentMethod.includes(String(id)));
+                    if (intersection.length === 0) {
+                        responseData.status = Status.OK;
+                        responseData.error = null;
+                        responseData.reservations = [];
+                        responseData.totalCount = 0;
+                        return responseData;
+                    }
+                    filter._id = { $in: intersection };
+                } else {
+                    filter._id = { $in: reservationIdsWithPaymentMethod };
+                }
+            }
+
+            // Allow status-only filter (for getAllReservationsByStatus use case)
+            // If no filters at all, return empty (this prevents accidental full table scans)
+            if (Object.keys(filter).length === 0 && !isPresent(status)) {
                 responseData.status = Status.OK;
                 responseData.error = null;
                 responseData.reservations = [];
@@ -1346,7 +1445,7 @@ const reservationModule = {
                     'reservation',
                     filter,
                     {
-                        projection: { __v: 0, createdAt: 0, },
+                        projection: { __v: 0, },
                         sort: sortOption,
                         limit: clampLimit(limit),
                         skip: clampSkip(skip),
@@ -1357,6 +1456,8 @@ const reservationModule = {
 
             const list = (docs || []).map((d) => (typeof d.toObject === 'function' ? d.toObject() : d));
             const userIds = Array.from(new Set(list.map((r) => r.userId).filter(Boolean).map(String)));
+            const facilityIds = Array.from(new Set(list.map((r) => r.facility).filter(Boolean).map(String)));
+            
             let emailById = new Map();
             if (userIds.length) {
                 const users = await dbHelper.findMany(
@@ -1367,9 +1468,23 @@ const reservationModule = {
                 emailById = new Map((users || []).map((u) => [String(u._id), u.email,]));
             }
 
+            let facilityById = new Map();
+            let facilityTypeById = new Map();
+            if (facilityIds.length) {
+                const facilities = await dbHelper.findMany(
+                    'facility',
+                    { _id: { $in: facilityIds, }, },
+                    { projection: { _id: 1, name: 1, facilityType: 1, }, }
+                );
+                facilityById = new Map((facilities || []).map((f) => [String(f._id), f.name,]));
+                facilityTypeById = new Map((facilities || []).map((f) => [String(f._id), f.facilityType,]));
+            }
+
             const withEmails = list.map((r) => ({
                 ...r,
                 guestEmail: r.guestEmail ?? (r.userId ? emailById.get(String(r.userId)) ?? null : null),
+                facilityName: r.facility ? facilityById.get(String(r.facility)) ?? null : null,
+                facilityType: r.facility ? facilityTypeById.get(String(r.facility)) ?? null : null,
             }));
 
             responseData.status = Status.OK;

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo, useCallback } from "react";
 import UnivTable from "./UnivTable";
 import styles from "./UnivTable.module.css";
-import { getAllReservationsByStatus, deleteReservation, searchReservations } from "../../apis/reservationApi";
+import { deleteReservation, searchReservations } from "../../apis/reservationApi";
 
 function formatDateLong(dateStr) {
   if (!dateStr) return "N/A";
@@ -22,6 +22,7 @@ function prettifyServiceType(svc) {
 
 export default function Cancelled({ 
   searchQuery = "", 
+  filters = {},
   currentPage: parentCurrentPage = 1,
   totalPages: parentTotalPages = 1,
   totalItems: parentTotalItems = 0,
@@ -38,27 +39,38 @@ export default function Cancelled({
   const itemsPerPage = 15;
   const columns = useMemo(() => ["Name", "Email", "Service Type", "Facility Name", "Date", "Actions"], []);
   
-  const fetchCancelledData = useCallback(async (page = currentPage, query = searchQuery, showLoading = true) => {
+  const fetchCancelledData = useCallback(async (page = currentPage, query = searchQuery, appliedFilters = filters, showLoading = true) => {
     try {
       if (showLoading) setLoading(true);
       let res;
       const skip = (page - 1) * itemsPerPage;
-      const options = { limit: itemsPerPage, skip };
+      const options = { 
+        limit: itemsPerPage, 
+        skip
+      };
+      if (appliedFilters?.serviceType) options.serviceType = appliedFilters.serviceType;
+      if (appliedFilters?.category) options.category = appliedFilters.category;
+      if (appliedFilters?.startDate) options.startDate = appliedFilters.startDate;
+      if (appliedFilters?.endDate) options.endDate = appliedFilters.endDate;
+      if (appliedFilters?.sortBy) options.sortBy = appliedFilters.sortBy;
       
+      // Always use searchReservations - it supports status and all filters
+      const searchParams = {
+        status: 'Cancelled',
+        ...options
+      };
+      // Only add query if there's a search term
       if (String(query || '').trim()) {
-        const s = String(query || '').trim();
-        res = await searchReservations({ query: s, ...options });
-        res.reservations = (res?.reservations || []).filter(r => r.status === 'Cancelled');
-      } else {
-        res = await getAllReservationsByStatus("Cancelled", options);
+        searchParams.query = String(query).trim();
       }
+      res = await searchReservations(searchParams);
       const list = (res?.reservations || []).map(r => ({
         id: r._id || "N/A",
         name: r.guestName || "N/A",
         email: r.guestEmail || "N/A",
         serviceType: prettifyServiceType(r.serviceType) || "N/A",
         facilityName: r.facilityName || "N/A",
-        date: formatDateLong(r.dateOfArrival || r.createdAt),
+        date: formatDateLong(r.createdAt),
         _raw: r,
       }));
       
@@ -78,19 +90,19 @@ export default function Cancelled({
     } finally {
       if (showLoading) setLoading(false);
     }
-  }, [currentPage, searchQuery]);
+  }, [currentPage, searchQuery, filters]);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        await fetchCancelledData();
+        await fetchCancelledData(currentPage, searchQuery, filters);
       } catch (e) {
         if (!cancelled) setErr(e?.message || "Failed to load");
       }
     })();
     return () => { cancelled = true; };
-  }, [fetchCancelledData]);
+  }, [fetchCancelledData, currentPage, searchQuery, filters]);
 
   // Sync with parent pagination state
   useEffect(() => {
@@ -114,37 +126,7 @@ export default function Cancelled({
       setRows(prev => prev.filter(r => String(r.id) !== String(row.id)));
       // Refetch the data to ensure we have the latest from server
       // This ensures deleted reservations don't appear in the Cancelled tab
-      const skip = (currentPage - 1) * itemsPerPage;
-      const options = { limit: itemsPerPage, skip };
-      let res;
-      if (String(searchQuery || '').trim()) {
-        const s = String(searchQuery || '').trim();
-        res = await searchReservations({ query: s, ...options });
-        res.reservations = (res?.reservations || []).filter(r => r.status === 'Cancelled');
-      } else {
-        res = await getAllReservationsByStatus("Cancelled", options);
-      }
-      // Filter out the deleted reservation ID using string comparison to handle ObjectId vs string
-      const deletedIdStr = String(row.id);
-      const list = (res?.reservations || [])
-        .filter(r => String(r._id) !== deletedIdStr)
-        .map(r => ({
-          id: r._id || "N/A",
-          name: r.guestName || "N/A",
-          email: r.guestEmail || "N/A",
-          serviceType: prettifyServiceType(r.serviceType) || "N/A",
-          facilityName: r.facilityName || "N/A",
-          date: formatDateLong(r.dateOfArrival || r.createdAt),
-          _raw: r,
-        }));
-      setRows(list);
-      // Update total count - subtract 1 for the deleted item
-      const totalCount = Math.max(0, (res?.totalCount || list.length) - 1);
-      setTotalItems(totalCount);
-      setTotalPages(Math.ceil(totalCount / itemsPerPage));
-      if (onPaginationUpdate) {
-        onPaginationUpdate(Math.ceil(totalCount / itemsPerPage), totalCount);
-      }
+      await fetchCancelledData(currentPage, searchQuery, filters, false);
     } catch (e) {
       alert(e?.message || "Failed to delete reservation.");
     }

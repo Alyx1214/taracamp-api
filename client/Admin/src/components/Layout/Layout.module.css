@@ -46,9 +46,33 @@
   overflow-y: auto; 
 }
 
+.shellOverlay {
+  display: none;
+  position: fixed;
+  top: var(--header-height);
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 998;
+  pointer-events: none;
+}
+
+.shellOverlayShow {
+  pointer-events: auto;
+}
+
 @media (max-width: 1023.98px) {
+  .shellOverlayShow {
+    display: block;
+  }
+
   .shellSidebar {
     width: var(--sidebar-width, var(--sidebar-closed));
+    z-index: 999;
+    position: fixed;
+    left: 0;
+    top: var(--header-height);
   }
 
   .shellMain {

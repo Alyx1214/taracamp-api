@@ -1636,17 +1636,35 @@ function buildOptimizedUserQuery({
     }
 
     const createdCond = {};
-    if (typeof createdFrom === 'string' && createdFrom.trim()) {
+    const hasCreatedFrom = typeof createdFrom === 'string' && createdFrom.trim();
+    const hasCreatedTo = typeof createdTo === 'string' && createdTo.trim();
+    
+    if (hasCreatedFrom) {
         const d = new Date(createdFrom);
         if (!Number.isNaN(d.getTime())) {
             createdCond.$gte = d;
             hasValidFilters = true;
+            
+            // If only createdFrom is provided (no createdTo), set upper bound to end of that day
+            if (!hasCreatedTo) {
+                const endOfDay = new Date(d);
+                endOfDay.setHours(23, 59, 59, 999);
+                createdCond.$lte = endOfDay;
+            }
         }
     }
-    if (typeof createdTo === 'string' && createdTo.trim()) {
+    if (hasCreatedTo) {
         const d = new Date(createdTo);
         if (!Number.isNaN(d.getTime())) {
-            createdCond.$lt = d;
+            // If we already have $gte from createdFrom, use $lte for inclusive end
+            // Otherwise use $lt for exclusive end (original behavior)
+            if (createdCond.$gte) {
+                const endOfDay = new Date(d);
+                endOfDay.setHours(23, 59, 59, 999);
+                createdCond.$lte = endOfDay;
+            } else {
+                createdCond.$lt = d;
+            }
             hasValidFilters = true;
         }
     }
@@ -1655,17 +1673,35 @@ function buildOptimizedUserQuery({
     }
 
     const lastLoggedCond = {};
-    if (typeof lastLoggedFrom === 'string' && lastLoggedFrom.trim()) {
+    const hasLastLoggedFrom = typeof lastLoggedFrom === 'string' && lastLoggedFrom.trim();
+    const hasLastLoggedTo = typeof lastLoggedTo === 'string' && lastLoggedTo.trim();
+    
+    if (hasLastLoggedFrom) {
         const d = new Date(lastLoggedFrom);
         if (!Number.isNaN(d.getTime())) {
             lastLoggedCond.$gte = d;
             hasValidFilters = true;
+            
+            // If only lastLoggedFrom is provided (no lastLoggedTo), set upper bound to end of that day
+            if (!hasLastLoggedTo) {
+                const endOfDay = new Date(d);
+                endOfDay.setHours(23, 59, 59, 999);
+                lastLoggedCond.$lte = endOfDay;
+            }
         }
     }
-    if (typeof lastLoggedTo === 'string' && lastLoggedTo.trim()) {
+    if (hasLastLoggedTo) {
         const d = new Date(lastLoggedTo);
         if (!Number.isNaN(d.getTime())) {
-            lastLoggedCond.$lt = d;
+            // If we already have $gte from lastLoggedFrom, use $lte for inclusive end
+            // Otherwise use $lt for exclusive end (original behavior)
+            if (lastLoggedCond.$gte) {
+                const endOfDay = new Date(d);
+                endOfDay.setHours(23, 59, 59, 999);
+                lastLoggedCond.$lte = endOfDay;
+            } else {
+                lastLoggedCond.$lt = d;
+            }
             hasValidFilters = true;
         }
     }

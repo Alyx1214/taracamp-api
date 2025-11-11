@@ -1,10 +1,7 @@
 .checkHeadTitle {
-  font-size: 3rem;
-  font-weight: bold;
+  margin: 0;
+  font-weight: 700;
+  font-size: 50px;
   color: #4F3718;
-  margin: 20;
-  padding: 20px;
-  letter-spacing: 0.5rem;   
-  text-align: left;  
-  
+  letter-spacing: 10px;
 }

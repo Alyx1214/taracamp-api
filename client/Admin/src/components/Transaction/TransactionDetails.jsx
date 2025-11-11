@@ -57,10 +57,10 @@ export default function TransactionDetails() {
       <div className={styles["transaction-details-header"]}>
         <span
           className={styles["add-form-back"]}
-          onClick={() => navigate('/transactions')}
+          onClick={() => navigate('/transactions?tab=Transactions')}
           role="button"
           tabIndex={0}
-          onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && navigate('/transactions')}
+          onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && navigate('/transactions?tab=Transactions')}
         >
           &larr;
         </span>
@@ -158,7 +158,9 @@ export default function TransactionDetails() {
             <tr>
               <td colSpan={3} className={styles["transaction-details-status-row"]}>
                 <span className={styles["transaction-details-status-label"]}>Status:</span>{" "}
-                <span className={styles["transaction-details-status-value"]}>{transaction.status}</span>
+                <span className={`${styles["transaction-details-status-value"]} ${transaction.status === "Fully Paid" ? styles["transaction-details-status-paid"] : ""}`}>
+                  {transaction.status}
+                </span>
               </td>
             </tr>
           </tbody>

@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import UnivTable from "./UnivTable";
 import styles from "./UnivTable.module.css";
-import { getAllReservationsByStatus, cancelReservation, searchReservations } from "../../apis/reservationApi"; // ← fix path if different
+import { cancelReservation, searchReservations } from "../../apis/reservationApi";
 
 function formatDateYMDToLong(dateStr) {
   if (!dateStr) return "N/A";
@@ -23,6 +23,7 @@ function prettifyServiceType(svc) {
 
 export default function Approved({ 
   searchQuery = "", 
+  filters = {},
   currentPage: parentCurrentPage = 1,
   totalPages: parentTotalPages = 1,
   totalItems: parentTotalItems = 0,
@@ -42,27 +43,38 @@ export default function Approved({
   const itemsPerPage = 15;
   const columns = useMemo(() => ["Name", "Email", "Service Type", "Facility Name", "Date", "Actions"], []);
   
-  const fetchApprovedData = useCallback(async (page = currentPage, query = searchQuery, showLoading = true) => {
+  const fetchApprovedData = useCallback(async (page = currentPage, query = searchQuery, appliedFilters = filters, showLoading = true) => {
     try {
       if (showLoading) setLoading(true);
       let res;
       const skip = (page - 1) * itemsPerPage;
-      const options = { limit: itemsPerPage, skip };
+      const options = { 
+        limit: itemsPerPage, 
+        skip
+      };
+      if (appliedFilters?.serviceType) options.serviceType = appliedFilters.serviceType;
+      if (appliedFilters?.category) options.category = appliedFilters.category;
+      if (appliedFilters?.startDate) options.startDate = appliedFilters.startDate;
+      if (appliedFilters?.endDate) options.endDate = appliedFilters.endDate;
+      if (appliedFilters?.sortBy) options.sortBy = appliedFilters.sortBy;
       
+      // Always use searchReservations - it supports status and all filters
+      const searchParams = {
+        status: 'Approved',
+        ...options
+      };
+      // Only add query if there's a search term
       if (String(query || '').trim()) {
-        const s = String(query || '').trim();
-        res = await searchReservations({ query: s, ...options });
-        res.reservations = (res?.reservations || []).filter(r => r.status === 'Approved');
-      } else {
-        res = await getAllReservationsByStatus("Approved", options); 
+        searchParams.query = String(query).trim();
       }
+      res = await searchReservations(searchParams);
       const list = (res?.reservations || []).map(r => ({
         id: r._id || "N/A",
         name: r.guestName || "N/A",
         email: r.guestEmail || "N/A",
         serviceType: prettifyServiceType(r.serviceType) || "N/A",
         facilityName: r.facilityName || "N/A",
-        date: formatDateYMDToLong(r.dateOfArrival || r.createdAt),
+        date: formatDateYMDToLong(r.createdAt),
         _raw: r,
       }));
       
@@ -82,13 +94,13 @@ export default function Approved({
     } finally {
       if (showLoading) setLoading(false);
     }
-  }, [currentPage, searchQuery]);
+  }, [currentPage, searchQuery, filters]);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        await fetchApprovedData();
+        await fetchApprovedData(currentPage, searchQuery, filters);
       } catch (e) {
         if (!cancelled) setErr(e?.message || "Failed to load");
       }
@@ -96,7 +108,7 @@ export default function Approved({
     return () => {
       cancelled = true;
     };
-  }, [fetchApprovedData]);
+  }, [fetchApprovedData, currentPage, searchQuery, filters]);
 
   // Sync with parent pagination state
   useEffect(() => {
@@ -120,7 +132,7 @@ export default function Approved({
       setRows((prev) => prev.filter((r) => String(r.id) !== String(row.id)));
       // Refetch the data to ensure we have the latest from server
       // This ensures cancelled reservations don't appear in the Approved tab
-      await fetchApprovedData(currentPage, searchQuery, false);
+      await fetchApprovedData(currentPage, searchQuery, filters, false);
       // Refresh the Cancelled tab so the new reservation appears there
       if (onRefreshTab) {
         onRefreshTab("Cancelled");
@@ -161,7 +173,14 @@ export default function Approved({
           alert("Invalid reservation ID. Cannot view details.");
           return;
         }
-        navigate(`/approvedRSV/${row.id}/details`);
+        navigate(`/approvedRSV/${row.id}/details`, {
+          state: {
+            activeTab: 'Approved',
+            filters,
+            searchQuery,
+            currentPage
+          }
+        });
       },
     },
   ];

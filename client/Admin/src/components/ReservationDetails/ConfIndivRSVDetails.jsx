@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import styles from "./ConfIndivRSVDetails.module.css";
 import { getReservationById } from "../../apis/reservationApi";
 
@@ -16,6 +16,8 @@ function prettifyServiceType(svc) {
 export default function ConfIndivRSVDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const { filters, searchQuery, currentPage } = location.state || {};
   const [reservation, setReservation] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -42,7 +44,7 @@ export default function ConfIndivRSVDetails() {
   const SkeletonLoading = () => (
     <div className={styles["rsv-details-container"]}>
       <div className={styles["rsv-details-header"]}>
-        <span className={styles["rsv-details-back"]} onClick={() => navigate('/reservations', { state: { activeTab: 'Confirmed' } })}>
+        <span className={styles["rsv-details-back"]} onClick={() => navigate('/reservations', { state: { activeTab: 'Confirmed', filters, searchQuery, currentPage } })}>
           &larr;
         </span>
         <h1 className={styles["rsv-details-title"]}>Reservation Details</h1>
@@ -91,7 +93,7 @@ export default function ConfIndivRSVDetails() {
     return (
       <div className={styles["rsv-details-container"]}>
         <div className={styles["rsv-details-header"]}>
-          <span className={styles["rsv-details-back"]} onClick={() => navigate('/reservations', { state: { activeTab: 'Confirmed' } })}>&larr;</span>
+          <span className={styles["rsv-details-back"]} onClick={() => navigate('/reservations', { state: { activeTab: 'Confirmed', filters, searchQuery, currentPage } })}>&larr;</span>
           <h1 className={styles["rsv-details-title"]}>Reservation Details</h1>
         </div>
         <div className={styles["rsv-details-card"]}>
@@ -136,7 +138,7 @@ export default function ConfIndivRSVDetails() {
   return (
     <div className={styles["rsv-details-container"]}>
       <div className={styles["rsv-details-header"]}>
-        <span className={styles["rsv-details-back"]} onClick={() => navigate('/reservations', { state: { activeTab: 'Confirmed' } })}>&larr;</span>
+        <span className={styles["rsv-details-back"]} onClick={() => navigate('/reservations', { state: { activeTab: 'Confirmed', filters, searchQuery, currentPage } })}>&larr;</span>
         <h1 className={styles["rsv-details-title"]}>Reservation Details</h1>
       </div>
       <div className={styles["rsv-details-card"]}>

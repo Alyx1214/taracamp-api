@@ -1,15 +1,19 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import styles from "./SearchFil.module.css";
 
 export default function SearchFil({ 
   placeholder = "Search", 
   onSearch, 
   onApplyFilters,
-  filterFields = []
+  filterFields = [],
+  initialSearchValue = "",
+  initialFilterValues = {}
 }) {
-  const [searchValue, setSearchValue] = useState("");
+  const [searchValue, setSearchValue] = useState(initialSearchValue);
   const [showFilterOverlay, setShowFilterOverlay] = useState(false);
-  const [filterValues, setFilterValues] = useState({});
+  const [filterValues, setFilterValues] = useState(initialFilterValues);
+  const [dateError, setDateError] = useState("");
+  const prevFilterValuesRef = useRef(initialFilterValues);
 
   const handleSearch = () => {
     if (onSearch) onSearch(searchValue);
@@ -22,23 +26,85 @@ export default function SearchFil({
     }
   };
 
+  const validateDates = () => {
+    const startDate = filterValues.startDate;
+    const endDate = filterValues.endDate;
+    
+    if (startDate && endDate) {
+      if (new Date(endDate) < new Date(startDate)) {
+        setDateError("End date cannot be earlier than start date");
+        return false;
+      }
+    }
+    setDateError("");
+    return true;
+  };
+
   const handleApplyFilters = () => {
+    if (!validateDates()) {
+      return; // Don't apply filters if dates are invalid
+    }
     if (onApplyFilters) {
       onApplyFilters(filterValues);
     }
     setShowFilterOverlay(false);
+    setDateError(""); // Clear error when closing
   };
 
   const handleClearFilters = () => {
     setFilterValues({});
+    setDateError(""); // Clear error when clearing filters
     if (onApplyFilters) onApplyFilters({});
   };
 
+  // Update internal state when props change (e.g., when navigating back)
+  useEffect(() => {
+    setSearchValue(initialSearchValue);
+  }, [initialSearchValue]);
+
+  // Only update filterValues if the actual values changed (deep comparison)
+  useEffect(() => {
+    const prevValues = prevFilterValuesRef.current;
+    const currentValues = initialFilterValues || {};
+    
+    // Check if values actually changed by comparing JSON strings
+    const prevStr = JSON.stringify(prevValues);
+    const currentStr = JSON.stringify(currentValues);
+    
+    if (prevStr !== currentStr) {
+      setFilterValues(currentValues);
+      prevFilterValuesRef.current = currentValues;
+    }
+  }, [initialFilterValues]);
+
+  // Close overlay when component unmounts (e.g., when navigating away)
+  useEffect(() => {
+    return () => {
+      setShowFilterOverlay(false);
+    };
+  }, []);
+
   const handleFilterValueChange = (fieldName, value) => {
-    setFilterValues((prev) => ({
-      ...prev,
-      [fieldName]: value,
-    }));
+    setFilterValues((prev) => {
+      const newValues = {
+        ...prev,
+        [fieldName]: value,
+      };
+      
+      // Validate dates when either date changes
+      if (fieldName === "startDate" || fieldName === "endDate") {
+        const startDate = fieldName === "startDate" ? value : newValues.startDate;
+        const endDate = fieldName === "endDate" ? value : newValues.endDate;
+        
+        if (startDate && endDate && new Date(endDate) < new Date(startDate)) {
+          setDateError("End date cannot be earlier than start date");
+        } else {
+          setDateError("");
+        }
+      }
+      
+      return newValues;
+    });
   };
 
   return (
@@ -64,7 +130,10 @@ export default function SearchFil({
       </button>
 
       {/* Filter Button */}
-      <button className={styles.iconButton} onClick={() => setShowFilterOverlay(true)}>
+      <button className={styles.iconButton} onClick={() => {
+        setShowFilterOverlay(true);
+        setDateError(""); // Clear error when opening overlay
+      }}>
         <svg xmlns="http://www.w3.org/2000/svg" 
           width="24" height="24" viewBox="0 0 24 24" fill="none" 
           stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -82,9 +151,15 @@ export default function SearchFil({
 
       {/* Filter Overlay */}
       {showFilterOverlay && (
-        <div className={styles.filterOverlayBackdrop} onClick={() => setShowFilterOverlay(false)}>
+        <div className={styles.filterOverlayBackdrop} onClick={() => {
+          setShowFilterOverlay(false);
+          setDateError(""); // Clear error when closing overlay
+        }}>
           <div className={styles.filterOverlayContent} onClick={(e) => e.stopPropagation()}>
-            <button className={styles.overlayCloseTopButton} onClick={() => setShowFilterOverlay(false)}>
+            <button className={styles.overlayCloseTopButton} onClick={() => {
+              setShowFilterOverlay(false);
+              setDateError(""); // Clear error when closing overlay
+            }}>
               ✕
             </button>
             <h3>Apply Filters</h3>
@@ -93,29 +168,41 @@ export default function SearchFil({
                 <div key={index} className={styles.overlayInputRow}>
                   <label htmlFor={field.name}>{field.label}:</label>
                   {field.type === "select" ? (
-                    <select
-                      id={field.name}
-                      className={styles.overlayInput}
-                      value={filterValues[field.name] || ""}
-                      onChange={(e) => handleFilterValueChange(field.name, e.target.value)}
-                    >
-                      {field.options?.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
+                    <div className={styles.selectWrapper}>
+                      <select
+                        id={field.name}
+                        className={styles.overlayInput}
+                        value={filterValues[field.name] || ""}
+                        onChange={(e) => handleFilterValueChange(field.name, e.target.value)}
+                      >
+                        {field.options?.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                      <svg className={styles.selectIcon} xmlns="http://www.w3.org/2000/svg" 
+                        width="16" height="16" viewBox="0 0 24 24" fill="none" 
+                        stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="6 9 12 15 18 9"></polyline>
+                      </svg>
+                    </div>
                   ) : (
-                    <input
-                      type={field.type || "text"}
-                      id={field.name}
-                      placeholder={field.placeholder || ""}
-                      className={styles.overlayInput}
-                      value={filterValues[field.name] || ""}
-                      onChange={(e) => handleFilterValueChange(field.name, e.target.value)}
-                      min={field.min || undefined}
-                      max={field.max || undefined}
-                    />
+                    <>
+                      <input
+                        type={field.type || "text"}
+                        id={field.name}
+                        placeholder={field.placeholder || ""}
+                        className={`${styles.overlayInput} ${field.name === "endDate" && dateError ? styles.errorInput : ""}`}
+                        value={filterValues[field.name] || ""}
+                        onChange={(e) => handleFilterValueChange(field.name, e.target.value)}
+                        min={field.name === "endDate" && filterValues.startDate ? filterValues.startDate : (field.min || undefined)}
+                        max={field.name === "startDate" && filterValues.endDate ? filterValues.endDate : (field.max || undefined)}
+                      />
+                      {field.name === "endDate" && dateError && (
+                        <span className={styles.errorMessage}>{dateError}</span>
+                      )}
+                    </>
                   )}
                 </div>
               ))}

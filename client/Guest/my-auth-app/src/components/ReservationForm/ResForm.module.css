@@ -170,6 +170,7 @@
   }
   .formRow .formGroup {
     width: 100%;
+    margin-bottom: 15px;
   }
   .checkboxGroupContainer {
     flex-direction: column;

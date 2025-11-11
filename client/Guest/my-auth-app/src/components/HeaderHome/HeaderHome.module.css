@@ -178,7 +178,6 @@
   justify-content: space-between;
   background: var(--header-bg);
   padding: 16px 20px;
-  overflow-y: auto;
 }
 
 .msgHeaderTitle {

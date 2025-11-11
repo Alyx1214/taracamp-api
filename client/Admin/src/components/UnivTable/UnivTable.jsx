@@ -31,10 +31,19 @@ export default function UnivTable({ columns, data, renderActions, renderMenu, lo
       Name: "name",
       Email: "email",
       "Service Type": "serviceType",
+      "Facility Type": "facilityType",
       "Facility Name": "facilityName",
+      "Arrival Date": "arrivalDate",
+      "Departure Date": "departureDate",
       Date: "date",
     };
-    return mapping[columnName] || columnName.toLowerCase().replace(/ /g, "");
+    // If not in mapping, convert to camelCase: "Facility Type" -> "facilityType"
+    if (mapping[columnName]) {
+      return mapping[columnName];
+    }
+    // Convert "Some Column Name" to "someColumnName"
+    const words = columnName.toLowerCase().split(/\s+/);
+    return words[0] + words.slice(1).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join("");
   };
 
   if (loading) {

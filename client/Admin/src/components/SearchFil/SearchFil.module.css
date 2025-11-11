@@ -54,69 +54,189 @@
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0,0,0,0.4);
+  background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(4px);
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 50;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .filterOverlayContent {
   background: #fff;
-  padding: 20px;
-  border-radius: 12px;
-  width: 300px;
+  padding: 24px;
+  border-radius: 16px;
+  width: 420px;
   position: relative;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+  animation: slideUp 0.3s ease-out;
 }
 
 .overlayCloseTopButton {
   position: absolute;
-  top: 10px;
-  right: 10px;
-  background: transparent;
+  top: 12px;
+  right: 12px;
+  background: #f5f5f5;
   border: none;
-  font-size: 18px;
+  font-size: 20px;
   cursor: pointer;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: all 0.2s ease;
+}
+
+.overlayCloseTopButton:hover {
+  background: #e0e0e0;
+  transform: rotate(90deg);
 }
 
 .overlayInputsGroup {
-  margin: 15px 0;
+  margin: 20px 0;
 }
 
 .overlayInputRow {
-  margin-bottom: 10px;
+  margin-bottom: 14px;
   display: flex;
   flex-direction: column;
   font-size: 14px;
 }
 
+.overlayInputRow label {
+  margin-bottom: 6px;
+  font-weight: 500;
+  color: #333;
+}
+
 .overlayInput {
-  padding: 6px 10px;
-  border: 1px solid #ccc;
-  border-radius: 6px;
+  padding: 10px 12px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  font-size: 14px;
+}
+
+.overlayInput:focus {
+  outline: none;
+  border-color: #183c2d;
+  box-shadow: 0 0 0 3px rgba(24, 60, 45, 0.1);
 }
 
 .overlayButtons {
   display: flex;
   justify-content: space-between;
-  margin-top: 15px;
+  gap: 10px;
+  margin-top: 20px;
 }
 
 .overlayClearButton,
 .overlayApplyButton {
-  padding: 6px 12px;
+  padding: 10px 18px;
   border: none;
-  border-radius: 6px;
+  border-radius: 25px;
   cursor: pointer;
   font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  flex: 1;
 }
 
 .overlayClearButton {
-  background: #f2f2f2;
-  color: #333;
+  background: #4F3718;
+  color: #f5f5f5;
+}
+
+.overlayClearButton:hover {
+  background: #e5e5e5;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  background: #f34960;
 }
 
 .overlayApplyButton {
   background: #183c2d;
   color: #fff;
+}
+
+.overlayApplyButton:hover {
+  background: #145a32;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(24, 60, 45, 0.3);
+}
+
+.overlayApplyButton:active,
+.overlayClearButton:active {
+  transform: translateY(0);
+}
+
+.selectWrapper {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+}
+
+.selectWrapper select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding-right: 36px;
+  cursor: pointer;
+  background-color: #fff;
+  width: 100%;
+}
+
+.selectIcon {
+  position: absolute;
+  right: 12px;
+  top: 35%;
+  pointer-events: none;
+  stroke: #183c2d;
+  transition: transform 0.2s ease;
+  z-index: 1;
+}
+
+
+.selectWrapper select:hover {
+  border-color: #183c2d;
+}
+
+/* Error styles */
+.errorInput {
+  border-color: #f34960 !important;
+}
+
+.errorInput:focus {
+  border-color: #f34960 !important;
+  box-shadow: 0 0 0 3px rgba(243, 73, 96, 0.1) !important;
+}
+
+.errorMessage {
+  color: #f34960;
+  font-size: 12px;
+  margin-top: 4px;
+  display: block;
 }
