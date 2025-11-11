@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import styles from "./ConfIndivRSVDetails.module.css";
+import styles from "./ReservationDetails.module.css";
 import { getReservationById } from "../../apis/reservationApi";
 
 function prettifyServiceType(svc) {
@@ -11,7 +11,39 @@ function prettifyServiceType(svc) {
       w.match(/[a-z]/i) ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : w
     )
     .join("");
-} 
+}
+
+function formatDateLong(dateStr) {
+  if (!dateStr) return "N/A";
+  try {
+    // Parse date string to extract date components (avoid timezone issues)
+    const datePart = String(dateStr).split('T')[0].split(' ')[0];
+    const parts = datePart.split('-');
+    
+    if (parts.length === 3) {
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10);
+      const day = parseInt(parts[2], 10);
+      
+      if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
+        // Create date in local timezone using date components
+        const date = new Date(year, month - 1, day);
+        return date.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+      }
+    }
+    // Fallback to regular parsing
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return "N/A";
+    // Use UTC methods to avoid timezone shifts
+    const year = d.getUTCFullYear();
+    const month = d.getUTCMonth();
+    const day = d.getUTCDate();
+    const localDate = new Date(year, month, day);
+    return localDate.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+  } catch (e) {
+    return "N/A";
+  }
+}
 
 export default function ConfIndivRSVDetails() {
   const { id } = useParams();
@@ -67,7 +99,7 @@ export default function ConfIndivRSVDetails() {
         {/* Table Rows Skeleton */}
         <table className={styles["rsv-details-table"]}>
           <tbody>
-            {Array.from({ length: 8 }).map((_, index) => (
+            {Array.from({ length: 14 }).map((_, index) => (
               <tr key={index}>
                 <td className={styles["skeleton-table-row"]}>
                   <div className={`${styles["skeleton-label"]} ${styles["skeleton"]}`}></div>
@@ -79,8 +111,11 @@ export default function ConfIndivRSVDetails() {
           </tbody>
         </table>
 
+        {/* Divider Skeleton */}
+        <div className={`${styles["rsv-details-divider"]} ${styles["skeleton"]}`}></div>
+
         {/* Status Skeleton */}
-        <div className={styles["rsv-details-status-row"]}>
+        <div className={styles["rsv-details-foot"]}>
           <div className={`${styles["skeleton-status-row"]} ${styles["skeleton"]}`}>
             <div className={`${styles["skeleton-status-label"]} ${styles["skeleton"]}`}></div>
             <div className={`${styles["skeleton-status-value"]} ${styles["skeleton"]}`}></div>
@@ -106,38 +141,6 @@ export default function ConfIndivRSVDetails() {
     );
   }
 
-  const prettyDate = (dateStr) => {
-    if (!dateStr) return "N/A";
-    try {
-      // Parse date string to extract date components (avoid timezone issues)
-      const datePart = String(dateStr).split('T')[0].split(' ')[0];
-      const parts = datePart.split('-');
-      
-      if (parts.length === 3) {
-        const year = parseInt(parts[0], 10);
-        const month = parseInt(parts[1], 10);
-        const day = parseInt(parts[2], 10);
-        
-        if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
-          // Create date in local timezone using date components
-          const date = new Date(year, month - 1, day);
-          return date.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
-        }
-      }
-      // Fallback to regular parsing
-      const d = new Date(dateStr);
-      if (isNaN(d.getTime())) return "N/A";
-      // Use UTC methods to avoid timezone shifts
-      const year = d.getUTCFullYear();
-      const month = d.getUTCMonth();
-      const day = d.getUTCDate();
-      const localDate = new Date(year, month, day);
-      return localDate.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
-    } catch (e) {
-      return "N/A";
-    }
-  };
-
   return (
     <div className={styles["rsv-details-container"]}>
       <div className={styles["rsv-details-header"]}>
@@ -147,7 +150,7 @@ export default function ConfIndivRSVDetails() {
       <div className={styles["rsv-details-card"]}>
         <div className={styles["rsv-details-row"]}>
           <span className={styles["rsv-details-facility"]}>{reservation.facilityType}</span>
-          <span className={styles["rsv-details-date"]}>{prettyDate(reservation.dateOfArrival)}</span>
+          <span className={styles["rsv-details-date"]}>{formatDateLong(reservation.dateOfArrival)}</span>
         </div>
         <table className={styles["rsv-details-table"]}>
           <tbody>
@@ -194,12 +197,12 @@ export default function ConfIndivRSVDetails() {
             <tr>
               <td className={styles["rsv-details-label"]}>Date of Arrival</td>
               <td className={styles["rsv-details-separator"]}>:</td>
-              <td>{prettyDate(reservation.dateOfArrival) || reservation.arrival}</td>
+              <td>{formatDateLong(reservation.dateOfArrival) || reservation.arrival}</td>
             </tr>
             <tr>
               <td className={styles["rsv-details-label"]}>Date of Departure</td>
               <td className={styles["rsv-details-separator"]}>:</td>
-              <td>{prettyDate(reservation.dateOfDeparture) || reservation.departure}</td>
+              <td>{formatDateLong(reservation.dateOfDeparture) || reservation.departure}</td>
             </tr>
             <tr>
               <td className={styles["rsv-details-label"]}>Type of Facility</td>
@@ -224,9 +227,11 @@ export default function ConfIndivRSVDetails() {
           </tbody>
         </table>
         <hr className={styles["rsv-details-divider"]} />
-        <div className={styles["rsv-details-status-row"]}>
-          <span className={styles["rsv-details-status-label"]}>Status:</span>
-          <span className={styles["rsv-details-status-value"]}>{reservation.status || "N/A"}</span>
+        <div className={styles["rsv-details-foot"]}>
+          <div className={styles["rsv-details-status-row"]}>
+            <span className={styles["rsv-details-status-label"]}>Status:</span>
+            <span className={styles["rsv-details-status-value"]}>{reservation.status || "N/A"}</span>
+          </div>
         </div>
       </div>
     </div>

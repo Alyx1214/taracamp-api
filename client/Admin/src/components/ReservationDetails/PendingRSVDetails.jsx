@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import styles from "./PendingRSVDetails.module.css";
+import styles from "./ReservationDetails.module.css";
 import { FaCheck, FaTimes, FaUpload } from "react-icons/fa";
 import { getReservationById, uploadNonavailabilityCertificate, decideReservation } from "../../apis/reservationApi";
+import ConfirmModal from "../Shared/ConfirmModal";
 
 function formatDateLong(dateStr) {
   if (!dateStr) return "N/A";
@@ -58,6 +59,11 @@ export default function PendingRSVDetails() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [fileName, setFileName] = useState("");
+  
+  // Modal states
+  const [confirmApproveOpen, setConfirmApproveOpen] = useState(false);
+  const [confirmDeclineOpen, setConfirmDeclineOpen] = useState(false);
 
   // Check if user can approve/decline (only Superintendent)
   const role = (typeof window !== 'undefined' && localStorage.getItem('userRole')) || '';
@@ -89,8 +95,6 @@ export default function PendingRSVDetails() {
     return () => { cancelled = true; };
   }, [id]);
 
-  const [fileName, setFileName] = React.useState("");
-
   const handleFileChange = (e) => {
     const file = e.target.files && e.target.files[0] ? e.target.files[0] : null;
     setSelectedFile(file);
@@ -121,12 +125,12 @@ export default function PendingRSVDetails() {
     }
   }
 
-  async function onApprove() {
+  async function confirmApprove() {
     if (!id) return;
     try {
       setSubmitting(true);
       await decideReservation(id, "Approved");
-      alert("Reservation approved.");
+      setConfirmApproveOpen(false);
       navigate(-1);
     } catch (e) {
       alert(e?.message || "Failed to approve reservation");
@@ -135,12 +139,12 @@ export default function PendingRSVDetails() {
     }
   }
 
-  async function onDecline() {
+  async function confirmDecline() {
     if (!id) return;
     try {
       setSubmitting(true);
       await decideReservation(id, "Declined");
-      alert("Reservation declined.");
+      setConfirmDeclineOpen(false);
       navigate(-1);
     } catch (e) {
       alert(e?.message || "Failed to decline reservation");
@@ -212,181 +216,182 @@ export default function PendingRSVDetails() {
   }
 
   if (!reservation) {
-      return (
-        <div className={styles["rsv-details-container"]}>
-          <div className={styles["rsv-details-header"]}>
-            <span
-              className={styles["rsv-details-back"]}
-              onClick={() => navigate('/reservations', { state: { activeTab: 'Pending', filters, searchQuery, currentPage } })}
-            >
-              &larr;
-            </span>
-            <h1 className={styles["rsv-details-title"]}>Reservation Details</h1>
-          </div>
-          <div className={styles["rsv-details-card"]}>
-            <p>{error || "Reservation not found."}</p>
-          </div>
+    return (
+      <div className={styles["reservation-details-container"]}>
+        <div className={styles["reservation-details-header"]}>
+          <span
+            className={styles["reservation-details-back"]}
+            onClick={() => navigate('/reservations', { state: { activeTab: 'Pending', filters, searchQuery, currentPage } })}
+          >
+            &larr;
+          </span>
+          <h1 className={styles["reservation-details-title"]}>Reservation Details</h1>
         </div>
-      );
-    }
+        <div className={styles["reservation-details-card"]}>
+          <p>{error || "Reservation not found."}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className={styles["reservation-details-container"]}>
-      <div className={styles["reservation-details-header"]}>
-        <span
-          className={styles["reservation-details-back"]}
-          onClick={() => navigate('/reservations', { state: { activeTab: 'Pending', filters, searchQuery, currentPage } })}
-        >
-          &larr;
-        </span>
-        <h1 className={styles["reservation-details-title"]}>Reservation Details</h1>
-      </div>
-      <div className={styles["reservation-details-card"]}>
-        <div className={styles["reservation-details-row"]}>
-          <span className={styles["reservation-details-facility"]}>
-            {reservation.facilityType || "N/A"}
+    <>
+      <div className={styles["reservation-details-container"]}>
+        <div className={styles["reservation-details-header"]}>
+          <span
+            className={styles["reservation-details-back"]}
+            onClick={() => navigate('/reservations', { state: { activeTab: 'Pending', filters, searchQuery, currentPage } })}
+          >
+            &larr;
           </span>
-          <span className={styles["reservation-details-date"]}>
-            {formatDateLong(reservation.dateOfArrival)}
-          </span>
+          <h1 className={styles["reservation-details-title"]}>Reservation Details</h1>
         </div>
-        <table className={styles["reservation-details-table"]}>
-          <tbody>
-            <tr>
-              <td className={styles["reservation-details-label"]}>Group/Association</td>
-              <td className={styles["reservation-details-separator"]}>:</td>
-              <td>{reservation.guestName || "N/A"}</td>
-            </tr>
-            <tr>
-              <td className={styles["reservation-details-label"]}>Address</td>
-              <td className={styles["reservation-details-separator"]}>:</td>
-              <td>{reservation.homeAddress || "N/A"}</td>
-            </tr>
-            <tr>
-              <td className={styles["reservation-details-label"]}>Office Address</td>
-              <td className={styles["reservation-details-separator"]}>:</td>
-              <td>{reservation.officeAddress || "N/A"}</td>
-            </tr>
-            <tr>
-              <td className={styles["reservation-details-label"]}>Category</td>
-              <td className={styles["reservation-details-separator"]}>:</td>
-              <td>{reservation.category || "N/A"}</td>
-            </tr>
-            <tr>
-              <td className={styles["reservation-details-label"]}>Phone No.</td>
-              <td className={styles["reservation-details-separator"]}>:</td>
-              <td>{reservation.telephone || "N/A"}</td>
-            </tr>
-            <tr>
-              <td className={styles["reservation-details-label"]}>Office Telephone No.</td>
-              <td className={styles["reservation-details-separator"]}>:</td>
-              <td>{reservation.officeTelephone || "N/A"}</td>
-            </tr>
-            <tr>
-              <td className={styles["reservation-details-label"]}>Number of Guests</td>
-              <td className={styles["reservation-details-separator"]}>:</td>
-              <td>{reservation?.numberOfGuests?.total ?? "N/A"}</td>
-            </tr>
-            <tr>
-              <td className={styles["reservation-details-label"]}>Emergency Contact</td>
-              <td className={styles["reservation-details-separator"]}>:</td>
-              <td>{reservation.emergencyContact || "N/A"}</td>
-            </tr>
-            <tr>
-              <td className={styles["reservation-details-label"]}>Date of Arrival</td>
-              <td className={styles["reservation-details-separator"]}>:</td>
-              <td>{formatDateLong(reservation.dateOfArrival)}</td>
-            </tr>
-            <tr>
-              <td className={styles["reservation-details-label"]}>Date of Departure</td>
-              <td className={styles["reservation-details-separator"]}>:</td>
-              <td>{formatDateLong(reservation.dateOfDeparture)}</td>
-            </tr>
-            <tr>
-              <td className={styles["reservation-details-label"]}>Type of Facility</td>
-              <td className={styles["reservation-details-separator"]}>:</td>
-              <td>{reservation.facilityType || "N/A"}</td>
-            </tr>
-            <tr>
-              <td className={styles["reservation-details-label"]}>Facility Name</td>
-              <td className={styles["reservation-details-separator"]}>:</td>
-              <td>{reservation.facilityName || reservation.facilityType || "N/A"}</td>
-            </tr>
-            <tr>
-              <td className={styles["reservation-details-label"]}>Type of Service</td>
-              <td className={styles["reservation-details-separator"]}>:</td>
-              <td>{prettifyServiceType(reservation.serviceType) || "N/A"}</td>
-            </tr>
-            {reservation.guestType !== "Individual" && (
-              <tr>
-                <td className={styles["reservation-details-label"]}>Letter of Intent</td>
-                <td className={styles["reservation-details-separator"]}>:</td>
-                <td>
-                  <a
-                    href={reservation.letterOfIntentFile || "#"}
-                    className={styles["reservation-details-link"]}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    Click to open
-                  </a>
-                </td>
-              </tr>
-            )}
-            <tr>
-              <td className={styles["reservation-details-label"]}>Non-Availability Certificate</td>
-              <td className={styles["reservation-details-separator"]}>:</td>
-              <td>
-                {reservation.nonAvailabilityCertFile ? (
-                  <a
-                    href={reservation.nonAvailabilityCertFile}
-                    className={styles["reservation-details-link"]}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    Click to open
-                  </a>
-                ) : hasNonAvailability ? (
-                  "On file"
-                ) : (
-                  "N/A"
-                )}
-              </td>
-            </tr>
-          </tbody>
-        </table>
-        <div className={styles["reservation-details-foot"]}>
-          <div className={styles["reservation-details-status-row"]}>
-            <span className={styles["reservation-details-status-label"]}>Status:</span>
-            <span className={styles["reservation-details-status-value-pending"]}>
-              {reservation.status || "N/A"}
+        <div className={styles["reservation-details-card"]}>
+          <div className={styles["reservation-details-row"]}>
+            <span className={styles["reservation-details-facility"]}>
+              {reservation.facilityType || "N/A"}
+            </span>
+            <span className={styles["reservation-details-date"]}>
+              {formatDateLong(reservation.dateOfArrival)}
             </span>
           </div>
-          {canApproveDecline && (
-            <div className={styles["reservation-details-action-row"]}>
-              <button
-                className={styles["reservation-details-decline-btn"]}
-                onClick={onDecline}
-                disabled={submitting}
-              >
-                <FaTimes className={styles["reservation-details-action-icon"]} />
-                DECLINE
-              </button>
-              {!hasNonAvailability && (
+          <table className={styles["reservation-details-table"]}>
+            <tbody>
+              <tr>
+                <td className={styles["reservation-details-label"]}>Group/Association</td>
+                <td className={styles["reservation-details-separator"]}>:</td>
+                <td>{reservation.guestName || "N/A"}</td>
+              </tr>
+              <tr>
+                <td className={styles["reservation-details-label"]}>Address</td>
+                <td className={styles["reservation-details-separator"]}>:</td>
+                <td>{reservation.homeAddress || "N/A"}</td>
+              </tr>
+              <tr>
+                <td className={styles["reservation-details-label"]}>Office Address</td>
+                <td className={styles["reservation-details-separator"]}>:</td>
+                <td>{reservation.officeAddress || "N/A"}</td>
+              </tr>
+              <tr>
+                <td className={styles["reservation-details-label"]}>Category</td>
+                <td className={styles["reservation-details-separator"]}>:</td>
+                <td>{reservation.category || "N/A"}</td>
+              </tr>
+              <tr>
+                <td className={styles["reservation-details-label"]}>Phone No.</td>
+                <td className={styles["reservation-details-separator"]}>:</td>
+                <td>{reservation.telephone || "N/A"}</td>
+              </tr>
+              <tr>
+                <td className={styles["reservation-details-label"]}>Office Telephone No.</td>
+                <td className={styles["reservation-details-separator"]}>:</td>
+                <td>{reservation.officeTelephone || "N/A"}</td>
+              </tr>
+              <tr>
+                <td className={styles["reservation-details-label"]}>Number of Guests</td>
+                <td className={styles["reservation-details-separator"]}>:</td>
+                <td>{reservation?.numberOfGuests?.total ?? "N/A"}</td>
+              </tr>
+              <tr>
+                <td className={styles["reservation-details-label"]}>Emergency Contact</td>
+                <td className={styles["reservation-details-separator"]}>:</td>
+                <td>{reservation.emergencyContact || "N/A"}</td>
+              </tr>
+              <tr>
+                <td className={styles["reservation-details-label"]}>Date of Arrival</td>
+                <td className={styles["reservation-details-separator"]}>:</td>
+                <td>{formatDateLong(reservation.dateOfArrival)}</td>
+              </tr>
+              <tr>
+                <td className={styles["reservation-details-label"]}>Date of Departure</td>
+                <td className={styles["reservation-details-separator"]}>:</td>
+                <td>{formatDateLong(reservation.dateOfDeparture)}</td>
+              </tr>
+              <tr>
+                <td className={styles["reservation-details-label"]}>Type of Facility</td>
+                <td className={styles["reservation-details-separator"]}>:</td>
+                <td>{reservation.facilityType || "N/A"}</td>
+              </tr>
+              <tr>
+                <td className={styles["reservation-details-label"]}>Facility Name</td>
+                <td className={styles["reservation-details-separator"]}>:</td>
+                <td>{reservation.facilityName || reservation.facilityType || "N/A"}</td>
+              </tr>
+              <tr>
+                <td className={styles["reservation-details-label"]}>Type of Service</td>
+                <td className={styles["reservation-details-separator"]}>:</td>
+                <td>{prettifyServiceType(reservation.serviceType) || "N/A"}</td>
+              </tr>
+              {reservation.guestType !== "Individual" && (
+                <tr>
+                  <td className={styles["reservation-details-label"]}>Letter of Intent</td>
+                  <td className={styles["reservation-details-separator"]}>:</td>
+                  <td>
+                    <a
+                      href={reservation.letterOfIntentFile || "#"}
+                      className={styles["reservation-details-link"]}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Click to open
+                    </a>
+                  </td>
+                </tr>
+              )}
+              <tr>
+                <td className={styles["reservation-details-label"]}>Non-Availability Certificate</td>
+                <td className={styles["reservation-details-separator"]}>:</td>
+                <td>
+                  {reservation.nonAvailabilityCertFile ? (
+                    <a
+                      href={reservation.nonAvailabilityCertFile}
+                      className={styles["reservation-details-link"]}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Click to open
+                    </a>
+                  ) : hasNonAvailability ? (
+                    "On file"
+                  ) : (
+                    "N/A"
+                  )}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <div className={styles["reservation-details-foot"]}>
+            <div className={styles["reservation-details-status-row"]}>
+              <span className={styles["reservation-details-status-label"]}>Status:</span>
+              <span className={styles["reservation-details-status-value-pending"]}>
+                {reservation.status || "N/A"}
+              </span>
+            </div>
+            {canApproveDecline && (
+              <div className={styles["reservation-details-action-row"]}>
                 <button
-                  className={styles["reservation-details-approve-btn"]}
-                  onClick={onApprove}
+                  className={styles["reservation-details-decline-btn"]}
+                  onClick={() => setConfirmDeclineOpen(true)}
                   disabled={submitting}
                 >
-                  <FaCheck className={styles["reservation-details-action-icon"]} />
-                  {submitting ? "PROCESSING…" : "APPROVE"}
+                  <FaTimes className={styles["reservation-details-action-icon"]} />
+                  DECLINE
                 </button>
-              )}
-            </div>
-          )}
-        </div>
-        {!hasNonAvailability && (
-          <div className={styles["reservation-details-upload-section"]}>
+                {!hasNonAvailability && (
+                  <button
+                    className={styles["reservation-details-approve-btn"]}
+                    onClick={() => setConfirmApproveOpen(true)}
+                    disabled={submitting}
+                  >
+                    <FaCheck className={styles["reservation-details-action-icon"]} />
+                    {submitting ? "PROCESSING…" : "APPROVE"}
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+          {!hasNonAvailability && (
+            <div className={styles["reservation-details-upload-section"]}>
               <div className={styles["reservation-details-upload-label"]}>
                 Upload Certificate Of Non-Availability
               </div>
@@ -421,8 +426,35 @@ export default function PendingRSVDetails() {
                 </button>
               </div>
             </div>
-        )}
+          )}
+        </div>
       </div>
-    </div>
+
+      {/* Approve Confirmation Modal */}
+      <ConfirmModal
+        open={confirmApproveOpen}
+        title="Approve Reservation"
+        message={`Are you sure you want to approve the reservation for ${reservation?.guestName || 'this guest'}? They will be notified immediately.`}
+        confirmText="Approve"
+        cancelText="Cancel"
+        confirming={submitting}
+        variant="success"
+        onCancel={() => setConfirmApproveOpen(false)}
+        onConfirm={confirmApprove}
+      />
+
+      {/* Decline Confirmation Modal */}
+      <ConfirmModal
+        open={confirmDeclineOpen}
+        title="Decline Reservation"
+        message={`Are you sure you want to decline the reservation for ${reservation?.guestName || 'this guest'}? They will be notified immediately.`}
+        confirmText="Decline"
+        cancelText="Cancel"
+        confirming={submitting}
+        variant="danger"
+        onCancel={() => setConfirmDeclineOpen(false)}
+        onConfirm={confirmDecline}
+      />
+    </>
   );
 }

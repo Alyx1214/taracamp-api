@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import styles from "./PendingRSVDetails.module.css";
+import styles from "./ReservationDetails.module.css";
 import { FaUpload } from "react-icons/fa";
 import { getReservationById, uploadNonavailabilityCertificate } from "../../apis/reservationApi";
 
@@ -57,6 +57,7 @@ export default function DeclinedRSVDetails() {
   const [error, setError] = useState("");
   const [selectedFile, setSelectedFile] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [fileName, setFileName] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -83,8 +84,6 @@ export default function DeclinedRSVDetails() {
     })();
     return () => { cancelled = true; };
   }, [id]);
-
-  const [fileName, setFileName] = React.useState("");
 
   const handleFileChange = (e) => {
     const file = e.target.files && e.target.files[0] ? e.target.files[0] : null;
@@ -120,14 +119,14 @@ export default function DeclinedRSVDetails() {
 
   // Skeleton Loading Component
   const SkeletonLoading = () => (
-    <div className={styles["reservation-details-container"]}>
-      <div className={styles["reservation-details-header"]}>
-        <span className={styles["reservation-details-back"]} onClick={() => navigate('/reservations', { state: { activeTab: 'Declined', filters, searchQuery, currentPage } })}>
+    <div className={styles["rsv-details-container"]}>
+      <div className={styles["rsv-details-header"]}>
+        <span className={styles["rsv-details-back"]} onClick={() => navigate('/reservations', { state: { activeTab: 'Declined', filters, searchQuery, currentPage } })}>
           &larr;
         </span>
-        <h1 className={styles["reservation-details-title"]}>Reservation Details</h1>
+        <h1 className={styles["rsv-details-title"]}>Reservation Details</h1>
       </div>
-      <div className={styles["reservation-details-card"]}>
+      <div className={styles["rsv-details-card"]}>
         {/* Header Row Skeleton */}
         <div className={`${styles["skeleton-header-row"]} ${styles["skeleton"]}`}>
           <div className={`${styles["skeleton-facility"]} ${styles["skeleton"]}`}></div>
@@ -135,7 +134,7 @@ export default function DeclinedRSVDetails() {
         </div>
 
         {/* Table Rows Skeleton */}
-        <table className={styles["reservation-details-table"]}>
+        <table className={styles["rsv-details-table"]}>
           <tbody>
             {Array.from({ length: 12 }).map((_, index) => (
               <tr key={index}>
@@ -150,7 +149,7 @@ export default function DeclinedRSVDetails() {
         </table>
 
         {/* Status Skeleton */}
-        <div className={styles["reservation-details-foot"]}>
+        <div className={styles["rsv-details-foot"]}>
           <div className={`${styles["skeleton-status-row"]} ${styles["skeleton"]}`}>
             <div className={`${styles["skeleton-status-label"]} ${styles["skeleton"]}`}></div>
             <div className={`${styles["skeleton-status-value"]} ${styles["skeleton"]}`}></div>
@@ -175,119 +174,119 @@ export default function DeclinedRSVDetails() {
   }
 
   if (!reservation) {
-      return (
-        <div className={styles["rsv-details-container"]}>
-          <div className={styles["rsv-details-header"]}>
-            <span
-              className={styles["rsv-details-back"]}
-              onClick={() => navigate('/reservations', { state: { activeTab: 'Declined', filters, searchQuery, currentPage } })}
-            >
-              &larr;
-            </span>
-            <h1 className={styles["rsv-details-title"]}>Reservation Details</h1>
-          </div>
-          <div className={styles["rsv-details-card"]}>
-            <p>{error || "Reservation not found."}</p>
-          </div>
+    return (
+      <div className={styles["rsv-details-container"]}>
+        <div className={styles["rsv-details-header"]}>
+          <span
+            className={styles["rsv-details-back"]}
+            onClick={() => navigate('/reservations', { state: { activeTab: 'Declined', filters, searchQuery, currentPage } })}
+          >
+            &larr;
+          </span>
+          <h1 className={styles["rsv-details-title"]}>Reservation Details</h1>
         </div>
-      );
-    }
+        <div className={styles["rsv-details-card"]}>
+          <p>{error || "Reservation not found."}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className={styles["reservation-details-container"]}>
-      <div className={styles["reservation-details-header"]}>
+    <div className={styles["rsv-details-container"]}>
+      <div className={styles["rsv-details-header"]}>
         <span
-          className={styles["reservation-details-back"]}
+          className={styles["rsv-details-back"]}
           onClick={() => navigate('/reservations', { state: { activeTab: 'Declined', filters, searchQuery, currentPage } })}
         >
           &larr;
         </span>
-        <h1 className={styles["reservation-details-title"]}>Reservation Details</h1>
+        <h1 className={styles["rsv-details-title"]}>Reservation Details</h1>
       </div>
-      <div className={styles["reservation-details-card"]}>
-        <div className={styles["reservation-details-row"]}>
-          <span className={styles["reservation-details-facility"]}>
+      <div className={styles["rsv-details-card"]}>
+        <div className={styles["rsv-details-row"]}>
+          <span className={styles["rsv-details-facility"]}>
             {reservation.facilityType || "N/A"}
           </span>
-          <span className={styles["reservation-details-date"]}>
+          <span className={styles["rsv-details-date"]}>
             {formatDateLong(reservation.dateOfArrival)}
           </span>
         </div>
-        <table className={styles["reservation-details-table"]}>
+        <table className={styles["rsv-details-table"]}>
           <tbody>
             <tr>
-              <td className={styles["reservation-details-label"]}>Group/Association</td>
-              <td className={styles["reservation-details-separator"]}>:</td>
+              <td className={styles["rsv-details-label"]}>Group/Association</td>
+              <td className={styles["rsv-details-separator"]}>:</td>
               <td>{reservation.guestName || "N/A"}</td>
             </tr>
             <tr>
-              <td className={styles["reservation-details-label"]}>Address</td>
-              <td className={styles["reservation-details-separator"]}>:</td>
+              <td className={styles["rsv-details-label"]}>Address</td>
+              <td className={styles["rsv-details-separator"]}>:</td>
               <td>{reservation.homeAddress || "N/A"}</td>
             </tr>
             <tr>
-              <td className={styles["reservation-details-label"]}>Office Address</td>
-              <td className={styles["reservation-details-separator"]}>:</td>
+              <td className={styles["rsv-details-label"]}>Office Address</td>
+              <td className={styles["rsv-details-separator"]}>:</td>
               <td>{reservation.officeAddress || "N/A"}</td>
             </tr>
             <tr>
-              <td className={styles["reservation-details-label"]}>Category</td>
-              <td className={styles["reservation-details-separator"]}>:</td>
+              <td className={styles["rsv-details-label"]}>Category</td>
+              <td className={styles["rsv-details-separator"]}>:</td>
               <td>{reservation.category || "N/A"}</td>
             </tr>
             <tr>
-              <td className={styles["reservation-details-label"]}>Phone No.</td>
-              <td className={styles["reservation-details-separator"]}>:</td>
+              <td className={styles["rsv-details-label"]}>Phone No.</td>
+              <td className={styles["rsv-details-separator"]}>:</td>
               <td>{reservation.telephone || "N/A"}</td>
             </tr>
             <tr>
-              <td className={styles["reservation-details-label"]}>Office Telephone No.</td>
-              <td className={styles["reservation-details-separator"]}>:</td>
+              <td className={styles["rsv-details-label"]}>Office Telephone No.</td>
+              <td className={styles["rsv-details-separator"]}>:</td>
               <td>{reservation.officeTelephone || "N/A"}</td>
             </tr>
             <tr>
-              <td className={styles["reservation-details-label"]}>Number of Guests</td>
-              <td className={styles["reservation-details-separator"]}>:</td>
+              <td className={styles["rsv-details-label"]}>Number of Guests</td>
+              <td className={styles["rsv-details-separator"]}>:</td>
               <td>{reservation?.numberOfGuests?.total ?? "N/A"}</td>
             </tr>
             <tr>
-              <td className={styles["reservation-details-label"]}>Emergency Contact</td>
-              <td className={styles["reservation-details-separator"]}>:</td>
+              <td className={styles["rsv-details-label"]}>Emergency Contact</td>
+              <td className={styles["rsv-details-separator"]}>:</td>
               <td>{reservation.emergencyContact || "N/A"}</td>
             </tr>
             <tr>
-              <td className={styles["reservation-details-label"]}>Date of Arrival</td>
-              <td className={styles["reservation-details-separator"]}>:</td>
+              <td className={styles["rsv-details-label"]}>Date of Arrival</td>
+              <td className={styles["rsv-details-separator"]}>:</td>
               <td>{formatDateLong(reservation.dateOfArrival)}</td>
             </tr>
             <tr>
-              <td className={styles["reservation-details-label"]}>Date of Departure</td>
-              <td className={styles["reservation-details-separator"]}>:</td>
+              <td className={styles["rsv-details-label"]}>Date of Departure</td>
+              <td className={styles["rsv-details-separator"]}>:</td>
               <td>{formatDateLong(reservation.dateOfDeparture)}</td>
             </tr>
             <tr>
-              <td className={styles["reservation-details-label"]}>Type of Facility</td>
-              <td className={styles["reservation-details-separator"]}>:</td>
+              <td className={styles["rsv-details-label"]}>Type of Facility</td>
+              <td className={styles["rsv-details-separator"]}>:</td>
               <td>{reservation.facilityType || "N/A"}</td>
             </tr>
             <tr>
-              <td className={styles["reservation-details-label"]}>Facility Name</td>
-              <td className={styles["reservation-details-separator"]}>:</td>
+              <td className={styles["rsv-details-label"]}>Facility Name</td>
+              <td className={styles["rsv-details-separator"]}>:</td>
               <td>{reservation.facilityName || reservation.facilityType || "N/A"}</td>
             </tr>
             <tr>
-              <td className={styles["reservation-details-label"]}>Type of Service</td>
-              <td className={styles["reservation-details-separator"]}>:</td>
+              <td className={styles["rsv-details-label"]}>Type of Service</td>
+              <td className={styles["rsv-details-separator"]}>:</td>
               <td>{prettifyServiceType(reservation.serviceType) || "N/A"}</td>
             </tr>
             {reservation.guestType !== "Individual" && (
               <tr>
-                <td className={styles["reservation-details-label"]}>Letter of Intent</td>
-                <td className={styles["reservation-details-separator"]}>:</td>
+                <td className={styles["rsv-details-label"]}>Letter of Intent</td>
+                <td className={styles["rsv-details-separator"]}>:</td>
                 <td>
                   <a
                     href={reservation.letterOfIntentFile || "#"}
-                    className={styles["reservation-details-link"]}
+                    className={styles["rsv-details-link"]}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
@@ -297,13 +296,13 @@ export default function DeclinedRSVDetails() {
               </tr>
             )}
             <tr>
-              <td className={styles["reservation-details-label"]}>Non-Availability Certificate</td>
-              <td className={styles["reservation-details-separator"]}>:</td>
+              <td className={styles["rsv-details-label"]}>Non-Availability Certificate</td>
+              <td className={styles["rsv-details-separator"]}>:</td>
               <td>
                 {reservation.nonAvailabilityCertFile ? (
                   <a
                     href={reservation.nonAvailabilityCertFile}
-                    className={styles["reservation-details-link"]}
+                    className={styles["rsv-details-link"]}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
@@ -318,50 +317,50 @@ export default function DeclinedRSVDetails() {
             </tr>
           </tbody>
         </table>
-        <div className={styles["reservation-details-foot"]}>
-          <div className={styles["reservation-details-status-row"]}>
-            <span className={styles["reservation-details-status-label"]}>Status:</span>
-            <span className={styles["reservation-details-status-value-pending"]}>
+        <div className={styles["rsv-details-foot"]}>
+          <div className={styles["rsv-details-status-row"]}>
+            <span className={styles["rsv-details-status-label"]}>Status:</span>
+            <span className={styles["rsv-details-status-value"]}>
               {reservation.status || "N/A"}
             </span>
           </div>
         </div>
         {!hasNonAvailability && (
-          <div className={styles["reservation-details-upload-section"]}>
-              <div className={styles["reservation-details-upload-label"]}>
-                Upload Certificate Of Non-Availability
-              </div>
-              <div className={styles["reservation-details-upload-desc"]}>
-                Applicable Only For Declining A Reservation
-              </div>
-              <div className={styles["reservation-details-upload-row"]}>
-                <input
-                  type="file"
-                  id="upload"
-                  ref={fileInputRef}
-                  style={{ display: "none" }}
-                  onChange={handleFileChange}
-                />
-                <label
-                  htmlFor="upload"
-                  className={styles["reservation-details-upload-btn"]}
-                  tabIndex={0}
-                  onKeyPress={e => {
-                    if (e.key === "Enter" || e.key === " ") fileInputRef.current.click();
-                  }}
-                >
-                  {fileName ? fileName : "Click to upload"}
-                  <FaUpload className={styles["reservation-details-upload-icon"]} />
-                </label>
-                <button
-                  className={styles["reservation-details-send-btn"]}
-                  onClick={onSend}
-                  disabled={uploading || !selectedFile}
-                >
-                  {uploading ? "Uploading…" : "Send"}
-                </button>
-              </div>
+          <div className={styles["rsv-details-upload-section"]}>
+            <div className={styles["rsv-details-upload-label"]}>
+              Upload Certificate Of Non-Availability
             </div>
+            <div className={styles["rsv-details-upload-desc"]}>
+              Applicable Only For Declining A Reservation
+            </div>
+            <div className={styles["rsv-details-upload-row"]}>
+              <input
+                type="file"
+                id="upload"
+                ref={fileInputRef}
+                style={{ display: "none" }}
+                onChange={handleFileChange}
+              />
+              <label
+                htmlFor="upload"
+                className={styles["rsv-details-upload-btn"]}
+                tabIndex={0}
+                onKeyPress={e => {
+                  if (e.key === "Enter" || e.key === " ") fileInputRef.current.click();
+                }}
+              >
+                {fileName ? fileName : "Click to upload"}
+                <FaUpload className={styles["rsv-details-upload-icon"]} />
+              </label>
+              <button
+                className={styles["rsv-details-send-btn"]}
+                onClick={onSend}
+                disabled={uploading || !selectedFile}
+              >
+                {uploading ? "Uploading…" : "Send"}
+              </button>
+            </div>
+          </div>
         )}
       </div>
     </div>
