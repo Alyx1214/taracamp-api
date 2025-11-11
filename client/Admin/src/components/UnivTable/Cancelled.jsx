@@ -148,7 +148,20 @@ export default function Cancelled({
   const renderMenu = (row) => [
     {
       label: "See Details",
-      onClick: () => alert(`Viewing details for ${row.name}`),
+      onClick: () => {
+        if (!row.id || row.id === "N/A") {
+          alert("Invalid reservation ID. Cannot view details.");
+          return;
+        }
+        navigate(`/cancelledRSV/${row.id}/details`, {
+          state: {
+            activeTab: 'Cancelled',
+            filters,
+            searchQuery,
+            currentPage
+          }
+        });
+      },
     },
   ];
 

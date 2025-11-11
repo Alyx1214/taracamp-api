@@ -1,0 +1,369 @@
+import React, { useEffect, useRef, useState } from "react";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
+import styles from "./PendingRSVDetails.module.css";
+import { FaUpload } from "react-icons/fa";
+import { getReservationById, uploadNonavailabilityCertificate } from "../../apis/reservationApi";
+
+function formatDateLong(dateStr) {
+  if (!dateStr) return "N/A";
+  try {
+    // Parse date string to extract date components (avoid timezone issues)
+    const datePart = String(dateStr).split('T')[0].split(' ')[0];
+    const parts = datePart.split('-');
+    
+    if (parts.length === 3) {
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10);
+      const day = parseInt(parts[2], 10);
+      
+      if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
+        // Create date in local timezone using date components
+        const date = new Date(year, month - 1, day);
+        return date.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+      }
+    }
+    // Fallback to regular parsing
+    const d = new Date(dateStr);
+    if (Number.isNaN(d.getTime())) return "N/A";
+    // Use UTC methods to avoid timezone shifts
+    const year = d.getUTCFullYear();
+    const month = d.getUTCMonth();
+    const day = d.getUTCDate();
+    const localDate = new Date(year, month, day);
+    return localDate.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+  } catch (e) {
+    return "N/A";
+  }
+}
+
+function prettifyServiceType(svc) {
+  if (!svc) return "N/A";
+  return String(svc)
+    .split(/([\/\s])/)
+    .map((w) =>
+      w.match(/[a-z]/i) ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : w
+    )
+    .join("");
+}
+
+export default function DeclinedRSVDetails() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { filters, searchQuery, currentPage } = location.state || {};
+  const fileInputRef = useRef();
+  const [reservation, setReservation] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        setLoading(true);
+        const res = await getReservationById(id);
+        if (cancelled) return;
+        if (res?.reservation) {
+          setReservation(res.reservation);
+          setError("");
+        } else {
+          setReservation(null);
+          setError("Reservation not found.");
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setError(e?.message || "Failed to fetch reservation");
+          setReservation(null);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [id]);
+
+  const [fileName, setFileName] = React.useState("");
+
+  const handleFileChange = (e) => {
+    const file = e.target.files && e.target.files[0] ? e.target.files[0] : null;
+    setSelectedFile(file);
+    setFileName(file ? file.name : "");
+  };
+
+  async function onSend() {
+    if (!id) return;
+    if (!selectedFile) {
+      alert("Please choose a file to upload.");
+      return;
+    }
+    try {
+      setUploading(true);
+      await uploadNonavailabilityCertificate(id, selectedFile);
+      alert("Non-Availability Certificate uploaded.");
+      // refresh reservation to reflect latest state
+      const res = await getReservationById(id);
+      if (res?.reservation) setReservation(res.reservation);
+      // reset chooser
+      try { if (fileInputRef.current) fileInputRef.current.value = ""; } catch {}
+      setSelectedFile(null);
+      setFileName("");
+    } catch (e) {
+      alert(e?.message || "Failed to upload Non-Availability Certificate");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  const hasNonAvailability = !!reservation?.hasNonAvailabilityCert || !!reservation?.nonAvailabilityCertFile;
+
+  // Skeleton Loading Component
+  const SkeletonLoading = () => (
+    <div className={styles["reservation-details-container"]}>
+      <div className={styles["reservation-details-header"]}>
+        <span className={styles["reservation-details-back"]} onClick={() => navigate('/reservations', { state: { activeTab: 'Declined', filters, searchQuery, currentPage } })}>
+          &larr;
+        </span>
+        <h1 className={styles["reservation-details-title"]}>Reservation Details</h1>
+      </div>
+      <div className={styles["reservation-details-card"]}>
+        {/* Header Row Skeleton */}
+        <div className={`${styles["skeleton-header-row"]} ${styles["skeleton"]}`}>
+          <div className={`${styles["skeleton-facility"]} ${styles["skeleton"]}`}></div>
+          <div className={`${styles["skeleton-date"]} ${styles["skeleton"]}`}></div>
+        </div>
+
+        {/* Table Rows Skeleton */}
+        <table className={styles["reservation-details-table"]}>
+          <tbody>
+            {Array.from({ length: 12 }).map((_, index) => (
+              <tr key={index}>
+                <td className={styles["skeleton-table-row"]}>
+                  <div className={`${styles["skeleton-label"]} ${styles["skeleton"]}`}></div>
+                  <div className={`${styles["skeleton-separator"]} ${styles["skeleton"]}`}></div>
+                  <div className={`${styles["skeleton-value"]} ${styles["skeleton"]}`}></div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        {/* Status Skeleton */}
+        <div className={styles["reservation-details-foot"]}>
+          <div className={`${styles["skeleton-status-row"]} ${styles["skeleton"]}`}>
+            <div className={`${styles["skeleton-status-label"]} ${styles["skeleton"]}`}></div>
+            <div className={`${styles["skeleton-status-value"]} ${styles["skeleton"]}`}></div>
+          </div>
+        </div>
+
+        {/* Upload Section Skeleton */}
+        <div className={styles["skeleton-upload-section"]}>
+          <div className={`${styles["skeleton-upload-label"]} ${styles["skeleton"]}`}></div>
+          <div className={`${styles["skeleton-upload-desc"]} ${styles["skeleton"]}`}></div>
+          <div className={styles["skeleton-upload-row"]}>
+            <div className={`${styles["skeleton-upload-btn"]} ${styles["skeleton"]}`}></div>
+            <div className={`${styles["skeleton-send-btn"]} ${styles["skeleton"]}`}></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  if (loading) {
+    return <SkeletonLoading />;
+  }
+
+  if (!reservation) {
+      return (
+        <div className={styles["rsv-details-container"]}>
+          <div className={styles["rsv-details-header"]}>
+            <span
+              className={styles["rsv-details-back"]}
+              onClick={() => navigate('/reservations', { state: { activeTab: 'Declined', filters, searchQuery, currentPage } })}
+            >
+              &larr;
+            </span>
+            <h1 className={styles["rsv-details-title"]}>Reservation Details</h1>
+          </div>
+          <div className={styles["rsv-details-card"]}>
+            <p>{error || "Reservation not found."}</p>
+          </div>
+        </div>
+      );
+    }
+
+  return (
+    <div className={styles["reservation-details-container"]}>
+      <div className={styles["reservation-details-header"]}>
+        <span
+          className={styles["reservation-details-back"]}
+          onClick={() => navigate('/reservations', { state: { activeTab: 'Declined', filters, searchQuery, currentPage } })}
+        >
+          &larr;
+        </span>
+        <h1 className={styles["reservation-details-title"]}>Reservation Details</h1>
+      </div>
+      <div className={styles["reservation-details-card"]}>
+        <div className={styles["reservation-details-row"]}>
+          <span className={styles["reservation-details-facility"]}>
+            {reservation.facilityType || "N/A"}
+          </span>
+          <span className={styles["reservation-details-date"]}>
+            {formatDateLong(reservation.dateOfArrival)}
+          </span>
+        </div>
+        <table className={styles["reservation-details-table"]}>
+          <tbody>
+            <tr>
+              <td className={styles["reservation-details-label"]}>Group/Association</td>
+              <td className={styles["reservation-details-separator"]}>:</td>
+              <td>{reservation.guestName || "N/A"}</td>
+            </tr>
+            <tr>
+              <td className={styles["reservation-details-label"]}>Address</td>
+              <td className={styles["reservation-details-separator"]}>:</td>
+              <td>{reservation.homeAddress || "N/A"}</td>
+            </tr>
+            <tr>
+              <td className={styles["reservation-details-label"]}>Office Address</td>
+              <td className={styles["reservation-details-separator"]}>:</td>
+              <td>{reservation.officeAddress || "N/A"}</td>
+            </tr>
+            <tr>
+              <td className={styles["reservation-details-label"]}>Category</td>
+              <td className={styles["reservation-details-separator"]}>:</td>
+              <td>{reservation.category || "N/A"}</td>
+            </tr>
+            <tr>
+              <td className={styles["reservation-details-label"]}>Phone No.</td>
+              <td className={styles["reservation-details-separator"]}>:</td>
+              <td>{reservation.telephone || "N/A"}</td>
+            </tr>
+            <tr>
+              <td className={styles["reservation-details-label"]}>Office Telephone No.</td>
+              <td className={styles["reservation-details-separator"]}>:</td>
+              <td>{reservation.officeTelephone || "N/A"}</td>
+            </tr>
+            <tr>
+              <td className={styles["reservation-details-label"]}>Number of Guests</td>
+              <td className={styles["reservation-details-separator"]}>:</td>
+              <td>{reservation?.numberOfGuests?.total ?? "N/A"}</td>
+            </tr>
+            <tr>
+              <td className={styles["reservation-details-label"]}>Emergency Contact</td>
+              <td className={styles["reservation-details-separator"]}>:</td>
+              <td>{reservation.emergencyContact || "N/A"}</td>
+            </tr>
+            <tr>
+              <td className={styles["reservation-details-label"]}>Date of Arrival</td>
+              <td className={styles["reservation-details-separator"]}>:</td>
+              <td>{formatDateLong(reservation.dateOfArrival)}</td>
+            </tr>
+            <tr>
+              <td className={styles["reservation-details-label"]}>Date of Departure</td>
+              <td className={styles["reservation-details-separator"]}>:</td>
+              <td>{formatDateLong(reservation.dateOfDeparture)}</td>
+            </tr>
+            <tr>
+              <td className={styles["reservation-details-label"]}>Type of Facility</td>
+              <td className={styles["reservation-details-separator"]}>:</td>
+              <td>{reservation.facilityType || "N/A"}</td>
+            </tr>
+            <tr>
+              <td className={styles["reservation-details-label"]}>Facility Name</td>
+              <td className={styles["reservation-details-separator"]}>:</td>
+              <td>{reservation.facilityName || reservation.facilityType || "N/A"}</td>
+            </tr>
+            <tr>
+              <td className={styles["reservation-details-label"]}>Type of Service</td>
+              <td className={styles["reservation-details-separator"]}>:</td>
+              <td>{prettifyServiceType(reservation.serviceType) || "N/A"}</td>
+            </tr>
+            {reservation.guestType !== "Individual" && (
+              <tr>
+                <td className={styles["reservation-details-label"]}>Letter of Intent</td>
+                <td className={styles["reservation-details-separator"]}>:</td>
+                <td>
+                  <a
+                    href={reservation.letterOfIntentFile || "#"}
+                    className={styles["reservation-details-link"]}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Click to open
+                  </a>
+                </td>
+              </tr>
+            )}
+            <tr>
+              <td className={styles["reservation-details-label"]}>Non-Availability Certificate</td>
+              <td className={styles["reservation-details-separator"]}>:</td>
+              <td>
+                {reservation.nonAvailabilityCertFile ? (
+                  <a
+                    href={reservation.nonAvailabilityCertFile}
+                    className={styles["reservation-details-link"]}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Click to open
+                  </a>
+                ) : hasNonAvailability ? (
+                  "On file"
+                ) : (
+                  "N/A"
+                )}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <div className={styles["reservation-details-foot"]}>
+          <div className={styles["reservation-details-status-row"]}>
+            <span className={styles["reservation-details-status-label"]}>Status:</span>
+            <span className={styles["reservation-details-status-value-pending"]}>
+              {reservation.status || "N/A"}
+            </span>
+          </div>
+        </div>
+        {!hasNonAvailability && (
+          <div className={styles["reservation-details-upload-section"]}>
+              <div className={styles["reservation-details-upload-label"]}>
+                Upload Certificate Of Non-Availability
+              </div>
+              <div className={styles["reservation-details-upload-desc"]}>
+                Applicable Only For Declining A Reservation
+              </div>
+              <div className={styles["reservation-details-upload-row"]}>
+                <input
+                  type="file"
+                  id="upload"
+                  ref={fileInputRef}
+                  style={{ display: "none" }}
+                  onChange={handleFileChange}
+                />
+                <label
+                  htmlFor="upload"
+                  className={styles["reservation-details-upload-btn"]}
+                  tabIndex={0}
+                  onKeyPress={e => {
+                    if (e.key === "Enter" || e.key === " ") fileInputRef.current.click();
+                  }}
+                >
+                  {fileName ? fileName : "Click to upload"}
+                  <FaUpload className={styles["reservation-details-upload-icon"]} />
+                </label>
+                <button
+                  className={styles["reservation-details-send-btn"]}
+                  onClick={onSend}
+                  disabled={uploading || !selectedFile}
+                >
+                  {uploading ? "Uploading…" : "Send"}
+                </button>
+              </div>
+            </div>
+        )}
+      </div>
+    </div>
+  );
+}
