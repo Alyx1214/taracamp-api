@@ -220,6 +220,31 @@ export default function buildReservationRouter(userSocketMap) {
     const { status, employeeName } = req.body;
     const response = await reservationModule.checkInOrCheckOutReservation(dbHelper, req.params.id, status, req.user, { employeeName });
     res.status(response.status).json(response);
+
+    // Send notification to guest after successful checkout
+    if (response.status === 200 && status === ReservationStatus.CHECKED_OUT) {
+      try {
+        const reservation = await dbHelper.findOne('reservation', { _id: req.params.id });
+        if (reservation && reservation.userId) {
+          const reservationIdStr = reservation._id?.toString?.() || String(reservation._id || '');
+          const userIdStr = reservation.userId?.toString?.() || String(reservation.userId || '');
+          
+          await notificationModule.createAndNotifyUser(
+            dbHelper,
+            {
+              title: 'Share your stay',
+              message: "Tell others about your experience by leaving a review.",
+              kind: 'checkout_review_request',
+              userId: userIdStr,
+              reservationId: reservationIdStr,
+            },
+            userSocketMap
+          ).catch(e => console.warn('Notify checkout review request failed:', e?.message));
+        }
+      } catch (error) {
+        console.warn('Failed to create checkout review notification:', error?.message);
+      }
+    }
   }));
 
   r.post('/delete-reservation/:id', asyncHandler(async (req, res) => {

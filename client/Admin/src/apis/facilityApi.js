@@ -77,3 +77,7 @@ export function updateFacility(id, payload = {}) {
 export function deleteFacility(id) {
   return apiPost(`/facility/delete-facility/${encodeURIComponent(id)}`, {});
 }
+
+export function updateRooms(id, roomsData) {
+  return apiPost(`/facility/update-rooms/${encodeURIComponent(id)}`, roomsData);
+}

@@ -146,7 +146,7 @@ export default function Confirmed({
       }}>
         Edit
       </button>
-      <button className={styles["univ-decline-btn"]} onClick={() => {
+      <button className={styles["univ-view-btn"]} onClick={() => {
         if (!row.id || row.id === "N/A") {
           alert("Invalid reservation ID. Cannot view details.");
           return;

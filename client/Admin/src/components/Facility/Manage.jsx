@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
-import { FaStar, FaReply, FaTrash, FaEyeSlash, FaEye } from "react-icons/fa";
 import styles from "./Manage.module.css";
+import { updateRooms, getFacilityById } from "../../apis/facilityApi";
 
 export default function Manage() {
   const navigate = useNavigate();
@@ -15,51 +15,60 @@ export default function Manage() {
     extraRows: [],
   });
 
-  const [reviews, setReviews] = useState([
-    {
-      id: 1,
-      userName: "John Doe",
-      rating: 5,
-      comment: "Amazing facility! Very clean and well-maintained.",
-      date: "2024-11-10",
-      hidden: false,
-      adminReply: null,
-    },
-    {
-      id: 2,
-      userName: "Jane Smith",
-      rating: 4,
-      comment: "Good experience overall, staff was friendly.",
-      date: "2024-11-08",
-      hidden: false,
-      adminReply: "Thank you for your feedback!",
-    },
-    {
-      id: 3,
-      userName: "Mike Johnson",
-      rating: 3,
-      comment: "Decent place but could use some improvements.",
-      date: "2024-11-05",
-      hidden: false,
-      adminReply: null,
-    },
-  ]);
-
-  const [replyingTo, setReplyingTo] = useState(null);
-  const [replyText, setReplyText] = useState("");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     // Load facility data and reviews
-    // TODO: Fetch from API
-    if (facility) {
-      setFormData({
-        capacity: facility.capacity || "",
-        quantity: facility.quantity || "",
-        extraRows: facility.extraRows || [],
-      });
-    }
-  }, [facility]);
+    const loadFacilityData = async () => {
+      try {
+        const facilityId = id || facility?.id;
+        if (facilityId) {
+          const response = await getFacilityById(facilityId);
+          if (response?.facility) {
+            const facilityData = response.facility;
+            // If facility has rooms, load them
+            if (facilityData.rooms && Array.isArray(facilityData.rooms) && facilityData.rooms.length > 0) {
+              const firstRoom = facilityData.rooms[0];
+              const extraRooms = facilityData.rooms.slice(1);
+              setFormData({
+                capacity: firstRoom.capacity?.toString() || "",
+                quantity: firstRoom.quantity?.toString() || "",
+                extraRows: extraRooms.map(room => ({
+                  capacity: room.capacity?.toString() || "",
+                  quantity: room.quantity?.toString() || "",
+                })),
+              });
+            } else if (facility) {
+              // Fallback to facility from state if no rooms data
+              setFormData({
+                capacity: facility.capacity || "",
+                quantity: facility.quantity || "",
+                extraRows: facility.extraRows || [],
+              });
+            }
+          }
+        } else if (facility) {
+          setFormData({
+            capacity: facility.capacity || "",
+            quantity: facility.quantity || "",
+            extraRows: facility.extraRows || [],
+          });
+        }
+      } catch (error) {
+        console.error("Error loading facility data:", error);
+        // Fallback to facility from state on error
+        if (facility) {
+          setFormData({
+            capacity: facility.capacity || "",
+            quantity: facility.quantity || "",
+            extraRows: facility.extraRows || [],
+          });
+        }
+      }
+    };
+
+    loadFacilityData();
+  }, [id, facility]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -92,59 +101,46 @@ export default function Manage() {
   const handleSaveRooms = async () => {
     setLoading(true);
     try {
-      // TODO: API call to save room configuration
-      console.log("Saving room data:", formData);
-      setTimeout(() => {
-        alert("Room configuration saved successfully!");
+      const facilityId = id || facility?.id;
+      if (!facilityId) {
+        alert("Facility ID is missing. Please try again.");
         setLoading(false);
-      }, 1000);
+        return;
+      }
+
+      // Validate that at least one room configuration is provided
+      const hasMainRoom = formData.capacity && formData.quantity;
+      const hasExtraRooms = formData.extraRows.some(
+        (row) => row.capacity && row.quantity
+      );
+
+      if (!hasMainRoom && !hasExtraRooms) {
+        alert("Please provide at least one room configuration (capacity and quantity).");
+        setLoading(false);
+        return;
+      }
+
+      const response = await updateRooms(facilityId, {
+        capacity: formData.capacity,
+        quantity: formData.quantity,
+        extraRows: formData.extraRows,
+      });
+
+      if (response?.error || (response?.status && response.status >= 400)) {
+        throw new Error(response?.error || "Failed to save room configuration");
+      }
+
+      if (response?.message || response?.data) {
+        alert("Room configuration saved successfully!");
+      }
     } catch (error) {
       console.error("Error saving rooms:", error);
+      alert(
+        error?.message || error?.error || "Failed to save room configuration. Please try again."
+      );
+    } finally {
       setLoading(false);
     }
-  };
-
-  const handleReplySubmit = (reviewId) => {
-    if (!replyText.trim()) return;
-
-    setReviews((prev) =>
-      prev.map((review) =>
-        review.id === reviewId
-          ? { ...review, adminReply: replyText }
-          : review
-      )
-    );
-
-    setReplyingTo(null);
-    setReplyText("");
-    // TODO: API call to save reply
-  };
-
-  const handleDeleteReview = (reviewId) => {
-    if (window.confirm("Are you sure you want to delete this review?")) {
-      setReviews((prev) => prev.filter((review) => review.id !== reviewId));
-      // TODO: API call to delete review
-    }
-  };
-
-  const handleToggleHidden = (reviewId) => {
-    setReviews((prev) =>
-      prev.map((review) =>
-        review.id === reviewId
-          ? { ...review, hidden: !review.hidden }
-          : review
-      )
-    );
-    // TODO: API call to toggle visibility
-  };
-
-  const renderStars = (rating) => {
-    return Array.from({ length: 5 }).map((_, index) => (
-      <FaStar
-        key={index}
-        className={index < rating ? styles.starFilled : styles.starEmpty}
-      />
-    ));
   };
 
   return (
@@ -250,115 +246,6 @@ export default function Manage() {
           >
             {loading ? "Saving..." : "Save Configuration"}
           </button>
-        </div>
-      </div>
-
-      {/* Reviews Section */}
-      <div className={styles.section}>
-        <h3 className={styles.sectionTitle}>Customer Reviews</h3>
-        
-        <div className={styles.reviewsContainer}>
-          {reviews.length === 0 ? (
-            <p className={styles.noReviews}>No reviews yet.</p>
-          ) : (
-            reviews.map((review) => (
-              <div
-                key={review.id}
-                className={`${styles.reviewCard} ${
-                  review.hidden ? styles.reviewHidden : ""
-                }`}
-              >
-                <div className={styles.reviewHeader}>
-                  <div className={styles.reviewUser}>
-                    <h4>{review.userName}</h4>
-                    <div className={styles.reviewRating}>
-                      {renderStars(review.rating)}
-                      <span className={styles.ratingText}>
-                        {review.rating}/5
-                      </span>
-                    </div>
-                  </div>
-                  <span className={styles.reviewDate}>{review.date}</span>
-                </div>
-
-                <p className={styles.reviewComment}>{review.comment}</p>
-
-                {review.hidden && (
-                  <div className={styles.hiddenBadge}>
-                    <FaEyeSlash /> Hidden from public
-                  </div>
-                )}
-
-                {review.adminReply && (
-                  <div className={styles.adminReply}>
-                    <strong>Teachers' Camp</strong>
-                    <p>{review.adminReply}</p>
-                  </div>
-                )}
-
-                {replyingTo === review.id ? (
-                  <div className={styles.replyForm}>
-                    <textarea
-                      value={replyText}
-                      onChange={(e) => setReplyText(e.target.value)}
-                      placeholder="Write your reply..."
-                      rows={3}
-                      className={styles.replyTextarea}
-                    />
-                    <div className={styles.replyActions}>
-                      <button
-                        className={styles.replySubmitBtn}
-                        onClick={() => handleReplySubmit(review.id)}
-                      >
-                        Submit Reply
-                      </button>
-                      <button
-                        className={styles.replyCancelBtn}
-                        onClick={() => {
-                          setReplyingTo(null);
-                          setReplyText("");
-                        }}
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className={styles.reviewActions}>
-                    <button
-                      className={styles.actionBtn}
-                      onClick={() => {
-                        setReplyingTo(review.id);
-                        setReplyText(review.adminReply || "");
-                      }}
-                    >
-                      <FaReply /> {review.adminReply ? "Edit Reply" : "Reply"}
-                    </button>
-                    <button
-                      className={styles.actionBtn}
-                      onClick={() => handleToggleHidden(review.id)}
-                    >
-                      {review.hidden ? (
-                        <>
-                          <FaEye /> Unhide
-                        </>
-                      ) : (
-                        <>
-                          <FaEyeSlash /> Hide
-                        </>
-                      )}
-                    </button>
-                    <button
-                      className={`${styles.actionBtn} ${styles.deleteBtn}`}
-                      onClick={() => handleDeleteReview(review.id)}
-                    >
-                      <FaTrash /> Delete
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))
-          )}
         </div>
       </div>
     </div>

@@ -794,6 +794,94 @@ const facilityModule = {
         }
         return responseData;
     },
+
+    /**
+     * Updates room configurations for a facility.
+     * @param {Object} dbHelper - The database helper for database operations.
+     * @param {string} id - The ID of the facility to be updated.
+     * @param {Object} data - The data object containing room configurations.
+     * @param {Object} user - The user object containing the user ID and role.
+     * @returns {Object} Response data with status, error, and message.
+     */
+    updateRooms: async (dbHelper, id, data, user) => {
+        const responseData = {
+            status: Status.INTERNAL_SERVER_ERROR,
+            error: 'Error updating rooms',
+        };
+
+        try {
+            if (!id) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Missing facility ID';
+                return responseData;
+            }
+
+            if (!user || !user.userId) {
+                responseData.status = Status.UNAUTHORIZED;
+                responseData.error = 'User not logged in';
+                return responseData;
+            }
+
+            if (user.role !== UserRole.CRMSTEAM && user.role !== UserRole.SUPERINTENDENT) {
+                responseData.status = Status.FORBIDDEN;
+                responseData.error = 'Only CRMS team and Superintendent can update rooms';
+                return responseData;
+            }
+
+            const facility = await dbHelper.findOne('facility', { _id: id });
+            if (!facility) {
+                responseData.status = Status.NOT_FOUND;
+                responseData.error = 'Facility not found';
+                return responseData;
+            }
+
+            const { capacity, quantity, extraRows } = data;
+
+            // Build rooms array from main capacity/quantity and extraRows
+            const rooms = [];
+            
+            // Add main room configuration if provided
+            if (isPresent(capacity) && isPresent(quantity)) {
+                const cap = parseInt(String(capacity).replace(/,/g, ''), 10);
+                const qty = parseInt(String(quantity).replace(/,/g, ''), 10);
+                if (cap > 0 && qty > 0) {
+                    rooms.push({ capacity: cap, quantity: qty });
+                }
+            }
+
+            // Add extra room configurations
+            if (Array.isArray(extraRows)) {
+                extraRows.forEach((row) => {
+                    if (row && isPresent(row.capacity) && isPresent(row.quantity)) {
+                        const cap = parseInt(String(row.capacity).replace(/,/g, ''), 10);
+                        const qty = parseInt(String(row.quantity).replace(/,/g, ''), 10);
+                        if (cap > 0 && qty > 0) {
+                            rooms.push({ capacity: cap, quantity: qty });
+                        }
+                    }
+                });
+            }
+
+            const updateData = { rooms };
+
+            await Promise.all([
+                dbHelper.updateOne('facility', { _id: id }, updateData),
+                invalidateFacilitiesCache()
+            ]);
+
+            responseData.status = Status.OK;
+            responseData.error = null;
+            responseData.message = 'Rooms updated successfully';
+            responseData.data = { rooms };
+
+        } catch (error) {
+            console.error('Error updating rooms:', error);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Error updating rooms';
+        }
+
+        return responseData;
+    },
 };
 
 export default facilityModule;

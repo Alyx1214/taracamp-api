@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import styles from "./CheckInOuts.module.css";
 import CheckTabs from "./CheckTabs";
 import CheckHead from "./CheckHead";
@@ -9,8 +9,11 @@ import { searchReservations, checkInOrCheckOutReservation, deleteReservation } f
 
 export default function CheckInOuts() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState("Confirmed");
-  const [filters, setFilters] = useState({
+  const location = useLocation();
+  const { activeTab: stateActiveTab, filters: stateFilters } = location.state || {};
+  
+  const [activeTab, setActiveTab] = useState(stateActiveTab || "Confirmed");
+  const [filters, setFilters] = useState(stateFilters || {
     serviceType: "",
     facilityType: "",
     startDate: "",
@@ -199,11 +202,25 @@ export default function CheckInOuts() {
     { 
       label: "View", 
       onClick: () => {
-        if (!row.id || row.id === "") {
+        if (!row.id || row.id === "N/A") {
           alert("Invalid reservation ID. Cannot view details.");
           return;
         }
-        navigate(`/reservation/${row.id}/details`);
+        row.guestType === "GROUP"
+          ? navigate(`/confirmedGroup/${row.id}/details`, {
+              state: {
+                fromCheckInOut: true,
+                activeTab: activeTab,
+                filters,
+              }
+            })
+          : navigate(`/confirmedIndiv/${row.id}/details`, {
+              state: {
+                fromCheckInOut: true,
+                activeTab: activeTab,
+                filters,
+              }
+            });
       }
     },
     { label: "Edit", onClick: () => alert(`Editing ${row.name}`) },
