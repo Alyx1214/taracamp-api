@@ -1,0 +1,255 @@
+/* Copy relevant review styles from Manage.module.css and adapt class names */
+
+.reviewsContainer {
+  padding: 1.5rem 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  font-family: "Montserrat", sans-serif;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid rgba(91, 58, 11, 0.1);
+}
+
+.reviews-back {
+  font-size: 40px;
+  cursor: pointer;
+  color: #233d29;
+  padding: 0.3rem;
+  border-radius: 10px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.reviews-back:hover {
+  color: #1E3C24;
+  transform: translateX(-5px);
+}
+
+.title {
+  font-size: 2rem;
+  color: #5b3a0b;
+  margin: 0;
+  font-weight: 800;
+}
+
+.section {
+  background: #fff;
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.sectionTitle {
+  font-size: 1.5rem;
+  color: #233d29;
+  margin-bottom: 1.5rem;
+  font-weight: 700;
+}
+
+.reviewsList {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.noReviews {
+  text-align: center;
+  color: #666;
+  padding: 2rem;
+  font-style: italic;
+}
+
+.reviewCard {
+  background: #fafafa;
+  border-radius: 12px;
+  padding: 1.5rem;
+  border: 1px solid #e5e5e5;
+  transition: all 0.3s ease;
+}
+
+.reviewCard:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.reviewHidden {
+  opacity: 0.6;
+  border-color: #fbbf24;
+}
+
+.reviewHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.reviewUser h4 {
+  margin: 0 0 0.5rem 0;
+  color: #233d29;
+  font-size: 1.1rem;
+}
+
+.reviewRating {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.starFilled {
+  color: #fbbf24;
+  font-size: 1rem;
+}
+
+.starEmpty {
+  color: #d1d5db;
+  font-size: 1rem;
+}
+
+.ratingText {
+  color: #666;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.reviewDate {
+  color: #999;
+  font-size: 0.85rem;
+}
+
+.reviewComment {
+  color: #374151;
+  line-height: 1.6;
+  margin-bottom: 1rem;
+}
+
+.hiddenBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #fef3c7;
+  color: #92400e;
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.adminReply {
+  background: #e0f2fe;
+  border-left: 4px solid #0284c7;
+  padding: 1rem;
+  border-radius: 6px;
+  margin-top: 1rem;
+}
+
+.adminReply strong {
+  color: #0369a1;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.adminReply p {
+  margin: 0;
+  color: #374151;
+}
+
+.replyForm {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e5e5e5;
+}
+
+.replyTextarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 2px solid #d1d5db;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 0.95rem;
+  resize: vertical;
+  margin-bottom: 0.75rem;
+}
+
+.replyTextarea:focus {
+  outline: none;
+  border-color: #4ca16b;
+}
+
+.replyActions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.replySubmitBtn {
+  background: #4ca16b;
+  color: #fff;
+  border: none;
+  padding: 0.6rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.replySubmitBtn:hover {
+  background: #3d8a5a;
+}
+
+.replyCancelBtn {
+  background: #e5e5e5;
+  color: #374151;
+  border: none;
+  padding: 0.6rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.replyCancelBtn:hover {
+  background: #d1d5db;
+}
+
+.reviewActions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e5e5e5;
+}
+
+.actionBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #f3f4f6;
+  color: #374151;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.actionBtn:hover {
+  background: #e5e7eb;
+}
+
+.deleteBtn {
+  color: #dc2626;
+}
+
+.deleteBtn:hover {
+  background: #fee2e2;
+}

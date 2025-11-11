@@ -39,6 +39,7 @@ import logo from './assets/logo.png';
 import RequireAuth from './components/Utilities/RequireAuth.jsx';
 import { useTokenManager } from './utils/useTokenManager.js';
 import RoleGuard from './components/Utilities/RoleGuard.jsx';
+import Reviews from "./components/Facility/Reviews.jsx";
 
 function AuthLayout() {
   const [authFormState, setAuthFormState] = useState('login');
@@ -119,6 +120,7 @@ function App() {
             <Route path="/add-facility" element={<RoleGuard routeKey="facilities"><AddForm /></RoleGuard>} />
             <Route path="/facilities/edit/:id" element={<RoleGuard routeKey="facilities"><EditForm /></RoleGuard>} />
             <Route path="/facilities/manage/:id" element={<RoleGuard routeKey="facilities"><Manage /></RoleGuard>} />
+            <Route path="/facilities/reviews/:id" element={<RoleGuard routeKey="facilities"><Reviews /></RoleGuard>} />
 
             <Route path="/reservation/:id/details" element={<RoleGuard routeKey="reservations"><ReservationDetail /></RoleGuard>} />
             <Route path="/transaction/:id/details" element={<RoleGuard routeKey="transactions"><TransactionDetails /></RoleGuard>} /> 

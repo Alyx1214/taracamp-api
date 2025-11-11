@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaEdit, FaTrash, FaDoorOpen } from "react-icons/fa";
+import { FaEdit, FaTrash, FaDoorOpen, FaStar } from "react-icons/fa";
 import styles from "./BoxCard.module.css";
 import ConfirmDeleteModal from "./ConfirmDeleteModal";
 
@@ -59,6 +59,13 @@ export default function BoxCard({ facilities, onDelete, type, onEdit }) {
     });
   };
 
+  const handleReviewsClick = (facility) => {
+    setOpenMenuIndex(null);
+    navigate(`/facilities/reviews/${facility.id}`, {
+      state: { category: type, facility },
+    });
+  };
+
   const handleDeleteClick = (facility) => {
     setSelectedFacility(facility);
     setModalOpen(true);
@@ -72,6 +79,7 @@ export default function BoxCard({ facilities, onDelete, type, onEdit }) {
   };
 
   const showManageRooms = type === "Dormitory" || type === "Cottages";
+  const showReviews = type !== "Add-ons";
 
   return (
     <>
@@ -134,6 +142,14 @@ export default function BoxCard({ facilities, onDelete, type, onEdit }) {
                       onClick={() => handleManageRoomsClick(facility)}
                     >
                       <FaDoorOpen className={styles.icon} /> Manage Rooms
+                    </div>
+                  )}
+                  {showReviews && (
+                    <div
+                      className={styles["dropdown-item"]}
+                      onClick={() => handleReviewsClick(facility)}
+                    >
+                      <FaStar className={styles.icon} /> Reviews
                     </div>
                   )}
                   <div
