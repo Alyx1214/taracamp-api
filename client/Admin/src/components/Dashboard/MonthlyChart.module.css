@@ -18,10 +18,10 @@
 
 .chartTitle {
   display: inline-block;
-  width: 48%;
+  width: 65%;
   color: #1E3C24;
   font-family: Montserrat, sans-serif;
-  font-size: 2rem;
+  font-size: 1.9rem;
   font-style: normal;
   font-weight: 900;
 }
@@ -75,7 +75,7 @@
 .yearSelector {
   text-align: right;
   display: inline-block;
-  width: 48%;
+  width: 30%;
   position: relative;
 }
 

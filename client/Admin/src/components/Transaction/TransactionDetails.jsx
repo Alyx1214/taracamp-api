@@ -27,14 +27,25 @@ export default function TransactionDetails() {
         }
 		
         const mapped = {
-          id: data.id ?? "—",
-          referenceNumber: data.referenceNumber.toUpperCase() ?? "N/A",
-          name: data.name ?? "—",
+          id: data.id ?? "N/A",
+          referenceNumber: data.referenceNumber?.toUpperCase() ?? "N/A",
+          name: data.name ?? "N/A",
           confirmationFee: data.confirmationFee ?? "₱0.00",
-          paymentDue: data.paymentDue ?? "—",
-          date: data.date ?? "—",
-          paymentMethod: data.paymentMethod ?? "—",
-          status: data.status ?? "—",
+          paymentDue: data.paymentDue ?? "N/A",
+          date: data.date ?? "N/A",
+          paymentMethod: data.paymentMethod ?? "N/A",
+          status: data.status ?? "N/A",
+          // Report details
+          reservationCode: data.reservationCode ?? "N/A",
+          facilityUsed: data.facilityUsed ?? "N/A",
+          checkInDate: data.checkInDate ?? "N/A",
+          checkOutDate: data.checkOutDate ?? "N/A",
+          numberOfNights: data.numberOfNights ?? 0,
+          numberOfGuests: data.numberOfGuests ?? 0,
+          category: data.category ?? "N/A",
+          checkOutEmployee: data.checkOutEmployee ?? "N/A",
+          contactNumber: data.contactNumber ?? "N/A",
+          address: data.address ?? "N/A",
         };
 
         if (!cancelled) setTransaction(mapped);
@@ -68,9 +79,9 @@ export default function TransactionDetails() {
       </div>
       <div className={styles["transaction-details-card"]}>
         {/* Table Rows Skeleton */}
-        <div className={styles["transaction-details-table"]}>
+        <table className={styles["transaction-details-table"]}>
           <tbody>
-            {Array.from({ length: 7 }).map((_, index) => (
+            {Array.from({ length: 17 }).map((_, index) => (
               <tr key={index}>
                 <td className={styles["skeleton-table-row"]}>
                   <div className={`${styles["skeleton-label"]} ${styles["skeleton"]}`}></div>
@@ -80,7 +91,7 @@ export default function TransactionDetails() {
               </tr>
             ))}
           </tbody>
-        </div>
+        </table>
       </div>
     </div>
   );
@@ -162,6 +173,64 @@ export default function TransactionDetails() {
                   {transaction.status}
                 </span>
               </td>
+            </tr>
+          </tbody>
+        </table>
+        
+        <hr className={styles["transaction-details-divider"]} />
+        
+        <div className={styles["transaction-details-section-title"]}>Reservation Details</div>
+        <table className={styles["transaction-details-table"]}>
+          <tbody>
+            <tr>
+              <td className={styles["transaction-details-label"]}>RF. No.</td>
+              <td className={styles["transaction-details-separator"]}>:</td>
+              <td>{transaction.reservationCode}</td>
+            </tr>
+            <tr>
+              <td className={styles["transaction-details-label"]}>Facility Used</td>
+              <td className={styles["transaction-details-separator"]}>:</td>
+              <td>{transaction.facilityUsed}</td>
+            </tr>
+            <tr>
+              <td className={styles["transaction-details-label"]}>Check-in Date</td>
+              <td className={styles["transaction-details-separator"]}>:</td>
+              <td>{transaction.checkInDate}</td>
+            </tr>
+            <tr>
+              <td className={styles["transaction-details-label"]}>Check-out Date</td>
+              <td className={styles["transaction-details-separator"]}>:</td>
+              <td>{transaction.checkOutDate}</td>
+            </tr>
+            <tr>
+              <td className={styles["transaction-details-label"]}>No. of Nights</td>
+              <td className={styles["transaction-details-separator"]}>:</td>
+              <td>{transaction.numberOfNights}</td>
+            </tr>
+            <tr>
+              <td className={styles["transaction-details-label"]}>No. of Guests</td>
+              <td className={styles["transaction-details-separator"]}>:</td>
+              <td>{transaction.numberOfGuests}</td>
+            </tr>
+            <tr>
+              <td className={styles["transaction-details-label"]}>Category</td>
+              <td className={styles["transaction-details-separator"]}>:</td>
+              <td>{transaction.category}</td>
+            </tr>
+            <tr>
+              <td className={styles["transaction-details-label"]}>C/O Employee</td>
+              <td className={styles["transaction-details-separator"]}>:</td>
+              <td>{transaction.checkOutEmployee}</td>
+            </tr>
+            <tr>
+              <td className={styles["transaction-details-label"]}>Contact No.</td>
+              <td className={styles["transaction-details-separator"]}>:</td>
+              <td>{transaction.contactNumber}</td>
+            </tr>
+            <tr>
+              <td className={styles["transaction-details-label"]}>Address</td>
+              <td className={styles["transaction-details-separator"]}>:</td>
+              <td>{transaction.address}</td>
             </tr>
           </tbody>
         </table>

@@ -1,6 +1,6 @@
 import PDFDocument from 'pdfkit';
 import dbHelper from './dbHelper.js';
-import { Category } from '../constants.js';
+import { Category, ReservationStatus } from '../constants.js';
 
 const reportModule = {
     /**
@@ -37,7 +37,8 @@ const reportModule = {
             {
                 $match: {
                     dateOfArrival: { $lt: endDate },
-                    dateOfDeparture: { $gte: startDate }
+                    dateOfDeparture: { $gte: startDate },
+                    // status: ReservationStatus.CHECKED_OUT  // Commented out - now includes all statuses
                 }
             },
             // Normalize facility id to ObjectId for lookup (handles string ids)
@@ -78,6 +79,7 @@ const reportModule = {
             { $unwind: { path: '$facility', preserveNullAndEmptyArrays: true } },
             {
                 $project: {
+                    _id: 1,
                     reservationCode: 1,
                     guestName: 1,
                     telephone: 1,
@@ -95,6 +97,7 @@ const reportModule = {
                     guestCount: 1,
                     dateOfArrival: 1,
                     dateOfDeparture: 1,
+                    checkedInAt: 1,
                     facilityName: '$facility.name',
                     facilityCapacity: { $ifNull: ['$facility.capacity', '$capacity'] },
                     totalGuests: '$totalGuestsResolved',
@@ -141,8 +144,9 @@ const reportModule = {
         ];
 
         // Base widths (will be scaled to fit page width)
+        // RF. no., Facility, Check-in, Check-out, Nights, Guests, DepEd, Non-DepEd, Private, C/O Employee, Name, Contact, Address
         const baseColumnWidths = [
-            55, 85, 88, 88, 68, 75, 50, 60, 55, 95, 150, 90, 150
+            140, 85, 150, 150, 68, 75, 50, 60, 55, 95, 150, 120, 180
         ];
 
         // Scale columns to exactly fit the available width
@@ -161,22 +165,47 @@ const reportModule = {
         const noWrapHeaderIndexes = new Set([headers.indexOf('Private')]);
 
         function drawRow(cells, isHeader = false) {
-            const height = isHeader ? 26 : 18;
             let x = startX;
-            doc.font(isHeader ? 'Helvetica-Bold' : 'Helvetica').fontSize(isHeader ? 7 : 8);
+            const fontSize = isHeader ? 7 : 8;
+            doc.font(isHeader ? 'Helvetica-Bold' : 'Helvetica').fontSize(fontSize);
+
+            // Calculate the maximum height needed for this row based on text wrapping
+            let maxHeight = isHeader ? 26 : 18;
+            if (!isHeader) {
+                for (let i = 0; i < cells.length; i++) {
+                    const cell = String(cells[i] ?? '');
+                    const width = columnWidths[i] ?? 60;
+                    const availableTextWidth = width - 6;
+                    
+                    // Use PDFKit's heightOfString to get accurate text height
+                    try {
+                        const textHeight = doc.heightOfString(cell, {
+                            width: availableTextWidth,
+                            align: 'left'
+                        });
+                        const cellHeight = Math.max(18, Math.ceil(textHeight) + 6);
+                        maxHeight = Math.max(maxHeight, cellHeight);
+                    } catch (e) {
+                        // Fallback estimation if heightOfString fails
+                        const estimatedLines = Math.ceil((cell.length * (fontSize * 0.6)) / availableTextWidth) || 1;
+                        const cellHeight = Math.max(18, estimatedLines * (fontSize + 2) + 4);
+                        maxHeight = Math.max(maxHeight, cellHeight);
+                    }
+                }
+            }
 
             for (let i = 0; i < cells.length; i++) {
                 const cell = String(cells[i] ?? '');
                 const width = columnWidths[i] ?? 60;
-                doc.rect(x, yPos, width, height).strokeColor('#c0c0c0').stroke();
-                const textOptions = { width: width - 6, height: height - 6, align: isHeader ? 'center' : 'left' };
+                doc.rect(x, yPos, width, maxHeight).strokeColor('#c0c0c0').stroke();
+                const textOptions = { width: width - 6, height: maxHeight - 6, align: isHeader ? 'center' : 'left' };
                 if (isHeader && noWrapHeaderIndexes.has(i)) {
                     textOptions.lineBreak = false; // keep header on one line (e.g., "Private")
                 }
                 doc.fillColor('#000000').text(cell, x + 3, yPos + 3, textOptions);
                 x += width;
             }
-            yPos += height;
+            yPos += maxHeight;
 
             // Page break handling
             if (yPos > doc.page.height - 60) {
@@ -193,23 +222,36 @@ const reportModule = {
         });
         drawRow(headerDisplay, true);
 
-        // Helper for date formatting like "Fri, July 4"
+        // Helper for date formatting like "Fri, July 4, 2024"
         const prettyDate = (d) => {
             try {
                 const dt = new Date(d);
                 return new Intl.DateTimeFormat('en-US', {
-                    weekday: 'short', month: 'long', day: 'numeric'
+                    weekday: 'short', month: 'long', day: 'numeric', year: 'numeric'
                 }).format(dt);
             } catch {
                 return '';
             }
         };
 
-        // Data rows
+
+        // Data rows - use a Set to track seen reservation IDs to prevent duplicates
+        const seenReservationIds = new Set();
         for (const r of reservations) {
+            // Skip if we've already processed this reservation (prevent duplicates)
+            const reservationId = r._id?.toString() || r._id;
+            if (reservationId && seenReservationIds.has(reservationId)) {
+                console.warn(`Duplicate reservation detected in report: ${reservationId} (Code: ${r.reservationCode})`);
+                continue;
+            }
+            if (reservationId) {
+                seenReservationIds.add(reservationId);
+            }
+            
             const rfNo = r.reservationCode || '';
             const facilityName = r.facilityName || r.facilityLabel || r.facility?.name || '';
-            const checkIn = r.dateOfArrival ? prettyDate(r.dateOfArrival) : '';
+            // Use checkedInAt if available (actual check-in date), otherwise fall back to dateOfArrival (scheduled)
+            const checkIn = (r.checkedInAt ? prettyDate(r.checkedInAt) : (r.dateOfArrival ? prettyDate(r.dateOfArrival) : ''));
             const checkOut = r.dateOfDeparture ? prettyDate(r.dateOfDeparture) : '';
             const nights = (r.dateOfArrival && r.dateOfDeparture)
                 ? Math.max(0, Math.ceil((new Date(r.dateOfDeparture) - new Date(r.dateOfArrival)) / (1000 * 60 * 60 * 24)))

@@ -1,67 +1,273 @@
 .overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.4);
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: 9999;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .dialog {
-  background: #fff;
-  border-radius: 10px;
+  background: white;
+  border-radius: 24px;
   width: 90%;
-  max-width: 420px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  max-width: 500px;
+  padding: 2.5rem 2rem;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
   overflow: hidden;
-  animation: popIn 0.15s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Shimmer bar variants */
+.dialog::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 5px;
+  background-size: 200% 100%;
+  animation: shimmer 3s ease infinite;
+}
+
+/* Default/Danger shimmer (red) */
+.dialogDanger::before {
+  background: linear-gradient(90deg, #dc2626 0%, #ef4444 50%, #dc2626 100%);
+}
+
+/* Success/Approve shimmer (green) */
+.dialogSuccess::before {
+  background: linear-gradient(90deg, #16a34a 0%, #22c55e 50%, #16a34a 100%);
+}
+
+/* Delete shimmer (dark red) */
+.dialogDelete::before {
+  background: linear-gradient(90deg, #991b1b 0%, #dc2626 50%, #991b1b 100%);
+}
+
+/* Warning shimmer (orange/yellow) */
+.dialogWarning::before {
+  background: linear-gradient(90deg, #ea580c 0%, #f97316 50%, #ea580c 100%);
+}
+
+@keyframes shimmer {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
 }
 
 .header {
-  padding: 16px 18px;
-  background: #f9f9f9;
-  border-bottom: 1px solid #eee;
-  font-weight: 700;
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: #1f2937;
+  margin-bottom: 1.5rem;
+  text-align: center;
+  letter-spacing: -0.5px;
 }
 
 .content {
-  padding: 16px 18px;
-  color: #333;
+  font-size: 1.1rem;
+  color: #4b5563;
+  line-height: 1.7;
+  text-align: center;
+  margin-bottom: 2rem;
+  padding: 0 1rem;
 }
 
 .actions {
   display: flex;
-  gap: 10px;
-  justify-content: flex-end;
-  padding: 12px 18px 18px 18px;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
 }
 
 .btn {
-  padding: 8px 16px;
+  padding: 0.9rem 2.5rem;
   border: none;
-  border-radius: 6px;
+  border-radius: 12px;
+  font-size: 1.05rem;
+  font-weight: 700;
   cursor: pointer;
-  font-weight: 600;
-}
-
-.btnCancel {
-  background: #e0e0e0;
-  color: #333;
-}
-
-.btnDanger {
-  background: #f44336; /* match decline color */
-  color: #fff;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  min-width: 140px;
+  position: relative;
+  overflow: hidden;
 }
 
 .btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+  transform: none !important;
 }
 
-@keyframes popIn {
-  from { transform: translateY(4px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
+.btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s ease;
 }
 
+.btn:hover:not(:disabled)::before {
+  left: 100%;
+}
+
+/* Cancel Button */
+.btnCancel {
+  background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(107, 114, 128, 0.3);
+}
+
+.btnCancel:hover:not(:disabled) {
+  background: linear-gradient(135deg, #4b5563 0%, #374151 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(107, 114, 128, 0.4);
+}
+
+.btnCancel:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+/* Danger Button (Decline/Warning actions) */
+.btnDanger {
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+}
+
+.btnDanger:hover:not(:disabled) {
+  background: linear-gradient(135deg, #b91c1c 0%, #991b1b 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(220, 38, 38, 0.5);
+}
+
+.btnDanger:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+/* Success Button (Approve actions) */
+.btnSuccess {
+  background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(22, 163, 74, 0.3);
+}
+
+.btnSuccess:hover:not(:disabled) {
+  background: linear-gradient(135deg, #15803d 0%, #166534 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(22, 163, 74, 0.5);
+}
+
+.btnSuccess:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+/* Delete Button (Permanent delete actions) */
+.btnDelete {
+  background: linear-gradient(135deg, #991b1b 0%, #7f1d1d 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(153, 27, 27, 0.3);
+}
+
+.btnDelete:hover:not(:disabled) {
+  background: linear-gradient(135deg, #7f1d1d 0%, #5f1d1d 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(153, 27, 27, 0.5);
+}
+
+.btnDelete:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+/* Warning Button (Warning actions) */
+.btnWarning {
+  background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(234, 88, 12, 0.3);
+}
+
+.btnWarning:hover:not(:disabled) {
+  background: linear-gradient(135deg, #c2410c 0%, #9a3412 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(234, 88, 12, 0.5);
+}
+
+.btnWarning:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+/* Primary Button (General confirm actions) */
+.btnPrimary {
+  background: linear-gradient(135deg, #233d29 0%, #1a2d1f 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(35, 61, 41, 0.3);
+}
+
+.btnPrimary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #1a2d1f 0%, #0f1d13 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(35, 61, 41, 0.4);
+}
+
+.btnPrimary:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+/* Responsive Design */
+@media (max-width: 600px) {
+  .dialog {
+    padding: 2rem 1.5rem;
+    width: 95%;
+  }
+
+  .header {
+    font-size: 1.5rem;
+  }
+
+  .content {
+    font-size: 1rem;
+    padding: 0 0.5rem;
+  }
+
+  .actions {
+    flex-direction: column;
+  }
+
+  .btn {
+    width: 100%;
+    min-width: auto;
+  }
+}

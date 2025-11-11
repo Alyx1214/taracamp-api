@@ -38,8 +38,10 @@ export default function Pending({
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState(null);
   const [confirmDeclineOpen, setConfirmDeclineOpen] = useState(false);
+  const [confirmApproveOpen, setConfirmApproveOpen] = useState(false);
   const [selectedRow, setSelectedRow] = useState(null);
   const [declining, setDeclining] = useState(false);
+  const [approving, setApproving] = useState(false);
   const [currentPage, setCurrentPage] = useState(parentCurrentPage);
   const [totalPages, setTotalPages] = useState(parentTotalPages);
   const [totalItems, setTotalItems] = useState(parentTotalItems);
@@ -111,8 +113,6 @@ export default function Pending({
     let cancelled = false;
     (async () => {
       try {
-        // Call without parameters to use closure values from useCallback
-        // This ensures we always use the latest values when the callback is recreated
         await fetchPendingData();
       } catch (e) {
         if (!cancelled) setErr(e?.message || "Failed to load reservations");
@@ -127,20 +127,30 @@ export default function Pending({
   useEffect(() => setTotalPages(parentTotalPages), [parentTotalPages]);
   useEffect(() => setTotalItems(parentTotalItems), [parentTotalItems]);
 
-  async function onApprove(row) {
+  function promptApprove(row) {
+    setSelectedRow(row);
+    setConfirmApproveOpen(true);
+  }
+
+  async function confirmApprove() {
+    if (!selectedRow) return;
     try {
-      await decideReservation(row.id, "Approved");
+      setApproving(true);
+      await decideReservation(selectedRow.id, "Approved");
       // Remove from list immediately
-      setRows((prev) => prev.filter((r) => r.id !== row.id));
-      // Refetch the data to ensure we have the latest from server (cache should be invalidated)
-      // This ensures approved reservations don't appear in the Pending tab
+      setRows((prev) => prev.filter((r) => r.id !== selectedRow.id));
+      // Refetch the data to ensure we have the latest from server
       await fetchPendingData(undefined, undefined, undefined, false);
       // Refresh the Approved tab so the new reservation appears there
       if (onRefreshTab) {
         onRefreshTab("Approved");
       }
+      setConfirmApproveOpen(false);
+      setSelectedRow(null);
     } catch (e) {
       alert(e?.message || "Failed to approve reservation");
+    } finally {
+      setApproving(false);
     }
   }
 
@@ -156,8 +166,7 @@ export default function Pending({
       await decideReservation(selectedRow.id, "Declined");
       // Remove from list immediately
       setRows((prev) => prev.filter((r) => r.id !== selectedRow.id));
-      // Refetch the data to ensure we have the latest from server (cache should be invalidated)
-      // This ensures declined reservations don't appear in the Pending tab
+      // Refetch the data to ensure we have the latest from server
       await fetchPendingData(undefined, undefined, undefined, false);
       // Refresh the Declined tab so the new reservation appears there
       if (onRefreshTab) {
@@ -203,7 +212,7 @@ export default function Pending({
     }
     return (
       <>
-        <button className={styles["univ-approve-btn"]} onClick={() => onApprove(row)}>Approve</button>
+        <button className={styles["univ-approve-btn"]} onClick={() => promptApprove(row)}>Approve</button>
         <button className={styles["univ-decline-btn"]} onClick={() => promptDecline(row)}>Decline</button>
       </>
     );
@@ -217,7 +226,14 @@ export default function Pending({
           alert("Invalid reservation ID. Cannot view details.");
           return;
         }
-        navigate(`/pendingRSV/${row.id}/details`);
+        navigate(`/pendingRSV/${row.id}/details`, {
+          state: {
+            activeTab: 'Pending',
+            filters,
+            searchQuery,
+            currentPage
+          }
+        });
       },
     },
   ] : null;
@@ -238,13 +254,32 @@ export default function Pending({
         currentPage={currentPage}
         totalPages={totalPages}
       />
+      
+      {/* Approve Confirmation Modal */}
+      <ConfirmModal
+        open={confirmApproveOpen}
+        title="Approve Reservation"
+        message={`Are you sure you want to approve this reservation for ${selectedRow?.name || 'this guest'}? This will approved their reservation and notify them.`}
+        confirmText="Approve"
+        cancelText="Cancel"
+        confirming={approving}
+        variant="success"
+        onCancel={() => {
+          setConfirmApproveOpen(false);
+          setSelectedRow(null);
+        }}
+        onConfirm={confirmApprove}
+      />
+
+      {/* Decline Confirmation Modal */}
       <ConfirmModal
         open={confirmDeclineOpen}
         title="Decline Reservation"
-        message="Are you sure you want to decline this reservation?"
+        message={`Are you sure you want to decline this reservation from ${selectedRow?.name || 'this guest'}? They’ll be informed that it has been declined.`}
         confirmText="Decline"
         cancelText="Cancel"
         confirming={declining}
+        variant="danger"
         onCancel={() => {
           setConfirmDeclineOpen(false);
           setSelectedRow(null);
