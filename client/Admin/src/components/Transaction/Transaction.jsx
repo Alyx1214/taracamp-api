@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import TransactionHeader from "./TransactionHeader";
 import Pagination from "../Pagination/Pagination.jsx";
 import styles from "./Transaction.module.css";
@@ -6,14 +7,17 @@ import Tabs from "../SharedTabs/SharedTabs.jsx";
 import SearchFil from "../SearchFil/SearchFil";
 import TransactionTable from "../TransactionTables/TransactionTable.jsx";
 import PaymentTable from "../TransactionTables/PaymentTable.jsx";
-import { getAllReservationsByStatus, searchReservations } from "../../apis/reservationApi.js";
+import { searchReservations } from "../../apis/reservationApi.js";
 
 
 export default function Transaction() {
-  const [activeTab, setActiveTab] = useState("Transactions");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabFromUrl = searchParams.get("tab") || "Transactions";
+  const [activeTab, setActiveTab] = useState(tabFromUrl);
   const [transactions, setTransactions] = useState([]);
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const [filters, setFilters] = useState({
     serviceType: "",
     startDate: "",
@@ -21,35 +25,121 @@ export default function Transaction() {
     paymentMethod: "",
     sortBy: ""
   });
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
 
-  useEffect(() => {
+  const itemsPerPage = 15;
+
+  // Fetch transactions data with filters
+  const fetchTransactions = useCallback(async () => {
     setLoading(true);
-    if (activeTab === "Transactions") {
-      getAllReservationsByStatus("Checked-out")
-        .then(data => {
-          setTransactions(data.reservations || []);
-          setLoading(false);
-        })
-        .catch((err) => {
-          console.error("Failed to fetch checked out reservations:", err)
-          setTransactions([]);
-          setLoading(false);
-        });
-    } else if (activeTab === "Payment") {
-        getAllReservationsByStatus("Confirmed")
-        .then(data => {
-          setPayments(data.reservations || []);
-          setLoading(false);
-        })
-        .catch((err) => {
-          console.error("Failed to fetch confirmed reservations:", err)
-          setPayments([]);
-          setLoading(false);
-        });
-    }
-  }, [activeTab]);
+    try {
+      const skip = (currentPage - 1) * itemsPerPage;
+      const options = { 
+        limit: itemsPerPage, 
+        skip
+      };
+      
+      if (filters.serviceType) options.serviceType = filters.serviceType;
+      if (filters.startDate) options.startDate = filters.startDate;
+      if (filters.endDate) options.endDate = filters.endDate;
+      if (filters.paymentMethod) options.paymentMethod = filters.paymentMethod;
+      if (filters.sortBy) options.sortBy = filters.sortBy;
 
-  // Reset filters when active tab changes
+      const searchParams = {
+        status: 'Checked-out',
+        ...options
+      };
+      
+      if (String(searchQuery || '').trim()) {
+        searchParams.query = String(searchQuery).trim();
+      }
+
+      const res = await searchReservations(searchParams);
+      const reservations = res?.reservations || [];
+      setTransactions(reservations);
+      
+      const totalCount = res?.totalCount || 0;
+      setTotalItems(totalCount);
+      setTotalPages(Math.ceil(totalCount / itemsPerPage));
+    } catch (err) {
+      console.error("Failed to fetch checked out reservations:", err);
+      setTransactions([]);
+      setTotalItems(0);
+      setTotalPages(1);
+    } finally {
+      setLoading(false);
+    }
+  }, [activeTab, currentPage, searchQuery, filters]);
+
+  // Fetch payments data with filters
+  const fetchPayments = useCallback(async () => {
+    setLoading(true);
+    try {
+      const skip = (currentPage - 1) * itemsPerPage;
+      const options = { 
+        limit: itemsPerPage, 
+        skip
+      };
+      
+      if (filters.serviceType) options.serviceType = filters.serviceType;
+      if (filters.startDate) options.startDate = filters.startDate;
+      if (filters.endDate) options.endDate = filters.endDate;
+      if (filters.sortBy) options.sortBy = filters.sortBy;
+
+      const searchParams = {
+        status: 'Confirmed',
+        ...options
+      };
+      
+      if (String(searchQuery || '').trim()) {
+        searchParams.query = String(searchQuery).trim();
+      }
+
+      const res = await searchReservations(searchParams);
+      const reservations = res?.reservations || [];
+      setPayments(reservations);
+      
+      const totalCount = res?.totalCount || 0;
+      setTotalItems(totalCount);
+      setTotalPages(Math.ceil(totalCount / itemsPerPage));
+    } catch (err) {
+      console.error("Failed to fetch confirmed reservations:", err);
+      setPayments([]);
+      setTotalItems(0);
+      setTotalPages(1);
+    } finally {
+      setLoading(false);
+    }
+  }, [activeTab, currentPage, searchQuery, filters]);
+
+  // Fetch data when tab, page, search query, or filters change
+  useEffect(() => {
+    if (activeTab === "Transactions") {
+      fetchTransactions();
+    } else if (activeTab === "Payment") {
+      fetchPayments();
+    }
+  }, [activeTab, currentPage, searchQuery, filters, fetchTransactions, fetchPayments]);
+
+  // Sync activeTab with URL when URL changes (but not when user clicks tab)
+  useEffect(() => {
+    const urlTab = searchParams.get("tab") || "Transactions";
+    if (urlTab !== activeTab && (urlTab === "Transactions" || urlTab === "Payment")) {
+      setActiveTab(urlTab);
+    }
+  }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Update URL when active tab changes (from user interaction)
+  useEffect(() => {
+    const currentTab = searchParams.get("tab") || "Transactions";
+    if (activeTab !== currentTab && (activeTab === "Transactions" || activeTab === "Payment")) {
+      setSearchParams({ tab: activeTab });
+    }
+  }, [activeTab, setSearchParams]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Reset filters and page when active tab changes
   useEffect(() => {
     setFilters({
       serviceType: "",
@@ -58,10 +148,21 @@ export default function Transaction() {
       paymentMethod: "",
       sortBy: ""
     });
+    setCurrentPage(1);
   }, [activeTab]);
+
+  const handleSearch = (value) => {
+    setSearchQuery(String(value || "").trim());
+    setCurrentPage(1); // Reset to first page when searching
+  };
 
   const handleApplyFilters = (newFilters) => {
     setFilters(newFilters || {});
+    setCurrentPage(1); // Reset to first page when applying filters
+  };
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
   };
 
   // Define filter fields based on active tab
@@ -180,14 +281,22 @@ export default function Transaction() {
                 setActiveTab={setActiveTab}
             />
             <SearchFil 
+              onSearch={handleSearch}
               onApplyFilters={handleApplyFilters}
               filterFields={getFilterFields()}
+              initialSearchValue={searchQuery}
+              initialFilterValues={filters}
             />
       </div>
 
       {renderActiveTab()}
 
-      <Pagination />
+      <Pagination 
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalItems={totalItems}
+        onPageChange={handlePageChange}
+      />
     </div>
   );
 

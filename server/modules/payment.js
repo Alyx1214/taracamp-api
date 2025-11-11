@@ -638,6 +638,20 @@ const paymentModule = {
             responseData.reservationId = reservationId ? String(reservationId) : null;
             responseData.userId = reservationUserId;
             responseData.isPaid = succeeded;
+
+            // Invalidate payment details cache for this reservation
+            if (reservationId) {
+                try {
+                    const cachePattern = `payment_details:${reservationId}:*`;
+                    const keys = await safeRedisOperations.keys(cachePattern);
+                    if (keys && keys.length > 0) {
+                        await safeRedisOperations.del(...keys);
+                    }
+                } catch (cacheError) {
+                    console.warn('Failed to invalidate payment details cache:', cacheError);
+                }
+            }
+
             return responseData;
         } catch (error) {
             console.error('Error reconciling payment intent:', error);
@@ -851,7 +865,8 @@ const paymentModule = {
                         { reservationId, status: { $in: successfulStatuses, }, },
                         { sort: { createdAt: 1, }, }
                     );
-                    const totalPaid = (paidRows || []).reduce((acc, p) => acc + (Number(p.amountCentavos || 0) / 100), 0);
+                    // Round totalPaid to avoid floating-point precision issues during accumulation
+                    const totalPaid = Math.round((paidRows || []).reduce((acc, p) => acc + (Number(p.amountCentavos || 0) / 100), 0) * 100) / 100;
 
                     const createdAt = reservation.createdAt ? new Date(reservation.createdAt) : new Date();
                     const arrival = reservation.dateOfArrival ? new Date(reservation.dateOfArrival) : null;
@@ -878,7 +893,10 @@ const paymentModule = {
             const latest = successful[0] || null;
 
             // Only show payment method and date for successful payments
-            const dateIso = latest?.paidAt || null;
+            // For transaction date, use paidAt if available, otherwise fall back to first payment's createdAt, or reservation's createdAt
+            // Payments are sorted descending (newest first), so the last element is the oldest (first payment attempt)
+            const firstPayment = payments && payments.length > 0 ? payments[payments.length - 1] : null;
+            const dateIso = latest?.paidAt || firstPayment?.createdAt || reservation?.createdAt || null;
             const paymentMethod = latest?.paymentMethodType || null;
 
             const view = {
@@ -893,7 +911,9 @@ const paymentModule = {
                     const total = Number(reservation.totalEstimatedAmount) || 0;
                     const totalPaid = Number(summaryRaw?.totalPaid || 0);
                     if (totalPaid <= 0) return 'Not Paid';
-                    if (totalPaid >= total) return 'Paid';
+                    // Use remaining balance calculation to account for floating-point precision issues
+                    const remainingBalance = Math.max(0, Math.round((total - totalPaid) * 100) / 100);
+                    if (remainingBalance <= 0) return 'Fully Paid';
                     return 'Partially Paid';
                 })(),
             };
@@ -934,21 +954,6 @@ const paymentModule = {
                 responseData.status = Status.UNAUTHORIZED;
                 responseData.error = 'User not logged in';
                 return responseData;
-            }
-
-            // Try cache first
-            const cacheKey = `payment_details:${reservationId}:${user.userId}`;
-            try {
-                const cachedResult = await safeRedisOperations.get(cacheKey);
-                if (cachedResult) {
-                    const parsed = JSON.parse(cachedResult);
-                    responseData.status = Status.OK;
-                    responseData.error = null;
-                    responseData.data = parsed.data;
-                    return responseData;
-                }
-            } catch (cacheError) {
-                console.warn('Cache read error for getPaymentDetails:', cacheError);
             }
 
             const reservation = await dbHelper.findOne('reservation', { _id: reservationId, });
@@ -1026,13 +1031,16 @@ const paymentModule = {
             const successful = (payments || []).filter((p) =>
                 successfulStatuses.includes(String(p.status || '').toLowerCase())
             );
-            const totalPaid = successful.reduce((acc, p) => acc + (Number(p.amountCentavos || 0) / 100), 0);
+            // Round totalPaid to avoid floating-point precision issues during accumulation
+            const totalPaid = Math.round(successful.reduce((acc, p) => acc + (Number(p.amountCentavos || 0) / 100), 0) * 100) / 100;
 
             const confirmationFee = calculateConfirmationFee(reservation.category, totalEstimated);
 
+            // Use remaining balance calculation to account for floating-point precision issues
+            const remainingBalance = Math.max(0, Math.round((totalEstimated - totalPaid) * 100) / 100);
             const status =
             totalPaid <= 0 ? 'Not Paid' :
-            totalPaid >= totalEstimated ? 'Paid' : 'Partially Paid';
+            remainingBalance <= 0 ? 'Fully Paid' : 'Partially Paid';
 
             const latestSuccessful = successful[0] || null;
             const latestAny = (payments && payments[0]) || null;
@@ -1107,13 +1115,6 @@ const paymentModule = {
             responseData.status = Status.OK;
             responseData.error = null;
             responseData.data = view;
-
-            // Cache the result
-            try {
-                await safeRedisOperations.set(cacheKey, JSON.stringify({ data: view }), { EX: 60 }); // 1 minute TTL
-            } catch (cacheError) {
-                console.warn('Cache write error for getPaymentDetails:', cacheError);
-            }
 
             return responseData;
         } catch (err) {

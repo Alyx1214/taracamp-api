@@ -223,3 +223,20 @@
 .selectWrapper select:hover {
   border-color: #183c2d;
 }
+
+/* Error styles */
+.errorInput {
+  border-color: #f34960 !important;
+}
+
+.errorInput:focus {
+  border-color: #f34960 !important;
+  box-shadow: 0 0 0 3px rgba(243, 73, 96, 0.1) !important;
+}
+
+.errorMessage {
+  color: #f34960;
+  font-size: 12px;
+  margin-top: 4px;
+  display: block;
+}

@@ -24,6 +24,7 @@ export default function Users() {
   );
 
   const [activeTab, setActiveTab] = useState(location.state?.activeTab || "All");
+  const [searchQuery, setSearchQuery] = useState("");
   const [filters, setFilters] = useState({
     lastLoggedFrom: "",
     lastLoggedTo: "",
@@ -60,6 +61,7 @@ export default function Users() {
       role: "",
       sortBy: ""
     });
+    setSearchQuery("");
   }, [activeTab]);
 
   useEffect(() => {
@@ -68,35 +70,43 @@ export default function Users() {
       setLoading(true);
       setError("");
       try {
-        const query = { ...filters };
+        const query = {};
+        
+        // Apply search query (general search)
+        if (searchQuery && searchQuery.trim()) {
+          query.search = searchQuery.trim();
+        }
         
         // Apply role filter from active tab or filters
         if (activeTab && activeTab !== "All") {
           query.role = activeTab;
-        } else if (filters.role) {
-          query.role = filters.role;
+        } else if (filters.role && filters.role.trim()) {
+          query.role = filters.role.trim();
         }
 
-        // Apply date range filters
-        if (filters.lastLoggedFrom) {
-          query.lastLoggedFrom = filters.lastLoggedFrom;
+        // Apply date range filters (only if they have values)
+        if (filters.lastLoggedFrom && filters.lastLoggedFrom.trim()) {
+          query.lastLoggedFrom = filters.lastLoggedFrom.trim();
         }
-        if (filters.lastLoggedTo) {
-          query.lastLoggedTo = filters.lastLoggedTo;
+        if (filters.lastLoggedTo && filters.lastLoggedTo.trim()) {
+          query.lastLoggedTo = filters.lastLoggedTo.trim();
         }
 
         // Apply sorting
-        if (filters.sortBy) {
-          query.sort = filters.sortBy;
+        if (filters.sortBy && filters.sortBy.trim()) {
+          query.sort = filters.sortBy.trim();
         } else {
           query.sort = "createdAt:desc";
         }
 
-        query.limit = query.limit ?? 100;
+        query.limit = 100;
 
+        // Check if we have any filters (excluding default sort)
         const hasAnyFilter = [
-          'email','name','role','id','createdFrom','createdTo','lastLoggedFrom','lastLoggedTo'
+          'search', 'email', 'name', 'role', 'id', 'createdFrom', 'createdTo', 'lastLoggedFrom', 'lastLoggedTo'
         ].some((k) => Boolean(query[k]));
+        
+        // If no filters and on "All" tab, add a default date filter to get all users
         if (activeTab === 'All' && !hasAnyFilter) {
           query.createdFrom = '1970-01-01';
         }
@@ -105,14 +115,14 @@ export default function Users() {
         const arr = Array.isArray(res?.users) ? res.users : [];
         if (!cancelled) setRawUsers(arr);
       } catch (e) {
-        if (!cancelled) setError(e?.message || 'Failed to load users');
+        if (!cancelled) setError(e?.message || e?.data?.error || 'Failed to load users');
       } finally {
         if (!cancelled) setLoading(false);
       }
     }
     load();
     return () => { cancelled = true; };
-  }, [activeTab, filters]);
+  }, [activeTab, filters, searchQuery]);
 
   const mappedUsers = useMemo(() => {
     return (rawUsers || []).map(u => ({
@@ -155,6 +165,10 @@ export default function Users() {
 
   const handleApplyFilters = (newFilters) => {
     setFilters(newFilters || {});
+  };
+
+  const handleSearch = (searchValue) => {
+    setSearchQuery(searchValue || "");
   };
 
   // Define filter fields for users
@@ -217,8 +231,11 @@ export default function Users() {
           ))}
         </div>
         <SearchFil
+          onSearch={handleSearch}
           onApplyFilters={handleApplyFilters}
           filterFields={getFilterFields()}
+          initialSearchValue={searchQuery}
+          initialFilterValues={filters}
         />
       </div>
 

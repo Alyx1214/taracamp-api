@@ -171,10 +171,10 @@ export default function PaymentDetails() {
   const Back = (
     <span
       className={styles["add-form-back"]}
-      onClick={() => navigate('/transactions')}
+      onClick={() => navigate('/transactions?tab=Payment')}
       role="button"
       tabIndex={0}
-      onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && navigate('/transactions')}
+      onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && navigate('/transactions?tab=Payment')}
       aria-label="Go back"
     >
       &larr;
@@ -288,7 +288,9 @@ export default function PaymentDetails() {
         </div>
         <div className={styles["payment-details-status-row"]}>
           <span className={styles["payment-details-status-label"]}>Status:</span>
-          <span className={styles["payment-details-status-value"]}>{payment.status}</span>
+          <span className={`${styles["payment-details-status-value"]} ${payment.status === "Fully Paid" ? styles["payment-details-status-paid"] : ""}`}>
+            {payment.status}
+          </span>
         </div>
       </div>
     </div>

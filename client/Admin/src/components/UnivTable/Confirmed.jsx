@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import UnivTable from "./UnivTable";
 import styles from "./UnivTable.module.css";
-import { getAllReservationsByStatus, searchReservations } from "../../apis/reservationApi"; 
+import { searchReservations } from "../../apis/reservationApi"; 
 
 function formatDateLong(dateStr) {
   if (!dateStr) return "N/A";
@@ -23,6 +23,7 @@ function prettifyServiceType(svc) {
 
 export default function Confirmed({ 
   searchQuery = "", 
+  filters = {},
   currentPage: parentCurrentPage = 1,
   totalPages: parentTotalPages = 1,
   totalItems: parentTotalItems = 0,
@@ -46,23 +47,33 @@ export default function Confirmed({
         setLoading(true);
         let res;
         const skip = (currentPage - 1) * itemsPerPage;
-        const options = { limit: itemsPerPage, skip };
+        const options = { 
+          limit: itemsPerPage, 
+          skip
+        };
+        if (filters?.serviceType) options.serviceType = filters.serviceType;
+        if (filters?.category) options.category = filters.category;
+        if (filters?.startDate) options.startDate = filters.startDate;
+        if (filters?.endDate) options.endDate = filters.endDate;
+        if (filters?.sortBy) options.sortBy = filters.sortBy;
         
+        // Always use searchReservations - it supports status and all filters
+        const searchParams = {
+          status: 'Confirmed',
+          ...options
+        };
+        // Only add query if there's a search term
         if (String(searchQuery || '').trim()) {
-          // Use search API then filter for status on client
-          const s = String(searchQuery || '').trim();
-          res = await searchReservations({ query: s, ...options });
-          res.reservations = (res?.reservations || []).filter(r => r.status === 'Confirmed');
-        } else {
-          res = await getAllReservationsByStatus("Confirmed", options);
+          searchParams.query = String(searchQuery).trim();
         }
+        res = await searchReservations(searchParams);
         const list = (res?.reservations || []).map(r => ({
           id: r._id || "N/A",
           name: r.guestName || "N/A",
           email: r.guestEmail || "N/A", 
           serviceType: prettifyServiceType(r.serviceType) || "N/A",
           facilityName: r.facilityName || "N/A",
-          date: formatDateLong(r.dateOfArrival || r.createdAt),
+          date: formatDateLong(r.createdAt),
           guestType: r.guestType || 'INDIVIDUAL',
           _raw: r,
         }));
@@ -86,7 +97,7 @@ export default function Confirmed({
     }
     fetchConfirmed();
     return () => { cancelled = true; };
-  }, [searchQuery, currentPage]);
+  }, [searchQuery, currentPage, filters]);
 
   // Sync with parent pagination state
   useEffect(() => {
@@ -116,8 +127,22 @@ export default function Confirmed({
           return;
         }
         row.guestType === "GROUP"
-          ? navigate(`/confirmedGroup/${row.id}/details`)
-          : navigate(`/confirmedIndiv/${row.id}/details`);
+          ? navigate(`/confirmedGroup/${row.id}/details`, {
+              state: {
+                activeTab: 'Confirmed',
+                filters,
+                searchQuery,
+                currentPage
+              }
+            })
+          : navigate(`/confirmedIndiv/${row.id}/details`, {
+              state: {
+                activeTab: 'Confirmed',
+                filters,
+                searchQuery,
+                currentPage
+              }
+            });
       }}>
         Edit
       </button>
@@ -127,8 +152,22 @@ export default function Confirmed({
           return;
         }
         row.guestType === "GROUP"
-          ? navigate(`/confirmedGroup/${row.id}/details`)
-          : navigate(`/confirmedIndiv/${row.id}/details`);
+          ? navigate(`/confirmedGroup/${row.id}/details`, {
+              state: {
+                activeTab: 'Confirmed',
+                filters,
+                searchQuery,
+                currentPage
+              }
+            })
+          : navigate(`/confirmedIndiv/${row.id}/details`, {
+              state: {
+                activeTab: 'Confirmed',
+                filters,
+                searchQuery,
+                currentPage
+              }
+            });
       }}>
         View
       </button>
@@ -144,8 +183,22 @@ export default function Confirmed({
           return;
         }
         row.guestType === "GROUP"
-          ? navigate(`/confirmedGroup/${row.id}/details`)
-          : navigate(`/confirmedIndiv/${row.id}/details`);
+          ? navigate(`/confirmedGroup/${row.id}/details`, {
+              state: {
+                activeTab: 'Confirmed',
+                filters,
+                searchQuery,
+                currentPage
+              }
+            })
+          : navigate(`/confirmedIndiv/${row.id}/details`, {
+              state: {
+                activeTab: 'Confirmed',
+                filters,
+                searchQuery,
+                currentPage
+              }
+            });
       }
     }
   ];

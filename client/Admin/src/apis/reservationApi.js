@@ -4,10 +4,28 @@ export function getReservationById(id) {
   return apiGet(`/reservation/get-reservation-by-id/${id}`);
 }
 
+// Helper function to map frontend sortBy values to backend sort format
+function mapSortBy(sortBy) {
+  if (!sortBy) return '';
+  const sortMap = {
+    'date-asc': 'dateOfArrival:asc',
+    'date-desc': 'dateOfArrival:desc',
+    'service': 'serviceType:asc',
+    'category': 'category:asc'
+  };
+  return sortMap[sortBy] || sortBy;
+}
+
 export function getAllReservationsByStatus(status, options = {}) {
-  const { limit = 15, skip = 0, sort } = options;
+  const { limit = 15, skip = 0, sort, sortBy, serviceType, category, startDate, endDate } = options;
   const query = { limit, skip };
-  if (sort) query.sort = sort;
+  // Use sortBy if provided, otherwise use sort
+  const sortValue = sortBy ? mapSortBy(sortBy) : sort;
+  if (sortValue) query.sort = sortValue;
+  if (serviceType && serviceType.trim()) query.serviceType = serviceType;
+  if (category && category.trim()) query.category = category;
+  if (startDate && startDate.trim()) query.startDate = startDate;
+  if (endDate && endDate.trim()) query.endDate = endDate;
   return apiGet(`/reservation/get-all-reservations-by-status/${encodeURIComponent(status)}`, query);
 }
 
@@ -20,6 +38,14 @@ export function searchReservations(params = {}) {
   // Add default pagination if not provided
   if (p.limit === undefined) p.limit = 15;
   if (p.skip === undefined) p.skip = 0;
+  // Map filter names to API parameter names
+  if (p.startDate && !p.start) p.start = p.startDate;
+  if (p.endDate && !p.end) p.end = p.endDate;
+  // Map sortBy to sort format
+  if (p.sortBy && !p.sort) {
+    p.sort = mapSortBy(p.sortBy);
+    delete p.sortBy;
+  }
   return apiGet('/reservation/search-reservations', p);
 }
 

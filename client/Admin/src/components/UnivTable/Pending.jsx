@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import UnivTable from "./UnivTable";
 import styles from "./UnivTable.module.css";
-import { getAllReservationsByStatus, decideReservation, searchReservations } from "../../apis/reservationApi";
+import { decideReservation, searchReservations } from "../../apis/reservationApi";
 import ConfirmModal from "../Shared/ConfirmModal";
 import { getFacilityById } from "../../apis/facilityApi";
 
@@ -25,6 +25,7 @@ function prettifyServiceType(svc) {
 
 export default function Pending({ 
   searchQuery = "", 
+  filters = {},
   currentPage: parentCurrentPage = 1,
   totalPages: parentTotalPages = 1,
   totalItems: parentTotalItems = 0,
@@ -50,21 +51,31 @@ export default function Pending({
   const itemsPerPage = 15;
   const columns = useMemo(() => ["Name", "Email", "Service Type", "Facility Name", "Date", "Actions"], []);
   
-  const fetchPendingData = useCallback(async (page = currentPage, query = searchQuery, showLoading = true) => {
+  const fetchPendingData = useCallback(async (page = currentPage, query = searchQuery, appliedFilters = filters, showLoading = true) => {
     try {
       if (showLoading) setLoading(true);
       let res;
       const skip = (page - 1) * itemsPerPage;
-      const options = { limit: itemsPerPage, skip };
+      const options = { 
+        limit: itemsPerPage, 
+        skip
+      };
+      if (appliedFilters?.serviceType) options.serviceType = appliedFilters.serviceType;
+      if (appliedFilters?.category) options.category = appliedFilters.category;
+      if (appliedFilters?.startDate) options.startDate = appliedFilters.startDate;
+      if (appliedFilters?.endDate) options.endDate = appliedFilters.endDate;
+      if (appliedFilters?.sortBy) options.sortBy = appliedFilters.sortBy;
 
-      // Fetch pending reservations or search results
+      // Always use searchReservations - it supports status and all filters
+      const searchParams = {
+        status: 'Pending',
+        ...options
+      };
+      // Only add query if there's a search term
       if (String(query || '').trim()) {
-        const s = String(query || '').trim();
-        res = await searchReservations({ query: s, ...options });
-        res.reservations = (res?.reservations || []).filter(r => r.status === 'Pending');
-      } else {
-        res = await getAllReservationsByStatus("Pending", options);
+        searchParams.query = String(query).trim();
       }
+      res = await searchReservations(searchParams);
 
       const reservations = res?.reservations || [];
 
@@ -75,7 +86,7 @@ export default function Pending({
         email: r.guestEmail || "N/A",
         serviceType: prettifyServiceType(r.serviceType) || "N/A",
         facilityName: r.facilityName || "N/A",
-        date: formatDateYMDToLong(r.dateOfArrival || r.createdAt),
+        date: formatDateYMDToLong(r.createdAt),
         _raw: r,
       }));
 
@@ -94,12 +105,14 @@ export default function Pending({
     } finally {
       if (showLoading) setLoading(false);
     }
-  }, [currentPage, searchQuery]);
+  }, [currentPage, searchQuery, filters]);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
+        // Call without parameters to use closure values from useCallback
+        // This ensures we always use the latest values when the callback is recreated
         await fetchPendingData();
       } catch (e) {
         if (!cancelled) setErr(e?.message || "Failed to load reservations");
@@ -121,7 +134,7 @@ export default function Pending({
       setRows((prev) => prev.filter((r) => r.id !== row.id));
       // Refetch the data to ensure we have the latest from server (cache should be invalidated)
       // This ensures approved reservations don't appear in the Pending tab
-      await fetchPendingData(currentPage, searchQuery, false);
+      await fetchPendingData(undefined, undefined, undefined, false);
       // Refresh the Approved tab so the new reservation appears there
       if (onRefreshTab) {
         onRefreshTab("Approved");
@@ -145,7 +158,7 @@ export default function Pending({
       setRows((prev) => prev.filter((r) => r.id !== selectedRow.id));
       // Refetch the data to ensure we have the latest from server (cache should be invalidated)
       // This ensures declined reservations don't appear in the Pending tab
-      await fetchPendingData(currentPage, searchQuery, false);
+      await fetchPendingData(undefined, undefined, undefined, false);
       // Refresh the Declined tab so the new reservation appears there
       if (onRefreshTab) {
         onRefreshTab("Declined");
@@ -174,7 +187,14 @@ export default function Pending({
               alert("Invalid reservation ID. Cannot view details.");
               return;
             }
-            navigate(`/pendingRSV/${row.id}/details`);
+            navigate(`/pendingRSV/${row.id}/details`, {
+              state: {
+                activeTab: 'Pending',
+                filters,
+                searchQuery,
+                currentPage
+              }
+            });
           }}
         >
           See Detail

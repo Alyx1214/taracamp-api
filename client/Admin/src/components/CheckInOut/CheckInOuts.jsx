@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import styles from "./CheckInOuts.module.css";
 import CheckTabs from "./CheckTabs";
@@ -29,6 +29,7 @@ export default function CheckInOuts() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState(null);
+  const cancelledRef = useRef(false);
 
   const statusForTab = (tab) => {
     if (tab === "Confirmed") return "Confirmed"; 
@@ -53,14 +54,9 @@ export default function CheckInOuts() {
   };
 
   const getFacilityType = (reservation) => {
-    // Extract facility type from lodging or event details
-    if (reservation.lodgingDetails && reservation.lodgingDetails.length > 0) {
-      const facilityType = reservation.lodgingDetails[0].facilityType;
-      return prettifyServiceType(facilityType);
-    }
-    if (reservation.eventDetails && reservation.eventDetails.length > 0) {
-      const facilityType = reservation.eventDetails[0].facilityType;
-      return prettifyServiceType(facilityType);
+    // Extract facility type from reservation object (set by server)
+    if (reservation.facilityType) {
+      return prettifyServiceType(reservation.facilityType);
     }
     return "N/A";
   };
@@ -77,15 +73,25 @@ export default function CheckInOuts() {
   }, [activeTab]);
 
   useEffect(() => {
-    let cancelled = false;
+    cancelledRef.current = false;
     async function load() {
       try {
         setLoading(true);
         setErr(null);
         const status = statusForTab(activeTab);
-        if (!status) { setRows([]); return; }
+        if (!status) { 
+          if (!cancelledRef.current) setRows([]); 
+          return; 
+        }
         
         const params = { status };
+        
+        // Determine which date field to filter by based on active tab
+        if (activeTab === "Check-in" || activeTab === "Check-out") {
+          params.dateField = "dateOfDeparture";
+        } else {
+          params.dateField = "dateOfArrival";
+        }
         
         // Apply service type filter
         if (filters.serviceType) {
@@ -111,6 +117,10 @@ export default function CheckInOuts() {
         }
         
         const res = await searchReservations(params);
+        
+        // Check if component was unmounted before updating state
+        if (cancelledRef.current) return;
+        
         let list = (res?.reservations || []).map((r) => {
           const baseData = {
             id: r._id || "",
@@ -140,15 +150,17 @@ export default function CheckInOuts() {
           list = applySorting(list, filters.sortBy);
         }
         
-        if (!cancelled) setRows(list);
+        if (!cancelledRef.current) setRows(list);
       } catch (e) {
-        if (!cancelled) setErr(e?.data?.error || e?.message || "Failed to load reservations");
+        if (!cancelledRef.current) setErr(e?.data?.error || e?.message || "Failed to load reservations");
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelledRef.current) setLoading(false);
       }
     }
     load();
-    return () => { cancelled = true; };
+    return () => { 
+      cancelledRef.current = true; 
+    };
   }, [activeTab, filters]);
 
   const applySorting = (data, sortBy) => {
@@ -206,6 +218,12 @@ export default function CheckInOuts() {
       // Refresh with current filters
       const status = statusForTab(activeTab);
       const params = { status };
+      // Determine which date field to filter by based on active tab
+      if (activeTab === "Check-in" || activeTab === "Check-out") {
+        params.dateField = "dateOfDeparture";
+      } else {
+        params.dateField = "dateOfArrival";
+      }
       if (filters.serviceType) params.serviceType = filters.serviceType;
       if (filters.facilityType) params.facilityType = filters.facilityType;
       if (filters.startDate) params.start = filters.startDate;
@@ -301,6 +319,12 @@ export default function CheckInOuts() {
       // Refresh current tab with filters after delete
       const status = statusForTab(activeTab);
       const params = { status };
+      // Determine which date field to filter by based on active tab
+      if (activeTab === "Check-in" || activeTab === "Check-out") {
+        params.dateField = "dateOfDeparture";
+      } else {
+        params.dateField = "dateOfArrival";
+      }
       if (filters.serviceType) params.serviceType = filters.serviceType;
       if (filters.facilityType) params.facilityType = filters.facilityType;
       if (filters.startDate) params.start = filters.startDate;
@@ -431,29 +455,31 @@ export default function CheckInOuts() {
 
       <div className={styles.content}>
         {err && <div style={{ padding: 12, color: '#b00' }}>{String(err)}</div>}
-        {loading && <div style={{ padding: 12 }}>Loading…</div>}
-        {!loading && activeTab === "Confirmed" && (
+        {activeTab === "Confirmed" && (
           <UnivTable
             columns={getColumns()}
             data={getActiveData()}
             renderActions={renderApprovedActions}
             renderMenu={renderMenu}
+            loading={loading}
           />
         )}
-        {!loading && activeTab === "Check-in" && (
+        {activeTab === "Check-in" && (
           <UnivTable
             columns={getColumns()}
             data={getActiveData()}
             renderActions={renderCheckInActions}
             renderMenu={renderMenu}
+            loading={loading}
           />
         )}
-        {!loading && activeTab === "Check-out" && (
+        {activeTab === "Check-out" && (
           <UnivTable
             columns={getColumns()}
             data={getActiveData()}
             renderActions={renderCheckOutActions}
             renderMenu={renderMenu}
+            loading={loading}
           />
         )}
       </div>
