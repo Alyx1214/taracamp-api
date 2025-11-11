@@ -85,6 +85,15 @@ r.post('/admin/reply/:userId', asyncHandler(async (req, res) => {
   res.status(response.status).json(response);
 }));
 
+r.delete('/admin/conversation/:userId', asyncHandler(async (req, res) => {
+  const response = await messageModule.deleteConversation(
+    dbHelper,
+    req.user,
+    req.params.userId
+  );
+  res.status(response.status).json(response);
+}));
+
   return r;
 };
 

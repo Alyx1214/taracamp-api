@@ -107,19 +107,6 @@ const ReservationsCalendar = () => {
         
         if (cancelled) return;
         
-        // Log for debugging
-        if (allFacilitiesData.length > 0) {
-          console.log(`Fetched ${allFacilitiesData.length} facilities total`);
-          // Log first few facilities to see their structure
-          console.log('Sample facilities from API:', allFacilitiesData.slice(0, 3).map(f => ({
-            name: f.name,
-            facilityType: f.facilityType,
-            keys: Object.keys(f)
-          })));
-        } else {
-          console.warn('No facilities found in API response');
-        }
-        
         // Extract facility names from the facilities data
         // Handle all facility types including cottages, dormitories, and conference rooms
         // Exclude facilities where facilityName is null
@@ -146,15 +133,6 @@ const ReservationsCalendar = () => {
           .filter(Boolean)
           .filter(name => name !== '');
         
-        // Log facility types found for debugging
-        if (allFacilitiesData.length > 0 && !cancelled) {
-          const facilityTypes = allFacilitiesData
-            .map(f => f.facilityType || f.type || 'unknown')
-            .filter(Boolean);
-          const uniqueTypes = Array.from(new Set(facilityTypes));
-          console.log('Facility types found:', uniqueTypes, 'Total facilities:', allFacilitiesData.length);
-          console.log('Facility names extracted:', facilityNames.length, 'out of', allFacilitiesData.length);
-        }
         
         // Remove duplicates and sort
         const uniqueNames = Array.from(new Set(facilityNames)).sort();

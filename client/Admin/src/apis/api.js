@@ -202,6 +202,13 @@ export async function apiPost(path, body, extraOptions = {}) {
   return handle(res, data);
 }
 
+export async function apiDelete(path, extraOptions = {}) {
+  const opts = { method: 'DELETE', ...extraOptions };
+  const res = await rawFetch(path, opts);
+  const data = await safeJson(res);
+  return handle(res, data);
+}
+
 
 export async function apiPostBlob(path, body, extraOptions = {}) {
   const opts = isFormData(body)
