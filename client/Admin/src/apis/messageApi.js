@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from './api';
+import { apiGet, apiPost, apiDelete } from './api';
 
 /**
  * Admin message API functions
@@ -37,5 +37,15 @@ export function sendAdminReply(userId, data) {
   if (!userId) throw new Error('userId is required');
   if (!data?.text) throw new Error('Message text is required');
   return apiPost(`/message/admin/reply/${encodeURIComponent(userId)}`, data);
+}
+
+/**
+ * Deletes a conversation with a specific user (admin only)
+ * @param {string} userId - The ID of the user whose conversation to delete
+ * @returns {Promise<Object>} The response data
+ */
+export function deleteConversation(userId) {
+  if (!userId) throw new Error('userId is required');
+  return apiDelete(`/message/admin/conversation/${encodeURIComponent(userId)}`);
 }
 

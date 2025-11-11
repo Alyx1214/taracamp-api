@@ -258,7 +258,9 @@ const messageModule = {
                 sender: data.sender || user?.name || 'You',
                 role: data.role || null,
                 isUser: isUserMessage,
-                isRead: data.isRead ?? isUserMessage,
+                // Guest messages should be unread (isRead: false) until admin reads them
+                // Default to false unless explicitly set
+                isRead: data.isRead ?? false,
             };
 
             const saved = await dbHelper.create('message', doc);
@@ -303,10 +305,32 @@ const messageModule = {
                         // Broadcast to each admin's WebSocket connection
                         for (const adminUser of adminUsers) {
                             const adminUserIdStr = adminUser._id?.toString?.() || String(adminUser._id || '');
+                            
+                            // Try to find the WebSocket connection
+                            let adminWs = null;
                             if (userSocketMap.has(adminUserIdStr)) {
+                                adminWs = userSocketMap.get(adminUserIdStr);
+                            } else {
+                                // If not found, try iterating through the map to find a match
+                                // This handles any edge cases where the format might differ slightly
+                                for (const [mapUserId, mapWs] of userSocketMap.entries()) {
+                                    const mapUserIdStr = String(mapUserId);
+                                    // Try exact match first
+                                    if (mapUserIdStr === adminUserIdStr) {
+                                        adminWs = mapWs;
+                                        break;
+                                    }
+                                    // Try case-insensitive match
+                                    if (mapUserIdStr.toLowerCase() === adminUserIdStr.toLowerCase()) {
+                                        adminWs = mapWs;
+                                        break;
+                                    }
+                                }
+                            }
+                            
+                            if (adminWs) {
                                 try {
-                                    const adminWs = userSocketMap.get(adminUserIdStr);
-                                    if (adminWs && adminWs.readyState === 1) { // WebSocket.OPEN
+                                    if (adminWs.readyState === 1) { // WebSocket.OPEN
                                         adminWs.send(JSON.stringify({
                                             type: 'new_message',
                                             data: messagePayload
@@ -354,13 +378,37 @@ const messageModule = {
                                 // Invalidate cache after auto-response
                                 await invalidateMessageCache(userId);
                                 
-                                // Broadcast automated response via WebSocket
-                                // Ensure userId is a string (Map keys must match exactly)
+                                // Broadcast automated response via WebSocket to guest
+                                // The userId from the message is the guest who sent the message
+                                // In main.js, WebSocket connections are stored using: req.user.userId?.toString?.() || String(req.user.userId || '')
+                                // We need to ensure we use the exact same format
                                 const userIdStr = userId?.toString?.() || String(userId || '');
-                                if (userSocketMap && userSocketMap.has(userIdStr)) {
+                                
+                                let ws = null;
+                                
+                                // Try to find WebSocket connection
+                                if (userSocketMap) {
+                                    // First try direct lookup
+                                    if (userSocketMap.has(userIdStr)) {
+                                        ws = userSocketMap.get(userIdStr);
+                                    } else {
+                                        // If not found, try iterating through the map to find a match
+                                        // Try both exact match and case-insensitive match
+                                        for (const [mapUserId, mapWs] of userSocketMap.entries()) {
+                                            const mapUserIdStr = String(mapUserId);
+                                            if (mapUserIdStr === userIdStr || 
+                                                mapUserIdStr.toLowerCase() === userIdStr.toLowerCase()) {
+                                                ws = mapWs;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                                
+                                // Send WebSocket message if connection found
+                                if (ws) {
                                     try {
-                                        const ws = userSocketMap.get(userIdStr);
-                                        if (ws && ws.readyState === 1) { // WebSocket.OPEN
+                                        if (ws.readyState === 1) { // WebSocket.OPEN
                                             ws.send(JSON.stringify({
                                                 type: 'new_message',
                                                 data: toMessagePayload(autoResponseSaved)
@@ -385,10 +433,26 @@ const messageModule = {
                                             
                                             for (const adminUser of adminUsers) {
                                                 const adminUserIdStr = adminUser._id?.toString?.() || String(adminUser._id || '');
+                                                
+                                                // Try to find the WebSocket connection
+                                                let adminWs = null;
                                                 if (userSocketMap.has(adminUserIdStr)) {
+                                                    adminWs = userSocketMap.get(adminUserIdStr);
+                                                } else {
+                                                    // If not found, try iterating through the map to find a match
+                                                    for (const [mapUserId, mapWs] of userSocketMap.entries()) {
+                                                        const mapUserIdStr = String(mapUserId);
+                                                        if (mapUserIdStr === adminUserIdStr || 
+                                                            mapUserIdStr.toLowerCase() === adminUserIdStr.toLowerCase()) {
+                                                            adminWs = mapWs;
+                                                            break;
+                                                        }
+                                                    }
+                                                }
+                                                
+                                                if (adminWs) {
                                                     try {
-                                                        const adminWs = userSocketMap.get(adminUserIdStr);
-                                                        if (adminWs && adminWs.readyState === 1) { // WebSocket.OPEN
+                                                        if (adminWs.readyState === 1) { // WebSocket.OPEN
                                                             adminWs.send(JSON.stringify({
                                                                 type: 'new_message',
                                                                 data: autoResponsePayload
@@ -592,9 +656,10 @@ const messageModule = {
                     const userDoc = await dbHelper.findOne('user', { _id: userId });
                     if (!userDoc) return null;
                     
-                    // Get unread count for this user
+                    // Get unread count for messages FROM this user (client) that admin hasn't read
                     const unreadCount = await dbHelper.count('message', { 
                         userId, 
+                        isUser: true,  // Only count messages from the client, not from admin
                         isRead: { $ne: true } 
                     });
                     
@@ -683,6 +748,16 @@ const messageModule = {
                 sort: { createdAt: -1 },
                 limit: limitValue,
             });
+
+            // Mark all unread messages FROM the client (isUser: true) as read when admin views them
+            await dbHelper.updateMany('message', { 
+                userId: targetUserId, 
+                isUser: true,  // Only mark messages from the client as read
+                isRead: { $ne: true } 
+            }, { $set: { isRead: true } });
+            
+            // Invalidate cache after marking messages as read
+            await invalidateMessageCache(targetUserId);
 
             const messages = Array.isArray(rows) ? rows.map(toMessagePayload) : [];
 
@@ -828,6 +903,55 @@ const messageModule = {
             console.error('Error sending admin reply:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
             responseData.error = 'Error sending message';
+        }
+        return responseData;
+    },
+
+    /**
+     * Deletes all messages for a conversation with a specific user (admin only)
+     * @param {Object} dbHelper - The database helper object.
+     * @param {Object} adminUser - The admin user object.
+     * @param {string} targetUserId - The ID of the user whose conversation to delete.
+     * @returns {Promise<Object>} The response data.
+     */
+    deleteConversation: async (dbHelper, adminUser, targetUserId) => {
+        const responseData = {
+            status: Status.INTERNAL_SERVER_ERROR,
+            error: 'Error deleting conversation',
+        };
+        try {
+            if (!adminUser?.userId) {
+                responseData.status = Status.UNAUTHORIZED;
+                responseData.error = 'User not logged in';
+                return responseData;
+            }
+
+            if (!messageModule.isAdmin(adminUser?.role)) {
+                responseData.status = Status.FORBIDDEN;
+                responseData.error = 'Only admins can delete conversations';
+                return responseData;
+            }
+
+            if (!targetUserId) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Target user ID is required';
+                return responseData;
+            }
+
+            // Delete all messages for this user
+            const deleteResult = await dbHelper.deleteMany('message', { userId: targetUserId });
+            
+            // Invalidate cache after deleting messages
+            await invalidateMessageCache(targetUserId);
+
+            responseData.status = Status.OK;
+            responseData.error = null;
+            responseData.message = 'Conversation deleted successfully';
+            responseData.deletedCount = deleteResult?.deletedCount || 0;
+        } catch (error) {
+            console.error('Error deleting conversation:', error);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Error deleting conversation';
         }
         return responseData;
     },

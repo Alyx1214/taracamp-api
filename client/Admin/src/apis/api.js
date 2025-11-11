@@ -202,6 +202,13 @@ export async function apiPost(path, body, extraOptions = {}) {
   return handle(res, data);
 }
 
+export async function apiDelete(path, extraOptions = {}) {
+  const opts = { method: 'DELETE', ...extraOptions };
+  const res = await rawFetch(path, opts);
+  const data = await safeJson(res);
+  return handle(res, data);
+}
+
 
 export async function apiPostBlob(path, body, extraOptions = {}) {
   const opts = isFormData(body)
@@ -223,4 +230,21 @@ export async function postPaymentWebhook(payload) {
   });
   const data = await safeJson(res);
   return handle(res, data);
+}
+
+// Review API functions
+export async function getReviewsByFacilityId(facilityId, query = {}) {
+  return apiGet(`/reviews/get-reviews-by-facility-id/${facilityId}`, query);
+}
+
+export async function deleteReview(reviewId) {
+  return apiPost(`/reviews/delete-review/${reviewId}`);
+}
+
+export async function addAdminReply(reviewId, replyText) {
+  return apiPost(`/reviews/admin-reply/${reviewId}`, { replyText });
+}
+
+export async function toggleReviewVisibility(reviewId, hidden) {
+  return apiPost(`/reviews/toggle-visibility/${reviewId}`, { hidden });
 }
