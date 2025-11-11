@@ -209,11 +209,14 @@ const Header = ({ onHamburgerClick }) => {
               <span className={styles["notification-badge"]}>{unreadCount > 99 ? '99+' : unreadCount}</span>
             )}
           </div>
-          {isNotifOpen && (
-            <div className={styles["notification-dropdown"]} role="dialog" aria-label="Notifications">
-              <Notification onMarkAllAsRead={handleMarkAllAsRead} />
-            </div>
-          )}
+          <div 
+            className={styles["notification-dropdown"]} 
+            role="dialog" 
+            aria-label="Notifications"
+            style={{ display: isNotifOpen ? 'block' : 'none' }}
+          >
+            <Notification onMarkAllAsRead={handleMarkAllAsRead} />
+          </div>
         </div>
       </div>
     </header>

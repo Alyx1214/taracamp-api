@@ -1,52 +1,99 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styles from './Reviews.module.css';
+import { getReviewsByFacilityId } from '../../apis/reviewsApi';
 
-const Reviews = ({ facilityName = "Facility" }) => {
-  const [reviews] = useState([
-    {
-      id: 1,
-      name: "John Doe",
-      rating: 5,
-      text: "Outstanding service! The staff was incredibly professional and the facilities were spotless. I felt completely comfortable throughout my entire visit. Highly recommend this place to anyone looking for quality care.",
-      date: "2 weeks ago",
-      adminReply: {
-        text: "Thank you so much for your kind words, John! We're thrilled to hear that you had such a positive experience with our team. Your satisfaction is our top priority, and we look forward to serving you again soon.",
-        date: "1 week ago",
-        admin: "Facility Manager"
+const Reviews = ({ facilityName = "Facility", facilityId }) => {
+  const [reviews, setReviews] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [averageRatings, setAverageRatings] = useState({
+    location: 0,
+    service: 0,
+    cleanliness: 0,
+    overall: 0
+  });
+
+  useEffect(() => {
+    const fetchReviews = async () => {
+      if (!facilityId) {
+        setLoading(false);
+        return;
       }
-    },
-    {
-      id: 2,
-      name: "Jane Smith",
-      rating: 4,
-      text: "Great experience overall. The booking process was seamless and the staff was very accommodating. The only minor issue was the wait time, but the quality of service made up for it.",
-      date: "1 month ago",
-      adminReply: {
-        text: "Hi Jane, thank you for your feedback! We appreciate your patience regarding the wait time and are actively working on improving our scheduling system to serve you better. We're glad the quality of service met your expectations!",
-        date: "3 weeks ago",
-        admin: "Customer Service Team"
+
+      try {
+        setLoading(true);
+        setError(null);
+        const response = await getReviewsByFacilityId(facilityId);
+        
+        if (response.reviews) {
+          // Map backend data to frontend format
+          const mappedReviews = response.reviews.map((review) => {
+            // Convert overall rating (1-10) to 1-5 scale for display
+            const overallRating = review.rating?.overall || 0;
+            const starRating = overallRating > 0 ? Math.round(overallRating / 2) : 0;
+            
+            // Format date
+            const date = review.createdAt 
+              ? formatDate(review.createdAt) 
+              : "Unknown";
+            
+            return {
+              id: review.id,
+              name: review.authorName || "Anonymous",
+              rating: starRating,
+              text: review.text,
+              date: date,
+              adminReply: review.adminReply ? {
+                text: review.adminReply,
+                date: "Recently", // Admin replies don't have separate timestamps
+                admin: "Teachers' Camp"
+              } : null
+            };
+          });
+          
+          setReviews(mappedReviews);
+          setAverageRatings(response.averageRatings || {
+            location: 0,
+            service: 0,
+            cleanliness: 0,
+            overall: 0
+          });
+        } else {
+          setReviews([]);
+        }
+      } catch (err) {
+        console.error('Error fetching reviews:', err);
+        setError(err.message || 'Failed to fetch reviews');
+        setReviews([]);
+      } finally {
+        setLoading(false);
       }
-    },
-    {
-      id: 3,
-      name: "Mike Johnson",
-      rating: 5,
-      text: "Exceptional care and attention to detail. The modern facilities and friendly staff create a welcoming atmosphere. I've been coming here for months and it's consistently excellent.",
-      date: "3 weeks ago"
-    },
-    {
-      id: 4,
-      name: "Sarah Wilson",
-      rating: 4,
-      text: "Professional service with a personal touch. The team goes above and beyond to ensure customer satisfaction. The facility is well-maintained and the atmosphere is very calming.",
-      date: "1 week ago",
-      adminReply: {
-        text: "Dear Sarah, we truly appreciate your wonderful review! Our team works hard to maintain the highest standards, and it's rewarding to know that our efforts are recognized. Thank you for choosing us!",
-        date: "5 days ago",
-        admin: "Management"
-      }
+    };
+
+    fetchReviews();
+  }, [facilityId]);
+
+  const formatDate = (dateString) => {
+    if (!dateString) return "Unknown";
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffTime = Math.abs(now - date);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) return "Today";
+    if (diffDays === 1) return "Yesterday";
+    if (diffDays < 7) return `${diffDays} days ago`;
+    if (diffDays < 30) {
+      const weeks = Math.floor(diffDays / 7);
+      return `${weeks} week${weeks !== 1 ? 's' : ''} ago`;
     }
-  ]);
+    if (diffDays < 365) {
+      const months = Math.floor(diffDays / 30);
+      return `${months} month${months !== 1 ? 's' : ''} ago`;
+    }
+    const years = Math.floor(diffDays / 365);
+    return `${years} year${years !== 1 ? 's' : ''} ago`;
+  };
 
   const renderStars = (rating) => {
     return [...Array(5)].map((_, index) => (
@@ -60,8 +107,10 @@ const Reviews = ({ facilityName = "Facility" }) => {
   };
 
   const getAverageRating = () => {
-    const sum = reviews.reduce((acc, review) => acc + review.rating, 0);
-    return (sum / reviews.length).toFixed(1);
+    if (reviews.length === 0) return 0;
+    // Use overall rating from backend (1-10 scale) converted to 1-5
+    const overall = averageRatings.overall || 0;
+    return (overall / 2).toFixed(1);
   };
 
   const getInitials = (name) => {
@@ -74,27 +123,62 @@ const Reviews = ({ facilityName = "Facility" }) => {
     return colors[index];
   };
 
+  if (loading) {
+    return (
+      <div className={styles.reviewsContainer}>
+        <div className={styles.reviewsHeader}>
+          <div className={styles.headerContent}>
+            <h2 className={styles.reviewsTitle}>{facilityName}</h2>
+          </div>
+        </div>
+        <div className={styles.reviewsList}>
+          <p>Loading reviews...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className={styles.reviewsContainer}>
+        <div className={styles.reviewsHeader}>
+          <div className={styles.headerContent}>
+            <h2 className={styles.reviewsTitle}>{facilityName}</h2>
+          </div>
+        </div>
+        <div className={styles.reviewsList}>
+          <p style={{ color: '#ef4444' }}>Error: {error}</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={styles.reviewsContainer}>
       <div className={styles.reviewsHeader}>
         <div className={styles.headerContent}>
           <h2 className={styles.reviewsTitle}>{facilityName}</h2>
-          <div className={styles.ratingOverview}>
-            <div className={styles.averageRating}>
-              <span className={styles.ratingNumber}>{getAverageRating()}</span>
-              <div className={styles.overviewStars}>
-                {renderStars(Math.round(getAverageRating()))}
+          {reviews.length > 0 && (
+            <div className={styles.ratingOverview}>
+              <div className={styles.averageRating}>
+                <span className={styles.ratingNumber}>{getAverageRating()}</span>
+                <div className={styles.overviewStars}>
+                  {renderStars(Math.round(parseFloat(getAverageRating())))}
+                </div>
+              </div>
+              <div className={styles.reviewCount}>
+                Based on {reviews.length} review{reviews.length !== 1 ? 's' : ''}
               </div>
             </div>
-            <div className={styles.reviewCount}>
-              Based on {reviews.length} review{reviews.length !== 1 ? 's' : ''}
-            </div>
-          </div>
+          )}
         </div>
       </div>
       
       <div className={styles.reviewsList}>
-        {reviews.map((review) => (
+        {reviews.length === 0 ? (
+          <p>No reviews yet.</p>
+        ) : (
+          reviews.map((review) => (
           <div key={review.id} className={styles.reviewCard}>
             <div className={styles.reviewHeader}>
               <div 
@@ -136,7 +220,8 @@ const Reviews = ({ facilityName = "Facility" }) => {
               </div>
             )}
           </div>
-        ))}
+          ))
+        )}
       </div>
     </div>
   );

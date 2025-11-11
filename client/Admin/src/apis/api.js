@@ -224,3 +224,20 @@ export async function postPaymentWebhook(payload) {
   const data = await safeJson(res);
   return handle(res, data);
 }
+
+// Review API functions
+export async function getReviewsByFacilityId(facilityId, query = {}) {
+  return apiGet(`/reviews/get-reviews-by-facility-id/${facilityId}`, query);
+}
+
+export async function deleteReview(reviewId) {
+  return apiPost(`/reviews/delete-review/${reviewId}`);
+}
+
+export async function addAdminReply(reviewId, replyText) {
+  return apiPost(`/reviews/admin-reply/${reviewId}`, { replyText });
+}
+
+export async function toggleReviewVisibility(reviewId, hidden) {
+  return apiPost(`/reviews/toggle-visibility/${reviewId}`, { hidden });
+}

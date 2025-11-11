@@ -223,7 +223,22 @@ export default function CheckInOuts() {
             });
       }
     },
-    { label: "Edit", onClick: () => alert(`Editing ${row.name}`) },
+    { 
+      label: "Edit", 
+      onClick: () => {
+        if (!row.id || row.id === "N/A") {
+          alert("Invalid reservation ID. Cannot edit.");
+          return;
+        }
+        navigate(`/reservations/${row.id}/edit`, {
+          state: {
+            fromCheckInOut: true,
+            activeTab: activeTab,
+            filters,
+          }
+        });
+      }
+    },
   ];
 
   const [actionId, setActionId] = useState(null);
@@ -287,7 +302,19 @@ export default function CheckInOuts() {
     <>
       <button
         className={`${styles.pillBtn} ${styles.editBtn}`}
-        onClick={() => alert(`Editing ${row.name}`)}
+        onClick={() => {
+          if (!row.id || row.id === "N/A") {
+            alert("Invalid reservation ID. Cannot edit.");
+            return;
+          }
+          navigate(`/reservations/${row.id}/edit`, {
+            state: {
+              fromCheckInOut: true,
+              activeTab: activeTab,
+              filters,
+            }
+          });
+        }}
         style={{ marginLeft: 8 }}
       >
         Edit
@@ -306,7 +333,19 @@ export default function CheckInOuts() {
     <>
       <button
         className={`${styles.pillBtn} ${styles.editBtn}`}
-        onClick={() => alert(`Editing ${row.name}`)}
+        onClick={() => {
+          if (!row.id || row.id === "N/A") {
+            alert("Invalid reservation ID. Cannot edit.");
+            return;
+          }
+          navigate(`/reservations/${row.id}/edit`, {
+            state: {
+              fromCheckInOut: true,
+              activeTab: activeTab,
+              filters,
+            }
+          });
+        }}
         style={{ marginLeft: 8 }}
       >
         Edit

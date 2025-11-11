@@ -204,6 +204,8 @@ const dbHelper = {
                 text: { type: String, required: true, maxlength: 1000, },
                 authorName: { type: String, required: false, },
                 isVerified: { type: Boolean, default: false, },
+                adminReply: { type: String, required: false, maxlength: 1000, },
+                hidden: { type: Boolean, default: false, },
                 createdAt: { type: Date, default: Date.now, },
                 updatedAt: { type: Date, required: false, },
             });
