@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import UnivTable from "./UnivTable";
 import styles from "./UnivTable.module.css";
 import { deleteReservation, searchReservations } from "../../apis/reservationApi";
@@ -29,6 +30,7 @@ export default function Cancelled({
   onPageChange: parentOnPageChange,
   onPaginationUpdate
 }) {
+  const navigate = useNavigate();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState(null);
@@ -166,7 +168,7 @@ export default function Cancelled({
   ];
 
   if (err) {
-    return <div style={{ padding: 16 }}>Couldn’t load cancelled reservations: {err}</div>;
+    return <div style={{ padding: 16 }}>Couldn't load cancelled reservations: {err}</div>;
   }
 
   return (
