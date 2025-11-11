@@ -146,31 +146,6 @@ export default function Confirmed({
       }}>
         Edit
       </button>
-      <button className={styles["univ-view-btn"]} onClick={() => {
-        if (!row.id || row.id === "N/A") {
-          alert("Invalid reservation ID. Cannot view details.");
-          return;
-        }
-        row.guestType === "GROUP"
-          ? navigate(`/confirmedGroup/${row.id}/details`, {
-              state: {
-                activeTab: 'Confirmed',
-                filters,
-                searchQuery,
-                currentPage
-              }
-            })
-          : navigate(`/confirmedIndiv/${row.id}/details`, {
-              state: {
-                activeTab: 'Confirmed',
-                filters,
-                searchQuery,
-                currentPage
-              }
-            });
-      }}>
-        View
-      </button>
     </>
   );
 
