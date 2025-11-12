@@ -34,7 +34,7 @@ const facilityModule = {
         };
 
         try {
-            const { name, facilityType, capacity, ratePerPerson, price, status, } = data;
+            const { name, facilityType, capacity, ratePerPerson, price, status, baseRate, rate, discountRate, ratePerExcessCapacity, discountedFacilityRate } = data;
 
             const validationResult = validateFacilityInput(data, user);
             if (validationResult.error) {
@@ -78,7 +78,22 @@ const facilityModule = {
             };
 
             if (facilityType === FacilityType.CONFERENCE || facilityType === FacilityType.COTTAGE) {
-                facilityData.price = Number(String(price).replace(/,/g, '')) || 0;
+                // Facility Rate (Inclusive of 10% Service Fee) - use baseRate if provided, otherwise fall back to price
+                facilityData.price = isPresent(baseRate) 
+                    ? Number(String(baseRate).replace(/,/g, '')) || 0
+                    : (isPresent(price) ? Number(String(price).replace(/,/g, '')) || 0 : 0);
+                
+                // Rate per Excess Capacity - always set the field, default to 0 if not provided
+                const excessRate = isPresent(rate) ? rate : (isPresent(ratePerExcessCapacity) ? ratePerExcessCapacity : null);
+                facilityData.ratePerExcessCapacity = excessRate !== null && excessRate !== undefined
+                    ? (Number(String(excessRate).replace(/,/g, '')) || 0)
+                    : 0;
+                
+                // Discounted Facility Rate - always set the field, default to 0 if not provided
+                const discountRateValue = isPresent(discountRate) ? discountRate : (isPresent(discountedFacilityRate) ? discountedFacilityRate : null);
+                facilityData.discountedFacilityRate = discountRateValue !== null && discountRateValue !== undefined
+                    ? (Number(String(discountRateValue).replace(/,/g, '')) || 0)
+                    : 0;
             }
             if (facilityType === FacilityType.DORMITORY) {
                 facilityData.ratePerPerson = Number(String(ratePerPerson).replace(/,/g, '')) || 0;
@@ -364,16 +379,65 @@ const facilityModule = {
 
             if (
                 (data.facilityType === FacilityType.CONFERENCE || data.facilityType === FacilityType.COTTAGE || 
-                 facility.facilityType === FacilityType.CONFERENCE || facility.facilityType === FacilityType.COTTAGE) &&
-        isPresent(data.price)
+                 facility.facilityType === FacilityType.CONFERENCE || facility.facilityType === FacilityType.COTTAGE)
             ) {
-                const priceNum = Number(String(data.price).replace(/,/g, ''));
-                if (!isValidRate(priceNum)) {
-                    responseData.status = Status.BAD_REQUEST;
-                    responseData.error = 'Invalid price for conference/cottage facility';
-                    return responseData;
+                // Handle Facility Rate (baseRate or price for backward compatibility)
+                if (isPresent(data.baseRate)) {
+                    const baseRateNum = Number(String(data.baseRate).replace(/,/g, ''));
+                    if (!isValidRate(baseRateNum)) {
+                        responseData.status = Status.BAD_REQUEST;
+                        responseData.error = 'Invalid facility rate for conference/cottage facility';
+                        return responseData;
+                    }
+                    updateData.price = baseRateNum;
+                } else if (isPresent(data.price)) {
+                    const priceNum = Number(String(data.price).replace(/,/g, ''));
+                    if (!isValidRate(priceNum)) {
+                        responseData.status = Status.BAD_REQUEST;
+                        responseData.error = 'Invalid price for conference/cottage facility';
+                        return responseData;
+                    }
+                    updateData.price = priceNum;
                 }
-                updateData.price = priceNum;
+                
+                // Handle Rate per Excess Capacity
+                if (isPresent(data.rate)) {
+                    const rateNum = Number(String(data.rate).replace(/,/g, ''));
+                    if (!isValidRate(rateNum)) {
+                        responseData.status = Status.BAD_REQUEST;
+                        responseData.error = 'Invalid rate per excess capacity';
+                        return responseData;
+                    }
+                    updateData.ratePerExcessCapacity = rateNum;
+                } else if (isPresent(data.ratePerExcessCapacity)) {
+                    const rateNum = Number(String(data.ratePerExcessCapacity).replace(/,/g, ''));
+                    if (!isValidRate(rateNum)) {
+                        responseData.status = Status.BAD_REQUEST;
+                        responseData.error = 'Invalid rate per excess capacity';
+                        return responseData;
+                    }
+                    updateData.ratePerExcessCapacity = rateNum;
+                }
+                
+                // Handle Discounted Facility Rate
+                if (isPresent(data.discountRate)) {
+                    const discountNum = Number(String(data.discountRate).replace(/,/g, ''));
+                    if (!isValidRate(discountNum)) {
+                        responseData.status = Status.BAD_REQUEST;
+                        responseData.error = 'Invalid discounted facility rate';
+                        return responseData;
+                    }
+                    updateData.discountedFacilityRate = discountNum;
+                } else if (isPresent(data.discountedFacilityRate)) {
+                    const discountNum = Number(String(data.discountedFacilityRate).replace(/,/g, ''));
+                    if (!isValidRate(discountNum)) {
+                        responseData.status = Status.BAD_REQUEST;
+                        responseData.error = 'Invalid discounted facility rate';
+                        return responseData;
+                    }
+                    updateData.discountedFacilityRate = discountNum;
+                }
+                
                 updateData.ratePerPerson = undefined;
             }
 
@@ -1109,9 +1173,9 @@ async function invalidateFacilitiesCache() {
  * @returns {Object} Validation result with error and status
  */
 function validateFacilityInput(data, user) {
-    const { name, facilityType, capacity, ratePerPerson, price, status } = data;
+    const { name, facilityType, capacity, ratePerPerson, price, status, baseRate } = data;
 
-    const cacheKey = `validation:${JSON.stringify({ name, facilityType, capacity, ratePerPerson, price, status, userId: user?.userId, role: user?.role })}`;
+    const cacheKey = `validation:${JSON.stringify({ name, facilityType, capacity, ratePerPerson, price, baseRate, status, userId: user?.userId, role: user?.role })}`;
     
     const cached = validationCache.get(cacheKey);
     if (cached && (Date.now() - cached.timestamp) < CACHE_TTL) {
@@ -1139,13 +1203,16 @@ function validateFacilityInput(data, user) {
  * @returns {Object} Validation result with error and status
  */
 function performValidation(data, user) {
-    const { name, facilityType, capacity, ratePerPerson, price, status } = data;
+    const { name, facilityType, capacity, ratePerPerson, price, status, baseRate } = data;
 
+    // For Cottage/Conference, check for baseRate (Facility Rate) or price (for backward compatibility)
+    const facilityRate = isPresent(baseRate) ? baseRate : price;
+    
     if (
         !isPresent(name) ||
         !isPresent(facilityType) ||
         !isPresent(capacity) ||
-        ((facilityType === FacilityType.CONFERENCE || facilityType === FacilityType.COTTAGE) && !isPresent(price)) ||
+        ((facilityType === FacilityType.CONFERENCE || facilityType === FacilityType.COTTAGE) && !isPresent(facilityRate)) ||
         (facilityType === FacilityType.DORMITORY && !isPresent(ratePerPerson))
     ) {
         return { status: Status.BAD_REQUEST, error: 'Missing required fields' };
@@ -1168,7 +1235,7 @@ function performValidation(data, user) {
     }
 
     if (
-        ((facilityType === FacilityType.CONFERENCE || facilityType === FacilityType.COTTAGE) && !isValidRate(price)) ||
+        ((facilityType === FacilityType.CONFERENCE || facilityType === FacilityType.COTTAGE) && !isValidRate(facilityRate)) ||
         (facilityType === FacilityType.DORMITORY && !isValidRate(ratePerPerson))
     ) {
         return { status: Status.BAD_REQUEST, error: 'Missing or invalid rate/price for this facility type' };

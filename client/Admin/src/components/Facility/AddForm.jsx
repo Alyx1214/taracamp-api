@@ -16,6 +16,8 @@ const AddForm = () => {
   const [formData, setFormData] = useState({
     name: "",
     rate: "",
+    baseRate: "",
+    discountRate: "",
     unit: "",
     capacity: "",
     status: "Available",
@@ -91,7 +93,9 @@ const AddForm = () => {
         }
 
         if (facilityType === "Conference" || facilityType === "Cottage") {
-          payload.price = formData.rate;
+          payload.baseRate = formData.baseRate;
+          payload.rate = formData.rate; // Rate per Excess Capacity
+          payload.discountRate = formData.discountRate;
         } else if (facilityType === "Dormitory") {
           payload.ratePerPerson = formData.rate;
         }

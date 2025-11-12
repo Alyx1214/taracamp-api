@@ -141,6 +141,8 @@ const dbHelper = {
                 capacity: { type: Number, required: false, },
                 ratePerPerson: { type: Number, required: false, },
                 price: { type: Number, required: false, },
+                ratePerExcessCapacity: { type: Number, required: false, },
+                discountedFacilityRate: { type: Number, required: false, },
                 status: { type: String, enum: Object.values(FacilityStatus), default: FacilityStatus.AVAILABLE, required: true, },
                 images: { type: [String], default: [] },
                 rooms: { type: [{ name: String, capacity: Number, status: String }], default: [] },
