@@ -168,6 +168,11 @@ export default function CancelledRSVDetails() {
         <table className={styles["rsv-details-table"]}>
           <tbody>
             <tr>
+              <td className={styles["rsv-details-label"]}>Type</td>
+              <td className={styles["rsv-details-separator"]}>:</td>
+              <td>{reservation.guestType || "N/A"}</td>
+            </tr>
+            <tr>
               <td className={styles["rsv-details-label"]}>Group/Association</td>
               <td className={styles["rsv-details-separator"]}>:</td>
               <td>{reservation.guestName || "N/A"}</td>
@@ -239,6 +244,75 @@ export default function CancelledRSVDetails() {
                 <td>
                   <a
                     href={reservation.letterOfIntentFile || "#"}
+                    className={styles["rsv-details-link"]}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Click to open
+                  </a>
+                </td>
+              </tr>
+            )}
+
+            {/* Conditional ID rows based on category */}
+            {reservation.category?.toLowerCase().includes('senior') && reservation.scIdFile && (
+              <tr>
+                <td className={styles["rsv-details-label"]}>Senior Citizen ID</td>
+                <td className={styles["rsv-details-separator"]}>:</td>
+                <td>
+                  <a
+                    href={reservation.scIdFile}
+                    className={styles["rsv-details-link"]}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Click to open
+                  </a>
+                </td>
+              </tr>
+            )}
+
+            {reservation.category?.toLowerCase().includes('government') && reservation.governmentIdFile && (
+              <tr>
+                <td className={styles["rsv-details-label"]}>Government ID</td>
+                <td className={styles["rsv-details-separator"]}>:</td>
+                <td>
+                  <a
+                    href={reservation.governmentIdFile}
+                    className={styles["rsv-details-link"]}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Click to open
+                  </a>
+                </td>
+              </tr>
+            )}
+
+            {reservation.category?.toLowerCase().includes('pwd') && reservation.pwdIdFile && (
+              <tr>
+                <td className={styles["rsv-details-label"]}>PWD ID</td>
+                <td className={styles["rsv-details-separator"]}>:</td>
+                <td>
+                  <a
+                    href={reservation.pwdIdFile}
+                    className={styles["rsv-details-link"]}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Click to open
+                  </a>
+                </td>
+              </tr>
+            )}
+
+            {reservation.category?.toLowerCase().includes('deped') && reservation.depedIdFile && (
+              <tr>
+                <td className={styles["rsv-details-label"]}>DepEd ID</td>
+                <td className={styles["rsv-details-separator"]}>:</td>
+                <td>
+                  <a
+                    href={reservation.depedIdFile}
                     className={styles["rsv-details-link"]}
                     target="_blank"
                     rel="noopener noreferrer"
