@@ -86,10 +86,10 @@ export default function EditForm() {
 
         setFormData({
           name: data.name || "",
-          rate: data.price || data.rate || data.ratePerPerson || "",
-          ratePerPerson: data.ratePerPerson || data.price || data.rate || "",
-          baseRate: data.baseRate || "",
-          discountRate: data.discountRate || "",
+          rate: data.ratePerExcessCapacity || data.rate || "",
+          ratePerPerson: data.ratePerPerson || "",
+          baseRate: data.price || data.baseRate || "",
+          discountRate: data.discountedFacilityRate || data.discountRate || "",
           capacity: data.capacity || "",
           quantity: data.quantity || "",
           status: data.status || "Available",
@@ -197,8 +197,6 @@ export default function EditForm() {
           facilityType,
           status: formData.status,
           images: (formData.images || []).filter(Boolean),
-          baseRate: formData.baseRate,
-          discountRate: formData.discountRate,
           quantity: formData.quantity,
           extraRows: formData.extraRows,
         };
@@ -209,7 +207,9 @@ export default function EditForm() {
 
         if (facilityType === "Conference" || facilityType === "Cottage") {
           payload.capacity = formData.capacity;
-          payload.price = formData.rate;
+          payload.baseRate = formData.baseRate;
+          payload.rate = formData.rate; // Rate per Excess Capacity
+          payload.discountRate = formData.discountRate;
         } else if (facilityType === "Dormitory") {
           payload.capacity = formData.capacity;
           payload.ratePerPerson = formData.ratePerPerson; // use the dormitory-specific field
