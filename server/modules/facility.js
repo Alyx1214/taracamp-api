@@ -49,23 +49,32 @@ const facilityModule = {
                 return responseData;
             }
 
-            const [imageResult, existing] = await Promise.all([
-                processImages(files),
-                dbHelper.findOne('facility', { 
+            // Check for duplicate facility BEFORE uploading images
+            let existing;
+            try {
+                existing = await dbHelper.findOne('facility', { 
                     name: toTitleCase(String(name || '')), 
                     facilityType 
-                })
-            ]);
-
-            if (imageResult.error) {
-                responseData.status = Status.BAD_REQUEST;
-                responseData.error = imageResult.error;
+                });
+            } catch (dbError) {
+                console.error('Database error checking for duplicate facility:', dbError);
+                responseData.status = Status.INTERNAL_SERVER_ERROR;
+                responseData.error = 'Error checking for duplicate facility';
                 return responseData;
             }
 
             if (existing) {
                 responseData.status = Status.BAD_REQUEST;
                 responseData.error = 'Facility already exists';
+                return responseData;
+            }
+
+            // Only upload images after confirming no duplicate exists
+            const imageResult = await processImages(files);
+
+            if (imageResult.error) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = imageResult.error;
                 return responseData;
             }
 

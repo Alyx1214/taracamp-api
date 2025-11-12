@@ -15,6 +15,7 @@ const AddForm = () => {
 
   const [formData, setFormData] = useState({
     name: "",
+    price: "",
     rate: "",
     ratePerPerson: "",
     baseRate: "",
@@ -77,7 +78,7 @@ const AddForm = () => {
       if (isSpecialService) {
         const res = await createAddon({
           name: formData.name,
-          price: formData.rate,
+          price: formData.price,
           unit: formData.unit,
         });
         setSuccess(res.message || "Service created successfully");
