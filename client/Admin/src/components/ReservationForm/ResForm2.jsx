@@ -656,6 +656,38 @@ function ReservationFormStep2() {
               </div>
 
               <div className={styles.formGroup}>
+                <label className={styles.label}>
+                  Do you want to avail the food included in your package?
+                </label>
+                <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginTop: 6 }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <input
+                      type="radio"
+                      name="includeFood"
+                      value="yes"
+                      checked={formData.includeFood === 'yes'}
+                      onChange={handleInputChange}
+                    />
+                    <span>Yes</span>
+                  </label>
+
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <input
+                      type="radio"
+                      name="includeFood"
+                      value="no"
+                      checked={formData.includeFood === 'no'}
+                      onChange={handleInputChange}
+                    />
+                    <span>No</span>
+                  </label>
+                </div>
+                {fieldErrors.includeFood && (
+                  <div className={styles.fieldError}>{fieldErrors.includeFood}</div>
+                )}
+              </div>
+
+              <div className={styles.formGroup}>
                 <label className={styles.label}>Other Special Request or Services</label>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                   <select
