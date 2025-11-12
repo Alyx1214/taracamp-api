@@ -5,6 +5,7 @@ import CheckTabs from "./CheckTabs";
 import CheckHead from "./CheckHead";
 import UnivTable from "../UnivTable/UnivTable"; 
 import SearchFil from "../SearchFil/SearchFil";
+import ConfirmModal from "../Shared/ConfirmModal";
 import { searchReservations, checkInOrCheckOutReservation, deleteReservation } from "../../apis/reservationApi";
 
 export default function CheckInOuts() {
@@ -34,6 +35,10 @@ export default function CheckInOuts() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState(null);
   const cancelledRef = useRef(false);
+  const [confirmModalOpen, setConfirmModalOpen] = useState(false);
+  const [selectedRow, setSelectedRow] = useState(null);
+  const [pendingAction, setPendingAction] = useState(null); // 'Checked-in' or 'Checked-out'
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const statusForTab = (tab) => {
     if (tab === "Confirmed") return "Confirmed"; 
@@ -250,9 +255,16 @@ export default function CheckInOuts() {
 
   const [actionId, setActionId] = useState(null);
 
+  const promptAction = (row, nextStatus) => {
+    setSelectedRow(row);
+    setPendingAction(nextStatus);
+    setConfirmModalOpen(true);
+  };
+
   const doAction = async (row, nextStatus) => {
     try {
       setActionId(row.id);
+      setIsProcessing(true);
       await checkInOrCheckOutReservation(row.id, nextStatus);
       // Refresh with current filters
       const status = statusForTab(activeTab);
@@ -299,11 +311,27 @@ export default function CheckInOuts() {
       }
       
       setRows(list);
+      setConfirmModalOpen(false);
+      setSelectedRow(null);
+      setPendingAction(null);
     } catch (e) {
       alert(e?.data?.error || e?.message || 'Action failed');
     } finally {
       setActionId(null);
+      setIsProcessing(false);
     }
+  };
+
+  const handleConfirmAction = () => {
+    if (selectedRow && pendingAction) {
+      doAction(selectedRow, pendingAction);
+    }
+  };
+
+  const handleCancelAction = () => {
+    setConfirmModalOpen(false);
+    setSelectedRow(null);
+    setPendingAction(null);
   };
 
   const renderApprovedActions = (row) => (
@@ -330,7 +358,7 @@ export default function CheckInOuts() {
       <button
       className={`${styles.pillBtn} ${styles.checkInBtn}`}
       disabled={actionId === row.id}
-      onClick={() => doAction(row, 'Checked-in')}
+      onClick={() => promptAction(row, 'Checked-in')}
     >
       {actionId === row.id ? 'Checking in…' : 'Check-In'}
     </button>
@@ -361,7 +389,7 @@ export default function CheckInOuts() {
       <button
         className={`${styles.pillBtn} ${styles.checkOutBtn}`}
         disabled={actionId === row.id}
-        onClick={() => doAction(row, 'Checked-out')}
+        onClick={() => promptAction(row, 'Checked-out')}
       >
         {actionId === row.id ? 'Checking out…' : 'Check-Out'}
       </button>
@@ -554,6 +582,25 @@ export default function CheckInOuts() {
           />
         )}
       </div>
+
+      {/* Check-In/Check-Out Confirmation Modal */}
+      <ConfirmModal
+        open={confirmModalOpen}
+        title={pendingAction === 'Checked-in' ? 'Check-In Guest' : pendingAction === 'Checked-out' ? 'Check-Out Guest' : 'Confirm Action'}
+        message={
+          pendingAction === 'Checked-in'
+            ? `Are you sure you want to check-in ${selectedRow?.name || 'this guest'}? This will move them to the Check-In tab.`
+            : pendingAction === 'Checked-out'
+            ? `Are you sure you want to check-out ${selectedRow?.name || 'this guest'}? This will move them to the Check-Out tab.`
+            : 'Are you sure you want to proceed?'
+        }
+        confirmText={pendingAction === 'Checked-in' ? 'Check-In' : pendingAction === 'Checked-out' ? 'Check-Out' : 'Confirm'}
+        cancelText="Cancel"
+        confirming={isProcessing}
+        variant={pendingAction === 'Checked-in' || pendingAction === 'Checked-out' ? 'success' : 'primary'}
+        onCancel={handleCancelAction}
+        onConfirm={handleConfirmAction}
+      />
     </div>
   );
 }
