@@ -218,6 +218,36 @@ export default function buildReservationRouter(userSocketMap) {
         console.warn('Failed to create approval notification:', error?.message);
       }
     }
+
+    // Send notification to guest when reservation is declined
+    if (response.status === 200 && status === ReservationStatus.DECLINED && response.reservation) {
+      try {
+        const reservation = await dbHelper.findOne('reservation', { _id: req.params.id });
+        if (reservation) {
+          const reservationIdStr = reservation._id?.toString?.() || String(reservation._id || '');
+          
+          // Notify guest if reservation has userId
+          if (reservation.userId) {
+            // Ensure userId and reservationId are strings (not ObjectId objects)
+            const userIdStr = reservation.userId?.toString?.() || String(reservation.userId || '');
+            
+            await notificationModule.createAndNotifyUser(
+              dbHelper,
+              {
+                title: 'Reservation Declined',
+                message: "We're sorry to inform you that your reservation request has been declined. If you have any questions or would like to discuss this decision, please contact us.",
+                kind: 'reservation_declined',
+                userId: userIdStr,
+                reservationId: reservationIdStr,
+              },
+              userSocketMap
+            ).catch(e => console.warn('Notify decline failed:', e?.message));
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to create decline notification:', error?.message);
+      }
+    }
   }));
 
   r.post('/checkin-or-checkout-reservation/:id', asyncHandler(async (req, res) => {

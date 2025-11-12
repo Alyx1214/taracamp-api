@@ -84,8 +84,14 @@ const Calendar = ({
 
   const isSameDay = (y, m, d, ref) => y === ref.getFullYear() && m === ref.getMonth() && d === ref.getDate();
 
-  const goPrev = () => setViewDate(d => new Date(d.getFullYear(), d.getMonth() - 1, 1));
-  const goNext = () => setViewDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1));
+  const goPrev = (e) => {
+    e?.stopPropagation();
+    setViewDate(d => new Date(d.getFullYear(), d.getMonth() - 1, 1));
+  };
+  const goNext = (e) => {
+    e?.stopPropagation();
+    setViewDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1));
+  };
 
   const clickDay = (day) => {
     if (!day) return;
@@ -122,7 +128,7 @@ const Calendar = ({
   };
 
   return (
-    <div className={styles.reservationsCalendar}>
+    <div className={styles.reservationsCalendar} onClick={(e) => e.stopPropagation()}>
       <h4 className={styles.calendarHeader}>Reservations Calendar</h4>
 
       <div className={styles.calendarMonthNav}>

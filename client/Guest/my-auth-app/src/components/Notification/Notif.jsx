@@ -340,6 +340,13 @@ export default function Notif() {
       setStage('cancel');
       return;
     }
+    // Check for decline notifications - show NotifCancel
+    if (notif.kind === 'reservation_declined' || 
+        (notif.title && (notif.title.toLowerCase().includes('declined') || notif.title.toLowerCase().includes('decline')))) {
+      setSelected(notif);
+      setStage('cancel');
+      return;
+    }
     // Check for checkout review request - show NotifReviews
     if (notif.kind === 'checkout_review_request' || 
         (notif.title && notif.title === 'Share your stay')) {
