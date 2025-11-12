@@ -135,6 +135,11 @@ function ReservationForm() {
       e.guestsTotal = `Total guests (${total}) exceeds facility capacity (${facility.capacity}).`;
     }
 
+    // Require at least 1 PWD guest when PWD category is selected
+    if (formData.category?.pwds && p < 1) {
+      e.category = 'PWD category requires at least 1 PWD guest.';
+    }
+
     // Validate individual type with more than 50 guests
     if (formData.type?.individual && total > 50) {
       e.type = 'Individual reservations are limited to a maximum of 50 guests. Please select "Group" type for more than 50 guests.';

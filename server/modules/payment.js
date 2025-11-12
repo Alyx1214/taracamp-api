@@ -1124,8 +1124,11 @@ const paymentModule = {
                     dateOfDeparture: reservation?.dateOfDeparture,
                 });
 
+                // Normalize category for comparison
+                const normalizedReservationCategory = reservation.category ? String(reservation.category).trim() : '';
+                
                 // Always show service fee for categories that have it
-                if (reservation.category === Category.PRIVATE || reservation.category === Category.GOVERNMENT || reservation.category === Category.DEPED) {
+                if (normalizedReservationCategory === Category.PRIVATE || normalizedReservationCategory === Category.GOVERNMENT || normalizedReservationCategory === Category.DEPED || normalizedReservationCategory === Category.PWDS) {
                     serviceFeeInfo = {
                         label: 'Service Fee',
                         amount: peso(estimateResult.serviceFee),
@@ -1137,7 +1140,7 @@ const paymentModule = {
                     discountInfo = {
                         label: `${reservation.category} Discount`,
                         amount: peso(estimateResult.discount),
-                        percentage: reservation.category === Category.GOVERNMENT || reservation.category === Category.DEPED ? '20%' : '0%'
+                        percentage: normalizedReservationCategory === Category.GOVERNMENT || normalizedReservationCategory === Category.DEPED || normalizedReservationCategory === Category.PWDS ? '20%' : '0%'
                     };
                 }
             }
@@ -1216,11 +1219,14 @@ function computeEstimate({ facilityDoc, adults = 0, children = 0, pwds = 0, seni
         }
     }
 
+    // Normalize category for comparison (handle case and whitespace)
+    const normalizedCategory = category ? String(category).trim() : '';
+    
     let finalAmount = baseAmount;
     
-    if (category === Category.PRIVATE) {
+    if (normalizedCategory === Category.PRIVATE) {
         finalAmount = baseAmount * 1.10;
-    } else if (category === Category.GOVERNMENT || category === Category.DEPED) {
+    } else if (normalizedCategory === Category.GOVERNMENT || normalizedCategory === Category.DEPED || normalizedCategory === Category.PWDS) {
         const withServiceFee = baseAmount * 1.10;
         finalAmount = withServiceFee * 0.80;
     }
@@ -1238,13 +1244,17 @@ function computeEstimate({ facilityDoc, adults = 0, children = 0, pwds = 0, seni
         }
     }
 
+    // Use normalized category for service fee and discount calculations
+    const hasServiceFee = normalizedCategory === Category.PRIVATE || normalizedCategory === Category.GOVERNMENT || normalizedCategory === Category.DEPED || normalizedCategory === Category.PWDS;
+    const hasDiscount = normalizedCategory === Category.GOVERNMENT || normalizedCategory === Category.DEPED || normalizedCategory === Category.PWDS;
+    
     return { 
         amount: finalAmount,
         model: usePerPersonPricing ? 'perPerson' : 'flat',
         baseAmount: baseAmount,
         facilityFee: facilityFee,
-        serviceFee: category === Category.PRIVATE || category === Category.GOVERNMENT || category === Category.DEPED ? baseAmount * 0.10 : 0,
-        discount: category === Category.GOVERNMENT || category === Category.DEPED ? (baseAmount * 1.10) * 0.20 : 0
+        serviceFee: hasServiceFee ? baseAmount * 0.10 : 0,
+        discount: hasDiscount ? (baseAmount * 1.10) * 0.20 : 0
     };
 }
 

@@ -312,6 +312,20 @@ function ReservationFormStep2() {
     }
   }, [isDormitory]);
 
+  // Restrict individuals from selecting Conference facility type
+  useEffect(() => {
+    if (isIndividual && formData.typeFacilities?.toLowerCase() === 'conference') {
+      // Redirect to reservation form step 1 if individual tries to access Conference
+      navigate('/reservation-form', { 
+        replace: true,
+        state: { 
+          error: 'Individuals cannot select Conference facility type. Please select Dormitory or Cottage instead.',
+          step1 
+        } 
+      });
+    }
+  }, [isIndividual, formData.typeFacilities, navigate, step1]);
+
   // Restrict individuals to only "Lodging" service type
   useEffect(() => {
     if (isIndividual && !isDormitory) {

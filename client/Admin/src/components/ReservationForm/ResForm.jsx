@@ -123,6 +123,11 @@ function ReservationForm() {
     if (s < 0) e.guestsSenior = 'Senior citizens cannot be negative.';
     if (total <= 0) e.guestsTotal = 'At least 1 guest is required.';
 
+    // Require at least 1 PWD guest when PWD category is selected
+    if (formData.category?.pwds && p < 1) {
+      e.category = 'PWD category requires at least 1 PWD guest.';
+    }
+
     // Validate individual type with more than 50 guests
     if (formData.type?.individual && total > 50) {
       e.type = 'Individual reservations are limited to a maximum of 50 guests. Please select "Group" type for more than 50 guests.';
