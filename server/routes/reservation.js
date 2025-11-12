@@ -171,7 +171,7 @@ export default function buildReservationRouter(userSocketMap) {
               dbHelper,
               {
                 title: 'Reservation Declined',
-                message: "We're sorry to inform you that your reservation request has been automatically declined because another reservation for the same facility and dates has been approved. If you have any questions, please contact us.",
+                message: "We're sorry to inform you that your reservation request has been declined. If you have any questions or would like to discuss this decision, please contact us.",
                 kind: 'reservation_declined',
                 userId: userIdStr,
                 reservationId: reservationIdStr,
