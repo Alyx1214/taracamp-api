@@ -123,7 +123,8 @@ const dbHelper = {
 
             ReservationSchema.index({ status: 1, dateOfArrival: 1 });
             ReservationSchema.index({ dateOfArrival: 1, status: 1 });
-            // Compound index to prevent overlapping reservations for the same facility
+            // Compound index to prevent duplicate APPROVED reservations for the same facility and dates
+            // PENDING reservations are allowed to overlap - they'll be auto-declined when one is approved
             ReservationSchema.index({ 
                 facility: 1, 
                 dateOfArrival: 1, 
@@ -131,7 +132,7 @@ const dbHelper = {
             }, { 
                 unique: true, 
                 partialFilterExpression: { 
-                    status: { $in: [ReservationStatus.PENDING, ReservationStatus.APPROVED] } 
+                    status: ReservationStatus.APPROVED
                 } 
             });
 

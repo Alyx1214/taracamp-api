@@ -545,8 +545,9 @@ const reservationModule = {
                         throw new Error('You already have a reservation for this facility that overlaps with these dates.');
                     }
 
+                    // Only block if there are APPROVED, CONFIRMED, or CHECKED_IN reservations
+                    // PENDING reservations are allowed to overlap - they'll be auto-declined when one is approved
                     const blockingStatuses = [
-                        ReservationStatus.PENDING,
                         ReservationStatus.APPROVED,
                         ReservationStatus.CONFIRMED,
                         ReservationStatus.CHECKED_IN,
@@ -2780,8 +2781,9 @@ const reservationModule = {
                 const finalArrival = dateOfArrival !== undefined ? normalizeDateOnly(dateOfArrival) : existingReservation.dateOfArrival;
                 const finalDeparture = dateOfDeparture !== undefined ? normalizeDateOnly(dateOfDeparture) : existingReservation.dateOfDeparture;
 
+                // Only block if there are APPROVED, CONFIRMED, or CHECKED_IN reservations
+                // PENDING reservations are allowed to overlap - they'll be auto-declined when one is approved
                 const blockingStatuses = [
-                    ReservationStatus.PENDING,
                     ReservationStatus.APPROVED,
                     ReservationStatus.CONFIRMED,
                     ReservationStatus.CHECKED_IN,
