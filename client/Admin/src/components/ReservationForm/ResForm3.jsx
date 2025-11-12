@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import styles from './ResForm3.module.css';
-import { ArrowLeft, UploadCloud } from 'lucide-react';
+import { UploadCloud } from 'lucide-react';
 
 const LETTER_TEMPLATE_URL = '#';
 

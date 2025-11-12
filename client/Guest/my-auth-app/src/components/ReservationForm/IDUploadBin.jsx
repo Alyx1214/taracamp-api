@@ -295,11 +295,7 @@ function IDUploadForm({ idType = 'pwd' }) {
               <span className={styles.requiredAsterisk}>*</span>
             </div>
             <div className={styles.formSubtitle}>
-              → Please upload a clear copy of your {config.subtitle} or{' '}
-              <a href={config.templateUrl} target="_blank" rel="noopener noreferrer" className={styles.letterLink}>
-                {config.linkText}
-              </a>{' '}
-              {config.description}
+              → Please upload a clear copy of your {config.subtitle}  {config.description}
             </div>
             <div className={styles.groupNote}>{config.note}</div>
             {isRequired && <div className={styles.groupNote}>{config.mandatoryNote}</div>}

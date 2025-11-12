@@ -337,7 +337,7 @@ function ReservationForm() {
                   {errors.guestsAdult && <div className={styles.fieldError}>{errors.guestsAdult}</div>}
                 </div>
                 <div className={styles.formGroup}>
-                  <label className={styles.label} htmlFor="children">Children (6yrs old below)</label>
+                  <label className={styles.label} htmlFor="children">Children (6 below)</label>
                   <input
                     id="children"
                     type="number"
