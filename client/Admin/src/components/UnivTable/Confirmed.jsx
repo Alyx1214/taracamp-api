@@ -126,23 +126,14 @@ export default function Confirmed({
           alert("Invalid reservation ID. Cannot edit.");
           return;
         }
-        row.guestType === "GROUP"
-          ? navigate(`/confirmedGroup/${row.id}/details`, {
-              state: {
-                activeTab: 'Confirmed',
-                filters,
-                searchQuery,
-                currentPage
-              }
-            })
-          : navigate(`/confirmedIndiv/${row.id}/details`, {
-              state: {
-                activeTab: 'Confirmed',
-                filters,
-                searchQuery,
-                currentPage
-              }
-            });
+        navigate(`/reservations/${row.id}/edit`, {
+          state: {
+            activeTab: 'Confirmed',
+            filters,
+            searchQuery,
+            currentPage
+          }
+        });
       }}>
         Edit
       </button>

@@ -181,6 +181,13 @@ const reservationModule = {
                 return responseData;
             }
 
+            // Individuals can only select Lodging service type
+            if (guestType === GuestType.INDIVIDUAL && serviceType !== ServiceType.LODGING) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Individuals can only select Lodging service type. Event and Event and Lodging are not available for individual reservations.';
+                return responseData;
+            }
+
             if (!isValidLength((otherRequests || '').trim(), 500)) {
                 responseData.status = Status.BAD_REQUEST;
                 responseData.error = 'Requests must be 500 characters or less';
@@ -1378,6 +1385,28 @@ const reservationModule = {
                     return responseData;
                 }
 
+                // Add facility type and name search to query
+                try {
+                    // Search for facilities matching by type or name
+                    const facilitiesWithMatchingTypeOrName = await dbHelper.findMany(
+                        'facility',
+                        {
+                            $or: [
+                                { facilityType: { $regex: safe, $options: 'i' } },
+                                { name: { $regex: safe, $options: 'i' } }
+                            ]
+                        },
+                        { projection: { _id: 1 } }
+                    );
+                    if (facilitiesWithMatchingTypeOrName.length > 0) {
+                        const facilityIds = facilitiesWithMatchingTypeOrName.map(f => f._id);
+                        or.push({ facility: { $in: facilityIds } });
+                    }
+                } catch (facilitySearchError) {
+                    console.error('Error searching facility types and names:', facilitySearchError);
+                    // Don't fail the entire search if facility search fails, just log it
+                }
+
                 if (/^[0-9a-fA-F]{24}$/.test(q)) {
                     or.push({ _id: q, });
                 } else if (/^[0-9a-fA-F]{3,}$/.test(q)) {
@@ -2115,7 +2144,7 @@ const reservationModule = {
      * @param {Object} user - The logged-in user.
      * @returns {Object} Response data with status, error, message, and updated reservation on success.
      */
-    updateReservation: async (dbHelper, reservationId, data, letterOfIntentFile, seniorCitizenIdFiles, pwdIdFiles, user) => {
+    updateReservation: async (dbHelper, reservationId, data, letterOfIntentFile, seniorCitizenIdFiles, pwdIdFiles, user, serviceContractFile = null, moaFile = null) => {
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
             error: 'Error updating reservation',
@@ -2161,7 +2190,7 @@ const reservationModule = {
                 guestName, homeAddress, officeAddress, category, guestType,
                 telephone, officeTelephone, numberOfAdults, numberOfChildren, numberOfPwds, numberOfSeniorCitizens,
                 emergencyContact, emergencyContactPerson, dateOfArrival, dateOfDeparture, facility,
-                serviceType, timeOfArrival, addOns, otherRequests, guestEmail,
+                serviceType, timeOfArrival, addOns, otherRequests, guestEmail, status,
             } = data;
 
             // Validate required fields if provided
@@ -2244,6 +2273,16 @@ const reservationModule = {
             if (serviceType !== undefined && !isValidServiceType(serviceType)) {
                 responseData.status = Status.BAD_REQUEST;
                 responseData.error = 'Invalid service type';
+                return responseData;
+            }
+
+            // Individuals can only select Lodging service type
+            // Use the new guestType if provided, otherwise use existing reservation's guestType
+            const currentGuestType = guestType !== undefined ? guestType : existingReservation.guestType;
+            const currentServiceType = serviceType !== undefined ? serviceType : existingReservation.serviceType;
+            if (currentGuestType === GuestType.INDIVIDUAL && currentServiceType !== ServiceType.LODGING) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Individuals can only select Lodging service type. Event and Event and Lodging are not available for individual reservations.';
                 return responseData;
             }
 
@@ -2356,6 +2395,8 @@ const reservationModule = {
 
             // Handle file uploads
             let loiFileDoc = null;
+            
+            // Handle Letter of Intent file (separate from MOA)
             if (letterOfIntentFile) {
                 try {
                     const filename = `letter_of_intent/${Date.now()}_${letterOfIntentFile.originalname.replace(/\s/g, '_')}`;
@@ -2383,6 +2424,37 @@ const reservationModule = {
                     responseData.status = Status.INTERNAL_SERVER_ERROR;
                     responseData.error = 'Letter of Intent upload failed: ' + err.message;
                     return responseData;
+                }
+            }
+
+            // Handle MOA (Memorandum of Agreement) file upload (separate from Letter of Intent)
+            let moaFileDoc = null;
+            if (moaFile) {
+                try {
+                    const filename = `memorandum_of_agreement/${Date.now()}_${moaFile.originalname.replace(/\s/g, '_')}`;
+                    const blob = bucket.file(filename);
+                    await new Promise((resolve, reject) => {
+                        const stream = blob.createWriteStream({
+                            resumable: false,
+                            contentType: moaFile.mimetype,
+                        });
+                        stream.on('error', reject);
+                        stream.on('finish', resolve);
+                        stream.end(moaFile.buffer);
+                    });
+
+                    moaFileDoc = await dbHelper.create('file', {
+                        path: filename,
+                        mimetype: moaFile.mimetype,
+                        size: moaFile.size,
+                        kind: FileKind.MEMORANDUM_OF_AGREEMENT,
+                        userId: user.userId,
+                        reservationId: reservationId,
+                        createdAt: new Date(),
+                    });
+                } catch (err) {
+                    console.error('Error uploading MOA file:', err);
+                    // Don't fail the entire request if MOA upload fails
                 }
             }
 
@@ -2454,6 +2526,37 @@ const reservationModule = {
                 }
             }
 
+            // Handle Service Contract file upload
+            let serviceContractFileDoc = null;
+            if (serviceContractFile) {
+                try {
+                    const filename = `service_contract/${Date.now()}_${serviceContractFile.originalname.replace(/\s/g, '_')}`;
+                    const blob = bucket.file(filename);
+                    await new Promise((resolve, reject) => {
+                        const stream = blob.createWriteStream({
+                            resumable: false,
+                            contentType: serviceContractFile.mimetype,
+                        });
+                        stream.on('error', reject);
+                        stream.on('finish', resolve);
+                        stream.end(serviceContractFile.buffer);
+                    });
+
+                    serviceContractFileDoc = await dbHelper.create('file', {
+                        path: filename,
+                        mimetype: serviceContractFile.mimetype,
+                        size: serviceContractFile.size,
+                        kind: FileKind.SERVICE_CONTRACT,
+                        userId: user.userId,
+                        reservationId: reservationId,
+                        createdAt: new Date(),
+                    });
+                } catch (err) {
+                    console.error('Error uploading Service Contract file:', err);
+                    // Don't fail the entire request if service contract upload fails
+                }
+            }
+
             // Calculate new estimated amount
             const addonsTotal = addonIds.length > 0
                 ? (await dbHelper.findMany('addon', { _id: { $in: addonIds } }, { projection: { _id: 1, price: 1 } }))
@@ -2508,6 +2611,26 @@ const reservationModule = {
                     return responseData;
                 }
                 updateData.guestEmail = guestEmail ? guestEmail.trim() : undefined;
+            }
+            // Allow status updates for admin users (to confirm reservations)
+            if (status !== undefined && isAdmin) {
+                if (isValidReservationStatus(status)) {
+                    // Only allow status updates from APPROVED to CONFIRMED for admin users
+                    if (status === ReservationStatus.CONFIRMED && existingReservation.status === ReservationStatus.APPROVED) {
+                        updateData.status = status;
+                    } else if (status !== ReservationStatus.CONFIRMED) {
+                        // Allow other status updates if not trying to confirm
+                        updateData.status = status;
+                    } else {
+                        responseData.status = Status.BAD_REQUEST;
+                        responseData.error = 'Can only confirm approved reservations';
+                        return responseData;
+                    }
+                } else {
+                    responseData.status = Status.BAD_REQUEST;
+                    responseData.error = 'Invalid status';
+                    return responseData;
+                }
             }
 
             updateData.numberOfGuests = {

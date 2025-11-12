@@ -103,3 +103,26 @@ export function decideReservation(id, { decision, reason } = {}) {
   return apiPost(`/reservation/accept-or-decline-reservation/${encodeURIComponent(id)}`, { decision, reason });
 }
 
+export function uploadConfirmationDocuments(id, moaFile, serviceContractFile) {
+  const fd = new FormData();
+  
+  // Upload MOA file as separate field
+  if (moaFile) {
+    console.log('Adding MOA file:', moaFile.name, moaFile.size, moaFile.type);
+    fd.append('moaFile', moaFile);
+  }
+  
+  // Upload Service Contract file
+  if (serviceContractFile) {
+    console.log('Adding Service Contract file:', serviceContractFile.name, serviceContractFile.size, serviceContractFile.type);
+    fd.append('serviceContractFile', serviceContractFile);
+  }
+  
+  // Set status to Confirmed after uploading documents
+  fd.append('status', 'Confirmed');
+  
+  console.log('FormData entries:', Array.from(fd.entries()).map(([key, value]) => [key, value instanceof File ? `${value.name} (${value.size} bytes)` : value]));
+  
+  return apiPost(`/reservation/update-reservation/${encodeURIComponent(id)}`, fd);
+}
+

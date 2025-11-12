@@ -327,6 +327,7 @@ function ReservationFormStep2() {
     chosenFacility && !capacityOk
       ? `Selected facility capacity is ${facilityCapacity}, but you have ${totalGuests} guests.`
       : '';
+  const isIndividual = step1?.type?.individual || false;
 
   useEffect(() => {
     const { facilityName, dateArrival, dateDeparture } = formData;
@@ -372,6 +373,19 @@ function ReservationFormStep2() {
 
     return () => clearTimeout(t);
   }, [formData.facilityName, formData.dateArrival, formData.dateDeparture, totalGuests, chosenFacility?.capacity, capacityOk, isEdit, reservationId]);
+
+  // Restrict individuals to only "Lodging" service type
+  useEffect(() => {
+    if (isIndividual) {
+      // If individual has selected Event or Event and Lodging, reset to Lodging
+      if (formData.typeService === 'Event' || formData.typeService === 'Event and Lodging') {
+        setFormData(prev => ({ ...prev, typeService: 'Lodging' }));
+      } else if (!formData.typeService) {
+        // Auto-set to Lodging if no service type is selected
+        setFormData(prev => ({ ...prev, typeService: 'Lodging' }));
+      }
+    }
+  }, [isIndividual, formData.typeService]);
 
   const handlePrevious = () => {
     navigate(`/reservation-form`, { state: { step1, step2: formData, file, seniorCitizenIdFiles, pwdIdFiles, reservationId, isEdit, userEmail } });
@@ -581,12 +595,18 @@ function ReservationFormStep2() {
                     value={formData.typeService}
                     onChange={handleInputChange}
                     className={`${styles.input} ${fieldErrors.typeService ? styles.inputError : ''}`}
+                    disabled={isIndividual}
                   >
                     <option value="">Select a service type</option>
-                    <option value="Event">Event</option>
-                    <option value="Event and Lodging">Event and Lodging</option>
+                    {!isIndividual && <option value="Event">Event</option>}
+                    {!isIndividual && <option value="Event and Lodging">Event and Lodging</option>}
                     <option value="Lodging">Lodging</option>
                   </select>
+                  {isIndividual && (
+                    <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
+                      Individuals can only select Lodging service type.
+                    </div>
+                  )}
                   {fieldErrors.typeService && (
                     <div className={styles.fieldError}>{fieldErrors.typeService}</div>
                   )}

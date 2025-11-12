@@ -25,6 +25,8 @@ export const FileKind = {
     LETTER_OF_INTENT: 'Letter of Intent',
     NONAVAILABILITY_CERTIFICATE: 'Non-availability Certificate',
     SENIOR_CITIZEN_ID: 'Senior Citizen ID',
+    MEMORANDUM_OF_AGREEMENT: 'Memorandum of Agreement',
+    SERVICE_CONTRACT: 'Service Contract',
 }
 
 export const Category = {

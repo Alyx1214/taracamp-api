@@ -13,6 +13,7 @@ export default function CheckInOuts() {
   const { activeTab: stateActiveTab, filters: stateFilters } = location.state || {};
   
   const [activeTab, setActiveTab] = useState(stateActiveTab || "Confirmed");
+  const [searchQuery, setSearchQuery] = useState("");
   const [filters, setFilters] = useState(stateFilters || {
     serviceType: "",
     facilityType: "",
@@ -64,7 +65,7 @@ export default function CheckInOuts() {
     return "N/A";
   };
 
-  // Reset filters when active tab changes
+  // Reset filters and search when active tab changes
   useEffect(() => {
     setFilters({
       serviceType: "",
@@ -73,6 +74,7 @@ export default function CheckInOuts() {
       endDate: "",
       sortBy: ""
     });
+    setSearchQuery("");
   }, [activeTab]);
 
   useEffect(() => {
@@ -117,6 +119,11 @@ export default function CheckInOuts() {
         // Apply sorting
         if (filters.sortBy) {
           params.sort = filters.sortBy;
+        }
+        
+        // Apply search query
+        if (searchQuery && searchQuery.trim()) {
+          params.query = searchQuery.trim();
         }
         
         const res = await searchReservations(params);
@@ -164,7 +171,7 @@ export default function CheckInOuts() {
     return () => { 
       cancelledRef.current = true; 
     };
-  }, [activeTab, filters]);
+  }, [activeTab, filters, searchQuery]);
 
   const applySorting = (data, sortBy) => {
     const sorted = [...data];
@@ -261,6 +268,7 @@ export default function CheckInOuts() {
       if (filters.startDate) params.start = filters.startDate;
       if (filters.endDate) params.end = filters.endDate;
       if (filters.sortBy) params.sort = filters.sortBy;
+      if (searchQuery && searchQuery.trim()) params.query = searchQuery.trim();
       
       const res = await searchReservations(params);
       let list = (res?.reservations || []).map((r) => {
@@ -386,6 +394,7 @@ export default function CheckInOuts() {
       if (filters.startDate) params.start = filters.startDate;
       if (filters.endDate) params.end = filters.endDate;
       if (filters.sortBy) params.sort = filters.sortBy;
+      if (searchQuery && searchQuery.trim()) params.query = searchQuery.trim();
       
       const res = await searchReservations(params);
       let list = (res?.reservations || []).map((r) => {
@@ -435,6 +444,10 @@ export default function CheckInOuts() {
 
   const handleApplyFilters = (newFilters) => {
     setFilters(newFilters || {});
+  };
+
+  const handleSearch = (query) => {
+    setSearchQuery(query || "");
   };
 
   // Define filter fields based on the table columns
@@ -504,8 +517,10 @@ export default function CheckInOuts() {
         <CheckTabs value={activeTab} onChange={setActiveTab} />
 
         <SearchFil
+          onSearch={handleSearch}
           onApplyFilters={handleApplyFilters}
           filterFields={getFilterFields()}
+          initialSearchValue={searchQuery}
         />
       </div>
 

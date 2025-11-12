@@ -17,7 +17,9 @@ export default function buildReservationRouter(userSocketMap) {
         { name: 'letterOfIntentFile', maxCount: 1 },
         { name: 'seniorCitizenIdFile', maxCount: 1 },
         { name: 'seniorCitizenIdFiles', maxCount: 10 },
-        { name: 'pwdIdFiles', maxCount: 10 }
+        { name: 'pwdIdFiles', maxCount: 10 },
+        { name: 'serviceContractFile', maxCount: 1 },
+        { name: 'moaFile', maxCount: 1 }
       ];
       
       const upload = multer({ storage: multer.memoryStorage() }).fields(uploadFields);
@@ -298,6 +300,8 @@ export default function buildReservationRouter(userSocketMap) {
     
     // Handle file uploads - support both singular and plural field names
     const letterOfIntentFile = req.files?.letterOfIntentFile?.[0] || null;
+    const serviceContractFile = req.files?.serviceContractFile?.[0] || null;
+    const moaFile = req.files?.moaFile?.[0] || null;
     
     // Support both seniorCitizenIdFile (singular) and seniorCitizenIdFiles (plural)
     const seniorCitizenIdFiles = req.files?.seniorCitizenIdFiles || req.files?.seniorCitizenIdFile || [];
@@ -318,7 +322,9 @@ export default function buildReservationRouter(userSocketMap) {
       letterOfIntentFile, 
       seniorCitizenIdFilesArray, 
       pwdIdFilesArray, 
-      req.user
+      req.user,
+      serviceContractFile,
+      moaFile
     );
     res.status(response.status).json(response);
   }));

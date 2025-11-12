@@ -2,9 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styles from './Notification.module.css';
 import { listNotifications, markAllNotificationsRead, markNotificationRead, deleteAllNotifications } from '../../apis/notificationApi';
-import { subscribe, initSocketFresh } from '../../utils/webSocketClient';
+import { subscribe, initSocketFresh, startAutoReconnect } from '../../utils/webSocketClient';
+import { confirmReservation, uploadConfirmationDocuments } from '../../apis/reservationApi';
 import NotificationPreview from './NotificationPreview';
 import NotificationCancel from './NotificationCancel';
+import NotificationUpload from './NotificationUpload';
 
 export default function Notification({ onMarkAllAsRead }) {
   const navigate = useNavigate();
@@ -12,6 +14,8 @@ export default function Notification({ onMarkAllAsRead }) {
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState(null);
   const [stage, setStage] = useState('list');
+  const [uploadClientType, setUploadClientType] = useState('deped');
+  const [uploadReservationId, setUploadReservationId] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -62,6 +66,7 @@ export default function Notification({ onMarkAllAsRead }) {
   // WebSocket listener for real-time notifications
   useEffect(() => {
     initSocketFresh().catch(() => {});
+    startAutoReconnect();
 
     const handleWebSocketMessage = (event) => {
       try {
@@ -99,6 +104,43 @@ export default function Notification({ onMarkAllAsRead }) {
               return bTime - aTime;
             });
           });
+
+          // Refresh notifications list after a short delay to ensure we have the latest data
+          // This is a fallback in case the WebSocket message doesn't contain all the data
+          setTimeout(async () => {
+            try {
+              const res = await listNotifications({ limit: 50 });
+              const items = Array.isArray(res?.data) ? res.data : [];
+              const normalized = items
+                .filter(Boolean)
+                .map((n) => {
+                  const rawId = n?._id ?? n?.id ?? null;
+                  const resolvedId = typeof rawId === 'string'
+                    ? rawId
+                    : rawId && typeof rawId.toString === 'function'
+                      ? rawId.toString()
+                      : '';
+
+                  return {
+                    ...n,
+                    _id: resolvedId,
+                    source: n?.source || "Teachers' Camp",
+                    kind: n?.kind || null,
+                    createdAt: n?.createdAt || n?.created_at || null,
+                    timeLabel: n?.timeLabel ?? n?.time ?? null,
+                    isRead: n?.isRead ?? false,
+                  };
+                });
+
+              setNotifications(normalized.sort((a, b) => {
+                const aTime = new Date(a.createdAt || 0).getTime();
+                const bTime = new Date(b.createdAt || 0).getTime();
+                return bTime - aTime;
+              }));
+            } catch (error) {
+              console.error('Failed to refresh notifications:', error);
+            }
+          }, 500);
         }
       } catch (error) {
         console.error('[Notification] Error parsing WebSocket notification:', error);
@@ -109,6 +151,7 @@ export default function Notification({ onMarkAllAsRead }) {
 
     return () => {
       unsubscribe();
+      // Note: We don't stop auto-reconnect here as other components (Header, Messages) also use it
     };
   }, []);
 
@@ -175,7 +218,7 @@ export default function Notification({ onMarkAllAsRead }) {
   }
 
   // Handle preview confirm action
-  function handlePreviewConfirm(payload) {
+  async function handlePreviewConfirm(payload) {
     if (!payload || !payload.reservationId) return;
 
     const { action, reservationId } = payload;
@@ -187,11 +230,26 @@ export default function Notification({ onMarkAllAsRead }) {
       return;
     }
 
-    // For upload action, navigate to reservations page
+    // For individual reservations, directly confirm
+    if (action === 'confirm') {
+      try {
+        await confirmReservation(reservationId);
+        alert('Reservation confirmed successfully!');
+        setSelected(null);
+        setStage('list');
+      } catch (error) {
+        console.error('Failed to confirm reservation:', error);
+        alert(error?.message || 'Failed to confirm reservation. Please try again.');
+      }
+      return;
+    }
+
+    // For upload action (groups), show upload notification (don't confirm yet)
     if (action === 'upload') {
-      setSelected(null);
-      setStage('list');
-      navigate(`/reservations?reservationId=${encodeURIComponent(reservationId)}`);
+      // Set upload stage with client type
+      setUploadReservationId(reservationId);
+      setUploadClientType(payload.clientType || 'group');
+      setStage('upload');
       return;
     }
   }
@@ -247,6 +305,52 @@ export default function Notification({ onMarkAllAsRead }) {
         tcampImage={selected.tcampImage || selected.image || null}
         tcampDocument={selected.tcampDocument || selected.document || selected.attachment || null}
         onBack={() => { setSelected(null); setStage('list'); }}
+      />
+    );
+  }
+
+  // Show upload notification after confirming reservation
+  if (stage === 'upload') {
+    const handleUploadBack = () => {
+      setStage(selected ? 'approved' : 'list');
+      setUploadReservationId(null);
+    };
+
+    const handleUploadSubmit = async (files) => {
+      if (!uploadReservationId) {
+        alert('Reservation ID is missing. Please try again.');
+        return;
+      }
+
+      try {
+        // Extract files from the files object
+        const moaFile = files.moa || null;
+        const serviceContractFile = files.service || null;
+        
+        // Log for debugging
+        console.log('Uploading files:', { 
+          moaFile: moaFile ? moaFile.name : 'none', 
+          serviceContractFile: serviceContractFile ? serviceContractFile.name : 'none' 
+        });
+        
+        // Upload documents and confirm reservation
+        await uploadConfirmationDocuments(uploadReservationId, moaFile, serviceContractFile);
+        
+        alert('Documents submitted and reservation confirmed. Thank you!');
+        setSelected(null);
+        setStage('list');
+        setUploadReservationId(null);
+      } catch (error) {
+        console.error('Failed to upload documents and confirm reservation:', error);
+        alert(error?.message || 'Failed to upload documents and confirm reservation. Please try again.');
+      }
+    };
+
+    return (
+      <NotificationUpload
+        clientType={uploadClientType}
+        onBack={handleUploadBack}
+        onSubmit={handleUploadSubmit}
       />
     );
   }

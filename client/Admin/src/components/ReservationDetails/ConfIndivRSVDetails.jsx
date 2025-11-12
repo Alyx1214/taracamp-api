@@ -75,7 +75,7 @@ export default function ConfIndivRSVDetails() {
 
   const handleBack = () => {
     if (fromCheckInOut) {
-      navigate('/checkinouts', { state: { activeTab: activeTab || 'Confirmed', filters } });
+      navigate('/checkin', { state: { activeTab: activeTab || 'Confirmed', filters } });
     } else {
       navigate('/reservations', { state: { activeTab: 'Confirmed', filters, searchQuery, currentPage } });
     }
@@ -155,6 +155,11 @@ export default function ConfIndivRSVDetails() {
         <table className={styles["rsv-details-table"]}>
           <tbody>
             <tr>
+              <td className={styles["rsv-details-label"]}>Type</td> {/* added guest type field */}
+              <td className={styles["rsv-details-separator"]}>:</td>
+              <td>{reservation.guestType || "N/A"}</td>
+            </tr>
+            <tr>
               <td className={styles["rsv-details-label"]}>Group/Association</td>
               <td className={styles["rsv-details-separator"]}>:</td>
               <td>{reservation.guestName || reservation.group || "N/A"}</td>
@@ -224,6 +229,90 @@ export default function ConfIndivRSVDetails() {
               <td className={styles["rsv-details-separator"]}>:</td>
               <td>{reservation.foodPreferences || "N/A"}</td>
             </tr>
+            {reservation.guestType !== "Individual" && (
+              <tr>
+                <td className={styles["reservation-details-label"]}>Letter of Intent</td>
+                <td className={styles["reservation-details-separator"]}>:</td>
+                <td>
+                  <a
+                    href={reservation.letterOfIntentFile || "#"}
+                    className={styles["reservation-details-link"]}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Click to open
+                  </a>
+                </td>
+              </tr>
+            )}
+
+            {reservation.pwdIdFile && (
+              <tr>
+                <td className={styles["reservation-details-label"]}>PWD ID</td>
+                <td className={styles["reservation-details-separator"]}>:</td>
+                <td>
+                  <a
+                    href={reservation.pwdIdFile || "#"}
+                    className={styles["reservation-details-link"]}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Click to open
+                  </a>
+                </td>
+              </tr>
+            )}
+
+            {reservation.governmentIdFile && (
+              <tr>
+                <td className={styles["reservation-details-label"]}>Government ID</td>
+                <td className={styles["reservation-details-separator"]}>:</td>
+                <td>
+                  <a
+                    href={reservation.governmentIdFile || "#"}
+                    className={styles["reservation-details-link"]}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Click to open
+                  </a>
+                </td>
+              </tr>
+            )}
+
+            {reservation.depedIdFile && (
+              <tr>
+                <td className={styles["reservation-details-label"]}>DepEd ID</td>
+                <td className={styles["reservation-details-separator"]}>:</td>
+                <td>
+                  <a
+                    href={reservation.depedIdFile || "#"}
+                    className={styles["reservation-details-link"]}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Click to open
+                  </a>
+                </td>
+              </tr>
+            )}
+
+            {reservation.scIdFile && (
+              <tr>
+                <td className={styles["reservation-details-label"]}>Senior Citizen ID</td>
+                <td className={styles["reservation-details-separator"]}>:</td>
+                <td>
+                  <a
+                    href={reservation.scIdFile || "#"}
+                    className={styles["reservation-details-link"]}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Click to open
+                  </a>
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
         <hr className={styles["rsv-details-divider"]} />
