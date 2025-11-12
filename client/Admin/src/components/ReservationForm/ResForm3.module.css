@@ -1,25 +1,207 @@
 /* Copied from Guest app */
-.reservationFormContainer { padding-top: 20px; background-color: #f0f0f0; min-height: 90vh; display: flex; justify-content: center; font-family: 'Inter', sans-serif; }
-.contentWrapper { width: 100%; max-width: 1500px; padding: 20px; margin: 0 auto; }
-.headerSection { display: flex; align-items: center; margin: 0; }
-.backButton { background: none; border: none; cursor: pointer; padding: 0; margin-right: 25px; display: flex; align-items: center; justify-content: center; color: #1e3c24; transition: transform 0.2s ease; }
-.backButton:hover { transform: translateX(-5px); }
-.pageTitle { font-size: 2.7em; font-weight: 700; color: #1e3c24; text-transform: uppercase; }
-.formCard { background-color: #fff; border-radius: 20px; padding: 50px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); margin: 10px; }
-.formTitle { font-size: 2rem; font-weight: 700; color: #335533; margin-bottom: 1.2rem; }
-.formSubtitle { font-size: 1.1rem; color: #222; margin-bottom: 0.5rem; }
-.groupNote { color: #bdbdbd; font-size: 0.95rem; margin-bottom: 1.2rem; padding-left: 20px; }
-.uploadBox { border: 1.5px solid #bdbdbd; border-radius: 15px; min-height: 190px; display: flex; flex-direction: column; align-items: center; justify-content: center; margin-bottom: 2rem; cursor: pointer; background: #fff; transition: border 0.2s; }
-.uploadBox:hover { border: 1.5px solid #335533; }
-.uploadIcon { font-size: 2.5rem; color: #335533; margin-bottom: 0.5rem; }
-.uploadText { color: #888; font-size: 1.05rem; }
-.infoText { text-align: center; font-size: 0.95rem; color: #222; margin-top: 1.2rem; }
-.letterLink { color: #335533; text-decoration: underline; cursor: pointer; }
-.buttonContainer { display: flex; justify-content: center; gap: 15px; margin-top: 30px; }
-.previousButton { background-color: #4F3718; color: #f5f5f5; border: none; padding: 12px 30px; border-radius: 25px; font-size: 1.1em; font-weight: bold; cursor: pointer; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1); transition: background-color 0.3s ease, transform 0.2s ease; }
-.previousButton:hover { background-color: #bbb; transform: translateY(-2px); }
-.nextButton { background-color: #1e3c24; color: white; border: none; padding: 12px 60px; border-radius: 25px; font-size: 1.1em; font-weight: bold; cursor: pointer; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1); transition: background-color 0.3s ease, transform 0.2s ease; }
-.nextButton:hover { background-color: #558b5e; transform: translateY(-2px); }
+.reservationFormContainer {
+  padding-top: 20px; 
+  background-color: #f5f5f5;
+  min-height: 90vh;
+  display: flex;
+  justify-content: center;
+}
+
+.contentWrapper {
+  width: 100%;
+  max-width: 1500px;
+  padding: 20px;
+  margin: 0 auto;
+}
+
+.headerSection {
+  display: flex;
+  align-items: center;
+  margin: 0;
+}
+
+.add-form-back {
+  font-size: 50px;
+  margin-right: 30px;
+  cursor: pointer;
+  color: #233d29;
+  padding: 0.5rem;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: inherit;
+}
+
+.add-form-back:hover {
+  color: #1E3C24;
+  transform: translateY(-2px);
+}
+
+.add-form-back:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(35, 61, 41, 0.1);
+}
+
+.backButton {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  margin-right: 25px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #1e3c24;
+  transition: transform 0.2s ease;
+}
+
+.backButton:hover {
+  transform: translateX(-5px);
+}
+
+.pageTitle {
+  font-size: 3.5rem;
+  letter-spacing: 2px;
+  color: #5b3a0b;
+  margin: 0;
+  font-family: inherit;
+}
+
+.formCard {
+  flex: 1;
+  max-width: 100%;
+  background-color: #fff;
+  border-radius: 20px;
+  padding: 50px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  margin: 20px 20px 20px 20px; 
+}
+
+.formTitle {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #335533;
+  margin-bottom: 1.2rem;
+  font-family: inherit;
+}
+
+.formSubtitle {
+  font-size: 1.1rem;
+  color: #222;
+  margin-bottom: 0.5rem;
+  font-family: inherit;
+}
+
+.groupNote {
+  color: #bdbdbd;
+  font-size: 0.95rem;
+  margin-bottom: 1.2rem;
+  padding-left: 20px;
+  font-family: inherit;
+}
+
+.uploadBox {
+  border: 1.5px solid #bdbdbd;
+  border-radius: 15px;
+  min-height: 190px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 2rem;
+  cursor: pointer;
+  background: #fff;
+  transition: border 0.2s;
+}
+
+.uploadBox:hover {
+  border: 1.5px solid #335533;
+}
+
+.uploadIcon { 
+  font-size: 2.5rem; 
+  color: #335533; 
+  margin-bottom: 0.5rem; 
+}
+
+.uploadText { 
+  color: #888; 
+  font-size: 1.05rem;
+  font-family: inherit;
+}
+
+.infoText { 
+  text-align: center; 
+  font-size: 0.95rem; 
+  color: #222; 
+  margin-top: 0.5rem;
+  font-family: inherit;
+}
+
+.letterLink { 
+  color: #335533; 
+  text-decoration: underline; 
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.buttonContainer { 
+  display: flex; 
+  justify-content: center; 
+  gap: 15px; 
+  margin-top: 30px; 
+}
+
+.previousButton { 
+  background-color: #4F3718; 
+  color: #f5f5f5; 
+  border: none; 
+  padding: 12px 30px; 
+  border-radius: 25px; 
+  font-size: 1.1em; 
+  font-weight: bold; 
+  cursor: pointer; 
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1); 
+  transition: background-color 0.3s ease, transform 0.2s ease;
+  font-family: inherit;
+}
+
+.previousButton:hover { 
+  background-color: #bbb; 
+  transform: translateY(-2px); 
+}
+
+.nextButton { 
+  background-color: #1e3c24; 
+  color: white; 
+  border: none; 
+  padding: 12px 60px; 
+  border-radius: 25px; 
+  font-size: 1.1em; 
+  font-weight: bold; 
+  cursor: pointer; 
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1); 
+  transition: background-color 0.3s ease, transform 0.2s ease;
+  font-family: inherit;
+}
+
+.nextButton:hover { 
+  background-color: #558b5e; 
+  transform: translateY(-2px); 
+}
+
+.nextButton:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.nextButton:disabled:hover {
+  background-color: #ccc;
+  transform: none;
+}
 
 /* Error text styling */
 .fieldError {
@@ -27,7 +209,9 @@
   font-size: 0.9rem;
   text-align: center;
   margin-top: 8px;
+  font-family: inherit;
 }
+
 .required {
   color: red;
 }

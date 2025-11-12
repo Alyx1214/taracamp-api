@@ -1,6 +1,6 @@
 .reservationFormContainer {
-  padding-top: 80px; 
-  background-color: #f0f0f0;
+  padding-top: 20px; 
+  background-color: #f5f5f5;
   min-height: 90vh;
   display: flex;
   justify-content: center;
@@ -16,7 +16,7 @@
 .headerSection {
   display: flex;
   align-items: center;
-  margin: 10px;
+  margin: 0;
 }
 
 .add-form-back {
