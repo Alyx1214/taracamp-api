@@ -49,11 +49,14 @@ export function searchReservations(params = {}) {
   return apiGet('/reservation/search-reservations', p);
 }
 
-export function estimateAmount({ facility, adults, children, pwds, seniorCitizens, serviceType, addOns }) {
+export function estimateAmount({ facility, adults, children, pwds, seniorCitizens, serviceType, category, addOns, dateOfArrival, dateOfDeparture }) {
   const params = { facility, adults, children, pwds, seniorCitizens, serviceType };
+  if (category) params.category = category;
   if (addOns && Array.isArray(addOns) && addOns.length > 0) {
     params.addOns = addOns;
   }
+  if (dateOfArrival) params.dateOfArrival = dateOfArrival;
+  if (dateOfDeparture) params.dateOfDeparture = dateOfDeparture;
   return apiGet('/reservation/estimate-amount', params);
 }
 

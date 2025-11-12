@@ -143,11 +143,27 @@ function ReservationFormStep2() {
     } catch {}
   }, [formData, selectedAddons]);
 
-  const minArrival = useMemo(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 1);
-    return d.toISOString().slice(0, 10);
+  // Get user role from localStorage
+  const userRole = useMemo(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('userRole') || '';
+    }
+    return '';
   }, []);
+
+  // Allow frontdesk and superintendent to select today's date, others must select tomorrow or later
+  const minArrival = useMemo(() => {
+    const isFrontdeskOrSuperintendent = userRole === 'FRONTDESK' || userRole === 'SUPERINTENDENT';
+    if (isFrontdeskOrSuperintendent) {
+      // Allow today's date
+      return new Date().toISOString().slice(0, 10);
+    } else {
+      // Others must select tomorrow or later
+      const d = new Date();
+      d.setDate(d.getDate() + 1);
+      return d.toISOString().slice(0, 10);
+    }
+  }, [userRole]);
 
   const handleGoBack = () => {
     navigate(`/reservation-form`, { state: { step1, step2: formData, file, seniorCitizenIdFiles, pwdIdFiles, reservationId, isEdit, userEmail } });
