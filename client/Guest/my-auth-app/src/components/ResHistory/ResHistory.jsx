@@ -151,12 +151,7 @@ function ReservationHistory() {
           typeOfService: r?.serviceType || 'N/A',
         },
         totalEstimatedAmount: fmtPeso(r?.totalEstimatedAmount),
-        status: String(r?.status || ''),
         confirmed: String(r?.status || '') === 'Confirmed',
-        approved: String(r?.status || '') === 'Approved',
-        pending: String(r?.status || '') === 'Pending',
-        declined: String(r?.status || '') === 'Declined',
-        cancelled: String(r?.status || '') === 'Cancelled',
       };
     });
   }, [reservationsRaw]);
@@ -211,16 +206,6 @@ function ReservationHistory() {
                     aria-expanded={openReservationId === reservation.id}
                   >
                     <h2 className={styles.cardTitle}>{reservation.type}</h2>
-                    <span className={`${styles.statusBadge} ${
-                      reservation.pending ? styles.statusPending :
-                      reservation.approved ? styles.statusApproved :
-                      reservation.confirmed ? styles.statusConfirmed :
-                      reservation.declined ? styles.statusDeclined :
-                      reservation.cancelled ? styles.statusCancelled :
-                      styles.statusDefault
-                    }`}>
-                      {reservation.status || 'N/A'}
-                    </span>
                     <span className={styles.cardDate}>{reservation.date}</span>
                     <span className={styles.toggleIcon}>
                       {openReservationId === reservation.id ? '▲' : '▼'}
@@ -253,23 +238,17 @@ function ReservationHistory() {
                         <span className={styles.totalAmountLabel}>Total Estimated Amount</span>
                         <span className={styles.totalAmountSeparator}>₱</span>
                         <span className={styles.totalAmountValue}>{reservation.totalEstimatedAmount}</span>
-                        {reservation.confirmed ? (
-                          <button
-                            className={`${styles.confirmButton} ${styles.confirmedButton}`}
-                            onClick={() => handleConfirmNow(reservation._id)}
-                            title="View your payment transactions"
-                          >
-                            View Payments
-                          </button>
-                        ) : reservation.approved ? (
-                          <button
-                            className={styles.confirmButton}
-                            onClick={() => handleConfirmNow(reservation._id)}
-                            title="Confirm your reservation"
-                          >
-                            {reservation.details.category === 'Private' ? 'Pay Now!' : 'Confirm Now!'}
-                          </button>
-                        ) : null}
+                        <button
+                          className={`${styles.confirmButton} ${reservation.confirmed ? styles.confirmedButton : ''}`}
+                          onClick={() => handleConfirmNow(reservation._id)}
+                          title={reservation.confirmed ? 'View your payment transactions' : undefined}
+                        >
+                          {reservation.confirmed
+                            ? 'View Payments'
+                            : reservation.details.category === 'Private'
+                              ? 'Pay Now!'
+                              : 'Confirm Now!'}
+                        </button>
                       </div>
                     </div>
                   )}

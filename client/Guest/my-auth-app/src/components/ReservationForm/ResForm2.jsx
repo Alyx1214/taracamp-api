@@ -140,9 +140,9 @@ function ReservationFormStep2() {
   const isDormitory = formData.typeFacilities?.toLowerCase().includes('dormitory');
   const isIndividual = step1?.type?.individual;
 
-  // Clear includeFood and remove corkage fee if question should be hidden (dormitory only)
+  // Clear includeFood and remove corkage fee if question should be hidden (dormitory or individual)
   useEffect(() => {
-    if (isDormitory) {
+    if (isDormitory || isIndividual) {
       if (formData.includeFood) {
         setFormData(prev => ({ ...prev, includeFood: '' }));
       }
@@ -156,11 +156,11 @@ function ReservationFormStep2() {
         }
       }
     }
-  }, [isDormitory, specialOptions]);
+  }, [isDormitory, isIndividual, specialOptions]);
 
   // Auto-add corkage fee when includeFood is "no" and specialOptions are loaded
   useEffect(() => {
-    if (!isDormitory && formData.includeFood === 'no' && specialOptions.length > 0) {
+    if (!isDormitory && !isIndividual && formData.includeFood === 'no' && specialOptions.length > 0) {
       const corkageFeeAddon = specialOptions.find(opt => 
         opt.label && opt.label.toLowerCase().includes('corkage')
       );
@@ -175,11 +175,11 @@ function ReservationFormStep2() {
         });
       }
     }
-  }, [formData.includeFood, specialOptions, isDormitory]);
+  }, [formData.includeFood, specialOptions, isDormitory, isIndividual]);
 
   // Ensure corkage fee remains when includeFood is "no" (safeguard against manual removal)
   useEffect(() => {
-    if (!isDormitory && formData.includeFood === 'no' && specialOptions.length > 0) {
+    if (!isDormitory && !isIndividual && formData.includeFood === 'no' && specialOptions.length > 0) {
       const corkageFeeAddon = specialOptions.find(opt => 
         opt.label && opt.label.toLowerCase().includes('corkage')
       );
@@ -290,12 +290,13 @@ function ReservationFormStep2() {
     }
 
     // Handle includeFood change - automatically add/remove corkage fee
-    // Only process if question is visible (not dormitory)
+    // Only process if question is visible (not dormitory and not individual)
     if (name === 'includeFood') {
       const isDorm = formData.typeFacilities?.toLowerCase().includes('dormitory');
+      const isIndiv = step1?.type?.individual;
       
-      // Only process if question is visible (not dormitory)
-      if (!isDorm) {
+      // Only process if question is visible (not dormitory and not individual)
+      if (!isDorm && !isIndiv) {
         setFormData(prev => ({ ...prev, [name]: value }));
         setFieldErrors(prev => ({ ...prev, [name]: undefined }));
         
@@ -687,7 +688,7 @@ function ReservationFormStep2() {
                 </div>
               </div>
 
-              {!isDormitory && (
+              {!isDormitory && !isIndividual && (
                 <div className={styles.formGroup}>
                   <label className={styles.label}>
                     Do you want to avail the food included in your package?
