@@ -75,7 +75,7 @@ export default function ConfIndivRSVDetails() {
 
   const handleBack = () => {
     if (fromCheckInOut) {
-      navigate('/checkinouts', { state: { activeTab: activeTab || 'Confirmed', filters } });
+      navigate('/checkin', { state: { activeTab: activeTab || 'Confirmed', filters } });
     } else {
       navigate('/reservations', { state: { activeTab: 'Confirmed', filters, searchQuery, currentPage } });
     }

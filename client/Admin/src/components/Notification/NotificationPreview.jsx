@@ -39,6 +39,7 @@ export default function NotificationPreview({
             facilityName: raw.facilityName || facilityObj?.name || facilityObj?.facilityName || null,
             facilityId,
             guestType: raw.guestType || null,
+            category: raw.category || null,
             numGuests: raw.numberOfGuests?.total ?? 0,
           });
         }
@@ -93,9 +94,17 @@ export default function NotificationPreview({
 
   const normalizedGuestType = String(reservation?.guestType || '').toLowerCase();
   const clientTypeFallback = String(clientType || '').toLowerCase();
-  const isPay = reservation && reservation.guestType !== undefined && reservation.guestType !== null
-    ? normalizedGuestType === 'individual'
-    : clientTypeFallback === 'individual';
+
+  // Map category to clientType for upload fields
+  const getClientTypeForUpload = () => {
+    // If guest type is Individual, use 'individual'
+    if (normalizedGuestType === 'individual') {
+      return 'individual';
+    }
+    
+    // For all groups, use 'group' (shows MOA + Service Contract)
+    return 'group';
+  };
 
   const isApproved = notif.kind === 'reservation_approved' || 
                      notif.kind === 'reservation_approved_admin' ||
@@ -114,10 +123,13 @@ export default function NotificationPreview({
 
   const confirmLabel = loading || facilityLoading
     ? 'Loading...'
-    : (isPay ? 'Pay Now' : 'Confirm Now');
+    : 'Confirm Now';
+  
+  // For individual reservations, directly confirm. For groups, go to upload.
+  const isIndividual = normalizedGuestType === 'individual';
   const action = (loading || facilityLoading) 
     ? null 
-    : (isPay ? 'transactions' : 'upload');
+    : (isIndividual ? 'confirm' : 'upload');
 
   const source = notif.source || "Teachers' Camp";
   const time = notif.timeLabel ? notif.timeLabel : timeAgo(notif.createdAt);
@@ -127,7 +139,7 @@ export default function NotificationPreview({
     onConfirm({
       action,
       reservationId: notif.reservationId,
-      clientType: normalizedGuestType || clientTypeFallback || 'individual',
+      clientType: getClientTypeForUpload(),
     });
   };
 

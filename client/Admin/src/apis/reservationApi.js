@@ -210,3 +210,32 @@ export function decideReservation(id, decisionOrPayload = {}) {
 export function checkInOrCheckOutReservation(id, status) {
   return apiPost(`/reservation/checkin-or-checkout-reservation/${id}`, { status });
 }
+
+export function confirmReservation(id) {
+  const fd = new FormData();
+  fd.append('status', 'Confirmed');
+  return apiPost(`/reservation/update-reservation/${id}`, fd);
+}
+
+export function uploadConfirmationDocuments(id, moaFile, serviceContractFile) {
+  const fd = new FormData();
+  
+  // Upload MOA file as separate field
+  if (moaFile) {
+    console.log('Adding MOA file:', moaFile.name, moaFile.size, moaFile.type);
+    fd.append('moaFile', moaFile);
+  }
+  
+  // Upload Service Contract file
+  if (serviceContractFile) {
+    console.log('Adding Service Contract file:', serviceContractFile.name, serviceContractFile.size, serviceContractFile.type);
+    fd.append('serviceContractFile', serviceContractFile);
+  }
+  
+  // Set status to Confirmed after uploading documents
+  fd.append('status', 'Confirmed');
+  
+  console.log('FormData entries:', Array.from(fd.entries()).map(([key, value]) => [key, value instanceof File ? `${value.name} (${value.size} bytes)` : value]));
+  
+  return apiPost(`/reservation/update-reservation/${id}`, fd);
+}

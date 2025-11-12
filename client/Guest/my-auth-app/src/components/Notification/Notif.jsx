@@ -8,7 +8,7 @@ import NotifIndiv from './NotifIndiv';
 import NotifReviews from './NotifReviews';
 import NotifCancel from './NotifCancel';
 import { listNotifications, markAllNotificationsRead, markNotificationRead, deleteAllNotifications } from '../../apis/notificationApi';
-import { updateMealPreference, getReservationById, cancelReservation } from '../../apis/reservationApi';
+import { updateMealPreference, getReservationById, cancelReservation, uploadConfirmationDocuments } from '../../apis/reservationApi';
 import { addReview } from '../../apis/reviewsApi';
 import { subscribe, initSocketFresh } from '../../utils/webSocketClient';
 
@@ -497,23 +497,53 @@ export default function Notif() {
       }
     };
 
-    const handleUploadSubmit = (files) => {
-      // TODO: Implement actual file upload API call
+    const handleUploadSubmit = async (files) => {
+      // Get reservation ID from state or selected notification
+      const reservationId = uploadReservationId || selected?.reservationId || selected?.reservation_id;
       
-      // Mark notification as read if there's a selected notification
-      if (selected?._id) {
-        setNotifications(n => n.map(x => x._id === selected._id ? { ...x, isRead: true } : x));
+      if (!reservationId) {
+        alert('Reservation ID is missing. Please try again.');
+        return;
       }
-      
-      alert('Documents submitted. Thank you!');
-      
-      if (pathname === '/notifications/upload') {
-        navigate('/homepage');
-      } else {
-        // Return to notification list
-        setSelected(null);
-        setStage('list');
-        setUploadReservationId(null);
+
+      try {
+        // Extract files from the files object
+        const moaFile = files.moa || null;
+        const serviceContractFile = files.service || null;
+        const fundsFile = files.funds || null;
+        const idFile = files.id || null;
+        
+        // Log for debugging
+        console.log('Uploading files:', { 
+          moaFile: moaFile ? moaFile.name : 'none', 
+          serviceContractFile: serviceContractFile ? serviceContractFile.name : 'none',
+          fundsFile: fundsFile ? fundsFile.name : 'none',
+          idFile: idFile ? idFile.name : 'none'
+        });
+        
+        // Upload documents and confirm reservation
+        // Note: The backend currently supports moaFile and serviceContractFile
+        // If fundsFile or idFile need to be handled, backend needs to be updated
+        await uploadConfirmationDocuments(reservationId, moaFile, serviceContractFile);
+        
+        // Mark notification as read if there's a selected notification
+        if (selected?._id) {
+          setNotifications(n => n.map(x => x._id === selected._id ? { ...x, isRead: true } : x));
+        }
+        
+        alert('Documents submitted and reservation confirmed. Thank you!');
+        
+        if (pathname === '/notifications/upload') {
+          navigate('/homepage');
+        } else {
+          // Return to notification list
+          setSelected(null);
+          setStage('list');
+          setUploadReservationId(null);
+        }
+      } catch (error) {
+        console.error('Failed to upload documents and confirm reservation:', error);
+        alert(error?.message || 'Failed to upload documents and confirm reservation. Please try again.');
       }
     };
 
