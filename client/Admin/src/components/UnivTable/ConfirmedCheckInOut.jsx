@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import UnivTable from "./UnivTable";
 import styles from "./UnivTable.module.css";
-import { searchReservations, deleteReservation } from "../../apis/reservationApi";
+import { searchReservations, checkInReservation } from "../../apis/reservationApi";
 import ConfirmModal from "../Shared/ConfirmModal";
 
 function formatDateYMDToLong(dateStr) {
@@ -22,7 +22,7 @@ function prettifyServiceType(svc) {
     .join("");
 }
 
-export default function Checkout({ 
+export default function ConfirmedCheckInOut({ 
   searchQuery = "", 
   filters = {},
   currentPage: parentCurrentPage = 1,
@@ -30,26 +30,27 @@ export default function Checkout({
   totalItems: parentTotalItems = 0,
   onPageChange: parentOnPageChange,
   onPaginationUpdate,
+  onRefreshTab
 }) {
   const navigate = useNavigate();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState(null);
-  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [confirmCheckInOpen, setConfirmCheckInOpen] = useState(false);
   const [selectedRow, setSelectedRow] = useState(null);
-  const [deleting, setDeleting] = useState(false);
+  const [checkingIn, setCheckingIn] = useState(false);
   const [currentPage, setCurrentPage] = useState(parentCurrentPage);
   const [totalPages, setTotalPages] = useState(parentTotalPages);
   const [totalItems, setTotalItems] = useState(parentTotalItems);
 
-  // Check if user can delete (only Superintendent)
+  // Check if user can check-in (only Superintendent)
   const role = (typeof window !== 'undefined' && localStorage.getItem('userRole')) || '';
-  const canDelete = role === 'SUPERINTENDENT';
+  const canCheckIn = role === 'SUPERINTENDENT';
 
   const itemsPerPage = 15;
-  const columns = useMemo(() => ["Name", "Email", "Service Type", "Facility Name", "Departure Date", "Actions"], []);
+  const columns = useMemo(() => ["Name", "Email", "Service Type", "Facility Name", "Arrival Date", "Actions"], []);
   
-  const fetchCheckoutData = useCallback(async (page = currentPage, query = searchQuery, appliedFilters = filters, showLoading = true) => {
+  const fetchConfirmedData = useCallback(async (page = currentPage, query = searchQuery, appliedFilters = filters, showLoading = true) => {
     try {
       if (showLoading) setLoading(true);
       let res;
@@ -64,9 +65,9 @@ export default function Checkout({
       if (appliedFilters?.endDate) options.endDate = appliedFilters.endDate;
       if (appliedFilters?.sortBy) options.sortBy = appliedFilters.sortBy;
       
-      // Search for checked-out reservations
+      // Search for confirmed reservations
       const searchParams = {
-        status: 'Checked-out',
+        status: 'Confirmed',
         ...options
       };
       // Only add query if there's a search term
@@ -80,7 +81,7 @@ export default function Checkout({
         email: r.guestEmail || "N/A",
         serviceType: prettifyServiceType(r.serviceType) || "N/A",
         facilityName: r.facilityName || "N/A",
-        departureDate: formatDateYMDToLong(r.dateOfDeparture),
+        arrivalDate: formatDateYMDToLong(r.dateOfArrival),
         _raw: r,
       }));
       
@@ -105,7 +106,7 @@ export default function Checkout({
     let cancelled = false;
     (async () => {
       try {
-        await fetchCheckoutData(currentPage, searchQuery, filters);
+        await fetchConfirmedData(currentPage, searchQuery, filters);
       } catch (e) {
         if (!cancelled) setErr(e?.message || "Failed to load");
       }
@@ -113,32 +114,36 @@ export default function Checkout({
     return () => {
       cancelled = true;
     };
-  }, [fetchCheckoutData, currentPage, searchQuery, filters]);
+  }, [fetchConfirmedData, currentPage, searchQuery, filters]);
 
   useEffect(() => setCurrentPage(parentCurrentPage), [parentCurrentPage]);
   useEffect(() => setTotalPages(parentTotalPages), [parentTotalPages]);
   useEffect(() => setTotalItems(parentTotalItems), [parentTotalItems]);
 
-  function promptDelete(row) {
+  function promptCheckIn(row) {
     setSelectedRow(row);
-    setConfirmDeleteOpen(true);
+    setConfirmCheckInOpen(true);
   }
 
-  async function confirmDelete() {
+  async function confirmCheckIn() {
     if (!selectedRow) return;
     try {
-      setDeleting(true);
-      await deleteReservation(selectedRow.id);
+      setCheckingIn(true);
+      await checkInReservation(selectedRow.id);
       // Remove from list immediately
       setRows((prev) => prev.filter((r) => r.id !== selectedRow.id));
       // Refetch the data to ensure we have the latest from server
-      await fetchCheckoutData(currentPage, searchQuery, filters, false);
-      setConfirmDeleteOpen(false);
+      await fetchConfirmedData(currentPage, searchQuery, filters, false);
+      // Refresh the Checkin tab so the new reservation appears there
+      if (onRefreshTab) {
+        onRefreshTab("Checkin");
+      }
+      setConfirmCheckInOpen(false);
       setSelectedRow(null);
     } catch (e) {
-      alert(e?.message || "Failed to delete reservation");
+      alert(e?.message || "Failed to check-in reservation");
     } finally {
-      setDeleting(false);
+      setCheckingIn(false);
     }
   }
 
@@ -148,7 +153,7 @@ export default function Checkout({
   };
 
   const renderActions = (row) => {
-    if (!canDelete) {
+    if (!canCheckIn) {
       return (
         <>
           <button 
@@ -158,9 +163,9 @@ export default function Checkout({
                 alert("Invalid reservation ID. Cannot view details.");
                 return;
               }
-              navigate(`/checkout/${row.id}/details`, {
+              navigate(`/confirmed/${row.id}/details`, {
                 state: {
-                  activeTab: 'Checkout',
+                  activeTab: 'Confirmed',
                   filters,
                   searchQuery,
                   currentPage
@@ -176,16 +181,36 @@ export default function Checkout({
     return (
       <>
         <button 
-          className={styles["univ-delete-btn"]} 
-          onClick={() => promptDelete(row)}
+          className={styles["univ-edit-btn"]} 
+          onClick={() => {
+            if (!row.id || row.id === "N/A") {
+              alert("Invalid reservation ID. Cannot edit.");
+              return;
+            }
+            navigate(`/reservations/${row.id}/edit`, {
+              state: {
+                activeTab: 'Confirmed',
+                filters,
+                searchQuery,
+                currentPage
+              }
+            });
+          }}
+          style={{ marginRight: 8 }}
         >
-          Delete
+          Edit
+        </button>
+        <button 
+          className={styles["univ-approve-btn"]} 
+          onClick={() => promptCheckIn(row)}
+        >
+          Check-In
         </button>
       </>
     );
   };
 
-  const renderMenu = canDelete ? (row) => [
+  const renderMenu = canCheckIn ? (row) => [
     {
       label: "See Details",
       onClick: () => {
@@ -193,9 +218,9 @@ export default function Checkout({
           alert("Invalid reservation ID. Cannot view details.");
           return;
         }
-        navigate(`/checkout/${row.id}/details`, {
+        navigate(`/confirmed/${row.id}/details`, {
           state: {
-            activeTab: 'Checkout',
+            activeTab: 'Confirmed',
             filters,
             searchQuery,
             currentPage
@@ -206,7 +231,7 @@ export default function Checkout({
   ] : null;
 
   if (err) {
-    return <div style={{ padding: 16 }}>Couldn't load checked-out reservations: {err}</div>;
+    return <div style={{ padding: 16 }}>Couldn't load confirmed reservations: {err}</div>;
   }
 
   return (
@@ -222,20 +247,20 @@ export default function Checkout({
         totalPages={totalPages}
       />
       
-      {/* Delete Confirmation Modal */}
+      {/* Check-In Confirmation Modal */}
       <ConfirmModal
-        open={confirmDeleteOpen}
-        title="Delete Reservation"
-        message={`Are you sure you want to delete the reservation for ${selectedRow?.name || 'this guest'}? This action cannot be undone.`}
-        confirmText="Confirm Delete"
+        open={confirmCheckInOpen}
+        title="Check-In Guest"
+        message={`Are you sure you want to check-in ${selectedRow?.name || 'this guest'}? This will move them to the Check-In tab.`}
+        confirmText="Check-In"
         cancelText="Cancel"
-        confirming={deleting}
-        variant="danger"
+        confirming={checkingIn}
+        variant="success"
         onCancel={() => {
-          setConfirmDeleteOpen(false);
+          setConfirmCheckInOpen(false);
           setSelectedRow(null);
         }}
-        onConfirm={confirmDelete}
+        onConfirm={confirmCheckIn}
       />
     </>
   );

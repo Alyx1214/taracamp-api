@@ -48,7 +48,7 @@ export default function Checkin({
   const canCheckout = role === 'SUPERINTENDENT';
 
   const itemsPerPage = 15;
-  const columns = useMemo(() => ["Name", "Email", "Service Type", "Facility Name", "Date", "Actions"], []);
+  const columns = useMemo(() => ["Name", "Email", "Service Type", "Facility Name", "Departure Date", "Actions"], []);
   
   const fetchCheckinData = useCallback(async (page = currentPage, query = searchQuery, appliedFilters = filters, showLoading = true) => {
     try {
@@ -81,7 +81,7 @@ export default function Checkin({
         email: r.guestEmail || "N/A",
         serviceType: prettifyServiceType(r.serviceType) || "N/A",
         facilityName: r.facilityName || "N/A",
-        date: formatDateYMDToLong(r.createdAt),
+        departureDate: formatDateYMDToLong(r.dateOfDeparture),
         _raw: r,
       }));
       
@@ -100,7 +100,7 @@ export default function Checkin({
     } finally {
       if (showLoading) setLoading(false);
     }
-  }, [currentPage, searchQuery, filters]);
+  }, [currentPage, searchQuery, filters, onPaginationUpdate]);
 
   useEffect(() => {
     let cancelled = false;
@@ -155,14 +155,39 @@ export default function Checkin({
   const renderActions = (row) => {
     if (!canCheckout) {
       return (
+        <>
+          <button 
+            className={styles["univ-approve-btn"]} 
+            onClick={() => {
+              if (!row.id || row.id === "N/A") {
+                alert("Invalid reservation ID. Cannot view details.");
+                return;
+              }
+              navigate(`/checkin/${row.id}/details`, {
+                state: {
+                  activeTab: 'Checkin',
+                  filters,
+                  searchQuery,
+                  currentPage
+                }
+              });
+            }}
+          >
+            See Detail
+          </button>
+        </>
+      );
+    }
+    return (
+      <>
         <button 
-          className={styles["univ-approve-btn"]} 
+          className={styles["univ-edit-btn"]} 
           onClick={() => {
             if (!row.id || row.id === "N/A") {
-              alert("Invalid reservation ID. Cannot view details.");
+              alert("Invalid reservation ID. Cannot edit.");
               return;
             }
-            navigate(`/checkin/${row.id}/details`, {
+            navigate(`/reservations/${row.id}/edit`, {
               state: {
                 activeTab: 'Checkin',
                 filters,
@@ -171,18 +196,17 @@ export default function Checkin({
               }
             });
           }}
+          style={{ marginRight: 8 }}
         >
-          See Detail
+          Edit
         </button>
-      );
-    }
-    return (
-      <button 
-        className={styles["univ-approve-btn"]} 
-        onClick={() => promptCheckout(row)}
-      >
-        Checkout
-      </button>
+        <button 
+          className={styles["univ-approve-btn"]} 
+          onClick={() => promptCheckout(row)}
+        >
+          Check-Out
+        </button>
+      </>
     );
   };
 
@@ -226,9 +250,9 @@ export default function Checkin({
       {/* Checkout Confirmation Modal */}
       <ConfirmModal
         open={confirmCheckoutOpen}
-        title="Checkout Guest"
-        message={`Are you sure you want to checkout ${selectedRow?.name || 'this guest'}? This will move them to the Checkout tab and complete their reservation.`}
-        confirmText="Checkout"
+        title="Check-Out Guest"
+        message={`Are you sure you want to check-out ${selectedRow?.name || 'this guest'}? This will move them to the Check-Out tab and complete their reservation.`}
+        confirmText="Confirm Check-Out"
         cancelText="Cancel"
         confirming={checkingOut}
         variant="success"
