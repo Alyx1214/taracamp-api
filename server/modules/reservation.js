@@ -1590,7 +1590,7 @@ const reservationModule = {
      * @param {string} reservationId - The ID of the reservation to update.
      * @param {string} status - The new status for the reservation.
      * @param {Object} user - The user object containing the user ID and role.
-     * @returns {Object} Response data with status, error, message, and updated reservation on success.
+     * @returns {Object} Response data with status, error, message, updated reservation, and autoDeclinedReservations on success.
      */
     approveOrDeclineReservation: async (dbHelper, reservationId, status, user) => {
         const responseData = {
@@ -1644,6 +1644,7 @@ const reservationModule = {
             // Check for conflicts before approving (only for APPROVED status)
             // Use transaction to prevent race conditions when multiple admins approve simultaneously
             let updatedReservation;
+            let autoDeclinedReservations = [];
             if (status === ReservationStatus.APPROVED) {
                 await dbHelper.withTransaction(async (session) => {
                     // Re-check reservation status within transaction
@@ -1715,6 +1716,14 @@ const reservationModule = {
                         r.status === ReservationStatus.PENDING
                     );
 
+                    // Store reservation info for notifications (before updating)
+                    autoDeclinedReservations = pendingOverlapping.map(r => ({
+                        _id: r._id,
+                        userId: r.userId,
+                        guestEmail: r.guestEmail,
+                        guestName: r.guestName,
+                    }));
+
                     for (const conflictingReservation of pendingOverlapping) {
                         await dbHelper.updateOneWithTransaction(
                             'reservation',
@@ -1749,6 +1758,11 @@ const reservationModule = {
                 _id: updatedReservation._id,
                 status: updatedReservation.status,
             };
+            
+            // Include auto-declined reservations in response (only for approved status)
+            if (status === ReservationStatus.APPROVED && autoDeclinedReservations.length > 0) {
+                responseData.autoDeclinedReservations = autoDeclinedReservations;
+            }
 
             // Invalidate cache after successful status update
             await invalidateReservationCache();
