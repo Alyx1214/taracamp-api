@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import styles from './ResDetails.module.css';
 import ErrorBanner from '../ErrorBanner/ErrorBanner';
-import { buildReservationPayload, mapServiceType } from '../../utils/reservationMapper';
+import { buildReservationPayload, mapServiceType, pickCategory } from '../../utils/reservationMapper';
 import ConfirmationOverlay from './ConfirmationOverlay';
 import { estimateAmount as apiEstimateAmount, createReservation as apiCreateReservation, updateReservation as apiUpdateReservation } from '../../apis/reservationApi';
 import { getAllAddons } from '../../apis/addonsApi';
@@ -88,7 +88,10 @@ function ResDetails({ onClose }) {
           pwds: p,
           seniorCitizens: s,
           serviceType: mapServiceType(step2?.typeService),
+          category: pickCategory(step1?.category),
           addOns: addonIds.length > 0 ? addonIds : undefined,
+          dateOfArrival: step2?.dateArrival,
+          dateOfDeparture: step2?.dateDeparture,
         });
         if (!abort) {
           setQuote(data.amount);
@@ -321,7 +324,9 @@ function ResDetails({ onClose }) {
                     <tr><td>Facility Fee</td><td>:</td><td>₱ {Math.round(breakdown.facilityFee || 0).toLocaleString()}</td></tr>
                     {renderAddOns()}
                     <tr><td>10% Service Fee</td><td>:</td><td>₱ {Math.round(breakdown.serviceFee || 0).toLocaleString()}</td></tr>
-                    <tr><td>Discount</td><td>:</td><td>₱ {Math.round(breakdown.discount || 0).toLocaleString()}</td></tr>
+                    {breakdown.discount > 0 && (
+                      <tr><td>Discount</td><td>:</td><td>₱ {Math.round(breakdown.discount || 0).toLocaleString()}</td></tr>
+                    )}
                     <tr className={styles.amountRow}>
                       <td colSpan={3}>
                         <div className={styles.amountLine}></div>
