@@ -1640,12 +1640,106 @@ const reservationModule = {
                 return responseData;
             }
 
-            const updatedReservation = await dbHelper.findOneAndUpdate(
-                'reservation',
-                { _id: reservationId, },
-                { status: status, },
-                { new: true, }
-            );
+            // Check for conflicts before approving (only for APPROVED status)
+            // Use transaction to prevent race conditions when multiple admins approve simultaneously
+            let updatedReservation;
+            if (status === ReservationStatus.APPROVED) {
+                await dbHelper.withTransaction(async (session) => {
+                    // Re-check reservation status within transaction
+                    const reservationInTransaction = await dbHelper.findOneWithTransaction('reservation', { _id: reservationId }, {}, session);
+                    if (!reservationInTransaction) {
+                        throw new Error('Reservation not found');
+                    }
+                    if (reservationInTransaction.status !== ReservationStatus.PENDING) {
+                        throw new Error(`Reservation must be pending before it can be approved. Current status: ${reservationInTransaction.status}`);
+                    }
+
+                    const blockingStatuses = [
+                        ReservationStatus.PENDING,
+                        ReservationStatus.APPROVED,
+                        ReservationStatus.CONFIRMED,
+                        ReservationStatus.CHECKED_IN,
+                    ];
+
+                    // Check for overlapping reservations with blocking statuses within transaction
+                    // Exclude the current reservation being approved
+                    // Dates are already normalized when stored, so we can use them directly
+                    // However, we need to ensure we're comparing Date objects correctly
+                    const arrivalDate = reservationInTransaction.dateOfArrival;
+                    const departureDate = reservationInTransaction.dateOfDeparture;
+                    
+                    if (!arrivalDate || !departureDate) {
+                        throw new Error('Invalid date values in reservation');
+                    }
+                    
+                    // Ensure dates are Date objects for MongoDB comparison
+                    const normalizedArrival = arrivalDate instanceof Date ? arrivalDate : new Date(arrivalDate);
+                    const normalizedDeparture = departureDate instanceof Date ? departureDate : new Date(departureDate);
+                    
+                    const overlapping = await dbHelper.findManyWithTransaction('reservation', {
+                        _id: { $ne: reservationId },
+                        facility: reservationInTransaction.facility,
+                        status: { $in: blockingStatuses },
+                        $or: [
+                            {
+                                dateOfArrival: { $lte: normalizedDeparture },
+                                dateOfDeparture: { $gte: normalizedArrival },
+                            },
+                        ],
+                    }, {}, session);
+
+                    // Check if there are any APPROVED or CONFIRMED overlapping reservations (can't auto-decline these)
+                    const approvedOrConfirmedOverlapping = overlapping.filter(r => 
+                        r.status === ReservationStatus.APPROVED || r.status === ReservationStatus.CONFIRMED
+                    );
+
+                    if (approvedOrConfirmedOverlapping.length > 0) {
+                        const conflictingStatus = approvedOrConfirmedOverlapping[0].status || 'unknown';
+                        const conflictingId = approvedOrConfirmedOverlapping[0]._id?.toString() || 'unknown';
+                        throw new Error(`Cannot approve reservation: Facility is already booked for the selected dates by another reservation (ID: ${conflictingId}, Status: ${conflictingStatus}).`);
+                    }
+
+                    // Also check for CHECKED_IN status (facility is currently in use)
+                    const checkedInOverlapping = overlapping.filter(r => 
+                        r.status === ReservationStatus.CHECKED_IN
+                    );
+
+                    if (checkedInOverlapping.length > 0) {
+                        const conflictingId = checkedInOverlapping[0]._id?.toString() || 'unknown';
+                        throw new Error(`Cannot approve reservation: Facility is currently checked in by another reservation (ID: ${conflictingId}).`);
+                    }
+
+                    // Auto-decline all conflicting pending reservations
+                    const pendingOverlapping = overlapping.filter(r => 
+                        r.status === ReservationStatus.PENDING
+                    );
+
+                    for (const conflictingReservation of pendingOverlapping) {
+                        await dbHelper.updateOneWithTransaction(
+                            'reservation',
+                            { _id: conflictingReservation._id },
+                            { status: ReservationStatus.DECLINED },
+                            session
+                        );
+                    }
+
+                    // Update reservation within transaction
+                    updatedReservation = await dbHelper.updateOneWithTransaction(
+                        'reservation',
+                        { _id: reservationId },
+                        { status: status },
+                        session
+                    );
+                });
+            } else {
+                // For declined status, no conflict check needed
+                updatedReservation = await dbHelper.findOneAndUpdate(
+                    'reservation',
+                    { _id: reservationId, },
+                    { status: status, },
+                    { new: true, }
+                );
+            }
 
             responseData.status = Status.OK;
             responseData.error = null;
@@ -1659,8 +1753,24 @@ const reservationModule = {
             await invalidateReservationCache();
         } catch (error) {
             console.error('Error approving or declining reservation:', error);
-            responseData.status = Status.INTERNAL_SERVER_ERROR;
-            responseData.error = 'Error approving or declining reservation';
+            
+            // Handle specific error messages from transaction
+            if (error.message) {
+                if (error.message.includes('Reservation not found')) {
+                    responseData.status = Status.NOT_FOUND;
+                    responseData.error = error.message;
+                } else if (error.message.includes('Cannot approve reservation') || 
+                           error.message.includes('must be pending')) {
+                    responseData.status = Status.BAD_REQUEST;
+                    responseData.error = error.message;
+                } else {
+                    responseData.status = Status.INTERNAL_SERVER_ERROR;
+                    responseData.error = error.message || 'Error approving or declining reservation';
+                }
+            } else {
+                responseData.status = Status.INTERNAL_SERVER_ERROR;
+                responseData.error = 'Error approving or declining reservation';
+            }
         }
         return responseData;
     },
@@ -2892,6 +3002,32 @@ function normalizeDateOnly(dateStr) {
     const ymd = dateStr.split('T')[0].split(' ')[0];
     const d = new Date(`${ymd}T00:00:00${APP_TZ_OFFSET}`);
     return isNaN(d.getTime()) ? null : d;
+}
+
+/**
+ * Normalizes a Date object to date-only (midnight in app timezone)
+ * Works with both Date objects and date strings
+ * Since dates in DB are already normalized, this ensures consistent comparison
+ */
+function normalizeDateToDateOnly(date) {
+    if (!date) return null;
+    // If it's already a Date object, extract the date part and normalize to app timezone
+    if (date instanceof Date) {
+        // Use the date's UTC methods to get year, month, day (avoids timezone issues)
+        // Since dates in DB are stored normalized, we can safely extract the date components
+        const year = date.getUTCFullYear();
+        const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+        const day = String(date.getUTCDate()).padStart(2, '0');
+        const ymd = `${year}-${month}-${day}`;
+        // Create a new date at midnight in the app timezone
+        const d = new Date(`${ymd}T00:00:00${APP_TZ_OFFSET}`);
+        return isNaN(d.getTime()) ? null : d;
+    }
+    // If it's a string, use the existing normalizeDateOnly function
+    if (typeof date === 'string') {
+        return normalizeDateOnly(date);
+    }
+    return null;
 }
 
 function isValidEmail(email) {

@@ -133,22 +133,47 @@ function MainServicesServiceDetail() {
   // Prefill selected dates when coming back from Reservation Form
   useEffect(() => {
     const pre = location.state?.preselectedDates;
-    if (!pre) return;
+    if (pre) {
+      if (pre.dateArrival) {
+        const a = new Date(pre.dateArrival);
+        const aFormatted = `${a.getDate()} ${a.toLocaleString('default', { month: 'short' })} ${a.getFullYear()}`;
+        const aDay = a.toLocaleString('default', { weekday: 'long' });
+        setSelectedArrivalDate(pre.dateArrival);
+        setSelectedDate(`${aFormatted} - ${aDay}`);
+      }
 
-    if (pre.dateArrival) {
-      const a = new Date(pre.dateArrival);
-      const aFormatted = `${a.getDate()} ${a.toLocaleString('default', { month: 'short' })} ${a.getFullYear()}`;
-      const aDay = a.toLocaleString('default', { weekday: 'long' });
-      setSelectedArrivalDate(pre.dateArrival);
-      setSelectedDate(`${aFormatted} - ${aDay}`);
+      if (pre.dateDeparture) {
+        const d = new Date(pre.dateDeparture);
+        const dFormatted = `${d.getDate()} ${d.toLocaleString('default', { month: 'short' })} ${d.getFullYear()}`;
+        const dDay = d.toLocaleString('default', { weekday: 'long' });
+        setSelectedDepartureDate(pre.dateDeparture);
+        setSelectedDepartureDateDisplay(`${dFormatted} - ${dDay}`);
+      }
+      return; // If location.state has dates, don't use localStorage
     }
 
-    if (pre.dateDeparture) {
-      const d = new Date(pre.dateDeparture);
-      const dFormatted = `${d.getDate()} ${d.toLocaleString('default', { month: 'short' })} ${d.getFullYear()}`;
-      const dDay = d.toLocaleString('default', { weekday: 'long' });
-      setSelectedDepartureDate(pre.dateDeparture);
-      setSelectedDepartureDateDisplay(`${dFormatted} - ${dDay}`);
+    // Otherwise, try to load dates from localStorage (set by Controls component)
+    const storedCheckIn = localStorage.getItem('selectedCheckInDate');
+    const storedCheckOut = localStorage.getItem('selectedCheckOutDate');
+
+    if (storedCheckIn) {
+      const a = new Date(storedCheckIn);
+      if (!isNaN(a.getTime())) {
+        const aFormatted = `${a.getDate()} ${a.toLocaleString('default', { month: 'short' })} ${a.getFullYear()}`;
+        const aDay = a.toLocaleString('default', { weekday: 'long' });
+        setSelectedArrivalDate(storedCheckIn);
+        setSelectedDate(`${aFormatted} - ${aDay}`);
+      }
+    }
+
+    if (storedCheckOut) {
+      const d = new Date(storedCheckOut);
+      if (!isNaN(d.getTime())) {
+        const dFormatted = `${d.getDate()} ${d.toLocaleString('default', { month: 'short' })} ${d.getFullYear()}`;
+        const dDay = d.toLocaleString('default', { weekday: 'long' });
+        setSelectedDepartureDate(storedCheckOut);
+        setSelectedDepartureDateDisplay(`${dFormatted} - ${dDay}`);
+      }
     }
   }, [location.state]);
 

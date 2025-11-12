@@ -18,15 +18,6 @@ const Controls = ({ facilityType = 'All', onApplyFilters, sharedFilters, updateS
   const debounceTimeoutRef = useRef(null);
   const initialDatesRef = useRef({ checkIn: null, checkOut: null });
   
-  // Store initial dates on mount to detect if user has changed them
-  useEffect(() => {
-    if (initialDatesRef.current.checkIn === null) {
-      initialDatesRef.current.checkIn = new Date(checkInDate);
-      initialDatesRef.current.checkOut = new Date(checkOutDate);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   const toISODate = (d) => {
     const date = d instanceof Date ? new Date(d.getTime()) : new Date(d);
     if (Number.isNaN(date.getTime())) return undefined;
@@ -44,6 +35,27 @@ const Controls = ({ facilityType = 'All', onApplyFilters, sharedFilters, updateS
       dayName: d.toLocaleDateString('en-US', { weekday: 'long' })
     };
   };
+
+  // Store initial dates on mount to detect if user has changed them
+  useEffect(() => {
+    if (initialDatesRef.current.checkIn === null) {
+      initialDatesRef.current.checkIn = new Date(checkInDate);
+      initialDatesRef.current.checkOut = new Date(checkOutDate);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Save dates to localStorage whenever they change (for ServiceDetail sync)
+  useEffect(() => {
+    const checkInISO = toISODate(checkInDate);
+    const checkOutISO = toISODate(checkOutDate);
+    if (checkInISO) {
+      localStorage.setItem('selectedCheckInDate', checkInISO);
+    }
+    if (checkOutISO) {
+      localStorage.setItem('selectedCheckOutDate', checkOutISO);
+    }
+  }, [checkInDate, checkOutDate]);
 
   // Debounced filter application to prevent rate limiting
   const applyFiltersDebounced = useCallback(() => {
@@ -213,12 +225,20 @@ const Controls = ({ facilityType = 'All', onApplyFilters, sharedFilters, updateS
   const handleCheckInDateSelect = (picked) => {
     setCheckInDate(picked.date); 
     updateSharedFilters?.({ checkInDate: picked.date });
+    // Save to localStorage for ServiceDetail to use
+    if (picked.ymd) {
+      localStorage.setItem('selectedCheckInDate', picked.ymd);
+    }
     setShowCheckInCalendar(false);
   };
 
   const handleCheckOutDateSelect = (picked) => {
     setCheckOutDate(picked.date); 
     updateSharedFilters?.({ checkOutDate: picked.date });
+    // Save to localStorage for ServiceDetail to use
+    if (picked.ymd) {
+      localStorage.setItem('selectedCheckOutDate', picked.ymd);
+    }
     setShowCheckOutCalendar(false);
   };
 
