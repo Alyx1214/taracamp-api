@@ -224,11 +224,6 @@ export default function ConfIndivRSVDetails() {
               <td className={styles["rsv-details-separator"]}>:</td>
               <td>{prettifyServiceType(reservation.serviceType) || "N/A"}</td>
             </tr>
-            <tr>
-              <td className={styles["rsv-details-label"]}>Food Preferences</td>
-              <td className={styles["rsv-details-separator"]}>:</td>
-              <td>{reservation.foodPreferences || "N/A"}</td>
-            </tr>
             {reservation.guestType !== "Individual" && (
               <tr>
                 <td className={styles["reservation-details-label"]}>Letter of Intent</td>

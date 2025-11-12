@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation, useParams } from "react-router-dom";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import { addUser, updateUser } from "../../apis/userApi";
+import ConfirmModal from "../Shared/ConfirmModal";
 import styles from "./AddUsersForm.module.css";
 
 export default function AddUserForm({ onAddUser }) {
@@ -20,6 +21,9 @@ export default function AddUserForm({ onAddUser }) {
   });
 
   const [showPassword, setShowPassword] = useState(false);
+  const [confirmModalOpen, setConfirmModalOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [pendingFormData, setPendingFormData] = useState(null);
 
   useEffect(() => {
     if (isEditMode && userToEdit) {
@@ -62,170 +66,214 @@ export default function AddUserForm({ onAddUser }) {
       return;
     }
 
+    // Store form data and show confirmation modal
+    setPendingFormData(formData);
+    setConfirmModalOpen(true);
+  };
+
+  const handleConfirmSubmit = async () => {
+    if (!pendingFormData) return;
+
     try {
-      const fullName = `${formData.firstName} ${formData.lastName}`.trim();
+      setSubmitting(true);
+      const fullName = `${pendingFormData.firstName} ${pendingFormData.lastName}`.trim();
 
       if (isEditMode) {
         const userId = id || userToEdit?.id;
         if (!userId) {
           alert("User ID is required for editing.");
+          setSubmitting(false);
+          setConfirmModalOpen(false);
           return;
         }
         const updateData = {
           name: fullName,
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          email: formData.email,
-          role: formData.role,
+          firstName: pendingFormData.firstName,
+          lastName: pendingFormData.lastName,
+          email: pendingFormData.email,
+          role: pendingFormData.role,
         };
         // Only include password if provided
-        if (formData.password && formData.password.trim()) {
-          updateData.password = formData.password;
+        if (pendingFormData.password && pendingFormData.password.trim()) {
+          updateData.password = pendingFormData.password;
         }
         await updateUser(userId, updateData);
         alert("User updated successfully.");
       } else {
         await addUser({
           name: fullName,
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          email: formData.email,
-          role: formData.role,
-          password: formData.password,
+          firstName: pendingFormData.firstName,
+          lastName: pendingFormData.lastName,
+          email: pendingFormData.email,
+          role: pendingFormData.role,
+          password: pendingFormData.password,
         });
         alert("User added successfully.");
       }
-      navigate("/user");
+      setConfirmModalOpen(false);
+      setPendingFormData(null);
+      navigate("/users");
     } catch (err) {
       const msg =
         err?.data?.error ||
         err?.message ||
         (isEditMode ? "Failed to update user" : "Failed to add user");
       alert(msg);
+    } finally {
+      setSubmitting(false);
     }
   };
 
+  const handleCancelModal = () => {
+    setConfirmModalOpen(false);
+    setPendingFormData(null);
+  };
+
+  const getConfirmMessage = () => {
+    if (!pendingFormData) return "";
+    const fullName = `${pendingFormData.firstName} ${pendingFormData.lastName}`.trim();
+    if (isEditMode) {
+      return `Are you sure you want to update the user "${fullName}"? This will modify their account information.`;
+    }
+    return `Are you sure you want to add a new user "${fullName}" with the role "${pendingFormData.role}"? They will be able to access the system once created.`;
+  };
+
   return (
-    <div className={styles["add-user-container"]}>
-      <div className={styles.header}>
-        <span
-          className={styles["add-form-back"]}
-          onClick={() => navigate("/users")}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) =>
-            (e.key === "Enter" || e.key === " ") && navigate("/users")
-          }
-          aria-label="Go back"
-        >
-          &larr;
-        </span>
-        <h1 className={styles.title}>
-          {isEditMode ? "Edit User" : "Add New User"}
-        </h1>
-      </div>
-
-      <form onSubmit={handleSubmit} className={styles["add-user-form"]}>
-        {/* First Name and Last Name Row */}
-        <div className={styles["add-user-row"]}>
-          <div>
-            <label className={styles["add-user-label"]}>First Name *</label>
-            <input
-              type="text"
-              name="firstName"
-              value={formData.firstName}
-              onChange={handleChange}
-              className={styles["add-user-input"]}
-              placeholder="Enter first name"
-              required
-            />
-          </div>
-
-          <div>
-            <label className={styles["add-user-label"]}>Last Name *</label>
-            <input
-              type="text"
-              name="lastName"
-              value={formData.lastName}
-              onChange={handleChange}
-              className={styles["add-user-input"]}
-              placeholder="Enter last name"
-              required
-            />
-          </div>
-        </div>
-
-        {/* Email */}
-        <div>
-          <label className={styles["add-user-label"]}>Email *</label>
-          <input
-            type="email"
-            name="email"
-            value={formData.email}
-            onChange={handleChange}
-            className={styles["add-user-input"]}
-            placeholder="Enter email"
-            required
-          />
-        </div>
-
-        {/* Role */}
-        <div>
-          <label className={styles["add-user-label"]}>Role</label>
-          <select
-            name="role"
-            value={formData.role}
-            onChange={handleChange}
-            className={styles["add-user-select"]}
+    <>
+      <div className={styles["add-user-container"]}>
+        <div className={styles.header}>
+          <span
+            className={styles["add-form-back"]}
+            onClick={() => navigate("/users")}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) =>
+              (e.key === "Enter" || e.key === " ") && navigate("/users")
+            }
+            aria-label="Go back"
           >
-            <option value="Guest">Guest</option>
-            <option value="Superintendent">Superintendent</option>
-            <option value="Frontdesk">Front Desk</option>
-            <option value="CRMS Team">Staff</option>
-            <option value="Accounting">Accounting</option>
-          </select>
+            &larr;
+          </span>
+          <h1 className={styles.title}>
+            {isEditMode ? "Edit User" : "Add New User"}
+          </h1>
         </div>
 
-        {/* Password */}
-        <div>
-          <label className={styles["add-user-label"]}>
-            Password {isEditMode ? "" : "*"}
-          </label>
-          <div className={styles["password-input-wrapper"]}>
+        <form onSubmit={handleSubmit} className={styles["add-user-form"]}>
+          {/* First Name and Last Name Row */}
+          <div className={styles["add-user-row"]}>
+            <div>
+              <label className={styles["add-user-label"]}>First Name *</label>
+              <input
+                type="text"
+                name="firstName"
+                value={formData.firstName}
+                onChange={handleChange}
+                className={styles["add-user-input"]}
+                placeholder="Enter first name"
+                required
+              />
+            </div>
+
+            <div>
+              <label className={styles["add-user-label"]}>Last Name *</label>
+              <input
+                type="text"
+                name="lastName"
+                value={formData.lastName}
+                onChange={handleChange}
+                className={styles["add-user-input"]}
+                placeholder="Enter last name"
+                required
+              />
+            </div>
+          </div>
+
+          {/* Email */}
+          <div>
+            <label className={styles["add-user-label"]}>Email *</label>
             <input
-              type={showPassword ? "text" : "password"}
-              name="password"
-              value={formData.password}
+              type="email"
+              name="email"
+              value={formData.email}
               onChange={handleChange}
               className={styles["add-user-input"]}
-              placeholder={isEditMode ? "Leave blank to keep current password" : "Enter password"}
-              required={!isEditMode}
+              placeholder="Enter email"
+              required
             />
+          </div>
+
+          {/* Role */}
+          <div>
+            <label className={styles["add-user-label"]}>Role</label>
+            <select
+              name="role"
+              value={formData.role}
+              onChange={handleChange}
+              className={styles["add-user-select"]}
+            >
+              <option value="Guest">Guest</option>
+              <option value="Superintendent">Superintendent</option>
+              <option value="Frontdesk">Front Desk</option>
+              <option value="CRMS Team">Staff</option>
+              <option value="Accounting">Accounting</option>
+            </select>
+          </div>
+
+          {/* Password */}
+          <div>
+            <label className={styles["add-user-label"]}>
+              Password {isEditMode ? "" : "*"}
+            </label>
+            <div className={styles["password-input-wrapper"]}>
+              <input
+                type={showPassword ? "text" : "password"}
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                className={styles["add-user-input"]}
+                placeholder={isEditMode ? "Leave blank to keep current password" : "Enter password"}
+                required={!isEditMode}
+              />
+              <button
+                type="button"
+                className={styles["password-toggle-btn"]}
+                onClick={togglePasswordVisibility}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? <FaEyeSlash /> : <FaEye />}
+              </button>
+            </div>
+          </div>
+
+          {/* Buttons */}
+          <div className={styles.buttonContainer}>
             <button
               type="button"
-              className={styles["password-toggle-btn"]}
-              onClick={togglePasswordVisibility}
-              aria-label={showPassword ? "Hide password" : "Show password"}
+              onClick={() => navigate("/users")}
+              className={styles["add-user-cancel"]}
             >
-              {showPassword ? <FaEyeSlash /> : <FaEye />}
+              Cancel
+            </button>
+            <button type="submit" className={styles["add-user-submit"]}>
+              {isEditMode ? "Update User" : "Save User"}
             </button>
           </div>
-        </div>
+        </form>
+      </div>
 
-        {/* Buttons */}
-        <div className={styles.buttonContainer}>
-          <button
-            type="button"
-            onClick={() => navigate("/users")}
-            className={styles["add-user-cancel"]}
-          >
-            Cancel
-          </button>
-          <button type="submit" className={styles["add-user-submit"]}>
-            {isEditMode ? "Update User" : "Save User"}
-          </button>
-        </div>
-      </form>
-    </div>
+      {/* Confirmation Modal */}
+      <ConfirmModal
+        open={confirmModalOpen}
+        title={isEditMode ? "Update User" : "Add New User"}
+        message={getConfirmMessage()}
+        confirmText={isEditMode ? "Update User" : "Save User"}
+        cancelText="Cancel"
+        confirming={submitting}
+        variant={isEditMode ? "primary" : "success"}
+        onCancel={handleCancelModal}
+        onConfirm={handleConfirmSubmit}
+      />
+    </>
   );
 }

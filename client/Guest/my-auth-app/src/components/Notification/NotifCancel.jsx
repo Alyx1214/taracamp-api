@@ -126,6 +126,11 @@ export default function NotifCancel({
   const source = notif.source || 'Teachers Camp';
   const time = notif.timeLabel ? notif.timeLabel : timeAgo(notif.createdAt);
 
+  // Determine if this is a decline or cancellation notification
+  const isDeclined = notif.kind === 'reservation_declined' || 
+    (notif.title && notif.title.toLowerCase().includes('declined'));
+  const detailsLabel = isDeclined ? 'Declined Reservation Details:' : 'Cancelled Reservation Details:';
+
   return (
     <div className={styles.cancelContainer}>
       <div className={styles.cancelHeaderRow}>
@@ -153,7 +158,7 @@ export default function NotifCancel({
         )}
 
         <div className={styles.cancelDetailsBox}>
-          <div className={styles.cancelDetailsTitle}>Cancelled Reservation Details:</div>
+          <div className={styles.cancelDetailsTitle}>{detailsLabel}</div>
 
           <div className={styles.cancelDetailsRow}>
             <b>Location:</b> Teachers' Camp, Baguio City
@@ -241,15 +246,27 @@ export default function NotifCancel({
         )}
 
         <div className={styles.cancelNotice}>
-          If you have any questions or concerns regarding this cancellation, please feel free to contact our support team. We're here to assist you.
+          {isDeclined 
+            ? "If you have any questions or would like to discuss this decision, please contact our support team. We're here to assist you."
+            : "If you have any questions or concerns regarding this cancellation, please feel free to contact our support team. We're here to assist you."}
         </div>
 
         <div className={styles.cancelInfoBox}>
           <div className={styles.cancelInfoTitle}>What happens next?</div>
           <div className={styles.cancelInfoText}>
-            • If you made a payment, a refund will be processed according to our cancellation policy.
-            <br />
-            • You're welcome to make a new reservation at any time.
+            {isDeclined ? (
+              <>
+                • You're welcome to submit a new reservation request at any time.
+                <br />
+                • If you have questions about why your reservation was declined, please contact our support team.
+              </>
+            ) : (
+              <>
+                • If you made a payment, a refund will be processed according to our cancellation policy.
+                <br />
+                • You're welcome to make a new reservation at any time.
+              </>
+            )}
           </div>
         </div>
 

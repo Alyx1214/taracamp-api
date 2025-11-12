@@ -82,8 +82,8 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 2rem;
-  padding-bottom: 1.5rem;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
   border-bottom: 2px solid #f0f0f0;
 }
 
@@ -122,18 +122,13 @@
   border-bottom: none;
 }
 
-.rsv-details-table tr:hover {
-  background: linear-gradient(135deg, #f9fffe 0%, #f0fdf4 100%);
-  transform: translateX(4px);
-}
-
 .rsv-details-label {
   font-weight: 700;
   font-size: 1rem;
   color: #5b3a0b;
   padding: 0.8rem 0.5rem 0.8rem 0;
   letter-spacing: 0.5px;
-  width: 260px;
+  width: 350px;
   text-transform: uppercase;
   font-size: 0.9rem;
 }

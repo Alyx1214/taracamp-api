@@ -16,6 +16,16 @@ const Controls = ({ facilityType = 'All', onApplyFilters, sharedFilters, updateS
   const [showCheckOutCalendar, setShowCheckOutCalendar] = useState(false);
   const lastAppliedFiltersRef = useRef(null);
   const debounceTimeoutRef = useRef(null);
+  const initialDatesRef = useRef({ checkIn: null, checkOut: null });
+  
+  // Store initial dates on mount to detect if user has changed them
+  useEffect(() => {
+    if (initialDatesRef.current.checkIn === null) {
+      initialDatesRef.current.checkIn = new Date(checkInDate);
+      initialDatesRef.current.checkOut = new Date(checkOutDate);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const toISODate = (d) => {
     const date = d instanceof Date ? new Date(d.getTime()) : new Date(d);
@@ -58,11 +68,24 @@ const Controls = ({ facilityType = 'All', onApplyFilters, sharedFilters, updateS
     const adultCount = adults === '' ? 1 : Number(adults);
     const childCount = children === '' ? 0 : Number(children);
     const totalGuests = adultCount + childCount;
+    
+    // Check if dates have been changed from initial defaults
+    // Only send dates if BOTH have been changed (backend requires both for date filtering)
+    const checkInChanged = initialDatesRef.current.checkIn && 
+      toISODate(checkInDate) !== toISODate(initialDatesRef.current.checkIn);
+    const checkOutChanged = initialDatesRef.current.checkOut && 
+      toISODate(checkOutDate) !== toISODate(initialDatesRef.current.checkOut);
+    const datesChanged = checkInChanged && checkOutChanged;
+    
     const nextFilters = {
       type: facilityType === 'All' ? null : facilityType,
-      capacity: Number.isFinite(totalGuests) ? totalGuests : undefined,
-      checkInDate: toISODate(checkInDate),
-      checkOutDate: toISODate(checkOutDate),
+      // Only send capacity if it's greater than 1 (default), otherwise don't filter by capacity
+      ...(Number.isFinite(totalGuests) && totalGuests > 1 && { capacity: totalGuests }),
+      // Only send dates if both have been explicitly changed from defaults
+      ...(datesChanged && {
+        checkInDate: toISODate(checkInDate),
+        checkOutDate: toISODate(checkOutDate),
+      }),
     };
 
     const prev = lastAppliedFiltersRef.current;

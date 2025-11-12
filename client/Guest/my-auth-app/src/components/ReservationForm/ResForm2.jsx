@@ -136,6 +136,66 @@ function ReservationFormStep2() {
     } catch {}
   }, [formData, selectedAddons]);
 
+  // Calculate these values early so they can be used in useEffect hooks
+  const isDormitory = formData.typeFacilities?.toLowerCase().includes('dormitory');
+  const isIndividual = step1?.type?.individual;
+
+  // Clear includeFood and remove corkage fee if question should be hidden (dormitory or individual)
+  useEffect(() => {
+    if (isDormitory || isIndividual) {
+      if (formData.includeFood) {
+        setFormData(prev => ({ ...prev, includeFood: '' }));
+      }
+      // Remove corkage fee if it exists
+      if (specialOptions.length > 0) {
+        const corkageFeeAddon = specialOptions.find(opt => 
+          opt.label && opt.label.toLowerCase().includes('corkage')
+        );
+        if (corkageFeeAddon) {
+          setSelectedAddons(prev => prev.filter(addon => addon.value !== corkageFeeAddon.value));
+        }
+      }
+    }
+  }, [isDormitory, isIndividual, specialOptions]);
+
+  // Auto-add corkage fee when includeFood is "no" and specialOptions are loaded
+  useEffect(() => {
+    if (!isDormitory && !isIndividual && formData.includeFood === 'no' && specialOptions.length > 0) {
+      const corkageFeeAddon = specialOptions.find(opt => 
+        opt.label && opt.label.toLowerCase().includes('corkage')
+      );
+      
+      if (corkageFeeAddon) {
+        setSelectedAddons(prev => {
+          const exists = prev.some(addon => addon.value === corkageFeeAddon.value);
+          if (!exists) {
+            return [...prev, corkageFeeAddon];
+          }
+          return prev;
+        });
+      }
+    }
+  }, [formData.includeFood, specialOptions, isDormitory, isIndividual]);
+
+  // Ensure corkage fee remains when includeFood is "no" (safeguard against manual removal)
+  useEffect(() => {
+    if (!isDormitory && !isIndividual && formData.includeFood === 'no' && specialOptions.length > 0) {
+      const corkageFeeAddon = specialOptions.find(opt => 
+        opt.label && opt.label.toLowerCase().includes('corkage')
+      );
+      
+      if (corkageFeeAddon) {
+        setSelectedAddons(prev => {
+          const exists = prev.some(addon => addon.value === corkageFeeAddon.value);
+          if (!exists) {
+            return [...prev, corkageFeeAddon];
+          }
+          return prev;
+        });
+      }
+    }
+  }, [selectedAddons, formData.includeFood, specialOptions, isDormitory, isIndividual]);
+
 
   const handleGoBack = () => {
     // Preserve files from location.state if they exist
@@ -229,6 +289,39 @@ function ReservationFormStep2() {
       return;
     }
 
+    // Handle includeFood change - automatically add/remove corkage fee
+    // Only process if question is visible (not dormitory and not individual)
+    if (name === 'includeFood') {
+      const isDorm = formData.typeFacilities?.toLowerCase().includes('dormitory');
+      const isIndiv = step1?.type?.individual;
+      
+      // Only process if question is visible (not dormitory and not individual)
+      if (!isDorm && !isIndiv) {
+        setFormData(prev => ({ ...prev, [name]: value }));
+        setFieldErrors(prev => ({ ...prev, [name]: undefined }));
+        
+        // Find corkage fee addon (case-insensitive search)
+        const corkageFeeAddon = specialOptions.find(opt => 
+          opt.label && opt.label.toLowerCase().includes('corkage')
+        );
+        
+        if (value === 'no' && corkageFeeAddon) {
+          // Add corkage fee if not already in selectedAddons
+          setSelectedAddons(prev => {
+            const exists = prev.some(addon => addon.value === corkageFeeAddon.value);
+            if (!exists) {
+              return [...prev, corkageFeeAddon];
+            }
+            return prev;
+          });
+        } else if (value === 'yes' && corkageFeeAddon) {
+          // Remove corkage fee if it exists in selectedAddons
+          setSelectedAddons(prev => prev.filter(addon => addon.value !== corkageFeeAddon.value));
+        }
+      }
+      return;
+    }
+
     setFormData(prev => ({ ...prev, [name]: value }));
     setFieldErrors(prev => ({ ...prev, [name]: undefined }));
 
@@ -240,8 +333,6 @@ function ReservationFormStep2() {
 
 
   const chosenFacility = facilityOptions.find(o => o._id === formData.facilityName);
-  const isDormitory = formData.typeFacilities?.toLowerCase().includes('dormitory');
-  const isIndividual = step1?.type?.individual;
   const capacityOk = !chosenFacility || Number(chosenFacility.capacity) >= totalGuests;
   const capacityMsg =
     chosenFacility && !capacityOk
@@ -597,6 +688,40 @@ function ReservationFormStep2() {
                 </div>
               </div>
 
+              {!isDormitory && !isIndividual && (
+                <div className={styles.formGroup}>
+                  <label className={styles.label}>
+                    Do you want to avail the food included in your package?
+                  </label>
+                  <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginTop: 6 }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <input
+                        type="radio"
+                        name="includeFood"
+                        value="yes"
+                        checked={formData.includeFood === 'yes'}
+                        onChange={handleInputChange}
+                      />
+                      <span>Yes</span>
+                    </label>
+
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <input
+                        type="radio"
+                        name="includeFood"
+                        value="no"
+                        checked={formData.includeFood === 'no'}
+                        onChange={handleInputChange}
+                      />
+                      <span>No</span>
+                    </label>
+                  </div>
+                  {fieldErrors.includeFood && (
+                    <div className={styles.fieldError}>{fieldErrors.includeFood}</div>
+                  )}
+                </div>
+              )}
+
               <div className={styles.formGroup}>
                 <label className={styles.label}>Other Special Request or Services</label>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -635,42 +760,50 @@ function ReservationFormStep2() {
                   <div style={{ marginTop: 12 }}>
                     <div style={{ fontSize: '14px', marginBottom: 8, color: '#666' }}>Selected Add-ons:</div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                      {selectedAddons.map((addon) => (
-                        <div
-                          key={addon.value}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            backgroundColor: '#e8f4fd',
-                            border: '1px solid #b3d8f2',
-                            borderRadius: '16px',
-                            padding: '4px 12px',
-                            fontSize: '13px',
-                            gap: '6px'
-                          }}
-                        >
-                          <span>{addon.label}</span>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedAddons(prev => prev.filter(item => item.value !== addon.value));
-                            }}
+                      {selectedAddons.map((addon) => {
+                        const isCorkageFee = addon.label && addon.label.toLowerCase().includes('corkage');
+                        const cannotRemove = isCorkageFee && formData.includeFood === 'no';
+                        return (
+                          <div
+                            key={addon.value}
                             style={{
-                              background: 'none',
-                              border: 'none',
-                              color: '#666',
-                              cursor: 'pointer',
-                              fontSize: '16px',
-                              lineHeight: '1',
-                              padding: '0',
-                              marginLeft: '2px'
+                              display: 'flex',
+                              alignItems: 'center',
+                              backgroundColor: '#e8f4fd',
+                              border: '1px solid #b3d8f2',
+                              borderRadius: '16px',
+                              padding: '4px 12px',
+                              fontSize: '13px',
+                              gap: '6px'
                             }}
-                            title="Remove addon"
                           >
-                            ×
-                          </button>
-                        </div>
-                      ))}
+                            <span>{addon.label}</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (!cannotRemove) {
+                                  setSelectedAddons(prev => prev.filter(item => item.value !== addon.value));
+                                }
+                              }}
+                              disabled={cannotRemove}
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                color: cannotRemove ? '#999' : '#666',
+                                cursor: cannotRemove ? 'not-allowed' : 'pointer',
+                                fontSize: '16px',
+                                lineHeight: '1',
+                                padding: '0',
+                                marginLeft: '2px',
+                                opacity: cannotRemove ? 0.5 : 1
+                              }}
+                              title={cannotRemove ? 'Corkage fee cannot be removed when food package is not availed' : 'Remove addon'}
+                            >
+                              ×
+                            </button>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 )}
