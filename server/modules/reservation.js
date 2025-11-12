@@ -399,13 +399,24 @@ const reservationModule = {
                 }
             }
 
-            // Automatically confirm dormitory reservations for walk-ins (admin creating for guest)
-            // Automatically approve reservations created by superintendent
+            // For walk-in reservations (admin creating for guest) or reservations created by frontdesk/superintendent:
+            // - If arrival date is today → CONFIRMED
+            // - If arrival date is future → PENDING
+            // Otherwise, use default PENDING status
             let initialStatus = ReservationStatus.PENDING;
-            if (creatingForGuest && facilityDoc.facilityType === FacilityType.DORMITORY) {
-                initialStatus = ReservationStatus.CONFIRMED;
-            } else if (user && user.role === UserRole.SUPERINTENDENT) {
-                initialStatus = ReservationStatus.APPROVED;
+            const isWalkIn = creatingForGuest || (user && (user.role === UserRole.FRONTDESK || user.role === UserRole.SUPERINTENDENT));
+            
+            if (isWalkIn) {
+                const arrivalDate = normalizeDateOnly(dateOfArrival);
+                const today = normalizeDateOnly(new Date().toISOString().split('T')[0]);
+                
+                if (arrivalDate && today && arrivalDate.getTime() === today.getTime()) {
+                    // Arrival date is today → CONFIRMED
+                    initialStatus = ReservationStatus.CONFIRMED;
+                } else {
+                    // Arrival date is future → PENDING
+                    initialStatus = ReservationStatus.PENDING;
+                }
             }
 
             const { amount: totalEstimatedAmount, } = computeEstimate({
