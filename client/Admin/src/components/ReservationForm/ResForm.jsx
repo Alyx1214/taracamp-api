@@ -210,7 +210,7 @@ function ReservationForm() {
                       </label>
                     ))}
                   </div>
-                  <p className={styles.noteText}>Note: Individuals may reserve dorms, guest houses, and cottages only. Halls are for group bookings.</p>
+                  <p className={styles.noteText}>Note: Individuals may reserve dorms, guest houses, and cottages only. Conference Halls are for group bookings.</p>
                   {errors.type && <div id="type-error" className={styles.fieldError} role="alert">{errors.type}</div>}
                 </div>
               </div>
