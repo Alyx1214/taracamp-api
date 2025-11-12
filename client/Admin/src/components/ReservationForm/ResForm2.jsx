@@ -353,6 +353,25 @@ function ReservationFormStep2() {
       return;
     }
 
+    // Handle typeFacilities change - if Conference is selected and user is Individual, navigate back to change type
+    if (name === 'typeFacilities') {
+      const isConference = value.toLowerCase().includes('conference');
+      const isIndiv = step1?.type?.individual || false;
+      
+      if (isConference && isIndiv) {
+        // Navigate back to step 1 with a message to change type to Groups
+        setErr({ 
+          message: 'Conference facilities are only available for group bookings. Please go back and change your reservation type to "Groups".' 
+        });
+        // Don't update the value, keep it empty or previous value
+        return;
+      }
+      
+      setFormData(prev => ({ ...prev, [name]: value }));
+      setFieldErrors(prev => ({ ...prev, [name]: undefined }));
+      return;
+    }
+
     // Handle includeFood change - automatically add/remove corkage fee
     // Only process if question is visible (not dormitory and not individual)
     if (name === 'includeFood') {

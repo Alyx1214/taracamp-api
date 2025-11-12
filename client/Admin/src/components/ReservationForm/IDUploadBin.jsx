@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import styles from './ResForm3.module.css';
-import { ArrowLeft, UploadCloud } from 'lucide-react';
+import { UploadCloud } from 'lucide-react';
 
 // Configuration for different ID types
 const ID_TYPE_CONFIG = {
@@ -307,22 +307,25 @@ function IDUploadForm({ idType = 'pwd' }) {
       <div className={styles.reservationFormContainer}>
         <div className={styles.contentWrapper}>
           <div className={styles.headerSection}>
-            <button onClick={handleGoBack} className={styles.backButton}>
-              <ArrowLeft size={24} />
-            </button>
+            <span
+              className={styles["add-form-back"]}
+              onClick={handleGoBack}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && handleGoBack()}
+              aria-label="Go back"
+            >
+              &larr;
+            </span>
             <h1 className={styles.pageTitle}>{config.title}</h1>
           </div>
           <div className={styles.formCard}>
             <div className={styles.formTitle}>
               {config.formTitle}
-              <span className={styles.requiredAsterisk}>*</span>
+              <span className={styles.required}>*</span>
             </div>
             <div className={styles.formSubtitle}>
-              → Please upload a clear copy of your {config.subtitle} or{' '}
-              <a href={config.templateUrl} target="_blank" rel="noopener noreferrer" className={styles.letterLink}>
-                {config.linkText}
-              </a>{' '}
-              {config.description}
+              → Please upload a clear copy of your {config.subtitle}  {config.description}
             </div>
             <div className={styles.groupNote}>{config.note}</div>
             {isRequired && <div className={styles.groupNote}>{config.mandatoryNote}</div>}
@@ -431,4 +434,3 @@ export function SeniorCitizenReservationForm() {
 }
 
 export default IDUploadForm;
-

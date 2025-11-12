@@ -46,6 +46,21 @@ function ReservationForm() {
     if (location.state?.file !== undefined) prevFileRef.current = location.state.file;
   }, [location.state]);
 
+  // Auto-select "Groups" type if coming back from step2 with Conference facility selected
+  useEffect(() => {
+    const facilityType = prevStep2Ref.current?.typeFacilities;
+    const isConference = facilityType?.toLowerCase().includes('conference');
+    
+    if (isConference && !formData.type.groups) {
+      setFormData(prev => ({
+        ...prev,
+        type: { groups: true, individual: false }
+      }));
+      // Clear type error if it exists
+      setErrors(prev => ({ ...prev, type: undefined }));
+    }
+  }, [prevStep2Ref.current?.typeFacilities, formData.type.groups]);
+
   const hasCategory = useMemo(() => Object.values(formData.category || {}).some(Boolean), [formData.category]);
   const hasType = useMemo(() => Object.values(formData.type || {}).some(Boolean), [formData.type]);
 
@@ -197,20 +212,34 @@ function ReservationForm() {
                 <div className={styles.checkboxGroup}>
                   <label className={styles.label}>Type<span className={styles.requiredAsterisk}>*</span></label>
                   <div className={styles.checkboxRow}>
-                    {['groups','individual'].map(k => (
-                      <label className={styles.checkboxLabel} key={k}>
-                        <input
-                          type="checkbox"
-                          name={k}
-                          checked={formData.type[k]}
-                          onChange={() => handleCheckboxChange('type', k)}
-                          className={styles.checkbox}
-                        />
-                        {k.charAt(0).toUpperCase() + k.slice(1)}
-                      </label>
-                    ))}
+                    {['groups','individual'].map(k => {
+                      const facilityType = prevStep2Ref.current?.typeFacilities;
+                      const isConference = facilityType?.toLowerCase().includes('conference');
+                      const isDisabled = k === 'individual' && isConference;
+                      
+                      return (
+                        <label className={styles.checkboxLabel} key={k} style={{ opacity: isDisabled ? 0.5 : 1 }}>
+                          <input
+                            type="checkbox"
+                            name={k}
+                            checked={formData.type[k]}
+                            onChange={() => handleCheckboxChange('type', k)}
+                            className={styles.checkbox}
+                            disabled={isDisabled}
+                          />
+                          {k.charAt(0).toUpperCase() + k.slice(1)}
+                        </label>
+                      );
+                    })}
                   </div>
-                  <p className={styles.noteText}>Note: Individuals may reserve dorms, guest houses, and cottages only. Halls are for group bookings.</p>
+                  {(() => {
+                    const facilityType = prevStep2Ref.current?.typeFacilities;
+                    const isConference = facilityType?.toLowerCase().includes('conference');
+                    if (isConference) {
+                      return <p className={styles.noteText} style={{ color: '#0066cc' }}>Note: Conference facilities are only available for group bookings. "Groups" type has been automatically selected.</p>;
+                    }
+                    return <p className={styles.noteText}>Note: Individuals may reserve dorms, guest houses, and cottages only. Halls are for group bookings.</p>;
+                  })()}
                   {errors.type && <div id="type-error" className={styles.fieldError} role="alert">{errors.type}</div>}
                 </div>
               </div>
@@ -318,7 +347,7 @@ function ReservationForm() {
                   {errors.guestsAdult && <div className={styles.fieldError}>{errors.guestsAdult}</div>}
                 </div>
                 <div className={styles.formGroup}>
-                  <label className={styles.label} htmlFor="children">Children (6yrs old below)</label>
+                  <label className={styles.label} htmlFor="children">Children (6 below)</label>
                   <input
                     id="children"
                     type="number"
