@@ -22,9 +22,9 @@ export function searchAddons(params = {}) {
 
 export function createAddon({ name, price, unit }) {
   const body = {};
-  if (name !== undefined) body.name = name;
+  if (name !== undefined && name !== null && name !== '') body.name = name;
   if (price !== undefined && price !== null && price !== '') body.price = Number(price);
-  if (unit !== undefined) body.unit = unit;
+  if (unit !== undefined && unit !== null && unit !== '') body.unit = unit;
   return apiPost('/addons/create-addon', body);
 }
 

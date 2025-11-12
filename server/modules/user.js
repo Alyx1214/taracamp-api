@@ -81,7 +81,7 @@ const userModule = {
                 };
 
                 const result = await dbHelper.createWithTransaction('user', userData, session);
-                userCreated = result[0];
+                userCreated = result;
                 
                 if (!userCreated || !userCreated._id) {
                     throw new Error('Failed to create user - no ID returned');
@@ -601,7 +601,7 @@ const userModule = {
                 userData.password = hashedPassword;
 
                 const result = await dbHelper.createWithTransaction('user', userData, session);
-                createdUser = result[0];
+                createdUser = result;
                 
                 if (!createdUser || !createdUser._id) {
                     throw new Error('Failed to create user - no ID returned');

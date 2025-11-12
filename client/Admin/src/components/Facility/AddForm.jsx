@@ -15,7 +15,9 @@ const AddForm = () => {
 
   const [formData, setFormData] = useState({
     name: "",
+    price: "",
     rate: "",
+    ratePerPerson: "",
     baseRate: "",
     discountRate: "",
     unit: "",
@@ -76,7 +78,7 @@ const AddForm = () => {
       if (isSpecialService) {
         const res = await createAddon({
           name: formData.name,
-          price: formData.rate,
+          price: formData.price,
           unit: formData.unit,
         });
         setSuccess(res.message || "Service created successfully");
@@ -97,7 +99,7 @@ const AddForm = () => {
           payload.rate = formData.rate; // Rate per Excess Capacity
           payload.discountRate = formData.discountRate;
         } else if (facilityType === "Dormitory") {
-          payload.ratePerPerson = formData.rate;
+          payload.ratePerPerson = formData.ratePerPerson;
         }
         const res = await createFacility(payload);
         setSuccess(res.message || "Facility created successfully");
