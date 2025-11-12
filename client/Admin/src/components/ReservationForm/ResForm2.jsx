@@ -374,6 +374,14 @@ function ReservationFormStep2() {
     return () => clearTimeout(t);
   }, [formData.facilityName, formData.dateArrival, formData.dateDeparture, totalGuests, chosenFacility?.capacity, capacityOk, isEdit, reservationId]);
 
+  // Restrict individuals from selecting Conference facility type
+  useEffect(() => {
+    if (isIndividual && formData.typeFacilities === 'Conference') {
+      setFormData(prev => ({ ...prev, typeFacilities: '', facilityName: '' }));
+      setFacilityOptions([]);
+    }
+  }, [isIndividual, formData.typeFacilities]);
+
   // Restrict individuals to only "Lodging" service type
   useEffect(() => {
     if (isIndividual) {
@@ -535,10 +543,15 @@ function ReservationFormStep2() {
                     className={`${styles.input} ${fieldErrors.typeFacilities ? styles.inputError : ''}`}
                   >
                     <option value="">Select a facility type</option>
-                    <option value="Conference">Conference</option>
+                    {!isIndividual && <option value="Conference">Conference</option>}
                     <option value="Dormitory">Dormitory</option>
                     <option value="Cottage">Cottage</option>
                   </select>
+                  {isIndividual && (
+                    <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
+                      Individuals cannot select Conference facility type.
+                    </div>
+                  )}
                   {fieldErrors.typeFacilities && (
                     <div className={styles.fieldError}>{fieldErrors.typeFacilities}</div>
                   )}

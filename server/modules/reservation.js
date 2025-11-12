@@ -134,6 +134,16 @@ const reservationModule = {
                 return responseData;
             }
 
+            // Require at least 1 PWD guest when PWD category is selected
+            if (category === Category.PWDS) {
+                const pwds = parseInt(numberOfPwds) || 0;
+                if (pwds < 1) {
+                    responseData.status = Status.BAD_REQUEST;
+                    responseData.error = 'PWD category requires at least 1 PWD guest.';
+                    return responseData;
+                }
+            }
+
             if (!isValidDate(dateOfArrival) || !isValidDate(dateOfDeparture)) {
                 responseData.status = Status.BAD_REQUEST;
                 responseData.error = 'Invalid date format';
@@ -227,6 +237,13 @@ const reservationModule = {
             if (!facilityDoc) {
                 responseData.status = Status.BAD_REQUEST;
                 responseData.error = 'Selected facility does not exist';
+                return responseData;
+            }
+
+            // Individuals cannot select Conference facilities
+            if (guestType === GuestType.INDIVIDUAL && facilityDoc.facilityType === FacilityType.CONFERENCE) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Individuals cannot select Conference facility type. Please select Dormitory or Cottage instead.';
                 return responseData;
             }
 
