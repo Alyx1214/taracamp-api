@@ -433,4 +433,8 @@
     padding: 20px;
     padding-top: 0px;
   }
+
+  .formRow .formGroup {
+  margin-bottom: 10px;
+  }
 }
