@@ -235,9 +235,11 @@ function ReservationHistory() {
                         </div>
                       ))}
                       <div className={styles.amountSection}>
-                        <span className={styles.totalAmountLabel}>Total Estimated Amount</span>
-                        <span className={styles.totalAmountSeparator}>₱</span>
-                        <span className={styles.totalAmountValue}>{reservation.totalEstimatedAmount}</span>
+                        <div className={styles.amountValueContainer}>
+                          <span className={styles.totalAmountLabel}>Total Estimated Amount</span>
+                          <span className={styles.totalAmountSeparator}>₱</span>
+                          <span className={styles.totalAmountValue}>{reservation.totalEstimatedAmount}</span>
+                        </div>
                         <button
                           className={`${styles.confirmButton} ${reservation.confirmed ? styles.confirmedButton : ''}`}
                           onClick={() => handleConfirmNow(reservation._id)}

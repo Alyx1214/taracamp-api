@@ -394,9 +394,17 @@
         inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 
+.amountValueContainer {
+  display: flex;
+  align-items: center;
+  gap: 8px; 
+  flex-wrap: nowrap; 
+  justify-content: center; 
+  margin-bottom: 8px; 
+}
+
 @media (max-width: 992px) {
     .detailRow {
-    flex-wrap: wrap;        /* allow wrapping on smaller screens */
     gap: 8px;               /* spacing between label, separator, and value */
     }
     .detailLabel {
@@ -415,6 +423,19 @@
 
 /* Enhanced Responsive Adjustments */
 @media (max-width: 768px) {
+    .amountSection {
+        flex-direction: row; 
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        text-align: left;
+        padding: 16px;
+    }
+
+    .headerSection {
+        margin-top: 15px;
+    }
+
     .reservationHistoryContainer {
         padding-top: 60px;
         min-height: calc(100vh - 60px);
