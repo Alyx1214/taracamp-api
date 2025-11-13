@@ -16,25 +16,17 @@ export default function buildUserRouter(userSocketMap) {
     const result = await userModule.register(dbHelper, req.body);
     
     // Send verification email if registration was successful
-    // COMMENTED OUT - Email sending disabled (SMTP blocked on Render)
-    // if (result.status === Status.CREATED && result.verificationToken) {
-    //   const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-    //   const verificationUrl = `${frontendUrl}/verify-email?token=${result.verificationToken}&email=${encodeURIComponent(result.email)}`;
-    //   
-    //   const emailResult = await emailModule.sendVerificationEmail(result.email, verificationUrl, result.name);
-    //   if (emailResult.status !== Status.OK) {
-    //     console.error('Failed to send verification email:', emailResult.error);
-    //     // Don't fail registration if email fails, but log it
-    //   }
-    //   
-    //   // Remove sensitive data from response
-    //   delete result.verificationToken;
-    //   delete result.email;
-    //   delete result.name;
-    // }
-    
-    // Remove sensitive data from response (even if email is disabled)
-    if (result.verificationToken) {
+    if (result.status === Status.CREATED && result.verificationToken) {
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+      const verificationUrl = `${frontendUrl}/verify-email?token=${result.verificationToken}&email=${encodeURIComponent(result.email)}`;
+      
+      const emailResult = await emailModule.sendVerificationEmail(result.email, verificationUrl, result.name);
+      if (emailResult.status !== Status.OK) {
+        console.error('Failed to send verification email:', emailResult.error);
+        // Don't fail registration if email fails, but log it
+      }
+      
+      // Remove sensitive data from response
       delete result.verificationToken;
       delete result.email;
       delete result.name;
@@ -89,13 +81,8 @@ export default function buildUserRouter(userSocketMap) {
   }));
 
   r.post('/send-password-reset-verification-code', asyncHandler(async (req, res) => {
-    // COMMENTED OUT - Email sending disabled (SMTP blocked on Render)
-    // const response = await userModule.sendPasswordResetVerificationCode(dbHelper, emailModule, req.body);
-    // res.status(response.status).json(response);
-    res.status(503).json({ 
-      status: 503, 
-      error: 'Email service temporarily unavailable. Please contact support.' 
-    });
+    const response = await userModule.sendPasswordResetVerificationCode(dbHelper, emailModule, req.body);
+    res.status(response.status).json(response);
   }));
 
   r.post('/verify-password-reset-code', asyncHandler(async (req, res) => {
@@ -122,35 +109,21 @@ export default function buildUserRouter(userSocketMap) {
     const result = await userModule.resendVerificationEmail(dbHelper, req.body);
     
     // Send verification email if resend was successful
-    // COMMENTED OUT - Email sending disabled (SMTP blocked on Render)
-    // if (result.status === Status.OK && result.verificationToken) {
-    //   const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-    //   const verificationUrl = `${frontendUrl}/verify-email?token=${result.verificationToken}&email=${encodeURIComponent(result.email)}`;
-    //   
-    //   const emailResult = await emailModule.sendVerificationEmail(result.email, verificationUrl, result.name);
-    //   if (emailResult.status !== Status.OK) {
-    //     console.error('Failed to send verification email:', emailResult.error);
-    //     result.status = Status.INTERNAL_SERVER_ERROR;
-    //     result.error = 'Failed to send verification email';
-    //   }
-    //   
-    //   // Remove sensitive data from response
-    //   delete result.verificationToken;
-    //   delete result.email;
-    //   delete result.name;
-    // }
-    
-    // Remove sensitive data from response (even if email is disabled)
-    if (result.verificationToken) {
+    if (result.status === Status.OK && result.verificationToken) {
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+      const verificationUrl = `${frontendUrl}/verify-email?token=${result.verificationToken}&email=${encodeURIComponent(result.email)}`;
+      
+      const emailResult = await emailModule.sendVerificationEmail(result.email, verificationUrl, result.name);
+      if (emailResult.status !== Status.OK) {
+        console.error('Failed to send verification email:', emailResult.error);
+        result.status = Status.INTERNAL_SERVER_ERROR;
+        result.error = 'Failed to send verification email';
+      }
+      
+      // Remove sensitive data from response
       delete result.verificationToken;
       delete result.email;
       delete result.name;
-    }
-    
-    // Return error since email sending is disabled
-    if (result.status === Status.OK) {
-      result.status = 503;
-      result.error = 'Email service temporarily unavailable. Please contact support.';
     }
     
     res.status(result.status).json(result);

@@ -388,7 +388,7 @@
 
   .navbarNav.menuOpen {
     right: 0;
-    display: flex;
+    display: flex; 
   }
 
   .navList {
@@ -434,12 +434,11 @@
 
   .mobileUserIcons {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     align-items: center;
     width: 100%;
-    margin-top: 20px;
-    gap: 15px;
-    padding: 0 20px;
+    margin-top: 30px;
+    padding: 0 15%;
     box-sizing: border-box;
   }
 
@@ -527,6 +526,12 @@
 
   .msgItem,
   .msgItemRead {
+    width: 100%;
+  }
+
+  .preview {
+    position: inherit;
+    box-sizing: border-box;
     width: 100%;
   }
 }

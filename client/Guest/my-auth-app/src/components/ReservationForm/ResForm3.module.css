@@ -164,3 +164,14 @@
   color: #d32f2f;
   margin-left: 4px;
 }
+
+@media (max-width: 768px) {
+  .pageTitle {
+    font-size: 1.7em;
+  }
+
+  .uploadText {
+    padding: 10px;
+    text-align: center;
+  }
+}

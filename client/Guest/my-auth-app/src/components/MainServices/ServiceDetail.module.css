@@ -818,6 +818,14 @@
   .featuresGrid {
     grid-template-columns: repeat(2, 1fr);
   }
+
+  .reviewsHeader h3 {
+    font-size: 1.6rem;
+  }
+
+  .readAllReviews {
+    padding: 8px;
+  }
 }
 
 @media (max-width: 768px) {

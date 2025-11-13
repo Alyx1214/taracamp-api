@@ -30,16 +30,18 @@ function ResDetails({ onClose }) {
 
   // Helper function to render add-ons with label and indented items
   const renderAddOns = () => {
-    if (!selectedAddons || selectedAddons.length === 0) {
+    const currentSelectedAddons = step2?.selectedAddons || [];
+    if (!currentSelectedAddons || currentSelectedAddons.length === 0) {
       return <tr><td>Add-ons</td><td>:</td><td>₱ 0</td></tr>;
     }
     
     return (
       <>
         <tr><td>Add-ons</td><td>:</td><td></td></tr>
-        {selectedAddons.map((selectedAddon, index) => {
-          // Find the full add-on data by matching the value (ID)
-          const addonData = allAddons.find(addon => addon._id === selectedAddon.value || addon._id === selectedAddon._id);
+        {currentSelectedAddons.map((selectedAddon, index) => {
+          // Find the full add-on data by matching the value (ID) or _id
+          const addonId = selectedAddon.value || selectedAddon._id;
+          const addonData = allAddons.find(addon => addon._id === addonId);
           const price = addonData?.price || 0;
           
           return (
@@ -76,7 +78,13 @@ function ResDetails({ onClose }) {
     const p = parseInt(step1?.guests?.pwds || 0, 10) || 0;
     const s = parseInt(step1?.guests?.senior || 0, 10) || 0;
     const fid = typeof step2?.facilityIdFromList === 'string' ? step2.facilityIdFromList : '';
-    const addonIds = selectedAddons.map(addon => addon.value || addon._id).filter(Boolean);
+    
+    // Extract selectedAddons from step2 inside the effect to ensure it's always fresh
+    const currentSelectedAddons = step2?.selectedAddons || [];
+    // Map addon IDs, handling both value and _id properties, and filter out undefined/null values
+    const addonIds = currentSelectedAddons
+      .map(addon => addon.value || addon._id)
+      .filter(Boolean);
 
     let abort = false;
     (async () => {
@@ -164,7 +172,8 @@ function ResDetails({ onClose }) {
       if (numberOfPwds > 0 && pwdFiles.length === 0) throw new Error('At least one PWD ID file is required when there are PWD guests.');
 
       const facilityForPost = typeof step2?.facilityIdFromList === 'string' ? step2.facilityIdFromList : '';
-      const addonIds = selectedAddons.map(addon => addon.value || addon._id).filter(Boolean);
+      const currentSelectedAddons = step2?.selectedAddons || [];
+      const addonIds = currentSelectedAddons.map(addon => addon.value || addon._id).filter(Boolean);
       const apiPayload = { ...payload, facility: facilityForPost };
       
       // Include addons in payload if any are selected

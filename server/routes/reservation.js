@@ -3,10 +3,11 @@ import multer from 'multer';
 import asyncHandler from '../middleware/asyncHandler.js';
 import { authenticateJWT } from '../middleware/auth.js';
 import { uploadLetter, uploadNonavailabilityCert, uploadSeniorCitizenId } from '../middleware/uploads.js';
-import { ReservationStatus, UserRole } from '../constants.js';
+import { ReservationStatus, UserRole, Status } from '../constants.js';
 import dbHelper from '../modules/dbHelper.js';
 import reservationModule from '../modules/reservation.js';
 import notificationModule from '../modules/notification.js';
+import emailModule from '../modules/email.js';
 import jwtHelper from '../modules/jwtHelper.js';
 
 export default function buildReservationRouter(userSocketMap) {
@@ -126,6 +127,71 @@ export default function buildReservationRouter(userSocketMap) {
         },
         userSocketMap
       ).catch(e => console.warn('Notify failed:', e?.message));
+
+      // Send reservation confirmation email
+      try {
+        // Determine recipient email - use guestEmail if it's a guest reservation, otherwise get user's email
+        let recipientEmail = null;
+        const creatingForGuest = typeof data.guestEmail === 'string' && data.guestEmail.trim().length > 0;
+        
+        if (creatingForGuest) {
+          recipientEmail = data.guestEmail.trim();
+        } else if (req.user && req.user.userId) {
+          // Fetch user's email from database
+          const user = await dbHelper.findOne('user', { _id: req.user.userId }, { 
+            projection: { email: 1 } 
+          });
+          recipientEmail = user?.email;
+        }
+
+        if (recipientEmail) {
+          // Fetch facility name
+          const facilityId = data.facility;
+          let facilityName = 'N/A';
+          if (facilityId) {
+            const facility = await dbHelper.findOne('facility', { _id: facilityId }, { 
+              projection: { name: 1 } 
+            });
+            facilityName = facility?.name || 'N/A';
+          }
+
+          // Prepare reservation details for email
+          // Note: response.reservation.numberOfGuests has individual counts deleted, so we use data directly
+          const numberOfAdults = parseInt(data.numberOfAdults) || 0;
+          const numberOfChildren = parseInt(data.numberOfChildren) || 0;
+          const numberOfPwds = parseInt(data.numberOfPwds) || 0;
+          const numberOfSeniorCitizens = parseInt(data.numberOfSeniorCitizens) || 0;
+          const totalGuests = numberOfAdults + numberOfChildren + numberOfPwds + numberOfSeniorCitizens;
+          
+          const reservationDetails = {
+            reservationCode: response.reservation?.reservationCode || 'N/A',
+            guestName: data.guestName || 'Guest',
+            facilityName: facilityName,
+            dateOfArrival: data.dateOfArrival,
+            dateOfDeparture: data.dateOfDeparture,
+            timeOfArrival: data.timeOfArrival,
+            numberOfGuests: {
+              total: totalGuests,
+              adult: numberOfAdults,
+              children: numberOfChildren,
+              pwds: numberOfPwds,
+              seniorCitizen: numberOfSeniorCitizens,
+            },
+            totalEstimatedAmount: response.reservation?.totalEstimatedAmount || 0,
+            serviceType: data.serviceType || 'N/A',
+            category: data.category || 'N/A',
+            status: response.reservation?.status || 'Pending',
+          };
+
+          // Send email (don't block the response if email fails)
+          emailModule.sendReservationConfirmationEmail(recipientEmail, reservationDetails)
+            .catch(() => {
+              // Silently handle email errors - don't fail reservation creation
+            });
+        }
+      } catch (error) {
+        // Silently handle email preparation errors - don't fail reservation creation
+      }
     }
   }));
 

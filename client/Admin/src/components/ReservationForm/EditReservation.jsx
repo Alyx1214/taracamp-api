@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getReservationById } from '../../apis/reservationApi';
+import { getAllAddons } from '../../apis/addonsApi';
 
 export default function EditReservation() {
   const { id } = useParams();
@@ -77,14 +78,50 @@ export default function EditReservation() {
         }
 
         // Map addons if they exist
+        // First, fetch all addons to get their names
+        let allAddonsList = [];
+        try {
+          const addonsResponse = await getAllAddons();
+          if (addonsResponse?.addons && Array.isArray(addonsResponse.addons)) {
+            allAddonsList = addonsResponse.addons;
+          }
+        } catch (addonError) {
+          console.warn('Failed to fetch addons for mapping:', addonError);
+        }
+
         const selectedAddons = [];
         if (reservation.addOns && Array.isArray(reservation.addOns)) {
           reservation.addOns.forEach(addon => {
-            if (addon._id || addon.id) {
+            // Handle case where addon is an ObjectId string
+            let addonId = null;
+            let addonName = 'Unknown';
+            
+            if (typeof addon === 'string') {
+              // addon is an ObjectId string
+              addonId = addon;
+              // Find the addon name from the fetched list
+              const addonData = allAddonsList.find(a => String(a._id) === String(addonId));
+              if (addonData) {
+                addonName = addonData.name || 'Unknown';
+              }
+            } else if (addon && (addon._id || addon.id)) {
+              // addon is an object with _id or id
+              addonId = String(addon._id || addon.id);
+              addonName = addon.name || 'Unknown';
+              // If name is not available, try to find it from the fetched list
+              if (addonName === 'Unknown') {
+                const addonData = allAddonsList.find(a => String(a._id) === String(addonId));
+                if (addonData) {
+                  addonName = addonData.name || 'Unknown';
+                }
+              }
+            }
+            
+            if (addonId) {
               selectedAddons.push({
-                value: String(addon._id || addon.id),
-                label: addon.name || 'Unknown',
-                _id: String(addon._id || addon.id),
+                value: addonId,
+                label: addonName,
+                _id: addonId,
               });
             }
           });
@@ -108,11 +145,15 @@ export default function EditReservation() {
 
         // Prepare file objects for letter of intent
         let letterOfIntentFile = null;
-        if (reservation.letterOfIntentFile) {
+        // Check if letter of intent file exists (the API returns a signed URL)
+        // The URL can be null if no file exists, or a string URL if it does
+        const loiFileUrl = reservation.letterOfIntentFile;
+        
+        if (loiFileUrl && typeof loiFileUrl === 'string' && loiFileUrl.trim() !== '' && loiFileUrl !== 'null') {
           // Create a file-like object from the URL for display
           // The URL can be used to display/download the existing file
           letterOfIntentFile = {
-            url: reservation.letterOfIntentFile,
+            url: loiFileUrl,
             name: 'Letter of Intent',
             isExisting: true,
           };

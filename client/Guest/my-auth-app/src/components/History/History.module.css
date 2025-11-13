@@ -312,13 +312,18 @@ main {
   .heroSection {
     height: 50vh;
   }
+
+  .historyContentSection {
+    margin-top: 0px;
+  }
   
   .evolutionSection {
     padding: 60px 20px;
   }
-  
+
   .timelineYear {
     font-size: 1.8em;
+    margin-top: 0px;
   }
   
   .timelineDescription {

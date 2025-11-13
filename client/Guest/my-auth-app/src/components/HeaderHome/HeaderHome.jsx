@@ -565,10 +565,7 @@ function HeaderHome() {
                 className={`${styles.iconButton} ${isMobile ? styles.mobileNavButton : ''}`}
                 onClick={handleNotificationsClick}
               >
-                {isMobile ? (
-                  'NOTIFICATIONS'
-                ) : (
-                  <>
+                 <>
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none"
                       stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
                       className="feather feather-bell">
@@ -577,7 +574,6 @@ function HeaderHome() {
                     </svg>
                     {unreadCount > 0 && <span className={styles.badge}>{unreadCount}</span>}
                   </>
-                )}
               </button>
               {isMobile && isNotifOpen && (
                 <div className={styles.fullscreenOverlay}>
@@ -597,18 +593,14 @@ function HeaderHome() {
                 className={`${styles.iconButton} ${isMobile ? styles.mobileNavButton : ''}`}
                 onClick={handleMessagesClick}
               >
-                {isMobile ? (
-                  'MESSAGES'
-                ) : (
-                  <>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none"
-                      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-                      className="feather feather-message-square">
-                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 1 1 2-2h14a2 2 0 0 1 2 2z"></path>
-                    </svg>
-                    {msgUnreadCount > 0 && <span className={styles.badge}>{msgUnreadCount}</span>}
-                  </>
-                )}
+                <>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none"
+                    stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                    className="feather feather-message-square">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 1 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                  </svg>
+                  {msgUnreadCount > 0 && <span className={styles.badge}>{msgUnreadCount}</span>}
+                </>
               </button>
               {isMobile && isMsgOpen && (
                 <div className={styles.fullscreenOverlay} role="dialog" aria-label="Messages">
@@ -696,22 +688,23 @@ function HeaderHome() {
                 className={`${styles.iconButton} ${isMobile ? styles.mobileNavButton : ''}`}
                 onClick={handleProfileClick}
               >
-                {isMobile ? (
-                  'ACCOUNT'
-                ) : (
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none"
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none"
                     stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
                     className="feather feather-user">
                     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
                     <circle cx="12" cy="7" r="4"></circle>
-                  </svg>
-                )}
+                </svg>
               </button>
-              {isAccountMenuOpen && (
-                <div className={styles.preview}>
-                  <button className={styles.dropdownItem} onClick={handleReservationClick}>Reservations</button>
-                  <button className={styles.dropdownItem} onClick={handleTransactionsClick}>Transactions</button>
-                  <button className={styles.dropdownItem} onClick={handleLogoutClick}>Log out</button>
+              {isMobile && isAccountMenuOpen && (
+                <div className={styles.fullscreenOverlay}>
+                  <div className={styles.fullscreenContent}>
+                    <div className={styles.preview}>
+                      <button className={styles.dropdownItem} onClick={handleReservationClick}>Reservations</button>
+                      <button className={styles.dropdownItem} onClick={handleTransactionsClick}>Transactions</button>
+                      <button className={styles.dropdownItem} onClick={handleLogoutClick}>Log out</button>
+                      <button className={styles.dropdownItem} onClick={() => setIsAccountMenuOpen(false)}>Close</button>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>

@@ -22,7 +22,7 @@
 
 @media (max-width: 992px) {
   .mainContent {
-    padding-top: 90px;
+    padding-top: 70px;
   }
   .contentWrapper {
     margin-top: 30px;
@@ -30,9 +30,6 @@
 }
 
 @media (max-width: 576px) {
-  .mainContent {
-    padding-top: 80px;
-  }
   .contentWrapper {
     margin-top: 20px;
     padding: 15px;

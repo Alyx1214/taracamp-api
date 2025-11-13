@@ -1,7 +1,4 @@
-// In development, use empty string to leverage Vite proxy
-// In production, use the full API URL
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 
-  (import.meta.env.DEV ? '' : 'https://taracamp-api.onrender.com');
+const API_BASE = 'https://taracamp-api.azurewebsites.net';
 const API_V1_PREFIX = '/api/v1';
 const ACCESS_KEY = 'accessToken';
 const REFRESH_KEY = 'refreshToken';
