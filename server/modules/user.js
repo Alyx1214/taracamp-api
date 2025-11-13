@@ -59,6 +59,11 @@ const userModule = {
             const name = `${firstName.trim()} ${lastName.trim()}`.replace(/\s+/g, ' ');
             const hashedPassword = await hashPassword(password);
 
+            // Generate email verification token
+            const verificationToken = crypto.randomBytes(32).toString('hex');
+            const verificationTokenHash = hashString(verificationToken);
+            const verificationTokenExpiry = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
+
             let userCreated;
             await dbHelper.withTransaction(async (session) => {
                 const emailExists = await dbHelper.findOneWithTransaction('user', 
@@ -76,6 +81,9 @@ const userModule = {
                     name,
                     password: hashedPassword,
                     role: UserRole.GUEST,
+                    emailVerified: false,
+                    verificationTokenHash,
+                    verificationTokenExpiry,
                     createdAt: new Date(),
                     lastLoggedIn: null,
                 };
@@ -90,9 +98,12 @@ const userModule = {
 
             responseData.status = Status.CREATED;
             responseData.error = null;
-            responseData.message = 'User registered successfully';
+            responseData.message = 'User registered successfully. Please check your email to verify your account.';
             responseData.userId = userCreated._id.toString();
             responseData.role = userCreated.role;
+            responseData.verificationToken = verificationToken; // Return token for route to send email
+            responseData.email = normalizedEmail;
+            responseData.name = name;
 
         } catch (error) {
             console.error('Error registering user:', error);
@@ -150,7 +161,7 @@ const userModule = {
             }
 
             const userObject = await dbHelper.findOne('user', { email: normalizedEmail }, { 
-                projection: { password: 1, email: 1, role: 1, _id: 1, name: 1 } 
+                projection: { password: 1, email: 1, role: 1, _id: 1, name: 1, emailVerified: 1 } 
             });
             
             if (!userObject || !userObject.password) {
@@ -165,6 +176,14 @@ const userModule = {
                 responseData.error = 'Invalid credentials';
                 return responseData;
             }
+
+            // Check if email is verified
+            // COMMENTED OUT - Email verification check disabled (SMTP blocked on Render)
+            // if (userObject.emailVerified !== true) {
+            //     responseData.status = Status.FORBIDDEN;
+            //     responseData.error = 'Please verify your email address before logging in. Check your inbox for the verification link.';
+            //     return responseData;
+            // }
 
             const jti = uuidv4();
             const userId = userObject._id.toString();
@@ -355,6 +374,7 @@ const userModule = {
             responseData.message = 'User logged in with Google successfully';
             responseData.userId = userId;
             responseData.role = user.role;
+            responseData.name = user.name || null;
             responseData.accessToken = accessToken;
             responseData.refreshToken = refreshToken;
             responseData.jti = jti;
@@ -482,6 +502,7 @@ const userModule = {
             responseData.message = 'User logged in with Facebook successfully';
             responseData.userId = userId;
             responseData.role = user.role;
+            responseData.name = user.name || null;
             responseData.accessToken = accessToken;
             responseData.refreshToken = refreshToken;
             responseData.jti = jti;
@@ -1317,6 +1338,166 @@ const userModule = {
             responseData.status = Status.INTERNAL_SERVER_ERROR;
             responseData.error = 'Error on verifying password reset code';
         }
+        return responseData;
+    },
+
+    /**
+     * Verifies a user's email address using a verification token.
+     * @param {Object} dbHelper - The database helper for database operations.
+     * @param {Object} data - The data object containing the email and token fields.
+     * @returns {Object} Response data with status, error, and message.
+     */
+    verifyEmail: async (dbHelper, data) => {
+        const responseData = {
+            status: Status.INTERNAL_SERVER_ERROR,
+            error: 'Error on verifying email',
+        };
+
+        try {
+            const { email, token } = data;
+
+            if (!isPresent(email) || !isPresent(token)) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Missing required fields';
+                return responseData;
+            }
+
+            const normalizedEmail = email.toLowerCase().trim();
+            
+            if (!isValidEmail(normalizedEmail)) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Invalid email address';
+                return responseData;
+            }
+
+            const user = await dbHelper.findOne('user', { email: normalizedEmail }, {
+                projection: { _id: 1, email: 1, emailVerified: 1, verificationTokenHash: 1, verificationTokenExpiry: 1 }
+            });
+
+            if (!user) {
+                responseData.status = Status.NOT_FOUND;
+                responseData.error = 'User not found';
+                return responseData;
+            }
+
+            if (user.emailVerified === true) {
+                responseData.status = Status.OK;
+                responseData.error = null;
+                responseData.message = 'Email is already verified';
+                return responseData;
+            }
+
+            if (!user.verificationTokenHash || !user.verificationTokenExpiry) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'No verification token found. Please request a new verification email.';
+                return responseData;
+            }
+
+            if (Date.now() > user.verificationTokenExpiry) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Verification token has expired. Please request a new verification email.';
+                return responseData;
+            }
+
+            const tokenHash = hashString(token);
+            if (user.verificationTokenHash !== tokenHash) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Invalid verification token';
+                return responseData;
+            }
+
+            await dbHelper.updateOne('user', { email: normalizedEmail }, {
+                emailVerified: true,
+                verificationTokenHash: null,
+                verificationTokenExpiry: null,
+                updatedAt: new Date(),
+            });
+
+            responseData.status = Status.OK;
+            responseData.error = null;
+            responseData.message = 'Email verified successfully';
+
+        } catch (error) {
+            console.error('Error on verifying email:', error);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Error on verifying email';
+        }
+
+        return responseData;
+    },
+
+    /**
+     * Resends a verification email to the user.
+     * @param {Object} dbHelper - The database helper for database operations.
+     * @param {Object} data - The data object containing the email field.
+     * @returns {Object} Response data with status, error, message, and verification token.
+     */
+    resendVerificationEmail: async (dbHelper, data) => {
+        const responseData = {
+            status: Status.INTERNAL_SERVER_ERROR,
+            error: 'Error on resending verification email',
+        };
+
+        try {
+            const { email } = data;
+
+            if (!isPresent(email)) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Email is required';
+                return responseData;
+            }
+
+            const normalizedEmail = email.toLowerCase().trim();
+            
+            if (!isValidEmail(normalizedEmail)) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Invalid email address';
+                return responseData;
+            }
+
+            const user = await dbHelper.findOne('user', { email: normalizedEmail }, {
+                projection: { _id: 1, email: 1, name: 1, emailVerified: 1 }
+            });
+
+            if (!user) {
+                // Don't reveal if email exists for security
+                responseData.status = Status.OK;
+                responseData.error = null;
+                responseData.message = 'If your email is registered, a verification email has been sent.';
+                return responseData;
+            }
+
+            if (user.emailVerified === true) {
+                responseData.status = Status.OK;
+                responseData.error = null;
+                responseData.message = 'Email is already verified';
+                return responseData;
+            }
+
+            // Generate new verification token
+            const verificationToken = crypto.randomBytes(32).toString('hex');
+            const verificationTokenHash = hashString(verificationToken);
+            const verificationTokenExpiry = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
+
+            await dbHelper.updateOne('user', { email: normalizedEmail }, {
+                verificationTokenHash,
+                verificationTokenExpiry,
+                updatedAt: new Date(),
+            });
+
+            responseData.status = Status.OK;
+            responseData.error = null;
+            responseData.message = 'Verification email sent successfully';
+            responseData.verificationToken = verificationToken; // Return token for route to send email
+            responseData.email = normalizedEmail;
+            responseData.name = user.name || 'User';
+
+        } catch (error) {
+            console.error('Error on resending verification email:', error);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Error on resending verification email';
+        }
+
         return responseData;
     },
 
