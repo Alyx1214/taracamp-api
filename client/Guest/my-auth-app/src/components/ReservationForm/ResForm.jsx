@@ -127,7 +127,30 @@ function ReservationForm() {
 
   const handleGuestChange = (e) => {
     const { name, value } = e.target;
-    const clean = value === '' ? '' : clampNonNegativeInt(value);
+    let clean = value === '' ? '' : clampNonNegativeInt(value);
+    
+    // If facility has a capacity, prevent total from exceeding it
+    if (facility?.capacity && clean !== '') {
+      const currentValue = parseInt(clean, 10);
+      if (Number.isFinite(currentValue)) {
+        // Calculate total of all other guest fields (excluding the one being changed)
+        const otherTotals = Object.entries(formData.guests)
+          .filter(([key]) => key !== name)
+          .reduce((sum, [, val]) => {
+            const num = parseInt(val || '0', 10);
+            return sum + (Number.isFinite(num) ? num : 0);
+          }, 0);
+        
+        // Calculate maximum allowed value for this field
+        const maxAllowed = facility.capacity - otherTotals;
+        
+        // Clamp the value to not exceed capacity
+        if (currentValue > maxAllowed) {
+          clean = Math.max(0, maxAllowed);
+        }
+      }
+    }
+    
     setFormData(prev => ({ ...prev, guests: { ...prev.guests, [name]: clean } }));
     const guestErrKey = name === 'adult' ? 'guestsAdult' : name === 'children' ? 'guestsChildren' : name === 'pwds' ? 'guestsPwds' : 'guestsSenior';
     // Clear type error when guest count changes since validation depends on both type and guest count
