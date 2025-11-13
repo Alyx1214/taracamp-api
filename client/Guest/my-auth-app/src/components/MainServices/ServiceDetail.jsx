@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import styles from './ServiceDetail.module.css';
 import placeholderImage from '../../assets/conference.jpg';
@@ -71,8 +71,12 @@ function MainServicesServiceDetail() {
   const [isReviewsOpen, setIsReviewsOpen] = useState(false);
   const navigate = useNavigate();
   const { isLoggedIn } = useAuth();
+  const hasValidatedDatesRef = useRef(false);
 
   useEffect(() => {
+    // Reset validation ref when facility ID changes
+    hasValidatedDatesRef.current = false;
+
     const fetchFacilityData = async () => {
       if (!id) {
         console.error('No facility ID provided in route params');
@@ -176,6 +180,113 @@ function MainServicesServiceDetail() {
       }
     }
   }, [location.state]);
+
+  // Validate and correct dates from localStorage against available dates
+  useEffect(() => {
+    // Only validate once when availableDates first loads, and only if no preselected dates from navigation
+    if (!availableDates || availableDates.length === 0 || location.state?.preselectedDates || hasValidatedDatesRef.current) {
+      return;
+    }
+
+    // Mark as validated to prevent re-running
+    hasValidatedDatesRef.current = true;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Helper to find next available date
+    const findNextAvailableDate = (startDate) => {
+      const availableSet = new Set(availableDates.filter(Boolean));
+      const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+      
+      // Look for available date starting from the requested date, up to 6 months ahead
+      const endDate = new Date(today);
+      endDate.setMonth(endDate.getMonth() + 6);
+      
+      for (let d = new Date(start); d <= endDate; d.setDate(d.getDate() + 1)) {
+        const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        if (availableSet.has(dateStr) && d >= today) {
+          return dateStr;
+        }
+      }
+      return null;
+    };
+
+    // Get dates from localStorage (set by Controls component) to validate
+    const storedCheckIn = localStorage.getItem('selectedCheckInDate');
+    const storedCheckOut = localStorage.getItem('selectedCheckOutDate');
+
+    let correctedArrival = null;
+    let correctedDeparture = null;
+
+    // Check and correct arrival date from localStorage
+    if (storedCheckIn) {
+      const arrivalDateStr = storedCheckIn.includes('T') 
+        ? storedCheckIn.split('T')[0] 
+        : storedCheckIn;
+      
+      if (!availableDates.includes(arrivalDateStr)) {
+        const nextAvailable = findNextAvailableDate(arrivalDateStr);
+        if (nextAvailable) {
+          correctedArrival = nextAvailable;
+          localStorage.setItem('selectedCheckInDate', nextAvailable);
+        }
+      } else {
+        correctedArrival = arrivalDateStr;
+      }
+    }
+
+    // Check and correct departure date (only if we have a valid arrival)
+    if (storedCheckOut && (correctedArrival || storedCheckIn)) {
+      const departureDateStr = storedCheckOut.includes('T') 
+        ? storedCheckOut.split('T')[0] 
+        : storedCheckOut;
+      const arrivalDateStr = correctedArrival || (storedCheckIn.includes('T') ? storedCheckIn.split('T')[0] : storedCheckIn);
+      
+      const arrival = new Date(arrivalDateStr);
+      const departure = new Date(departureDateStr);
+      
+      // Check if departure is unavailable or invalid (before/equal to arrival)
+      if (!availableDates.includes(departureDateStr) || departure <= arrival) {
+        const nextAvailable = findNextAvailableDate(
+          new Date(arrival.getTime() + 24 * 60 * 60 * 1000) // Start from day after arrival
+        );
+        if (nextAvailable) {
+          correctedDeparture = nextAvailable;
+          localStorage.setItem('selectedCheckOutDate', nextAvailable);
+        } else {
+          // If no available departure date found, clear it
+          localStorage.removeItem('selectedCheckOutDate');
+        }
+      } else {
+        correctedDeparture = departureDateStr;
+      }
+    }
+
+    // Update state with corrected dates if they were changed
+    if (correctedArrival && correctedArrival !== storedCheckIn) {
+      const a = new Date(correctedArrival);
+      const aFormatted = `${a.getDate()} ${a.toLocaleString('default', { month: 'short' })} ${a.getFullYear()}`;
+      const aDay = a.toLocaleString('default', { weekday: 'long' });
+      setSelectedArrivalDate(correctedArrival);
+      setSelectedDate(`${aFormatted} - ${aDay}`);
+    }
+
+    if (correctedDeparture !== null) {
+      if (correctedDeparture && correctedDeparture !== storedCheckOut) {
+        const d = new Date(correctedDeparture);
+        const dFormatted = `${d.getDate()} ${d.toLocaleString('default', { month: 'short' })} ${d.getFullYear()}`;
+        const dDay = d.toLocaleString('default', { weekday: 'long' });
+        setSelectedDepartureDate(correctedDeparture);
+        setSelectedDepartureDateDisplay(`${dFormatted} - ${dDay}`);
+      } else if (!correctedDeparture && storedCheckOut) {
+        // Departure was cleared because no available date found
+        setSelectedDepartureDate('');
+        setSelectedDepartureDateDisplay(null);
+      }
+    }
+  }, [availableDates, location.state?.preselectedDates]);
 
   useEffect(() => {
     const fetchReviews = async () => {
