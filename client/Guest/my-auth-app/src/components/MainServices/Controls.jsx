@@ -4,12 +4,14 @@ import styles from './Controls.module.css';
 
 const Controls = ({ facilityType = 'All', onApplyFilters, sharedFilters, updateSharedFilters }) => {
   const today = new Date();
-  const tomorrow = new Date();
-  tomorrow.setDate(today.getDate() + 1);
+  const defaultCheckIn = new Date();
+  defaultCheckIn.setMonth(today.getMonth() + 2);
+  const defaultCheckOut = new Date(defaultCheckIn);
+  defaultCheckOut.setDate(defaultCheckIn.getDate() + 1);
 
   // Use shared state if available, otherwise fall back to local state
-  const [checkInDate, setCheckInDate] = useState(sharedFilters?.checkInDate || today);
-  const [checkOutDate, setCheckOutDate] = useState(sharedFilters?.checkOutDate || tomorrow);
+  const [checkInDate, setCheckInDate] = useState(sharedFilters?.checkInDate || defaultCheckIn);
+  const [checkOutDate, setCheckOutDate] = useState(sharedFilters?.checkOutDate || defaultCheckOut);
   const [adults, setAdults] = useState(sharedFilters?.adults || 1);
   const [children, setChildren] = useState(sharedFilters?.children || 0);
   const [showCheckInCalendar, setShowCheckInCalendar] = useState(false);

@@ -33,7 +33,7 @@ const Sidebar = ({ isOpen, onClose }) => {
 
   // Map allowed nav keys per role
   const roleAllowedKeys = {
-    'CRMS TEAM': new Set(["dashboard", "facilities", "reservations", "checkin"]),
+    'CRMS TEAM': new Set(["dashboard", "facilities", "reservations", "checkin", "messages"]),
     'ACCOUNTING': new Set(["dashboard", "transactions"]),
     'FRONTDESK': new Set(["dashboard", "facilities", "reservations", "transactions", "checkin", "messages"]),
   };

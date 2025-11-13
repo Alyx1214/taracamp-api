@@ -454,6 +454,7 @@ const reservationModule = {
                 category,
                 dateOfArrival,
                 dateOfDeparture,
+                timeOfArrival,
             });
 
             if (!Number.isFinite(totalEstimatedAmount)) {
@@ -1467,13 +1468,14 @@ const reservationModule = {
             if (isPresent(paymentMethod)) {
                 // Map frontend payment method values to database values
                 const paymentMethodMap = {
-                    'DBP': 'bank_transfer',
+                    'DBP': 'dbp',
                     'GCash': 'gcash',
                     'GrabPay': 'grab_pay',
                     'gcash': 'gcash',
                     'grab_pay': 'grab_pay',
                     'card': 'card',
                     'paymaya': 'paymaya',
+                    'dbp': 'dbp',
                 };
                 const dbPaymentMethod = paymentMethodMap[paymentMethod] || paymentMethod;
                 
@@ -2155,6 +2157,7 @@ const reservationModule = {
                 category,
                 dateOfArrival: params.dateOfArrival,
                 dateOfDeparture: params.dateOfDeparture,
+                timeOfArrival: params.timeOfArrival,
             });
 
 
@@ -2708,6 +2711,7 @@ const reservationModule = {
             const finalCategory = category !== undefined ? category : existingReservation.category;
             const finalDateOfArrival = dateOfArrival !== undefined ? normalizeDateOnly(dateOfArrival) : existingReservation.dateOfArrival;
             const finalDateOfDeparture = dateOfDeparture !== undefined ? normalizeDateOnly(dateOfDeparture) : existingReservation.dateOfDeparture;
+            const finalTimeOfArrival = timeOfArrival !== undefined ? timeOfArrival : existingReservation.timeOfArrival;
 
             const { amount: totalEstimatedAmount } = computeEstimate({
                 facilityDoc,
@@ -2720,6 +2724,7 @@ const reservationModule = {
                 category: finalCategory,
                 dateOfArrival: finalDateOfArrival,
                 dateOfDeparture: finalDateOfDeparture,
+                timeOfArrival: finalTimeOfArrival,
             });
 
             if (!Number.isFinite(totalEstimatedAmount)) {

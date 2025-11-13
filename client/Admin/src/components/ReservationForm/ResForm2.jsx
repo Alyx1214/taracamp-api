@@ -214,14 +214,23 @@ function ReservationFormStep2() {
   // Allow frontdesk and superintendent to select today's date, others must select tomorrow or later
   const minArrival = useMemo(() => {
     const isFrontdeskOrSuperintendent = userRole === 'FRONTDESK' || userRole === 'SUPERINTENDENT';
+    
+    // Get today's date in local timezone (YYYY-MM-DD format)
+    const getLocalDateString = (date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+    
     if (isFrontdeskOrSuperintendent) {
       // Allow today's date
-      return new Date().toISOString().slice(0, 10);
+      return getLocalDateString(new Date());
     } else {
       // Others must select tomorrow or later
       const d = new Date();
       d.setDate(d.getDate() + 1);
-      return d.toISOString().slice(0, 10);
+      return getLocalDateString(d);
     }
   }, [userRole]);
 
