@@ -51,7 +51,7 @@ function Transactions() {
 
       if (!intent?.id) throw new Error('Failed to create payment intent');
 
-      // 2) Create Payment Method (redirect type for gcash and paymaya)
+      // 2) Create Payment Method (redirect type for gcash, paymaya, grab_pay, and dbp)
       const pmRes = await createPaymentMethod({ type: channel });
       const pm = pmRes?.paymentMethod || pmRes?.data?.paymentMethod || {};
       if (!pm?.id) throw new Error('Failed to create payment method');
@@ -312,6 +312,18 @@ function Transactions() {
                     >
                       <img
                         src="https://fameplus.com/uploads/_export_enablers/1661479316374_WeBuildPossibilitieslogo-ChristineRemando.jpg"
+                        alt="PayMaya"
+                        className={styles.channelLogo}
+                      />
+                    </button>
+                    <button
+                      className={styles.channelButton}
+                      disabled={!reservationId || startingCheckout || !!amountError || !amount}
+                      onClick={() => startPaymongoCheckout('dbp')}
+                      title={!reservationId ? 'Select a reservation first' : 'Pay with DBP'}
+                    >
+                      <img
+                        src="https://www.dbp.ph/wp-content/uploads/2021/08/DBP-Logo-2021.png"
                         alt="DBP"
                         className={styles.channelLogo}
                       />

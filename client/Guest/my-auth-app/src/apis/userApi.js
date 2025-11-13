@@ -28,3 +28,11 @@ export function verifyPasswordResetCode({ email, verificationCode }) {
 export function resetPassword({ email, newPassword, resetToken }) {
   return apiPost('/user/reset-password', { email, newPassword, resetToken });
 }
+
+export function verifyEmail({ email, token }) {
+  return apiPost('/user/verify-email', { email, token });
+}
+
+export function resendVerificationEmail({ email }) {
+  return apiPost('/user/resend-verification-email', { email });
+}

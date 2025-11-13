@@ -19,6 +19,65 @@ const invalidateMessageCache = async (userId) => {
     }
 };
 
+// Helper function to check if any admin is currently online (has active WebSocket connection)
+const isAnyAdminOnline = async (dbHelper, userSocketMap) => {
+    if (!userSocketMap || userSocketMap.size === 0) {
+        return false;
+    }
+
+    try {
+        // Get all admin users from database
+        const adminUsers = await dbHelper.findMany('user', {
+            role: { $ne: UserRole.GUEST }
+        }, {
+            limit: 1000 // Reasonable limit for admin users
+        });
+
+        if (!adminUsers || adminUsers.length === 0) {
+            return false;
+        }
+
+        // Check if any admin has an active WebSocket connection
+        for (const adminUser of adminUsers) {
+            const adminUserIdStr = adminUser._id?.toString?.() || String(adminUser._id || '');
+            
+            // Try direct lookup first
+            if (userSocketMap.has(adminUserIdStr)) {
+                const ws = userSocketMap.get(adminUserIdStr);
+                if (ws && ws.readyState === 1) { // WebSocket.OPEN
+                    return true;
+                }
+            } else {
+                // If not found, try iterating through the map to find a match
+                // This handles any edge cases where the format might differ slightly
+                for (const [mapUserId, mapWs] of userSocketMap.entries()) {
+                    const mapUserIdStr = String(mapUserId);
+                    // Try exact match first
+                    if (mapUserIdStr === adminUserIdStr) {
+                        if (mapWs && mapWs.readyState === 1) { // WebSocket.OPEN
+                            return true;
+                        }
+                        break;
+                    }
+                    // Try case-insensitive match
+                    if (mapUserIdStr.toLowerCase() === adminUserIdStr.toLowerCase()) {
+                        if (mapWs && mapWs.readyState === 1) { // WebSocket.OPEN
+                            return true;
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+
+        return false;
+    } catch (error) {
+        console.error('Error checking if admin is online:', error);
+        // On error, assume no admin is online to allow auto-response
+        return false;
+    }
+};
+
 const messageModule = {
     /**
      * Retrieves messages for a given user.
@@ -352,130 +411,143 @@ const messageModule = {
             const enableAutoResponse = options.enableAutoResponse !== false;
             if (isUserMessage && enableAutoResponse) {
                 try {
-                    const autoResponseResult = await autoResponseEngine.processMessage(
-                        dbHelper, 
-                        userId, 
-                        text, 
-                        { userRole: user?.role, userName: user?.name }
-                    );
+                    // Check if any admin is online before sending auto-response
+                    // Only send auto-response if no admin is online
+                    const adminOnline = await isAnyAdminOnline(dbHelper, userSocketMap);
+                    
+                    if (adminOnline) {
+                        // Admin is online, skip auto-response
+                        responseData.autoResponseAnalysis = {
+                            skipped: true,
+                            reason: 'Admin is online, skipping auto-response'
+                        };
+                    } else {
+                        // No admin is online, proceed with auto-response
+                        const autoResponseResult = await autoResponseEngine.processMessage(
+                            dbHelper, 
+                            userId, 
+                            text, 
+                            { userRole: user?.role, userName: user?.name }
+                        );
 
-                    if (autoResponseResult.shouldSendAutoResponse && autoResponseResult.autoResponse) {
-                        // Add a small delay before sending automated response
-                        setTimeout(async () => {
-                            try {
-                                const autoResponseDoc = {
-                                    userId: autoResponseResult.autoResponse.userId,
-                                    text: autoResponseResult.autoResponse.text,
-                                    sender: autoResponseResult.autoResponse.sender,
-                                    role: autoResponseResult.autoResponse.role,
-                                    isUser: autoResponseResult.autoResponse.isUser,
-                                    isRead: autoResponseResult.autoResponse.isRead,
-                                    metadata: autoResponseResult.autoResponse.metadata
-                                };
+                        if (autoResponseResult.shouldSendAutoResponse && autoResponseResult.autoResponse) {
+                            // Add a small delay before sending automated response
+                            setTimeout(async () => {
+                                try {
+                                    const autoResponseDoc = {
+                                        userId: autoResponseResult.autoResponse.userId,
+                                        text: autoResponseResult.autoResponse.text,
+                                        sender: autoResponseResult.autoResponse.sender,
+                                        role: autoResponseResult.autoResponse.role,
+                                        isUser: autoResponseResult.autoResponse.isUser,
+                                        isRead: autoResponseResult.autoResponse.isRead,
+                                        metadata: autoResponseResult.autoResponse.metadata
+                                    };
 
-                                const autoResponseSaved = await dbHelper.create('message', autoResponseDoc);
-                                
-                                // Invalidate cache after auto-response
-                                await invalidateMessageCache(userId);
-                                
-                                // Broadcast automated response via WebSocket to guest
-                                // The userId from the message is the guest who sent the message
-                                // In main.js, WebSocket connections are stored using: req.user.userId?.toString?.() || String(req.user.userId || '')
-                                // We need to ensure we use the exact same format
-                                const userIdStr = userId?.toString?.() || String(userId || '');
-                                
-                                let ws = null;
-                                
-                                // Try to find WebSocket connection
-                                if (userSocketMap) {
-                                    // First try direct lookup
-                                    if (userSocketMap.has(userIdStr)) {
-                                        ws = userSocketMap.get(userIdStr);
-                                    } else {
-                                        // If not found, try iterating through the map to find a match
-                                        // Try both exact match and case-insensitive match
-                                        for (const [mapUserId, mapWs] of userSocketMap.entries()) {
-                                            const mapUserIdStr = String(mapUserId);
-                                            if (mapUserIdStr === userIdStr || 
-                                                mapUserIdStr.toLowerCase() === userIdStr.toLowerCase()) {
-                                                ws = mapWs;
-                                                break;
-                                            }
-                                        }
-                                    }
-                                }
-                                
-                                // Send WebSocket message if connection found
-                                if (ws) {
-                                    try {
-                                        if (ws.readyState === 1) { // WebSocket.OPEN
-                                            ws.send(JSON.stringify({
-                                                type: 'new_message',
-                                                data: toMessagePayload(autoResponseSaved)
-                                            }));
-                                        }
-                                    } catch (error) {
-                                        console.error('Error broadcasting auto-response via WebSocket:', error);
-                                    }
-                                }
-
-                                // Also broadcast auto-response to all admin connections
-                                if (userSocketMap && userSocketMap.size > 0) {
-                                    try {
-                                        const adminUsers = await dbHelper.findMany('user', {
-                                            role: { $ne: UserRole.GUEST }
-                                        }, {
-                                            limit: 1000
-                                        });
-
-                                        if (adminUsers && adminUsers.length > 0) {
-                                            const autoResponsePayload = toMessagePayload(autoResponseSaved);
-                                            
-                                            for (const adminUser of adminUsers) {
-                                                const adminUserIdStr = adminUser._id?.toString?.() || String(adminUser._id || '');
-                                                
-                                                // Try to find the WebSocket connection
-                                                let adminWs = null;
-                                                if (userSocketMap.has(adminUserIdStr)) {
-                                                    adminWs = userSocketMap.get(adminUserIdStr);
-                                                } else {
-                                                    // If not found, try iterating through the map to find a match
-                                                    for (const [mapUserId, mapWs] of userSocketMap.entries()) {
-                                                        const mapUserIdStr = String(mapUserId);
-                                                        if (mapUserIdStr === adminUserIdStr || 
-                                                            mapUserIdStr.toLowerCase() === adminUserIdStr.toLowerCase()) {
-                                                            adminWs = mapWs;
-                                                            break;
-                                                        }
-                                                    }
-                                                }
-                                                
-                                                if (adminWs) {
-                                                    try {
-                                                        if (adminWs.readyState === 1) { // WebSocket.OPEN
-                                                            adminWs.send(JSON.stringify({
-                                                                type: 'new_message',
-                                                                data: autoResponsePayload
-                                                            }));
-                                                        }
-                                                    } catch (error) {
-                                                        console.error(`Error broadcasting auto-response to admin ${adminUserIdStr}:`, error);
-                                                    }
+                                    const autoResponseSaved = await dbHelper.create('message', autoResponseDoc);
+                                    
+                                    // Invalidate cache after auto-response
+                                    await invalidateMessageCache(userId);
+                                    
+                                    // Broadcast automated response via WebSocket to guest
+                                    // The userId from the message is the guest who sent the message
+                                    // In main.js, WebSocket connections are stored using: req.user.userId?.toString?.() || String(req.user.userId || '')
+                                    // We need to ensure we use the exact same format
+                                    const userIdStr = userId?.toString?.() || String(userId || '');
+                                    
+                                    let ws = null;
+                                    
+                                    // Try to find WebSocket connection
+                                    if (userSocketMap) {
+                                        // First try direct lookup
+                                        if (userSocketMap.has(userIdStr)) {
+                                            ws = userSocketMap.get(userIdStr);
+                                        } else {
+                                            // If not found, try iterating through the map to find a match
+                                            // Try both exact match and case-insensitive match
+                                            for (const [mapUserId, mapWs] of userSocketMap.entries()) {
+                                                const mapUserIdStr = String(mapUserId);
+                                                if (mapUserIdStr === userIdStr || 
+                                                    mapUserIdStr.toLowerCase() === userIdStr.toLowerCase()) {
+                                                    ws = mapWs;
+                                                    break;
                                                 }
                                             }
                                         }
-                                    } catch (error) {
-                                        console.error('Error broadcasting auto-response to admins:', error);
                                     }
+                                    
+                                    // Send WebSocket message if connection found
+                                    if (ws) {
+                                        try {
+                                            if (ws.readyState === 1) { // WebSocket.OPEN
+                                                ws.send(JSON.stringify({
+                                                    type: 'new_message',
+                                                    data: toMessagePayload(autoResponseSaved)
+                                                }));
+                                            }
+                                        } catch (error) {
+                                            console.error('Error broadcasting auto-response via WebSocket:', error);
+                                        }
+                                    }
+
+                                    // Also broadcast auto-response to all admin connections
+                                    if (userSocketMap && userSocketMap.size > 0) {
+                                        try {
+                                            const adminUsers = await dbHelper.findMany('user', {
+                                                role: { $ne: UserRole.GUEST }
+                                            }, {
+                                                limit: 1000
+                                            });
+
+                                            if (adminUsers && adminUsers.length > 0) {
+                                                const autoResponsePayload = toMessagePayload(autoResponseSaved);
+                                                
+                                                for (const adminUser of adminUsers) {
+                                                    const adminUserIdStr = adminUser._id?.toString?.() || String(adminUser._id || '');
+                                                    
+                                                    // Try to find the WebSocket connection
+                                                    let adminWs = null;
+                                                    if (userSocketMap.has(adminUserIdStr)) {
+                                                        adminWs = userSocketMap.get(adminUserIdStr);
+                                                    } else {
+                                                        // If not found, try iterating through the map to find a match
+                                                        for (const [mapUserId, mapWs] of userSocketMap.entries()) {
+                                                            const mapUserIdStr = String(mapUserId);
+                                                            if (mapUserIdStr === adminUserIdStr || 
+                                                                mapUserIdStr.toLowerCase() === adminUserIdStr.toLowerCase()) {
+                                                                adminWs = mapWs;
+                                                                break;
+                                                            }
+                                                        }
+                                                    }
+                                                    
+                                                    if (adminWs) {
+                                                        try {
+                                                            if (adminWs.readyState === 1) { // WebSocket.OPEN
+                                                                adminWs.send(JSON.stringify({
+                                                                    type: 'new_message',
+                                                                    data: autoResponsePayload
+                                                                }));
+                                                            }
+                                                        } catch (error) {
+                                                            console.error(`Error broadcasting auto-response to admin ${adminUserIdStr}:`, error);
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        } catch (error) {
+                                            console.error('Error broadcasting auto-response to admins:', error);
+                                        }
+                                    }
+                                } catch (error) {
+                                    console.error('Error sending automated response:', error);
                                 }
-                            } catch (error) {
-                                console.error('Error sending automated response:', error);
-                            }
-                        }, 1000); // 1 second delay
+                            }, 1000); // 1 second delay
+                        }
+
+                        // Include analysis in response for debugging/admin purposes
+                        responseData.autoResponseAnalysis = autoResponseResult.analysis;
                     }
-
-                    // Include analysis in response for debugging/admin purposes
-                    responseData.autoResponseAnalysis = autoResponseResult.analysis;
                 } catch (error) {
                     console.error('Error processing automated response:', error);
                     // Don't fail the main message send if auto-response fails

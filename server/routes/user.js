@@ -15,6 +15,31 @@ export default function buildUserRouter(userSocketMap) {
   r.post('/register', registrationLimiter, asyncHandler(async (req, res) => {
     const result = await userModule.register(dbHelper, req.body);
     
+    // Send verification email if registration was successful
+    // COMMENTED OUT - Email sending disabled (SMTP blocked on Render)
+    // if (result.status === Status.CREATED && result.verificationToken) {
+    //   const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    //   const verificationUrl = `${frontendUrl}/verify-email?token=${result.verificationToken}&email=${encodeURIComponent(result.email)}`;
+    //   
+    //   const emailResult = await emailModule.sendVerificationEmail(result.email, verificationUrl, result.name);
+    //   if (emailResult.status !== Status.OK) {
+    //     console.error('Failed to send verification email:', emailResult.error);
+    //     // Don't fail registration if email fails, but log it
+    //   }
+    //   
+    //   // Remove sensitive data from response
+    //   delete result.verificationToken;
+    //   delete result.email;
+    //   delete result.name;
+    // }
+    
+    // Remove sensitive data from response (even if email is disabled)
+    if (result.verificationToken) {
+      delete result.verificationToken;
+      delete result.email;
+      delete result.name;
+    }
+    
     res.status(result.status).json(result);
     
     if (result.status === Status.CREATED && result.userId) {
@@ -64,8 +89,13 @@ export default function buildUserRouter(userSocketMap) {
   }));
 
   r.post('/send-password-reset-verification-code', asyncHandler(async (req, res) => {
-    const response = await userModule.sendPasswordResetVerificationCode(dbHelper, emailModule, req.body);
-    res.status(response.status).json(response);
+    // COMMENTED OUT - Email sending disabled (SMTP blocked on Render)
+    // const response = await userModule.sendPasswordResetVerificationCode(dbHelper, emailModule, req.body);
+    // res.status(response.status).json(response);
+    res.status(503).json({ 
+      status: 503, 
+      error: 'Email service temporarily unavailable. Please contact support.' 
+    });
   }));
 
   r.post('/verify-password-reset-code', asyncHandler(async (req, res) => {
@@ -83,12 +113,74 @@ export default function buildUserRouter(userSocketMap) {
     res.status(response.status).json(response);
   }));
 
+  r.post('/verify-email', asyncHandler(async (req, res) => {
+    const response = await userModule.verifyEmail(dbHelper, req.body);
+    res.status(response.status).json(response);
+  }));
+
+  r.post('/resend-verification-email', asyncHandler(async (req, res) => {
+    const result = await userModule.resendVerificationEmail(dbHelper, req.body);
+    
+    // Send verification email if resend was successful
+    // COMMENTED OUT - Email sending disabled (SMTP blocked on Render)
+    // if (result.status === Status.OK && result.verificationToken) {
+    //   const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    //   const verificationUrl = `${frontendUrl}/verify-email?token=${result.verificationToken}&email=${encodeURIComponent(result.email)}`;
+    //   
+    //   const emailResult = await emailModule.sendVerificationEmail(result.email, verificationUrl, result.name);
+    //   if (emailResult.status !== Status.OK) {
+    //     console.error('Failed to send verification email:', emailResult.error);
+    //     result.status = Status.INTERNAL_SERVER_ERROR;
+    //     result.error = 'Failed to send verification email';
+    //   }
+    //   
+    //   // Remove sensitive data from response
+    //   delete result.verificationToken;
+    //   delete result.email;
+    //   delete result.name;
+    // }
+    
+    // Remove sensitive data from response (even if email is disabled)
+    if (result.verificationToken) {
+      delete result.verificationToken;
+      delete result.email;
+      delete result.name;
+    }
+    
+    // Return error since email sending is disabled
+    if (result.status === Status.OK) {
+      result.status = 503;
+      result.error = 'Email service temporarily unavailable. Please contact support.';
+    }
+    
+    res.status(result.status).json(result);
+  }));
+
   r.use(authenticateJWT);
 
   r.get('/profile', asyncHandler(async (req, res) => {
-    const userResp = await userModule.getUser?.(dbHelper, req.user);
     const profileResp = await profileModule.getProfile(dbHelper, req.user);
-    const merged = { ...profileResp, data: { ...userResp?.data, ...profileResp.data } };
+    
+    // Fetch user data to include name and other user fields
+    // userModule.getUser doesn't exist, so we fetch directly from the database
+    const user = await dbHelper.findOne('user', { _id: req.user.userId }, { 
+      projection: { _id: 1, email: 1, name: 1, role: 1 } 
+    });
+    
+    const userData = user ? { 
+      _id: user._id?.toString?.() || user._id,
+      email: user.email,
+      name: user.name,
+      role: user.role
+    } : null;
+    
+    const merged = { 
+      ...profileResp, 
+      data: { 
+        ...userData, 
+        ...profileResp.data 
+      } 
+    };
     res.status(profileResp.status).json(merged);
   }));
 

@@ -12,6 +12,11 @@ reportRoutes.post('/generate-pdf', asyncHandler(async (req, res) => {
   await reportModule.generateAccommodationReportPDF({ month, year }, res);
 }));
 
+reportRoutes.post('/generate-excel', asyncHandler(async (req, res) => {
+  const { month, year } = req.body || {};
+  await reportModule.generateAccommodationReportExcel({ month, year }, res);
+}));
+
 export default reportRoutes;
 
 

@@ -138,6 +138,7 @@ export default function CheckInOuts() {
             email: r.guestEmail || "N/A",
             serviceType: prettifyServiceType(r.serviceType) || "N/A",
             facilityType: getFacilityType(r),
+            guestType: r.guestType || "INDIVIDUAL",
             _raw: r,
           };
 
@@ -278,6 +279,7 @@ export default function CheckInOuts() {
           email: r.guestEmail || "N/A",
           serviceType: prettifyServiceType(r.serviceType) || "N/A",
           facilityType: getFacilityType(r),
+          guestType: r.guestType || "INDIVIDUAL",
           _raw: r,
         };
 
@@ -307,66 +309,65 @@ export default function CheckInOuts() {
   };
 
   const renderApprovedActions = (row) => (
-    <>
-      <button
-        className={`${styles.pillBtn} ${styles.editBtn}`}
-        onClick={() => {
-          if (!row.id || row.id === "N/A") {
-            alert("Invalid reservation ID. Cannot edit.");
-            return;
-          }
-          navigate(`/reservations/${row.id}/edit`, {
-            state: {
-              fromCheckInOut: true,
-              activeTab: activeTab,
-              filters,
-            }
-          });
-        }}
-        style={{ marginLeft: 8 }}
-      >
-        Edit
-      </button>
-      <button
-      className={`${styles.pillBtn} ${styles.checkInBtn}`}
-      disabled={actionId === row.id}
-      onClick={() => doAction(row, 'Checked-in')}
+    <button
+      className={`${styles.pillBtn} ${styles.editBtn}`}
+      onClick={() => {
+        if (!row.id || row.id === "N/A") {
+          alert("Invalid reservation ID. Cannot view details.");
+          return;
+        }
+        const guestType = row.guestType || row._raw?.guestType || "INDIVIDUAL";
+        guestType === "GROUP"
+          ? navigate(`/confirmedGroup/${row.id}/details`, {
+              state: {
+                fromCheckInOut: true,
+                activeTab: activeTab,
+                filters,
+              }
+            })
+          : navigate(`/confirmedIndiv/${row.id}/details`, {
+              state: {
+                fromCheckInOut: true,
+                activeTab: activeTab,
+                filters,
+              }
+            });
+      }}
+      style={{ marginLeft: 8 }}
     >
-      {actionId === row.id ? 'Checking in…' : 'Check-In'}
+      See Details
     </button>
-    </>
   );
 
   const renderCheckInActions = (row) => (
-    <>
-      <button
-        className={`${styles.pillBtn} ${styles.editBtn}`}
-        onClick={() => {
-          if (!row.id || row.id === "N/A") {
-            alert("Invalid reservation ID. Cannot edit.");
-            return;
-          }
-          navigate(`/reservations/${row.id}/edit`, {
-            state: {
-              fromCheckInOut: true,
-              activeTab: activeTab,
-              filters,
-            }
-          });
-        }}
-        style={{ marginLeft: 8 }}
-      >
-        Edit
-      </button>
-      <button
-        className={`${styles.pillBtn} ${styles.checkOutBtn}`}
-        disabled={actionId === row.id}
-        onClick={() => doAction(row, 'Checked-out')}
-      >
-        {actionId === row.id ? 'Checking out…' : 'Check-Out'}
-      </button>
-      
-    </>
+    <button
+      className={`${styles.pillBtn} ${styles.editBtn}`}
+      onClick={() => {
+        if (!row.id || row.id === "N/A") {
+          alert("Invalid reservation ID. Cannot view details.");
+          return;
+        }
+        const guestType = row.guestType || row._raw?.guestType || "INDIVIDUAL";
+        guestType === "GROUP"
+          ? navigate(`/confirmedGroup/${row.id}/details`, {
+              state: {
+                fromCheckInOut: true,
+                activeTab: activeTab,
+                filters,
+              }
+            })
+          : navigate(`/confirmedIndiv/${row.id}/details`, {
+              state: {
+                fromCheckInOut: true,
+                activeTab: activeTab,
+                filters,
+              }
+            });
+      }}
+      style={{ marginLeft: 8 }}
+    >
+      See Details
+    </button>
   );
 
   const renderCheckOutActions = (row) => (
@@ -404,6 +405,7 @@ export default function CheckInOuts() {
           email: r.guestEmail || "N/A",
           serviceType: prettifyServiceType(r.serviceType) || "N/A",
           facilityType: getFacilityType(r),
+          guestType: r.guestType || "INDIVIDUAL",
           _raw: r,
         };
 

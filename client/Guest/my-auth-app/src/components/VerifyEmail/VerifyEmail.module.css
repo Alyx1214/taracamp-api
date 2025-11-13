@@ -1,0 +1,117 @@
+.verifyForm {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.verifyForm h2 {
+  font-size: 1.8rem;
+  margin-bottom: 1.5rem;
+  color: #1E3C24;
+}
+
+.message {
+  padding: 1rem;
+  border-radius: 6px;
+  margin-bottom: 1.5rem;
+  text-align: center;
+  width: 100%;
+}
+
+.message.success {
+  background-color: #e8f5e9;
+  color: #1b5e20;
+  border: 1px solid #c8e6c9;
+}
+
+.message.error {
+  background-color: #fdecea;
+  color: #b71c1c;
+  border: 1px solid #f5c6cb;
+}
+
+.message p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.redirectHint {
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+  opacity: 0.8;
+}
+
+.resendSection {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  text-align: center;
+  width: 100%;
+}
+
+.resendSection p {
+  margin-bottom: 1rem;
+  color: #666;
+  line-height: 1.5;
+}
+
+.resendBtn {
+  width: 100%;
+  padding: 12px 20px;
+  background-color: #1E3C24;
+  color: white;
+  border: none;
+  border-radius: 25px;
+  font-size: 1em;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  margin-top: 0.5rem;
+}
+
+.resendBtn:hover:not(:disabled) {
+  background-color: #538E5E;
+}
+
+.resendBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background-color: #6c757d;
+}
+
+.actionButtons {
+  margin-top: 1.5rem;
+  text-align: center;
+  width: 100%;
+}
+
+.loginBtn {
+  width: 100%;
+  padding: 12px 20px;
+  background-color: #1E3C24;
+  color: white;
+  border: none;
+  border-radius: 25px;
+  font-size: 1em;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.loginBtn:hover {
+  background-color: #538E5E;
+}
+
+@media (max-width: 768px) {
+  .verifyForm {
+    padding: 1rem;
+  }
+  
+  .verifyForm h2 {
+    font-size: 1.5rem;
+  }
+}
+

@@ -5,6 +5,7 @@ import styles from './ResForm.module.css';
 import { ArrowLeft } from 'lucide-react';
 import ErrorBanner from '../ErrorBanner/ErrorBanner';
 import { getFacilityById } from '../../apis/facilityApi';
+import { getUserName } from '../../utils/auth';
 
 function ReservationForm() {
   const navigate = useNavigate();
@@ -56,6 +57,26 @@ function ReservationForm() {
     if (location.state?.errorsStep1) setErrors(location.state.errorsStep1);
     if (location.state?.serverError) setServerErr(location.state.serverError);
   }, [location.state]);
+
+  // Populate guest name field from localStorage (stored during login)
+  useEffect(() => {
+    // Skip if groupAssociation is already set from location.state or user input
+    if (location.state?.step1?.groupAssociation || formData.groupAssociation) return;
+    
+    // Get user name from localStorage (stored during login)
+    const userName = getUserName();
+    if (userName) {
+      setFormData(prev => {
+        // Double-check it's still empty before setting
+        if (prev.groupAssociation) return prev;
+        return {
+          ...prev,
+          groupAssociation: userName
+        };
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state]); // Run after location.state is processed
 
   // Auto-select "Groups" type for Conference facilities
   useEffect(() => {

@@ -19,7 +19,7 @@ const paymentModule = {
      * @param {string} [data.reservationId] - The ID of the reservation to create the payment intent for.
      * @param {number} [data.amount] - The amount of the payment intent. Defaults to the total estimated amount of the reservation.
      * @param {string} [data.currency=PHP] - The currency of the payment intent.
-     * @param {string[]} [data.paymentMethodAllowed=['card', 'gcash', 'grab_pay', 'paymaya']] - The allowed payment methods for the payment intent.
+     * @param {string[]} [data.paymentMethodAllowed=['card', 'gcash', 'grab_pay', 'paymaya', 'dbp']] - The allowed payment methods for the payment intent.
      * @param {string} [data.description] - The description of the payment intent.
      * @param {string} [data.statementDescriptor] - The statement descriptor of the payment intent.
      * @param {Object} [data.metadata] - The metadata object to attach to the payment intent.
@@ -38,7 +38,7 @@ const paymentModule = {
             const {
                 amount: clientAmount,
                 currency = 'PHP',
-                paymentMethodAllowed = ['card', 'gcash', 'grab_pay', 'paymaya',],
+                paymentMethodAllowed = ['card', 'gcash', 'grab_pay', 'paymaya', 'dbp',],
                 description,
                 statementDescriptor,
                 metadata = {},
@@ -306,7 +306,7 @@ const paymentModule = {
         };
         try {
             const { type, details, billing, } = data || {};
-            const redirectTypes = new Set(['gcash', 'grab_pay', 'paymaya',]);
+            const redirectTypes = new Set(['gcash', 'grab_pay', 'paymaya', 'dbp',]);
 
             if (!type) {
                 responseData.status = Status.BAD_REQUEST;
@@ -1054,6 +1054,7 @@ const paymentModule = {
                     category: reservation?.category,
                     dateOfArrival: reservation?.dateOfArrival,
                     dateOfDeparture: reservation?.dateOfDeparture,
+                    timeOfArrival: reservation?.timeOfArrival,
                 });
                 
                 breakdown.push({
@@ -1122,6 +1123,7 @@ const paymentModule = {
                     category: reservation?.category,
                     dateOfArrival: reservation?.dateOfArrival,
                     dateOfDeparture: reservation?.dateOfDeparture,
+                    timeOfArrival: reservation?.timeOfArrival,
                 });
 
                 // Normalize category for comparison
@@ -1176,7 +1178,7 @@ const paymentModule = {
     },
 };
 
-function computeEstimate({ facilityDoc, adults = 0, children = 0, pwds = 0, seniorCitizens = 0, serviceType, addonsTotal = 0, category, dateOfArrival, dateOfDeparture, }) {
+function computeEstimate({ facilityDoc, adults = 0, children = 0, pwds = 0, seniorCitizens = 0, serviceType, addonsTotal = 0, category, dateOfArrival, dateOfDeparture, timeOfArrival, }) {
     const isAccommodationFacility = 
         facilityDoc?.facilityType === FacilityType.DORMITORY ||
         facilityDoc?.facilityType === FacilityType.COTTAGE;
@@ -1201,21 +1203,41 @@ function computeEstimate({ facilityDoc, adults = 0, children = 0, pwds = 0, seni
 
     const flatBookingPrice = Number(facilityDoc?.price ?? facilityDoc?.conferencePrice ?? facilityDoc?.flatPrice);
 
+    // Check if arrival time is earlier than 2pm (14:00) - add 1 night's price
+    let earlyArrivalFee = 0;
+    if (isAccommodationFacility && timeOfArrival) {
+        const timeStr = String(timeOfArrival).trim();
+        // Parse time in format "HH:MM" or "HH:00"
+        const timeMatch = timeStr.match(/^(\d{1,2}):(\d{2})$/);
+        if (timeMatch) {
+            const hours = parseInt(timeMatch[1], 10);
+            if (!isNaN(hours) && hours < 14) {
+                // Arrival is before 2pm, calculate 1 night's price
+                if (usePerPersonPricing && Number.isFinite(perPersonRate) && perPersonRate >= 0) {
+                    const perNightFee = adults * perPersonRate + (children + pwds + seniorCitizens) * perPersonRate * 0.80;
+                    earlyArrivalFee = perNightFee;
+                } else if (Number.isFinite(flatBookingPrice) && flatBookingPrice >= 0) {
+                    earlyArrivalFee = flatBookingPrice;
+                }
+            }
+        }
+    }
+
     let baseAmount = 0;
 
     if (usePerPersonPricing) {
         if (!Number.isFinite(perPersonRate) || perPersonRate < 0) {
-            baseAmount = addonsTotal;
+            baseAmount = addonsTotal + earlyArrivalFee;
         } else {
             const perNightFee = adults * perPersonRate + (children + pwds + seniorCitizens) * perPersonRate * 0.80;
-            baseAmount = (perNightFee * numberOfNights) + addonsTotal;
+            baseAmount = (perNightFee * numberOfNights) + addonsTotal + earlyArrivalFee;
         }
     } else {
         if (!Number.isFinite(flatBookingPrice) || flatBookingPrice < 0) {
-            baseAmount = addonsTotal;
+            baseAmount = addonsTotal + earlyArrivalFee;
         } else {
             // For accommodation facilities, multiply by nights; for events, use flat price
-            baseAmount = (isAccommodationFacility ? flatBookingPrice * numberOfNights : flatBookingPrice) + addonsTotal;
+            baseAmount = (isAccommodationFacility ? flatBookingPrice * numberOfNights : flatBookingPrice) + addonsTotal + earlyArrivalFee;
         }
     }
 
@@ -1320,6 +1342,7 @@ function methodLabel(t) {
     if (m === 'card') return 'Card';
     if (m === 'grab_pay') return 'GrabPay';
     if (m === 'paymaya') return 'Maya';
+    if (m === 'dbp') return 'DBP';
     if (m === 'bank_transfer' || m === 'bank') return 'Bank Transfer';
     return t;
 }
