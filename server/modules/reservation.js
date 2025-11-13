@@ -144,6 +144,16 @@ const reservationModule = {
                 }
             }
 
+            // Require at least 1 senior citizen guest when Senior Citizen category is selected
+            if (category === Category.SENIOR_CITIZEN) {
+                const seniorCitizens = parseInt(numberOfSeniorCitizens) || 0;
+                if (seniorCitizens < 1) {
+                    responseData.status = Status.BAD_REQUEST;
+                    responseData.error = 'Senior Citizen category requires at least 1 senior citizen guest.';
+                    return responseData;
+                }
+            }
+
             if (!isValidDate(dateOfArrival) || !isValidDate(dateOfDeparture)) {
                 responseData.status = Status.BAD_REQUEST;
                 responseData.error = 'Invalid date format';
@@ -2443,6 +2453,18 @@ const reservationModule = {
                 return responseData;
             }
 
+            if (moaFile && !isValidFile(moaFile)) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Invalid Memorandum of Agreement file. File must be PDF, DOC, or DOCX and less than 5MB.';
+                return responseData;
+            }
+
+            if (serviceContractFile && !isValidFile(serviceContractFile)) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Invalid Service Contract file. File must be PDF, DOC, or DOCX and less than 5MB.';
+                return responseData;
+            }
+
             // Validate guest counts
             const adults = numberOfAdults !== undefined ? parseInt(numberOfAdults) : existingReservation.numberOfGuests?.adult || 0;
             const children = numberOfChildren !== undefined ? parseInt(numberOfChildren) : existingReservation.numberOfGuests?.children || 0;
@@ -2478,6 +2500,23 @@ const reservationModule = {
                 responseData.status = Status.BAD_REQUEST;
                 responseData.error = 'At least one guest is required';
                 return responseData;
+            }
+
+            // Validate category requirements
+            const finalCategory = category !== undefined ? category : existingReservation.category;
+            if (finalCategory === Category.PWDS) {
+                if (pwds < 1) {
+                    responseData.status = Status.BAD_REQUEST;
+                    responseData.error = 'PWD category requires at least 1 PWD guest.';
+                    return responseData;
+                }
+            }
+            if (finalCategory === Category.SENIOR_CITIZEN) {
+                if (seniorCitizens < 1) {
+                    responseData.status = Status.BAD_REQUEST;
+                    responseData.error = 'Senior Citizen category requires at least 1 senior citizen guest.';
+                    return responseData;
+                }
             }
 
             // Validate facility if provided
@@ -2599,7 +2638,9 @@ const reservationModule = {
                     });
                 } catch (err) {
                     console.error('Error uploading MOA file:', err);
-                    // Don't fail the entire request if MOA upload fails
+                    responseData.status = Status.INTERNAL_SERVER_ERROR;
+                    responseData.error = 'Memorandum of Agreement upload failed: ' + err.message;
+                    return responseData;
                 }
             }
 
@@ -2698,7 +2739,9 @@ const reservationModule = {
                     });
                 } catch (err) {
                     console.error('Error uploading Service Contract file:', err);
-                    // Don't fail the entire request if service contract upload fails
+                    responseData.status = Status.INTERNAL_SERVER_ERROR;
+                    responseData.error = 'Service Contract upload failed: ' + err.message;
+                    return responseData;
                 }
             }
 
@@ -2708,7 +2751,6 @@ const reservationModule = {
                     .reduce((sum, s) => sum + (Number(s.price) || 0), 0)
                 : 0;
 
-            const finalCategory = category !== undefined ? category : existingReservation.category;
             const finalDateOfArrival = dateOfArrival !== undefined ? normalizeDateOnly(dateOfArrival) : existingReservation.dateOfArrival;
             const finalDateOfDeparture = dateOfDeparture !== undefined ? normalizeDateOnly(dateOfDeparture) : existingReservation.dateOfDeparture;
             const finalTimeOfArrival = timeOfArrival !== undefined ? timeOfArrival : existingReservation.timeOfArrival;
@@ -2760,17 +2802,40 @@ const reservationModule = {
                 updateData.guestEmail = guestEmail ? guestEmail.trim() : undefined;
             }
             // Allow status updates for admin users (to confirm reservations)
-            if (status !== undefined && isAdmin) {
+            // Also allow owners to confirm their reservation when uploading MOA or Service Contract
+            if (status !== undefined) {
                 if (isValidReservationStatus(status)) {
-                    // Only allow status updates from APPROVED to CONFIRMED for admin users
-                    if (status === ReservationStatus.CONFIRMED && existingReservation.status === ReservationStatus.APPROVED) {
-                        updateData.status = status;
-                    } else if (status !== ReservationStatus.CONFIRMED) {
-                        // Allow other status updates if not trying to confirm
-                        updateData.status = status;
+                    if (isAdmin) {
+                        // Admin users can update status
+                        if (status === ReservationStatus.CONFIRMED && existingReservation.status === ReservationStatus.APPROVED) {
+                            updateData.status = status;
+                        } else if (status !== ReservationStatus.CONFIRMED) {
+                            // Allow other status updates if not trying to confirm
+                            updateData.status = status;
+                        } else {
+                            responseData.status = Status.BAD_REQUEST;
+                            responseData.error = 'Can only confirm approved reservations';
+                            return responseData;
+                        }
+                    } else if (isOwner && status === ReservationStatus.CONFIRMED) {
+                        // Allow owners to confirm their reservation when uploading confirmation documents
+                        if (existingReservation.status === ReservationStatus.APPROVED) {
+                            // Check if user is uploading MOA or Service Contract
+                            if (moaFile || serviceContractFile) {
+                                updateData.status = status;
+                            } else {
+                                responseData.status = Status.BAD_REQUEST;
+                                responseData.error = 'Please upload Memorandum of Agreement or Service Contract to confirm your reservation';
+                                return responseData;
+                            }
+                        } else {
+                            responseData.status = Status.BAD_REQUEST;
+                            responseData.error = 'Can only confirm approved reservations';
+                            return responseData;
+                        }
                     } else {
-                        responseData.status = Status.BAD_REQUEST;
-                        responseData.error = 'Can only confirm approved reservations';
+                        responseData.status = Status.FORBIDDEN;
+                        responseData.error = 'Not authorized to update reservation status';
                         return responseData;
                     }
                 } else {

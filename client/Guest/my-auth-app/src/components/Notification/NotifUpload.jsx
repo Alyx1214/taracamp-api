@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import styles from './NotifUpload.module.css';
 
 const uploadFields = {
@@ -55,16 +55,26 @@ const uploadFields = {
 export default function NotifUpload({ clientType = 'deped', onSubmit, onBack = () => {} }) {
   const fields = uploadFields[clientType] || uploadFields['deped'];
   const fileRefs = useRef({});
+  const [selectedFiles, setSelectedFiles] = useState({});
 
   const handleFileClick = (key) => {
     fileRefs.current[key]?.click();
+  };
+
+  const handleFileChange = (key, e) => {
+    const file = e.target.files?.[0] || null;
+    setSelectedFiles(prev => ({
+      ...prev,
+      [key]: file
+    }));
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
     const files = {};
     fields.forEach(f => {
-      files[f.key] = fileRefs.current[f.key]?.files?.[0] || null;
+      const file = fileRefs.current[f.key]?.files?.[0] || selectedFiles[f.key] || null;
+      files[f.key] = file;
     });
     if (onSubmit) onSubmit(files);
   };
@@ -97,6 +107,7 @@ export default function NotifUpload({ clientType = 'deped', onSubmit, onBack = (
                     accept={f.accept}
                     ref={el => (fileRefs.current[f.key] = el)}
                     style={{ display: 'none' }}
+                    onChange={(e) => handleFileChange(f.key, e)}
                   />
                   <div
                     className={styles.uploadInput}
@@ -106,7 +117,7 @@ export default function NotifUpload({ clientType = 'deped', onSubmit, onBack = (
                     onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && handleFileClick(f.key)}
                     aria-label={`Upload ${f.label}`}
                   >
-                    Click to upload
+                    {selectedFiles[f.key] ? selectedFiles[f.key].name : 'Click to upload'}
                   </div>
                   <button type="button" className={styles.uploadIconBtn} onClick={() => handleFileClick(f.key)} aria-label="Browse">
                     <span className={styles.uploadIcon}>&#8682;</span>
