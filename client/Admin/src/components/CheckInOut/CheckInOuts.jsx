@@ -5,6 +5,7 @@ import CheckTabs from "./CheckTabs";
 import CheckHead from "./CheckHead";
 import UnivTable from "../UnivTable/UnivTable"; 
 import SearchFil from "../SearchFil/SearchFil";
+import ConfirmModal from "../Shared/ConfirmModal";
 import { searchReservations, checkInOrCheckOutReservation, deleteReservation } from "../../apis/reservationApi";
 
 export default function CheckInOuts() {
@@ -250,6 +251,49 @@ export default function CheckInOuts() {
   ];
 
   const [actionId, setActionId] = useState(null);
+  const [confirmCheckInOpen, setConfirmCheckInOpen] = useState(false);
+  const [confirmCheckOutOpen, setConfirmCheckOutOpen] = useState(false);
+  const [selectedRow, setSelectedRow] = useState(null);
+  const [checkingIn, setCheckingIn] = useState(false);
+  const [checkingOut, setCheckingOut] = useState(false);
+
+  const promptCheckIn = (row) => {
+    setSelectedRow(row);
+    setConfirmCheckInOpen(true);
+  };
+
+  const promptCheckOut = (row) => {
+    setSelectedRow(row);
+    setConfirmCheckOutOpen(true);
+  };
+
+  const confirmCheckIn = async () => {
+    if (!selectedRow) return;
+    try {
+      setCheckingIn(true);
+      await doAction(selectedRow, "Checked-in");
+      setConfirmCheckInOpen(false);
+      setSelectedRow(null);
+    } catch (e) {
+      alert(e?.data?.error || e?.message || 'Failed to check-in reservation');
+    } finally {
+      setCheckingIn(false);
+    }
+  };
+
+  const confirmCheckOut = async () => {
+    if (!selectedRow) return;
+    try {
+      setCheckingOut(true);
+      await doAction(selectedRow, "Checked-out");
+      setConfirmCheckOutOpen(false);
+      setSelectedRow(null);
+    } catch (e) {
+      alert(e?.data?.error || e?.message || 'Failed to check-out reservation');
+    } finally {
+      setCheckingOut(false);
+    }
+  };
 
   const doAction = async (row, nextStatus) => {
     try {
@@ -309,65 +353,65 @@ export default function CheckInOuts() {
   };
 
   const renderApprovedActions = (row) => (
-    <button
-      className={`${styles.pillBtn} ${styles.editBtn}`}
-      onClick={() => {
-        if (!row.id || row.id === "N/A") {
-          alert("Invalid reservation ID. Cannot view details.");
-          return;
-        }
-        const guestType = row.guestType || row._raw?.guestType || "INDIVIDUAL";
-        guestType === "GROUP"
-          ? navigate(`/confirmedGroup/${row.id}/details`, {
-              state: {
-                fromCheckInOut: true,
-                activeTab: activeTab,
-                filters,
-              }
-            })
-          : navigate(`/confirmedIndiv/${row.id}/details`, {
-              state: {
-                fromCheckInOut: true,
-                activeTab: activeTab,
-                filters,
-              }
-            });
-      }}
-      style={{ marginLeft: 8 }}
-    >
-      See Details
-    </button>
+    <>
+      <button
+        className={`${styles.pillBtn} ${styles.editBtn}`}
+        onClick={() => {
+          if (!row.id || row.id === "N/A") {
+            alert("Invalid reservation ID. Cannot edit.");
+            return;
+          }
+          navigate(`/reservations/${row.id}/edit`, {
+            state: {
+              fromCheckInOut: true,
+              activeTab: activeTab,
+              filters,
+            }
+          });
+        }}
+      >
+        Edit
+      </button>
+      <button
+        className={`${styles.pillBtn} ${styles.checkInBtn}`}
+        disabled={actionId === row.id || checkingIn}
+        onClick={() => promptCheckIn(row)}
+        style={{ marginLeft: 8 }}
+      >
+        {actionId === row.id && checkingIn ? 'Checking In...' : 'Check-In'}
+      </button>
+    </>
   );
 
   const renderCheckInActions = (row) => (
-    <button
-      className={`${styles.pillBtn} ${styles.editBtn}`}
-      onClick={() => {
-        if (!row.id || row.id === "N/A") {
-          alert("Invalid reservation ID. Cannot view details.");
-          return;
-        }
-        const guestType = row.guestType || row._raw?.guestType || "INDIVIDUAL";
-        guestType === "GROUP"
-          ? navigate(`/confirmedGroup/${row.id}/details`, {
-              state: {
-                fromCheckInOut: true,
-                activeTab: activeTab,
-                filters,
-              }
-            })
-          : navigate(`/confirmedIndiv/${row.id}/details`, {
-              state: {
-                fromCheckInOut: true,
-                activeTab: activeTab,
-                filters,
-              }
-            });
-      }}
-      style={{ marginLeft: 8 }}
-    >
-      See Details
-    </button>
+    <>
+      <button
+        className={`${styles.pillBtn} ${styles.editBtn}`}
+        onClick={() => {
+          if (!row.id || row.id === "N/A") {
+            alert("Invalid reservation ID. Cannot edit.");
+            return;
+          }
+          navigate(`/reservations/${row.id}/edit`, {
+            state: {
+              fromCheckInOut: true,
+              activeTab: activeTab,
+              filters,
+            }
+          });
+        }}
+      >
+        Edit
+      </button>
+      <button
+        className={`${styles.pillBtn} ${styles.checkOutBtn}`}
+        disabled={actionId === row.id || checkingOut}
+        onClick={() => promptCheckOut(row)}
+        style={{ marginLeft: 8 }}
+      >
+        {actionId === row.id && checkingOut ? 'Checking Out...' : 'Check-Out'}
+      </button>
+    </>
   );
 
   const renderCheckOutActions = (row) => (
@@ -556,6 +600,38 @@ export default function CheckInOuts() {
           />
         )}
       </div>
+
+      {/* Check-In Confirmation Modal */}
+      <ConfirmModal
+        open={confirmCheckInOpen}
+        title="Check-In Guest"
+        message={`Are you sure you want to check-in ${selectedRow?.name || 'this guest'}? This will move them to the Check-In tab.`}
+        confirmText="Check-In"
+        cancelText="Cancel"
+        confirming={checkingIn}
+        variant="success"
+        onCancel={() => {
+          setConfirmCheckInOpen(false);
+          setSelectedRow(null);
+        }}
+        onConfirm={confirmCheckIn}
+      />
+
+      {/* Check-Out Confirmation Modal */}
+      <ConfirmModal
+        open={confirmCheckOutOpen}
+        title="Check-Out Guest"
+        message={`Are you sure you want to check-out ${selectedRow?.name || 'this guest'}? This will move them to the Check-Out tab and complete their reservation.`}
+        confirmText="Check-Out"
+        cancelText="Cancel"
+        confirming={checkingOut}
+        variant="success"
+        onCancel={() => {
+          setConfirmCheckOutOpen(false);
+          setSelectedRow(null);
+        }}
+        onConfirm={confirmCheckOut}
+      />
     </div>
   );
 }
