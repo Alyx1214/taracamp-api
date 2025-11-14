@@ -1,5 +1,4 @@
-// components/ResHistory/ResHistory.jsx
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import HeaderHome from '../HeaderHome/HeaderHome';
 import ErrorBanner from '../ErrorBanner/ErrorBanner';
@@ -8,6 +7,58 @@ import styles from './ResHistory.module.css';
 import { getMyReservations } from '../../apis/reservationApi';
 import { getFacilityById } from '../../apis/facilityApi';
 
+// Upload fields configuration (copied from NotifUpload.jsx)
+const uploadFields = {
+  deped: [
+    {
+      label: 'Upload Memorandum of Agreement',
+      description: (
+        <>
+          Download this <a href="#" className={styles.link}>Memorandum of Agreement Template</a> and upload in the following submission bin.
+        </>
+      ),
+      accept: '.pdf,.doc,.docx',
+      key: 'moa',
+    },
+    {
+      label: 'Upload Certificate of Availability of Funds',
+      accept: '.pdf,.doc,.docx',
+      key: 'funds',
+    },
+  ],
+  gov: [
+    {
+      label: 'Upload Service Contract',
+      accept: '.pdf,.doc,.docx',
+      key: 'service',
+    },
+    {
+      label: 'Upload Certificate of Availability of Funds',
+      accept: '.pdf,.doc,.docx',
+      key: 'funds',
+    },
+  ],
+  'priva-group': [
+    {
+      label: 'Upload Service Contract',
+      accept: '.pdf,.doc,.docx',
+      key: 'service',
+    },
+    {
+      label: 'Upload Certificate of Availability of Funds',
+      accept: '.pdf,.doc,.docx',
+      key: 'funds',
+    },
+  ],
+  individual: [
+    {
+      label: 'Upload Valid ID (optional)',
+      accept: '.pdf,.jpg,.jpeg,.png',
+      key: 'id',
+    },
+  ],
+};
+
 function ReservationHistory() {
   const navigate = useNavigate();
 
@@ -15,6 +66,9 @@ function ReservationHistory() {
   const [err, setErr] = useState(null);
   const [reservationsRaw, setReservationsRaw] = useState([]);
   const [openReservationId, setOpenReservationId] = useState(null);
+  const [showUploadForId, setShowUploadForId] = useState(null);
+  const [selectedFiles, setSelectedFiles] = useState({});
+  const fileRefs = useRef({});
 
   useEffect(() => {
     if (!localStorage.getItem('accessToken')) {
@@ -40,11 +94,20 @@ function ReservationHistory() {
     return c || 'N/A';
   };
 
+  const getClientType = (category) => {
+    const s = String(category || '').trim().toUpperCase();
+    if (['DEPED', 'DEPARTMENT_OF_EDUCATION', 'DEPARTMENT OF EDUCATION'].includes(s)) return 'deped';
+    if (['GOVERNMENT', 'GOVT'].includes(s)) return 'gov';
+    if (['PRIVATE', 'PERSONAL'].includes(s)) return 'individual';
+    return 'deped';
+  };
+
   const fmtPeso = (n) => {
     const num = Number(n);
     if (!Number.isFinite(num)) return 'N/A';
     return num.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
+
   const fmtMDY = (d) => {
     try {
       const dt = new Date(d);
@@ -52,6 +115,7 @@ function ReservationHistory() {
       return dt.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
     } catch { return 'N/A'; }
   };
+
   const fmtLong = (d) => {
     try {
       const dt = new Date(d);
@@ -130,12 +194,27 @@ function ReservationHistory() {
         (parseInt(r?.numberOfPwds || 0, 10) || 0)
       );
 
+      // Process add-ons
+      const addOns = Array.isArray(r?.addOns) && r.addOns.length > 0
+        ? r.addOns
+        : null;
+
+      // Calculate breakdown
+      const facilityFee = Number(r?.facilityFee || 0);
+      const addOnsTotal = addOns 
+        ? addOns.reduce((sum, addon) => sum + (Number(addon.price) || 0), 0)
+        : 0;
+      const serviceFee = Number(r?.serviceFee || 0);
+      const discount = Number(r?.discount || 0);
+
       return {
         _id: String(r?._id || ''),
         id: rid,
         date: fmtMDY(r?.createdAt || r?.dateOfArrival || Date.now()),
         type: facType,
+        category: r?.category || 'N/A',
         details: {
+          type: r?.type || 'N/A',
           groupAssociation: r?.guestName || 'N/A',
           address: r?.homeAddress || 'N/A',
           officeAddress: r?.officeAddress || 'N/A',
@@ -150,6 +229,13 @@ function ReservationHistory() {
           facilityName: facName,
           typeOfService: r?.serviceType || 'N/A',
         },
+        breakdown: {
+          facilityFee: facilityFee,
+          addOns: addOns,
+          addOnsTotal: addOnsTotal,
+          serviceFee: serviceFee,
+          discount: discount,
+        },
         totalEstimatedAmount: fmtPeso(r?.totalEstimatedAmount),
         confirmed: String(r?.status || '') === 'Confirmed',
       };
@@ -157,12 +243,48 @@ function ReservationHistory() {
   }, [reservationsRaw]);
 
   const handleGoBack = () => navigate(-1);
+  
   const toggleReservation = (id) =>
     setOpenReservationId(openReservationId === id ? null : id);
-  const handleConfirmNow = (reservationId) => {
-    const rid = typeof reservationId === 'string' ? reservationId : '';
-    if (rid) navigate(`/transactions?reservationId=${encodeURIComponent(rid)}`);
-    else navigate('/transactions');
+  
+  const handleConfirmNow = (reservationId, category) => {
+    // Show upload section for this reservation
+    setShowUploadForId(reservationId);
+    // Clear any previous file selections
+    setSelectedFiles({});
+  };
+
+  const handleFileClick = (key) => {
+    fileRefs.current[key]?.click();
+  };
+
+  const handleFileChange = (key, e) => {
+    const file = e.target.files?.[0] || null;
+    setSelectedFiles(prev => ({
+      ...prev,
+      [key]: file
+    }));
+  };
+
+  const handleSubmitDocuments = (e, reservationId) => {
+    e.preventDefault();
+    
+    // Get the reservation to determine client type
+    const reservation = reservationsView.find(r => r._id === reservationId);
+    const clientType = getClientType(reservation?.category);
+    const fields = uploadFields[clientType] || uploadFields['deped'];
+    
+    const files = {};
+    fields.forEach(f => {
+      const file = fileRefs.current[f.key]?.files?.[0] || selectedFiles[f.key] || null;
+      files[f.key] = file;
+    });
+    
+    console.log('Submitting documents for reservation:', reservationId, files);
+    
+    // TODO: API call to submit documents
+    // After successful submission, navigate to transactions
+    navigate(`/transactions?reservationId=${encodeURIComponent(reservationId)}`);
   };
 
   return (
@@ -198,64 +320,181 @@ function ReservationHistory() {
                 </div>
               )}
 
-              {reservationsView.map((reservation) => (
-                <div key={reservation.id} className={styles.reservationCard}>
-                  <div
-                    className={styles.cardHeader}
-                    onClick={() => toggleReservation(reservation.id)}
-                    aria-expanded={openReservationId === reservation.id}
-                  >
-                    <h2 className={styles.cardTitle}>{reservation.type}</h2>
-                    <span className={styles.cardDate}>{reservation.date}</span>
-                    <span className={styles.toggleIcon}>
-                      {openReservationId === reservation.id ? '▲' : '▼'}
-                    </span>
-                  </div>
+              {reservationsView.map((reservation) => {
+                const clientType = getClientType(reservation.category);
+                const fields = uploadFields[clientType] || uploadFields['deped'];
+                const isUploadVisible = showUploadForId === reservation._id;
 
-                  {openReservationId === reservation.id && (
-                    <div className={styles.cardDetails}>
-                      {Object.entries(reservation.details).map(([key, value]) => (
-                        <div className={styles.detailRow} key={key}>
-                          <span className={styles.detailLabel}>
-                            {key.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase())}
-                          </span>
-                          <span className={styles.detailSeparator}>:</span>
-                          <span className={styles.detailValue}>
-                            {(key === 'facilityName' || key === 'typeOfService')
-                              ? String(value ?? '')
-                                  .toLowerCase()
-                                  .split(/(\s|\/)/)
-                                  .map(word => /[a-zA-Z]/.test(word)
-                                    ? word.charAt(0).toUpperCase() + word.slice(1)
-                                    : word
-                                  )
-                                  .join('')
-                              : value}
-                          </span>
-                        </div>
-                      ))}
-                      <div className={styles.amountSection}>
-                        <div className={styles.amountValueContainer}>
-                          <span className={styles.totalAmountLabel}>Total Estimated Amount</span>
-                          <span className={styles.totalAmountSeparator}>₱</span>
-                          <span className={styles.totalAmountValue}>{reservation.totalEstimatedAmount}</span>
-                        </div>
-                        <button
-                          className={`${styles.confirmButton} ${reservation.confirmed ? styles.confirmedButton : ''}`}
-                          onClick={() => handleConfirmNow(reservation._id)}
-                          title={reservation.confirmed ? 'View your payment transactions' : undefined}
-                        >
-                          {reservation.confirmed
-                            ? 'View Payments'
-                            : reservation.details.category === 'Private'
-                              ? 'Pay Now!'
-                              : 'Confirm Now!'}
-                        </button>
-                      </div>
+                return (
+                  <div key={reservation.id} className={styles.reservationCard}>
+                    <div
+                      className={styles.cardHeader}
+                      onClick={() => toggleReservation(reservation.id)}
+                      aria-expanded={openReservationId === reservation.id}
+                    >
+                      <h2 className={styles.cardTitle}>{reservation.type}</h2>
+                      <span className={styles.cardDate}>{reservation.date}</span>
+                      <span className={styles.toggleIcon}>
+                        {openReservationId === reservation.id ? '▲' : '▼'}
+                      </span>
                     </div>
-                  )}
-                </div>
-              ))}
+
+                    {openReservationId === reservation.id && (
+                      <div className={styles.cardDetails}>
+                        {Object.entries(reservation.details).map(([key, value]) => (
+                          <div className={styles.detailRow} key={key}>
+                            <span className={styles.detailLabel}>
+                              {key.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase())}
+                            </span>
+                            <span className={styles.detailSeparator}>:</span>
+                            <span className={styles.detailValue}>
+                              {(key === 'facilityName' || key === 'typeOfService')
+                                ? String(value ?? '')
+                                    .toLowerCase()
+                                    .split(/(\s|\/)/)
+                                    .map(word => /[a-zA-Z]/.test(word)
+                                      ? word.charAt(0).toUpperCase() + word.slice(1)
+                                      : word
+                                    )
+                                    .join('')
+                                : value}
+                            </span>
+                          </div>
+                        ))}
+
+                        {/* Breakdown of Fees Section */}
+                        <div className={styles.breakdownSection}>
+                          <h3 className={styles.breakdownTitle}>Breakdown of Fees</h3>
+                          
+                          <div className={styles.detailRow}>
+                            <span className={styles.detailLabel}>Facility Fee</span>
+                            <span className={styles.detailSeparator}>:</span>
+                            <span className={styles.detailValue}>₱ {fmtPeso(reservation.breakdown.facilityFee)}</span>
+                          </div>
+
+                          {reservation.breakdown.addOns && reservation.breakdown.addOns.length > 0 && (
+                            <div className={styles.detailRow}>
+                              <span className={styles.detailLabel}>Add-ons</span>
+                              <span className={styles.detailSeparator}>:</span>
+                              <span className={styles.detailValue}>
+                                <div className={styles.addOnsList}>
+                                  {reservation.breakdown.addOns.map((addon, index) => (
+                                    <div key={index} className={styles.addOnItem}>
+                                      {addon.name}: ₱ {fmtPeso(addon.price)}
+                                    </div>
+                                  ))}
+                                </div>
+                              </span>
+                            </div>
+                          )}
+
+                          {!reservation.breakdown.addOns && (
+                            <div className={styles.detailRow}>
+                              <span className={styles.detailLabel}>Add-ons</span>
+                              <span className={styles.detailSeparator}>:</span>
+                              <span className={styles.detailValue}>₱ 0.00</span>
+                            </div>
+                          )}
+
+                          <div className={styles.detailRow}>
+                            <span className={styles.detailLabel}>10% Service Fee</span>
+                            <span className={styles.detailSeparator}>:</span>
+                            <span className={styles.detailValue}>₱ {fmtPeso(reservation.breakdown.serviceFee)}</span>
+                          </div>
+
+                          <div className={styles.detailRow}>
+                            <span className={styles.detailLabel}>Discount</span>
+                            <span className={styles.detailSeparator}>:</span>
+                            <span className={styles.detailValue}>₱ {fmtPeso(reservation.breakdown.discount)}</span>
+                          </div>
+                        </div>
+
+                        {/* Upload Section - Separate and Below Breakdown */}
+                        {isUploadVisible && (
+                          <div className={styles.uploadSection}>
+                            <div className={styles.uploadHeader}>
+                              <div className={styles.uploadHeaderTitle}>
+                                <span className={styles.uploadHeaderIcon}>📋</span>
+                                Document Upload Required
+                              </div>
+                              <div className={styles.uploadNotice}>
+                                Please ensure to download and upload the necessary documents before your arrival to avoid conflict on your reservation.
+                              </div>
+                            </div>
+                            <div className={styles.uploadContent}>
+                              <form onSubmit={(e) => handleSubmitDocuments(e, reservation._id)}>
+                                <div className={styles.uploadsContainer}>
+                                  {fields.map((f) => (
+                                    <div className={styles.uploadField} key={f.key}>
+                                      <div className={styles.uploadLabel}>{f.label}</div>
+                                      {f.description && <div className={styles.uploadDesc}>{f.description}</div>}
+                                      <div className={styles.uploadInputRow}>
+                                        <input
+                                          type="file"
+                                          accept={f.accept}
+                                          ref={el => {
+                                            if (!fileRefs.current[f.key]) fileRefs.current[f.key] = {};
+                                            fileRefs.current[f.key] = el;
+                                          }}
+                                          style={{ display: 'none' }}
+                                          onChange={(e) => handleFileChange(f.key, e)}
+                                        />
+                                        <div
+                                          className={styles.uploadInput}
+                                          role="button"
+                                          tabIndex={0}
+                                          onClick={() => handleFileClick(f.key)}
+                                          onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && handleFileClick(f.key)}
+                                          aria-label={`Upload ${f.label}`}
+                                        >
+                                          {selectedFiles[f.key] ? selectedFiles[f.key].name : '📎 Click to upload or drag & drop'}
+                                        </div>
+                                        <button type="button" className={styles.uploadIconBtn} onClick={() => handleFileClick(f.key)} aria-label="Browse">
+                                          <span className={styles.uploadIcon}>📤</span>
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </form>
+                            </div>
+                            <div className={styles.submitBtnWrapper}>
+                              <button type="button" onClick={(e) => handleSubmitDocuments(e, reservation._id)} className={styles.submitBtn}>
+                                Submit Documents
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Amount Section*/}
+                        <div className={styles.amountSection}>
+                          <div className={styles.amountRow}>
+                            <div className={styles.amountValueContainer}>
+                              <span className={styles.totalAmountLabel}>Total Estimated Amount</span>
+                              <span className={styles.totalAmountSeparator}>₱</span>
+                              <span className={styles.totalAmountValue}>{reservation.totalEstimatedAmount}</span>
+                            </div>
+
+                            {!isUploadVisible && (
+                              <button
+                                className={`${styles.confirmButton} ${reservation.confirmed ? styles.confirmedButton : ''}`}
+                                onClick={() => handleConfirmNow(reservation._id, reservation.category)}
+                                title={reservation.confirmed ? 'Upload required documents' : undefined}
+                              >
+                                {reservation.confirmed
+                                  ? 'Confirm Now'
+                                  : reservation.details.category === 'Private'
+                                    ? 'Pay Now!'
+                                    : 'Confirm Now!'}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
