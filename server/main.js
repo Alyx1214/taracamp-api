@@ -66,7 +66,7 @@ const allowedOrigins = [
   // Default development origins
   'http://localhost:5173',  // Guest app (dev)
   'http://localhost:5174',  // Admin app (dev)
-  'https://taracamp-api.onrender.com',  // Legacy origin
+  'https://taracamp-api.azurewebsites.net',  // Legacy origin
   
   // Environment variable origins (comma-separated or individual)
   process.env.FRONTEND_URL,  // Guest app production URL

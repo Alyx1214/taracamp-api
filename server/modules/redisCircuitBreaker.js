@@ -92,6 +92,10 @@ export const safeRedisOperations = {
     },
 
     del: async (...keys) => {
+        // Redis del command requires at least one key
+        if (!keys || keys.length === 0) {
+            return 0; // No keys to delete, return success
+        }
         return await redisCircuitBreaker.execute(
             () => redisClient.del(...keys),
             0 // fallback - assume deletion succeeded
