@@ -1359,7 +1359,8 @@ function fmtAmountOnly(num) {
 }
 
 function calculateConfirmationFee(category, totalAmount) {
-    const needsConfirmationFee = category === Category.PRIVATE;
+    const normalizedCategory = category ? String(category).trim() : '';
+    const needsConfirmationFee = normalizedCategory === Category.PRIVATE;
     return needsConfirmationFee 
         ? Math.max(0, Math.round(totalAmount * DOWNPAYMENT_PERCENT * 100) / 100)
         : 0;

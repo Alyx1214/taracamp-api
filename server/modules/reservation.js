@@ -1037,9 +1037,93 @@ const reservationModule = {
                 return responseData;
             }
             const reservations = await dbHelper.find('reservation', { userId: user.userId, });
+            
+            // Populate facility and addOns, then calculate breakdown for each reservation
+            const enrichedReservations = await Promise.all((reservations || []).map(async (reservation) => {
+                const reservationObj = typeof reservation.toObject === 'function' ? reservation.toObject() : reservation;
+                
+                // Fetch facility info
+                let facilityDoc = null;
+                let facilityName = null;
+                let facilityType = null;
+                if (reservationObj.facility) {
+                    try {
+                        facilityDoc = await dbHelper.findOne('facility', { _id: reservationObj.facility });
+                        if (facilityDoc) {
+                            const facilityObj = typeof facilityDoc.toObject === 'function' ? facilityDoc.toObject() : facilityDoc;
+                            facilityName = facilityObj.name || null;
+                            facilityType = facilityObj.facilityType || null;
+                        }
+                    } catch (facilityError) {
+                        console.warn('Error fetching facility for reservation:', facilityError);
+                    }
+                }
+                
+                // Fetch addOns details
+                let addOnsDetails = [];
+                let addonsTotal = 0;
+                if (Array.isArray(reservationObj.addOns) && reservationObj.addOns.length > 0) {
+                    try {
+                        const addOns = await dbHelper.findMany('addon', { _id: { $in: reservationObj.addOns } });
+                        addOnsDetails = (addOns || []).map(addon => ({
+                            _id: addon._id,
+                            name: addon.name || 'N/A',
+                            price: Number(addon.price) || 0,
+                            unit: addon.unit || null,
+                        }));
+                        addonsTotal = addOnsDetails.reduce((sum, addon) => sum + (Number(addon.price) || 0), 0);
+                    } catch (addonError) {
+                        console.warn('Error fetching addOns for reservation:', addonError);
+                    }
+                }
+                
+                // Calculate breakdown using computeEstimate
+                let breakdown = {
+                    facilityFee: 0,
+                    serviceFee: 0,
+                    discount: 0,
+                    addOnsTotal: addonsTotal,
+                };
+                
+                if (facilityDoc) {
+                    try {
+                        const estimateResult = computeEstimate({
+                            facilityDoc,
+                            adults: reservationObj?.numberOfGuests?.adult || 0,
+                            children: reservationObj?.numberOfGuests?.children || 0,
+                            pwds: reservationObj?.numberOfGuests?.pwds || 0,
+                            seniorCitizens: reservationObj?.numberOfGuests?.seniorCitizen || 0,
+                            serviceType: reservationObj?.serviceType,
+                            addonsTotal: addonsTotal,
+                            category: reservationObj?.category,
+                            dateOfArrival: reservationObj?.dateOfArrival,
+                            dateOfDeparture: reservationObj?.dateOfDeparture,
+                            timeOfArrival: reservationObj?.timeOfArrival,
+                        });
+                        
+                        breakdown = {
+                            facilityFee: estimateResult.facilityFee || 0,
+                            serviceFee: estimateResult.serviceFee || 0,
+                            discount: estimateResult.discount || 0,
+                            addOnsTotal: addonsTotal,
+                        };
+                    } catch (estimateError) {
+                        console.warn('Error calculating estimate for reservation:', estimateError);
+                    }
+                }
+                
+                return {
+                    ...reservationObj,
+                    facilityName,
+                    facilityType,
+                    addOns: addOnsDetails,
+                    breakdown,
+                };
+            }));
+            
             responseData.status = Status.OK;
             responseData.error = null;
-            responseData.reservations = reservations;
+            responseData.reservations = enrichedReservations;
         } catch (error) {
             console.error('Error fetching reservations by user ID:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
@@ -2299,7 +2383,7 @@ const reservationModule = {
      * @param {Object} user - The logged-in user.
      * @returns {Object} Response data with status, error, message, and updated reservation on success.
      */
-    updateReservation: async (dbHelper, reservationId, data, letterOfIntentFile, seniorCitizenIdFiles, pwdIdFiles, user, serviceContractFile = null, moaFile = null) => {
+    updateReservation: async (dbHelper, reservationId, data, letterOfIntentFile, seniorCitizenIdFiles, pwdIdFiles, user, serviceContractFile = null, moaFile = null, fundsFile = null) => {
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
             error: 'Error updating reservation',
@@ -2462,6 +2546,12 @@ const reservationModule = {
             if (serviceContractFile && !isValidFile(serviceContractFile)) {
                 responseData.status = Status.BAD_REQUEST;
                 responseData.error = 'Invalid Service Contract file. File must be PDF, DOC, or DOCX and less than 5MB.';
+                return responseData;
+            }
+
+            if (fundsFile && !isValidFile(fundsFile)) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Invalid Certificate of Availability of Funds file. File must be PDF, DOC, or DOCX and less than 5MB.';
                 return responseData;
             }
 
@@ -2741,6 +2831,39 @@ const reservationModule = {
                     console.error('Error uploading Service Contract file:', err);
                     responseData.status = Status.INTERNAL_SERVER_ERROR;
                     responseData.error = 'Service Contract upload failed: ' + err.message;
+                    return responseData;
+                }
+            }
+
+            // Handle Certificate of Availability of Funds file upload
+            let fundsFileDoc = null;
+            if (fundsFile) {
+                try {
+                    const filename = `certificate_of_funds/${Date.now()}_${fundsFile.originalname.replace(/\s/g, '_')}`;
+                    const blob = bucket.file(filename);
+                    await new Promise((resolve, reject) => {
+                        const stream = blob.createWriteStream({
+                            resumable: false,
+                            contentType: fundsFile.mimetype,
+                        });
+                        stream.on('error', reject);
+                        stream.on('finish', resolve);
+                        stream.end(fundsFile.buffer);
+                    });
+
+                    fundsFileDoc = await dbHelper.create('file', {
+                        path: filename,
+                        mimetype: fundsFile.mimetype,
+                        size: fundsFile.size,
+                        kind: FileKind.CERTIFICATE_OF_AVAILABILITY_OF_FUNDS,
+                        userId: user.userId,
+                        reservationId: reservationId,
+                        createdAt: new Date(),
+                    });
+                } catch (err) {
+                    console.error('Error uploading Certificate of Availability of Funds file:', err);
+                    responseData.status = Status.INTERNAL_SERVER_ERROR;
+                    responseData.error = 'Certificate of Availability of Funds upload failed: ' + err.message;
                     return responseData;
                 }
             }

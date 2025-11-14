@@ -103,7 +103,7 @@ export function decideReservation(id, { decision, reason } = {}) {
   return apiPost(`/reservation/accept-or-decline-reservation/${encodeURIComponent(id)}`, { decision, reason });
 }
 
-export function uploadConfirmationDocuments(id, moaFile, serviceContractFile) {
+export function uploadConfirmationDocuments(id, moaFile, serviceContractFile, fundsFile) {
   const fd = new FormData();
   
   // Upload MOA file as separate field
@@ -116,6 +116,12 @@ export function uploadConfirmationDocuments(id, moaFile, serviceContractFile) {
   if (serviceContractFile) {
     console.log('Adding Service Contract file:', serviceContractFile.name, serviceContractFile.size, serviceContractFile.type);
     fd.append('serviceContractFile', serviceContractFile);
+  }
+  
+  // Upload Certificate of Availability of Funds file
+  if (fundsFile) {
+    console.log('Adding Certificate of Availability of Funds file:', fundsFile.name, fundsFile.size, fundsFile.type);
+    fd.append('fundsFile', fundsFile);
   }
   
   // Set status to Confirmed after uploading documents

@@ -27,6 +27,7 @@ export const FileKind = {
     SENIOR_CITIZEN_ID: 'Senior Citizen ID',
     MEMORANDUM_OF_AGREEMENT: 'Memorandum of Agreement',
     SERVICE_CONTRACT: 'Service Contract',
+    CERTIFICATE_OF_AVAILABILITY_OF_FUNDS: 'Certificate of Availability of Funds',
 }
 
 export const Category = {

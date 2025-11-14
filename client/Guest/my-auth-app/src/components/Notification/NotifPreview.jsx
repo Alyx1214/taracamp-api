@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { getReservationById } from '../../apis/reservationApi';
 import { getFacilityById } from '../../apis/facilityApi';
 import { timeAgo } from '../../utils/timeAgo';
+import { getCachedReservation, setCachedReservation } from '../../utils/reservationCache';
 import styles from './NotifPreview.module.css';
 
 export default function NotifPreview({
@@ -15,11 +16,21 @@ export default function NotifPreview({
   const [loading, setLoading] = useState(true);
   const [facilityLoading, setFacilityLoading] = useState(false);
 
-  // Load reservation
+  // Load reservation with caching
   useEffect(() => {
     let cancelled = false;
     async function load() {
       if (!notif.reservationId) return;
+      
+      // Check cache first
+      const cached = getCachedReservation(notif.reservationId);
+      if (cached) {
+        setReservation(cached);
+        setLoading(false);
+        return;
+      }
+
+      // If not in cache, fetch from API
       setLoading(true);
       try {
         const res = await getReservationById(notif.reservationId);
@@ -32,7 +43,7 @@ export default function NotifPreview({
             (typeof raw.facility === 'string' ? raw.facility : null) ||
             null;
 
-          setReservation({
+          const processedReservation = {
             checkInDate: raw.dateOfArrival,
             checkOutDate: raw.dateOfDeparture,
             facilityType: raw.facilityType || facilityObj?.facilityType || null,
@@ -40,7 +51,11 @@ export default function NotifPreview({
             facilityId,
             guestType: raw.guestType || null,
             numGuests: raw.numberOfGuests?.total ?? 0,
-          });
+          };
+
+          setReservation(processedReservation);
+          // Cache the processed reservation data
+          setCachedReservation(notif.reservationId, processedReservation);
         }
       } catch (e) {
         console.error('load reservation failed', e);
@@ -65,11 +80,19 @@ export default function NotifPreview({
         const res = await getFacilityById(String(reservation.facilityId));
         const data = res?.facility || res?.data?.facility;
         if (!cancelled && data) {
-          setReservation(prev => prev ? ({
-            ...prev,
-            facilityName: prev.facilityName || data.name || data.facilityName || null,
-            facilityType: prev.facilityType || data.facilityType || null,
-          }) : prev);
+          setReservation(prev => {
+            if (!prev) return prev;
+            const updated = {
+              ...prev,
+              facilityName: prev.facilityName || data.name || data.facilityName || null,
+              facilityType: prev.facilityType || data.facilityType || null,
+            };
+            // Update cache with facility details
+            if (notif.reservationId) {
+              setCachedReservation(notif.reservationId, updated);
+            }
+            return updated;
+          });
         }
       } catch (e) {
         console.warn('load facility failed', e);
@@ -78,7 +101,7 @@ export default function NotifPreview({
       }
     })();
     return () => { cancelled = true; };
-  }, [needsFacilityDetails, reservation?.facilityId]);
+  }, [needsFacilityDetails, reservation?.facilityId, notif.reservationId]);
 
   const fmt = v => {
     if (!v) return '';

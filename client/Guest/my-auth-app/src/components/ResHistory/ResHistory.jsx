@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import HeaderHome from '../HeaderHome/HeaderHome';
 import ErrorBanner from '../ErrorBanner/ErrorBanner';
 import styles from './ResHistory.module.css';
 
-import { getMyReservations } from '../../apis/reservationApi';
-import { getFacilityById } from '../../apis/facilityApi';
+import { getMyReservations, uploadConfirmationDocuments } from '../../apis/reservationApi';
+import { clearCachedReservation } from '../../utils/reservationCache';
 
 // Upload fields configuration (copied from NotifUpload.jsx)
 const uploadFields = {
@@ -61,6 +61,7 @@ const uploadFields = {
 
 function ReservationHistory() {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState(null);
@@ -68,6 +69,7 @@ function ReservationHistory() {
   const [openReservationId, setOpenReservationId] = useState(null);
   const [showUploadForId, setShowUploadForId] = useState(null);
   const [selectedFiles, setSelectedFiles] = useState({});
+  const [uploadingReservationId, setUploadingReservationId] = useState(null);
   const fileRefs = useRef({});
 
   useEffect(() => {
@@ -77,12 +79,14 @@ function ReservationHistory() {
   }, [navigate]);
 
   const mapFacilityTypeLabel = (t) => {
-    const s = String(t || '').trim().toUpperCase();
+    if (!t) return 'N/A';
+    const s = String(t).trim().toUpperCase();
     if (!s) return 'N/A';
-    if (s.includes('Conference')) return 'Conference Hall';
+    if (s.includes('CONFERENCE')) return 'Conference Hall';
     if (s.includes('DORM')) return 'Dormitory';
     if (s.includes('COTTAGE') || s.includes('GUEST')) return 'Cottage';
-    return t || 'N/A';
+    // If no match, return the original value (might already be formatted)
+    return String(t).trim() || 'N/A';
   };
 
   const mapCategoryLabel = (c) => {
@@ -124,11 +128,32 @@ function ReservationHistory() {
     } catch { return 'N/A'; }
   };
 
+  // Check for location state to show upload section (separate from data loading)
+  useEffect(() => {
+    const showUploadFor = location.state?.showUploadFor;
+    if (showUploadFor && reservationsRaw.length > 0) {
+      // Find the reservation that matches
+      const matchingReservation = reservationsRaw.find(r => String(r._id || r.id) === showUploadFor);
+      if (matchingReservation) {
+        // Compute the id the same way as in reservationsView
+        const computedId = String(matchingReservation._id || matchingReservation.id || Math.random().toString(36).slice(2));
+        // Set the reservation to open and show upload
+        setOpenReservationId(computedId);
+        setShowUploadForId(String(matchingReservation._id || ''));
+        // Clear location state to prevent re-triggering
+        navigate(location.pathname, { state: {}, replace: true });
+      }
+    }
+  }, [location.state, reservationsRaw, navigate, location.pathname]);
+
   useEffect(() => {
     let active = true;
 
     (async () => {
-      setLoading(true);
+      // Only show loading if we don't have data yet
+      if (reservationsRaw.length === 0) {
+        setLoading(true);
+      }
       setErr(null);
       try {
         const data = await getMyReservations().catch((e) => {
@@ -145,30 +170,14 @@ function ReservationHistory() {
           return;
         }
 
-        const ids = [...new Set(list.map(r => String(r?.facility || '')).filter(Boolean))];
-        const pairs = await Promise.all(ids.map(async (fid) => {
-          try {
-            const fj = await getFacilityById(fid);
-            const f = fj?.data || fj?.facility || fj?.result || fj;
-            return [fid, {
-              name: f?.name || 'N/A',
-              type: f?.type || f?.facilityType || f?.typeOfFacility || f?.category || 'N/A',
-            }];
-          } catch {
-            return [fid, { name: 'N/A', type: 'N/A' }];
-          }
-        }));
+        // Server now provides facilityName, facilityType, addOns, and breakdown
+        setReservationsRaw(list);
 
-        if (!active) return;
-
-        const byId = Object.fromEntries(pairs);
-        setReservationsRaw(list.map(r => ({
-          ...r,
-          __facilityInfo: byId[String(r?.facility || '')] || { name: 'N/A', type: 'N/A' },
-        })));
-
-        const firstId = String(list[0]._id || list[0].id || '');
-        setOpenReservationId(firstId || null);
+        // Only set default open reservation if not already set by location state
+        if (!location.state?.showUploadFor) {
+          const firstId = String(list[0]._id || list[0].id || '');
+          setOpenReservationId(firstId || null);
+        }
       } catch (e) {
         if (!active) return;
         setErr({ message: e?.data?.error || e?.message || 'Unable to load reservations' });
@@ -186,26 +195,29 @@ function ReservationHistory() {
   const reservationsView = useMemo(() => {
     return reservationsRaw.map((r) => {
       const rid = String(r._id || r.id || Math.random().toString(36).slice(2));
-      const facName = r.__facilityInfo?.name || 'N/A';
-      const facType = mapFacilityTypeLabel(r.__facilityInfo?.type);
+      
+      // Use server-provided facility name and type
+      const facName = r?.facilityName || 'N/A';
+      // Map facility type from server
+      const facType = mapFacilityTypeLabel(r?.facilityType);
+      
       const totalGuests = r?.numberOfGuests?.total ?? (
         (parseInt(r?.numberOfAdults || 0, 10) || 0) +
         (parseInt(r?.numberOfChildren || 0, 10) || 0) +
         (parseInt(r?.numberOfPwds || 0, 10) || 0)
       );
 
-      // Process add-ons
+      // Use server-provided addOns (already populated with details)
       const addOns = Array.isArray(r?.addOns) && r.addOns.length > 0
         ? r.addOns
         : null;
 
-      // Calculate breakdown
-      const facilityFee = Number(r?.facilityFee || 0);
-      const addOnsTotal = addOns 
-        ? addOns.reduce((sum, addon) => sum + (Number(addon.price) || 0), 0)
-        : 0;
-      const serviceFee = Number(r?.serviceFee || 0);
-      const discount = Number(r?.discount || 0);
+      // Use server-provided breakdown
+      const breakdown = r?.breakdown || {};
+      const facilityFee = Number(breakdown?.facilityFee || 0);
+      const addOnsTotal = Number(breakdown?.addOnsTotal || 0);
+      const serviceFee = Number(breakdown?.serviceFee || 0);
+      const discount = Number(breakdown?.discount || 0);
 
       return {
         _id: String(r?._id || ''),
@@ -214,7 +226,7 @@ function ReservationHistory() {
         type: facType,
         category: r?.category || 'N/A',
         details: {
-          type: r?.type || 'N/A',
+          type: r?.guestType || 'N/A',
           groupAssociation: r?.guestName || 'N/A',
           address: r?.homeAddress || 'N/A',
           officeAddress: r?.officeAddress || 'N/A',
@@ -266,25 +278,115 @@ function ReservationHistory() {
     }));
   };
 
-  const handleSubmitDocuments = (e, reservationId) => {
+  const handleSubmitDocuments = async (e, reservationId) => {
     e.preventDefault();
+    
+    if (uploadingReservationId === reservationId) return; // Prevent double submission
     
     // Get the reservation to determine client type
     const reservation = reservationsView.find(r => r._id === reservationId);
+    if (!reservation) {
+      alert('Reservation not found. Please try again.');
+      return;
+    }
+    
     const clientType = getClientType(reservation?.category);
     const fields = uploadFields[clientType] || uploadFields['deped'];
     
+    // Collect files from file inputs or selectedFiles state
     const files = {};
     fields.forEach(f => {
       const file = fileRefs.current[f.key]?.files?.[0] || selectedFiles[f.key] || null;
       files[f.key] = file;
     });
     
-    console.log('Submitting documents for reservation:', reservationId, files);
+    // Validate required files based on client type
+    const requiredFields = fields.filter(f => !f.label.toLowerCase().includes('optional'));
+    const missingFiles = requiredFields.filter(f => !files[f.key]);
     
-    // TODO: API call to submit documents
-    // After successful submission, navigate to transactions
-    navigate(`/transactions?reservationId=${encodeURIComponent(reservationId)}`);
+    if (missingFiles.length > 0) {
+      const missingLabels = missingFiles.map(f => f.label).join(', ');
+      alert(`Please upload the following required documents: ${missingLabels}`);
+      return;
+    }
+    
+    // Map files to API format
+    // Backend supports: moaFile (for deped), serviceContractFile (for gov/priva-group), and fundsFile
+    const moaFile = files.moa || null;
+    const serviceContractFile = files.service || null;
+    const fundsFile = files.funds || null;
+    
+    // For individual type, there's no backend support yet, but we'll still try
+    if (files.id) {
+      console.warn('ID file upload not yet supported by backend:', files.id.name);
+    }
+    
+    // Validate that at least one supported file is provided
+    if (!moaFile && !serviceContractFile && !fundsFile) {
+      alert('Please upload at least one required document (MOA, Service Contract, or Certificate of Availability of Funds).');
+      return;
+    }
+    
+    setUploadingReservationId(reservationId);
+    setErr(null);
+    
+    try {
+      console.log('Uploading documents for reservation:', reservationId, {
+        moaFile: moaFile ? moaFile.name : 'none',
+        serviceContractFile: serviceContractFile ? serviceContractFile.name : 'none',
+        fundsFile: fundsFile ? fundsFile.name : 'none'
+      });
+      
+      // Upload documents and confirm reservation
+      await uploadConfirmationDocuments(reservationId, moaFile, serviceContractFile, fundsFile);
+      
+      // Clear cached reservation data since it's been updated
+      clearCachedReservation(reservationId);
+      
+      // Clear file selections
+      setSelectedFiles({});
+      Object.keys(fileRefs.current).forEach(key => {
+        if (fileRefs.current[key] && fileRefs.current[key].value) {
+          fileRefs.current[key].value = '';
+        }
+      });
+      
+      // Hide upload section
+      setShowUploadForId(null);
+      
+      // Show success message
+      alert('Documents submitted and reservation confirmed. Thank you!');
+      
+      // Refresh reservations to show updated status
+      const data = await getMyReservations().catch((e) => {
+        if (e?.status === 404) return { reservations: [] };
+        throw e;
+      });
+      
+      const list = Array.isArray(data?.reservations) ? data.reservations : [];
+      if (list.length > 0) {
+        setReservationsRaw(list);
+        // Keep the same reservation open
+        const currentReservation = list.find(r => String(r._id || r.id) === reservationId);
+        if (currentReservation) {
+          const computedId = String(currentReservation._id || currentReservation.id || Math.random().toString(36).slice(2));
+          setOpenReservationId(computedId);
+        }
+      }
+      
+      // Navigate to transactions page
+      navigate(`/transactions?reservationId=${encodeURIComponent(reservationId)}`);
+    } catch (error) {
+      console.error('Failed to upload documents and confirm reservation:', error);
+      const errorMessage = error?.data?.error || 
+                          error?.data?.message || 
+                          error?.message || 
+                          'Failed to upload documents and confirm reservation. Please try again.';
+      setErr({ message: errorMessage });
+      alert(errorMessage);
+    } finally {
+      setUploadingReservationId(null);
+    }
   };
 
   return (
@@ -324,6 +426,7 @@ function ReservationHistory() {
                 const clientType = getClientType(reservation.category);
                 const fields = uploadFields[clientType] || uploadFields['deped'];
                 const isUploadVisible = showUploadForId === reservation._id;
+                const isUploading = uploadingReservationId === reservation._id;
 
                 return (
                   <div key={reservation.id} className={styles.reservationCard}>
@@ -459,8 +562,13 @@ function ReservationHistory() {
                               </form>
                             </div>
                             <div className={styles.submitBtnWrapper}>
-                              <button type="button" onClick={(e) => handleSubmitDocuments(e, reservation._id)} className={styles.submitBtn}>
-                                Submit Documents
+                              <button 
+                                type="button" 
+                                onClick={(e) => handleSubmitDocuments(e, reservation._id)} 
+                                className={styles.submitBtn}
+                                disabled={isUploading}
+                              >
+                                {isUploading ? 'Uploading...' : 'Submit Documents'}
                               </button>
                             </div>
                           </div>
