@@ -6,7 +6,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'https://taracamp-api.onrender.com',
+        target: 'https://taracamp-api.azurewebsites.net',
         //target: 'http://localhost:3000',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, '/api'),
