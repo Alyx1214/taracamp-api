@@ -210,7 +210,7 @@ export const generateReservationEmailHTML = (reservationDetails) => {
                     </p>
                     
                     <hr style="border: none; border-top: 1px solid #eee; margin: 32px 0;">
-                    <p style="color: #999; font-size: 13px; margin: 0; line-height: 1.6;">Best regards,<br>Teachers Camp Team</p>
+                    <p style="color: #999; font-size: 13px; margin: 0; line-height: 1.6;">Best regards,<br>Teachers Camp</p>
                 </div>
             </div>
         </body>

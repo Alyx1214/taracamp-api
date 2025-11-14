@@ -1036,7 +1036,7 @@ async function uploadImagesAndGetKeys(files) {
     const keys = [];
     for (const file of files) {
         const filename = `${Date.now()}_${Math.random().toString(36).slice(2)}_${file.originalname.replace(/\s/g, '_')}`;
-        const key = (((process.env.FACILITY_IMAGE_PREFIX || 'facility_images/').replace(/(^\/+|\/+$)/g, '') + '/') + filename);
+        const key = 'facility_images/' + filename;
         const blob = bucket.file(key);
         await new Promise((resolve, reject) => {
             const stream = blob.createWriteStream({ resumable: false, contentType: file.mimetype, });
@@ -1335,7 +1335,7 @@ async function uploadImagesAndGetKeysParallel(files) {
  */
 async function uploadSingleImage(file) {
     const filename = `${Date.now()}_${Math.random().toString(36).slice(2)}_${file.originalname.replace(/\s/g, '_')}`;
-    const key = ((process.env.FACILITY_IMAGE_PREFIX || 'facility_images/').replace(/(^\/+|\/+$)/g, '') + '/') + filename;
+    const key = 'facility_images/' + filename;
     const blob = bucket.file(key);
     
     await new Promise((resolve, reject) => {

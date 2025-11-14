@@ -133,3 +133,4 @@ dist
 node_modules
 .DS_Store
 server/modules/*.json
+AZURE_DEPLOYMENT_GUIDE.md

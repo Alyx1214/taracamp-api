@@ -11,6 +11,7 @@ import { listNotifications, markAllNotificationsRead, markNotificationRead, dele
 import { updateMealPreference, getReservationById, cancelReservation, uploadConfirmationDocuments } from '../../apis/reservationApi';
 import { addReview } from '../../apis/reviewsApi';
 import { subscribe, initSocketFresh } from '../../utils/webSocketClient';
+import { clearCachedReservation } from '../../utils/reservationCache';
 
 export default function Notif() {
   const navigate = useNavigate();
@@ -370,11 +371,14 @@ export default function Notif() {
       return;
     }
 
-    // Switch to upload stage within the same component
+    // Navigate to reservation history with state to show upload section (smoother transition)
     if (action === 'upload') {
-      setUploadReservationId(reservationId);
-      setUploadClientType(clientType || 'deped');
-      setStage('upload');
+      setSelected(null);
+      setStage('list');
+      navigate('/reservations', { 
+        state: { showUploadFor: reservationId },
+        replace: false 
+      });
       return;
     }
   }
@@ -451,6 +455,9 @@ export default function Notif() {
       const isSuccess = response?.status === 200 && !response?.error;
       
       if (isSuccess || response?.message) {
+        // Clear cached reservation data since it's been cancelled
+        clearCachedReservation(selected.reservationId);
+        
         // Remove the notification from the list
         setNotifications(prev => prev.filter(n => n._id !== selected._id));
         
@@ -529,9 +536,11 @@ export default function Notif() {
         });
         
         // Upload documents and confirm reservation
-        // Note: The backend currently supports moaFile and serviceContractFile
-        // If fundsFile or idFile need to be handled, backend needs to be updated
-        await uploadConfirmationDocuments(reservationId, moaFile, serviceContractFile);
+        // Backend supports moaFile, serviceContractFile, and fundsFile
+        await uploadConfirmationDocuments(reservationId, moaFile, serviceContractFile, fundsFile);
+        
+        // Clear cached reservation data since it's been updated
+        clearCachedReservation(reservationId);
         
         // Mark notification as read if there's a selected notification
         if (selected?._id) {

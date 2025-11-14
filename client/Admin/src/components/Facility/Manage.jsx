@@ -192,6 +192,15 @@ export default function Manage() {
                 </select>
               </label>
 
+              <label>
+                Assign To:
+                <select
+                  // edit with confirmed reservation data
+                >
+                  {/* edit with confirmed reservation data */}
+                </select>
+              </label>
+
               <div className={styles.actionCell}>
                 <button
                   type="button"

@@ -17,7 +17,10 @@ export default function buildUserRouter(userSocketMap) {
     
     // Send verification email if registration was successful
     if (result.status === Status.CREATED && result.verificationToken) {
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+      // Use localhost:5173 for local development, otherwise use env var
+      const frontendUrl = process.env.NODE_ENV === 'production' 
+        ? (process.env.FRONTEND_URL || 'http://localhost:5173')
+        : 'http://localhost:5173';
       const verificationUrl = `${frontendUrl}/verify-email?token=${result.verificationToken}&email=${encodeURIComponent(result.email)}`;
       
       const emailResult = await emailModule.sendVerificationEmail(result.email, verificationUrl, result.name);
@@ -110,7 +113,10 @@ export default function buildUserRouter(userSocketMap) {
     
     // Send verification email if resend was successful
     if (result.status === Status.OK && result.verificationToken) {
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+      // Use localhost:5173 for local development, otherwise use env var
+      const frontendUrl = process.env.NODE_ENV === 'production' 
+        ? (process.env.FRONTEND_URL || 'http://localhost:5173')
+        : 'http://localhost:5173';
       const verificationUrl = `${frontendUrl}/verify-email?token=${result.verificationToken}&email=${encodeURIComponent(result.email)}`;
       
       const emailResult = await emailModule.sendVerificationEmail(result.email, verificationUrl, result.name);
@@ -174,6 +180,27 @@ export default function buildUserRouter(userSocketMap) {
 
   r.post('/add-user', basicLimiter, asyncHandler(async (req, res) => {
     const response = await userModule.addUser(dbHelper, req.body, req.user);
+    
+    // Send verification email if user was added successfully
+    if (response.status === Status.CREATED && response.verificationToken) {
+      // Use localhost:5173 for local development, otherwise use env var
+      const frontendUrl = process.env.NODE_ENV === 'production' 
+        ? (process.env.FRONTEND_URL || 'http://localhost:5173')
+        : 'http://localhost:5173';
+      const verificationUrl = `${frontendUrl}/verify-email?token=${response.verificationToken}&email=${encodeURIComponent(response.email)}`;
+      
+      const emailResult = await emailModule.sendVerificationEmail(response.email, verificationUrl, response.name);
+      if (emailResult.status !== Status.OK) {
+        console.error('Failed to send verification email:', emailResult.error);
+        // Don't fail user creation if email fails, but log it
+      }
+      
+      // Remove sensitive data from response
+      delete response.verificationToken;
+      delete response.email;
+      delete response.name;
+    }
+    
     res.status(response.status).json(response);
   }));
 

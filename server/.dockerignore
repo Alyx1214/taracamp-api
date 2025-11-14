@@ -3,3 +3,4 @@ dist
 npm-debug.log
 eighth-parity-474012-a2-e43b626c3437.json
 .env
+AZURE_DEPLOYMENT_GUIDE.md
