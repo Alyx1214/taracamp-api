@@ -225,9 +225,22 @@ const dbHelper = {
             mongoose.model('payment', PaymentSchema);
             mongoose.model('review', ReviewSchema);
 
-            await mongoose.connect(connectionString);
+            // Add connection options for better performance and timeout handling
+            const connectionOptions = {
+                serverSelectionTimeoutMS: 10000, // Fail fast after 10 seconds
+                socketTimeoutMS: 45000, // 45 seconds socket timeout
+                connectTimeoutMS: 10000, // 10 seconds connection timeout
+                maxPoolSize: 10, // Maintain up to 10 socket connections
+                minPoolSize: 2, // Maintain at least 2 socket connections
+                retryWrites: true,
+                retryReads: true,
+            };
+
+            await mongoose.connect(connectionString, connectionOptions);
+            console.log('MongoDB connected successfully');
         } catch (error) {
             console.error('Error connecting to MongoDB:', error);
+            throw error; // Re-throw so main.js can handle it
         }
     },
 

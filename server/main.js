@@ -36,50 +36,51 @@ dotenv.config({ path: path.resolve(__dirname, '.env') });
 const port = process.env.PORT || 3000;
 const dbConnectionString = process.env.DB_CONN;
 
-// Parse allowed origins from environment variable (comma-separated)
-const allowedOrigins = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim()).filter(origin => origin)
-  : [];
-
-dbHelper.connect(dbConnectionString);
+// Connect to database before starting server
+try {
+  console.log('Connecting to database...');
+  await dbHelper.connect(dbConnectionString);
+  console.log('Database connected successfully');
+} catch (error) {
+  console.error('Failed to connect to database:', error);
+  process.exit(1);
+}
 
 const app = express();
 app.set('trust proxy', 1);
-await redisClient.connect();
+
+// Connect to Redis
+try {
+  console.log('Connecting to Redis...');
+  await redisClient.connect();
+  console.log('Redis connected successfully');
+} catch (error) {
+  console.error('Failed to connect to Redis:', error);
+  // Redis might be optional, but log the error
+}
 
 app.use(helmet());
+
+// Build allowed origins from environment variables and defaults
+const allowedOrigins = [
+  // Default development origins
+  'http://localhost:5173',  // Guest app (dev)
+  'http://localhost:5174',  // Admin app (dev)
+  'https://taracamp-api.onrender.com',  // Legacy origin
+  
+  // Environment variable origins (comma-separated or individual)
+  process.env.FRONTEND_URL,  // Guest app production URL
+  process.env.ADMIN_FRONTEND_URL,  // Admin app production URL
+  
+  // Support comma-separated list in ALLOWED_ORIGINS
+  ...(process.env.ALLOWED_ORIGINS 
+    ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
+    : [])
+].filter(Boolean);  // Remove any undefined/null/empty values
+
 app.use(cors({
-  origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) {
-      console.log('CORS: Request with no origin, allowing');
-      return callback(null, true);
-    }
-    
-    // Normalize origin (remove trailing slash if present)
-    const normalizedOrigin = origin.endsWith('/') ? origin.slice(0, -1) : origin;
-    
-    console.log(`CORS: Checking origin: ${normalizedOrigin}`);
-    
-    // If no allowed origins configured, allow all (for development)
-    if (allowedOrigins.length === 0) {
-      console.log('CORS: No allowed origins configured, allowing all');
-      return callback(null, true);
-    }
-    
-    if (allowedOrigins.includes(normalizedOrigin)) {
-      console.log(`CORS: Origin ${normalizedOrigin} is allowed`);
-      callback(null, normalizedOrigin);
-    } else {
-      console.log(`CORS: Origin ${normalizedOrigin} is NOT allowed`);
-      console.log(`CORS: Allowed origins:`, allowedOrigins);
-      callback(new Error(`Not allowed by CORS: ${normalizedOrigin}`));
-    }
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-ID'],
-  exposedHeaders: ['X-Request-ID']
+  origin: allowedOrigins,
+  credentials: true
 }));
 
 app.use('/api/v1/payment/webhook', express.raw({ type: 'application/json' }));
