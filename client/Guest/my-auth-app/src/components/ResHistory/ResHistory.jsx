@@ -240,6 +240,7 @@ function ReservationHistory() {
           typeOfFacility: facType,
           facilityName: facName,
           typeOfService: r?.serviceType || 'N/A',
+          letterOfIntent: r?.letterOfIntent || 'N/A',
         },
         breakdown: {
           facilityFee: facilityFee,
