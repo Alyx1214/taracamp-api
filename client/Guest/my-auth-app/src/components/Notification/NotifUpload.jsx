@@ -25,9 +25,9 @@ export default function NotifUpload({ onBack = () => {} }) {
         <div className={styles.checklistBox}>
           <h3 className={styles.checklistTitle}>Documents to Bring:</h3>
           <ul className={styles.checklistItems}>
-            <li>✓ Original or certified true copies of uploaded documents</li>
-            <li>✓ Valid government-issued ID</li>
-            <li>✓ Reservation confirmation (printed or digital)</li>
+            <li>Original or certified true copies of uploaded documents</li>
+            <li>Valid government-issued ID</li>
+            <li>Reservation confirmation (printed or digital)</li>
           </ul>
         </div>
         <div className={styles.footerText}>
