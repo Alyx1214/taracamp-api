@@ -43,8 +43,26 @@ app.set('trust proxy', 1);
 await redisClient.connect();
 
 app.use(helmet());
+
+// Build allowed origins from environment variables and defaults
+const allowedOrigins = [
+  // Default development origins
+  'http://localhost:5173',  // Guest app (dev)
+  'http://localhost:5174',  // Admin app (dev)
+  'https://taracamp-api.onrender.com',  // Legacy origin
+  
+  // Environment variable origins (comma-separated or individual)
+  process.env.FRONTEND_URL,  // Guest app production URL
+  process.env.ADMIN_FRONTEND_URL,  // Admin app production URL
+  
+  // Support comma-separated list in ALLOWED_ORIGINS
+  ...(process.env.ALLOWED_ORIGINS 
+    ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
+    : [])
+].filter(Boolean);  // Remove any undefined/null/empty values
+
 app.use(cors({
-  origin: ['http://localhost:5173', 'https://taracamp-api.onrender.com', 'http://localhost:5174'],
+  origin: allowedOrigins,
   credentials: true
 }));
 
