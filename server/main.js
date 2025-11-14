@@ -36,11 +36,28 @@ dotenv.config({ path: path.resolve(__dirname, '.env') });
 const port = process.env.PORT || 3000;
 const dbConnectionString = process.env.DB_CONN;
 
-dbHelper.connect(dbConnectionString);
+// Connect to database before starting server
+try {
+  console.log('Connecting to database...');
+  await dbHelper.connect(dbConnectionString);
+  console.log('Database connected successfully');
+} catch (error) {
+  console.error('Failed to connect to database:', error);
+  process.exit(1);
+}
 
 const app = express();
 app.set('trust proxy', 1);
-await redisClient.connect();
+
+// Connect to Redis
+try {
+  console.log('Connecting to Redis...');
+  await redisClient.connect();
+  console.log('Redis connected successfully');
+} catch (error) {
+  console.error('Failed to connect to Redis:', error);
+  // Redis might be optional, but log the error
+}
 
 app.use(helmet());
 
