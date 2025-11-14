@@ -453,6 +453,26 @@ export default function buildReservationRouter(userSocketMap) {
       moaFile,
       fundsFile
     );
+    
+    // Create notification when documents are successfully uploaded
+    if (response.status === 200 && response.reservationId && req.user?.userId) {
+      const hasUploadedDocuments = moaFile || serviceContractFile || fundsFile;
+      // Create notification if documents were uploaded (regardless of status)
+      if (hasUploadedDocuments) {
+        await notificationModule.createAndNotifyUser(
+          dbHelper,
+          {
+            title: 'Documents Successfully Uploaded! Your reservation is all set.',
+            message: 'Thank you for submitting your documents! We have received all the required files for your reservation at Teachers\' Camp.',
+            kind: 'documents_uploaded',
+            userId: req.user.userId,
+            reservationId: response.reservationId,
+          },
+          userSocketMap
+        ).catch(e => console.warn('Notify failed:', e?.message));
+      }
+    }
+    
     res.status(response.status).json(response);
   }));
 

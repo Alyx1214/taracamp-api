@@ -354,9 +354,6 @@ function ReservationHistory() {
       // Hide upload section
       setShowUploadForId(null);
       
-      // Show success message
-      alert('Documents submitted and reservation confirmed. Thank you!');
-      
       // Refresh reservations to show updated status
       const data = await getMyReservations().catch((e) => {
         if (e?.status === 404) return { reservations: [] };
@@ -374,6 +371,7 @@ function ReservationHistory() {
         }
       }
       
+      // Notification will be created by the server and appear in the notification icon
       // Navigate to transactions page
       navigate(`/transactions?reservationId=${encodeURIComponent(reservationId)}`);
     } catch (error) {

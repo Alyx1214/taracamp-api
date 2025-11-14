@@ -2931,6 +2931,13 @@ const reservationModule = {
                     if (isAdmin) {
                         // Admin users can update status
                         if (status === ReservationStatus.CONFIRMED && existingReservation.status === ReservationStatus.APPROVED) {
+                            // Check if arrival date is at least one month away
+                            const arrivalDateToCheck = finalDateOfArrival || existingReservation.dateOfArrival;
+                            if (!isAtLeastOneMonthAway(arrivalDateToCheck)) {
+                                responseData.status = Status.BAD_REQUEST;
+                                responseData.error = 'Reservations can only be confirmed at least one month prior to the date of arrival';
+                                return responseData;
+                            }
                             updateData.status = status;
                         } else if (status !== ReservationStatus.CONFIRMED) {
                             // Allow other status updates if not trying to confirm
@@ -2943,6 +2950,13 @@ const reservationModule = {
                     } else if (isOwner && status === ReservationStatus.CONFIRMED) {
                         // Allow owners to confirm their reservation when uploading confirmation documents
                         if (existingReservation.status === ReservationStatus.APPROVED) {
+                            // Check if arrival date is at least one month away
+                            const arrivalDateToCheck = finalDateOfArrival || existingReservation.dateOfArrival;
+                            if (!isAtLeastOneMonthAway(arrivalDateToCheck)) {
+                                responseData.status = Status.BAD_REQUEST;
+                                responseData.error = 'Reservations can only be confirmed at least one month prior to the date of arrival';
+                                return responseData;
+                            }
                             // Check if user is uploading MOA or Service Contract
                             if (moaFile || serviceContractFile) {
                                 updateData.status = status;
@@ -3237,6 +3251,28 @@ function normalizeDateToDateOnly(date) {
         return normalizeDateOnly(date);
     }
     return null;
+}
+
+/**
+ * Checks if the arrival date is at least one month (30 days) away from today
+ * @param {Date|string} arrivalDate - The arrival date to check
+ * @returns {boolean} True if the arrival date is at least one month away, false otherwise
+ */
+function isAtLeastOneMonthAway(arrivalDate) {
+    if (!arrivalDate) return false;
+    
+    const normalizedArrival = normalizeDateToDateOnly(arrivalDate);
+    if (!normalizedArrival) return false;
+    
+    const today = normalizeDateOnly(new Date().toISOString().split('T')[0]);
+    if (!today) return false;
+    
+    // Calculate one month from today (30 days)
+    const oneMonthFromToday = new Date(today);
+    oneMonthFromToday.setDate(oneMonthFromToday.getDate() + 30);
+    
+    // Compare dates (arrival must be >= one month from today)
+    return normalizedArrival.getTime() >= oneMonthFromToday.getTime();
 }
 
 function isValidEmail(email) {
