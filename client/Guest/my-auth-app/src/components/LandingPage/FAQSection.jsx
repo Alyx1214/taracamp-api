@@ -35,7 +35,7 @@ const faqData = [
 ];
 
 function FAQSection() {
-  const [openItemId, setOpenItemId] = useState(faqData[0].id); // First item open by default
+  const [openItemId, setOpenItemId] = useState(null);
 
   const toggleAccordion = (itemId) => {
     setOpenItemId(prevId => prevId === itemId ? null : itemId);

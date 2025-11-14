@@ -82,6 +82,7 @@
   color: #4F3718;
   transition: transform 0.3s ease;
   flex-shrink: 0;
+  transform: rotate(0deg);
 }
 
 .accordionIcon.rotate {

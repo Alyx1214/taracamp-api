@@ -702,19 +702,26 @@ const getCalendarData = (date) => {
           <div className={styles.contentContainer}>
             <div className={styles.headerAndDateContainer}>
               <div className={styles.facilityHeader}>
-                <div className={styles.facilityInfo}>
-                  <h2 className={styles.facilityName}>{facility.name}</h2>
-                  <p className={styles.facilityRate}>
-                    {priceLabel}: ₱ {displayPrice > 0 ? displayPrice.toLocaleString() : 'N/A'}
+              <div className={styles.facilityInfo}>
+                <h2 className={styles.facilityName}>{facility.name}</h2>
+                <p className={styles.facilityRate}>
+                  {priceLabel}: ₱ {displayPrice > 0 ? displayPrice.toLocaleString() : 'N/A'}
+                </p>
+                {/* <p className={styles.priceNote}>
+                  Note: The price is inclusive of a 10% service fee. DepEd, Gov't, PWD, and Seniors are eligible for a 20% discount.
+                </p> */}
+                {facilityType === 'Dormitory' && (
+                  <p className={styles.packageNote}>
+                    <strong>Important:</strong> Individual type bookings do not include food in the package for Dormitory facilities.
                   </p>
-                  <p className={styles.priceNote}>
-                    Note: The price is inclusive of a 10% service fee. DepEd, Gov't, PWD, and Seniors are eligible for a 20% discount.
-                  </p>
-                </div>
-                <button className={styles.reserveButton} onClick={onReserveNow}>
-                  Reserve Now
-                </button>
+                )}
+                <p className={styles.confirmationNote}>
+                  <strong>Note:</strong> Reservations are required at least two months prior to the intended arrival date and must be confirmed one month in advance. 
+                  Check-in time is at 2:00 PM. Guests requesting an earlier check-in should note that the previous day will be included in the billing and must be selected at the time of reservation. 
+                  For individual bookings, a confirmation fee of 10% of the total cost is required. The prices displayed already include a 10% service fee and are subject to change.
+                </p>
               </div>
+            </div>
 
               <div className={styles.dateChecker}>
                 <div className={styles.dateInputs}>
@@ -759,6 +766,9 @@ const getCalendarData = (date) => {
                     )}
                   </div>
                 </div>
+                <button className={styles.reserveButton} onClick={onReserveNow}>
+                  Reserve Now
+                </button>
               </div>
             </div>
 
