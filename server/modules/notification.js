@@ -18,15 +18,18 @@ const notificationModule = {
 
             // Ensure userId is a string (Map keys must match exactly)
             const userIdStr = userId?.toString?.() || String(userId || '');
-            const reservationIdStr = reservationId?.toString?.() || String(reservationId || null);
 
             const doc = {
                 title,
                 isRead: false,
                 userId: userIdStr,
-                reservationId: reservationIdStr || null,
                 createdAt: new Date(),
             };
+
+            // Only include reservationId if it's provided and valid
+            if (reservationId !== undefined && reservationId !== null) {
+                doc.reservationId = reservationId?.toString?.() || reservationId;
+            }
 
             if (message !== undefined && message !== null) {
                 doc.message = message;

@@ -178,12 +178,11 @@ const userModule = {
             }
 
             // Check if email is verified
-            // COMMENTED OUT - Email verification check disabled (SMTP blocked on Render)
-            // if (userObject.emailVerified !== true) {
-            //     responseData.status = Status.FORBIDDEN;
-            //     responseData.error = 'Please verify your email address before logging in. Check your inbox for the verification link.';
-            //     return responseData;
-            // }
+            if (userObject.emailVerified !== true) {
+                responseData.status = Status.FORBIDDEN;
+                responseData.error = 'Please verify your email address before logging in. Check your inbox for the verification link.';
+                return responseData;
+            }
 
             const jti = uuidv4();
             const userId = userObject._id.toString();
@@ -592,6 +591,12 @@ const userModule = {
                 return responseData;
             }
 
+            // Generate email verification token
+            const verificationToken = crypto.randomBytes(32).toString('hex');
+            const verificationTokenHash = hashString(verificationToken);
+            const verificationTokenExpiry = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
+
+            const sanitizedName = name.trim().replace(/\s+/g, ' ');
             let createdUser;
             let emailExists = false;
             
@@ -607,12 +612,14 @@ const userModule = {
                     return;
                 }
 
-                const sanitizedName = name.trim().replace(/\s+/g, ' ');
                 const userData = {
                     name: sanitizedName,
                     email: normalizedEmail,
                     role,
                     password: null,
+                    emailVerified: false, // Require email verification
+                    verificationTokenHash,
+                    verificationTokenExpiry,
                     createdAt: new Date(),
                     lastLoggedIn: null,
                 };
@@ -639,8 +646,11 @@ const userModule = {
 
             responseData.status = Status.CREATED;
             responseData.error = null;
-            responseData.message = 'User added successfully';
+            responseData.message = 'User added successfully. Verification email will be sent.';
             responseData.userId = createdUser._id.toString();
+            responseData.verificationToken = verificationToken; // Return token for route to send email
+            responseData.email = normalizedEmail;
+            responseData.name = sanitizedName;
             responseData.user = {
                 id: createdUser._id.toString(),
                 name: createdUser.name,
