@@ -155,6 +155,42 @@ export default function PendingRSVDetails() {
 
   const hasNonAvailability = !!reservation?.hasNonAvailabilityCert || !!reservation?.nonAvailabilityCertFile;
 
+  // Helper function to determine which documents should be shown
+  const getRequiredDocuments = () => {
+    if (!reservation) {
+      return {
+        showMoa: false, showCaf: false, showLetterOfIntent: false,
+        showGovId: false, showDepEdId: false, showPwdId: false, showScId: false,
+        discountNote: null,
+      };
+    }
+
+    const isGroup = reservation.guestType !== "Individual";
+    const cat = (reservation.category || "").toLowerCase();
+    const has = (k) => cat.includes(k);
+
+    const hasSenior = has("senior");
+    const showGovId = has("government");
+    const showDepEdId = has("deped");
+    const showPwdId = has("pwd");
+
+    // Group docs
+    const showMoa = isGroup;
+    const showCaf = isGroup;
+    const showLetterOfIntent = isGroup;
+
+    // Senior exclusivity: if any discounted category exists, prefer that and show note.
+    const hasDiscountId = showGovId || showDepEdId || showPwdId;
+    const discountNote = hasSenior && hasDiscountId ? "Note: Only one type of discount applies." : null;
+
+    // Show SC ID only when senior is present and no other discounted ID applies
+    const showScId = hasSenior && !hasDiscountId;
+
+    return { showMoa, showCaf, showLetterOfIntent, showGovId, showDepEdId, showPwdId, showScId, discountNote };
+  };
+
+  const requiredDocs = getRequiredDocuments();
+
   // Skeleton Loading Component
   const SkeletonLoading = () => (
     <div className={styles["reservation-details-container"]}>
@@ -258,8 +294,8 @@ export default function PendingRSVDetails() {
           <table className={styles["reservation-details-table"]}>
             <tbody>
               <tr>
-                <td className={styles["rsv-details-label"]}>Type</td> {/* added guest type field */}
-                <td className={styles["rsv-details-separator"]}>:</td>
+                <td className={styles["reservation-details-label"]}>Type</td>
+                <td className={styles["reservation-details-separator"]}>:</td>
                 <td>{reservation.guestType || "N/A"}</td>
               </tr>
               <tr>
@@ -327,87 +363,166 @@ export default function PendingRSVDetails() {
                 <td className={styles["reservation-details-separator"]}>:</td>
                 <td>{prettifyServiceType(reservation.serviceType) || "N/A"}</td>
               </tr>
-              {reservation.guestType !== "Individual" && (
+
+              {/* MOA - Only for groups */}
+              {requiredDocs.showMoa && (
+                <tr>
+                  <td className={styles["reservation-details-label"]}>MOA</td>
+                  <td className={styles["reservation-details-separator"]}>:</td>
+                  <td>
+                    {reservation.moaFile ? (
+                      <a
+                        href={reservation.moaFile}
+                        className={styles["reservation-details-link"]}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Click to open
+                      </a>
+                    ) : (
+                      <span className={styles["rsv-details-placeholder"]}>Not uploaded</span>
+                    )}
+                  </td>
+                </tr>
+              )}
+
+              {/* CAF - Only for groups */}
+              {requiredDocs.showCaf && (
+                <tr>
+                  <td className={styles["reservation-details-label"]}>CAF</td>
+                  <td className={styles["reservation-details-separator"]}>:</td>
+                  <td>
+                    {reservation.cafFile ? (
+                      <a
+                        href={reservation.cafFile}
+                        className={styles["reservation-details-link"]}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Click to open
+                      </a>
+                    ) : (
+                      <span className={styles["rsv-details-placeholder"]}>Not uploaded</span>
+                    )}
+                  </td>
+                </tr>
+              )}
+
+              {/* Letter of Intent - Based on logic */}
+              {requiredDocs.showLetterOfIntent && (
                 <tr>
                   <td className={styles["reservation-details-label"]}>Letter of Intent</td>
                   <td className={styles["reservation-details-separator"]}>:</td>
                   <td>
-                    <a
-                      href={reservation.letterOfIntentFile || "#"}
-                      className={styles["reservation-details-link"]}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      Click to open
-                    </a>
+                    {reservation.letterOfIntentFile ? (
+                      <a
+                        href={reservation.letterOfIntentFile}
+                        className={styles["reservation-details-link"]}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Click to open
+                      </a>
+                    ) : (
+                      <span className={styles["rsv-details-placeholder"]}>Not uploaded</span>
+                    )}
                   </td>
                 </tr>
               )}
 
-              {reservation.pwdIdFile && (
-                <tr>
-                  <td className={styles["reservation-details-label"]}>PWD ID</td>
-                  <td className={styles["reservation-details-separator"]}>:</td>
-                  <td>
-                    <a
-                      href={reservation.pwdIdFile || "#"}
-                      className={styles["reservation-details-link"]}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      Click to open
-                    </a>
-                  </td>
-                </tr>
-              )}
-
-              {reservation.governmentIdFile && (
+              {/* Government ID - Based on logic */}
+              {requiredDocs.showGovId && (
                 <tr>
                   <td className={styles["reservation-details-label"]}>Government ID</td>
                   <td className={styles["reservation-details-separator"]}>:</td>
                   <td>
-                    <a
-                      href={reservation.governmentIdFile || "#"}
-                      className={styles["reservation-details-link"]}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      Click to open
-                    </a>
+                    {reservation.governmentIdFile ? (
+                      <a
+                        href={reservation.governmentIdFile}
+                        className={styles["reservation-details-link"]}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Click to open
+                      </a>
+                    ) : (
+                      <span className={styles["rsv-details-placeholder"]}>Not uploaded</span>
+                    )}
                   </td>
                 </tr>
               )}
 
-              {reservation.depedIdFile && (
+              {/* DepEd ID - Based on logic */}
+              {requiredDocs.showDepEdId && (
                 <tr>
                   <td className={styles["reservation-details-label"]}>DepEd ID</td>
                   <td className={styles["reservation-details-separator"]}>:</td>
                   <td>
-                    <a
-                      href={reservation.depedIdFile || "#"}
-                      className={styles["reservation-details-link"]}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      Click to open
-                    </a>
+                    {reservation.depedIdFile ? (
+                      <a
+                        href={reservation.depedIdFile}
+                        className={styles["reservation-details-link"]}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Click to open
+                      </a>
+                    ) : (
+                      <span className={styles["rsv-details-placeholder"]}>Not uploaded</span>
+                    )}
                   </td>
                 </tr>
               )}
 
-              {reservation.scIdFile && (
+              {/* PWD ID - Based on logic */}
+              {requiredDocs.showPwdId && (
+                <tr>
+                  <td className={styles["reservation-details-label"]}>PWD ID</td>
+                  <td className={styles["reservation-details-separator"]}>:</td>
+                  <td>
+                    {reservation.pwdIdFile ? (
+                      <a
+                        href={reservation.pwdIdFile}
+                        className={styles["reservation-details-link"]}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Click to open
+                      </a>
+                    ) : (
+                      <span className={styles["rsv-details-placeholder"]}>Not uploaded</span>
+                    )}
+                  </td>
+                </tr>
+              )}
+
+              {/* Senior Citizen ID - Based on logic */}
+              {requiredDocs.showScId && (
                 <tr>
                   <td className={styles["reservation-details-label"]}>Senior Citizen ID</td>
                   <td className={styles["reservation-details-separator"]}>:</td>
                   <td>
-                    <a
-                      href={reservation.scIdFile || "#"}
-                      className={styles["reservation-details-link"]}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      Click to open
-                    </a>
+                    {reservation.scIdFile ? (
+                      <a
+                        href={reservation.scIdFile}
+                        className={styles["reservation-details-link"]}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Click to open
+                      </a>
+                    ) : (
+                      <span className={styles["rsv-details-placeholder"]}>Not uploaded</span>
+                    )}
+                  </td>
+                </tr>
+              )}
+
+              {/* Discount Note */}
+              {requiredDocs.discountNote && (
+                <tr>
+                  <td colSpan="3" className={styles["reservation-details-note"]}>
+                    {requiredDocs.discountNote}
                   </td>
                 </tr>
               )}
