@@ -5,8 +5,9 @@ import SearchFil from "../SearchFil/SearchFil.jsx";
 import UsersHeader from "./UsersHeader.jsx";
 import styles from "./Users.module.css";
 import Pagination from "../Pagination/Pagination.jsx";
+import ConfirmModal from "../Shared/ConfirmModal";
+import SuccessModal from "../Users/UsersModal";
 import { searchUsers, deleteUser } from "../../apis/userApi";
-
 
 export default function Users() {
   const location = useLocation();
@@ -34,6 +35,11 @@ export default function Users() {
   const [rawUsers, setRawUsers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [successModalOpen, setSuccessModalOpen] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
+  const [selectedRow, setSelectedRow] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   function formatDate(dt) {
     // Handle null, undefined, empty string, or 0
@@ -150,15 +156,25 @@ export default function Users() {
 
   const columns = ["Name", "Email", "Last Logged In", "Role", "Actions"];
 
-  async function handleDelete(row) {
-    if (!row?.id) return;
-    const confirmed = window.confirm(`Delete user ${row.name || row.id}?`);
-    if (!confirmed) return;
+  function promptDelete(row) {
+    setSelectedRow(row);
+    setConfirmDeleteOpen(true);
+  }
+
+  async function confirmDelete() {
+    if (!selectedRow) return;
     try {
-      await deleteUser(row.id);
-      setRawUsers(prev => Array.isArray(prev) ? prev.filter(u => (u?._id || u?.id) !== row.id) : prev);
+      setDeleting(true);
+      await deleteUser(selectedRow.id);
+      setRawUsers(prev => Array.isArray(prev) ? prev.filter(u => (u?._id || u?.id) !== selectedRow.id) : prev);
+      setConfirmDeleteOpen(false);
+      setSuccessMessage(`User "${selectedRow.name}" has been successfully deleted from the system.`);
+      setSuccessModalOpen(true);
+      setSelectedRow(null);
     } catch (e) {
       alert(e?.data?.error || e?.message || 'Failed to delete user');
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -183,6 +199,11 @@ export default function Users() {
 
   const handleSearch = (searchValue) => {
     setSearchQuery(searchValue || "");
+  };
+
+  const handleSuccessModalClose = () => {
+    setSuccessModalOpen(false);
+    setSuccessMessage("");
   };
 
   // Define filter fields for users
@@ -262,20 +283,48 @@ export default function Users() {
           data={mappedUsers}
           loading={loading}
           renderActions={(row) => (
-            <button 
-              className={styles.editBtn}
-              onClick={() => handleEdit(row)}
-            >
-              Edit
-            </button>
+            <>
+              <button 
+                className={styles.editBtn}
+                onClick={() => handleEdit(row)}
+              >
+                Edit
+              </button>
+              <button 
+                className={styles.deleteBtn}
+                onClick={() => promptDelete(row)}
+                style={{ marginLeft: 8 }}
+              >
+                Delete
+              </button>
+            </>
           )}
-          renderMenu={(row) => [
-            { label: "Delete", onClick: () => handleDelete(row) },
-            { label: "View", onClick: () => alert(`Viewing ${row.name}`) },
-          ]}
         />
         {!loading && <Pagination />}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        open={confirmDeleteOpen}
+        title="Delete User"
+        message={`Are you sure you want to delete ${selectedRow?.name || 'this user'}? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        confirming={deleting}
+        variant="danger"
+        onCancel={() => {
+          setConfirmDeleteOpen(false);
+          setSelectedRow(null);
+        }}
+        onConfirm={confirmDelete}
+      />
+
+      {/* Success Modal */}
+      <SuccessModal
+        open={successModalOpen}
+        message={successMessage}
+        onClose={handleSuccessModalClose}
+      />
     </div>
   );
 }
