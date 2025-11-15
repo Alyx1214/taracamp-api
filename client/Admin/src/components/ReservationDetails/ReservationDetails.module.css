@@ -279,37 +279,6 @@
   color: #1d4ed8;
 }
 
-/* Food Link */
-.rsv-details-food-link {
-  color: #2563eb;
-  text-decoration: none;
-  font-size: 1.05rem;
-  cursor: pointer;
-  font-weight: 600;
-  position: relative;
-  transition: all 0.3s ease;
-  display: inline-block;
-}
-
-.rsv-details-food-link::after {
-  content: '';
-  position: absolute;
-  bottom: -2px;
-  left: 0;
-  width: 0;
-  height: 2px;
-  background: #2563eb;
-  transition: width 0.3s ease;
-}
-
-.rsv-details-food-link:hover::after {
-  width: 100%;
-}
-
-.rsv-details-food-link:hover {
-  color: #1d4ed8;
-}
-
 /* Action Buttons Section */
 .rsv-details-action-row {
   display: flex;
