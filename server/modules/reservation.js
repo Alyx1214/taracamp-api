@@ -350,14 +350,15 @@ const reservationModule = {
             // Require Senior Citizen ID if there are seniors, EXCEPT for:
             // - gov/deped groups or individuals (only gov ID needed)
             // - PWD groups or individuals (only PWD ID needed)
+            // - private groups (Senior Citizen ID is optional, PWD ID takes priority if both present)
             // - private+individual WITHOUT seniors (no ID needed)
             // But DO require it for:
-            // - private groups WITH seniors (Senior Citizen ID is required)
             // - private+individual WITH seniors
             const shouldSkipSeniorCitizenId = (isGroupReservation && isGovCategory) || 
                                              (isIndividualReservation && isGovCategory) || 
                                              (isGroupReservation && isPwdCategory) || 
                                              (isIndividualReservation && isPwdCategory) ||
+                                             (isGroupReservation && isPrivateCategory) ||
                                              (isPrivateAndIndividual && !isPrivateAndIndividualWithSeniors);
             
             if (seniorCitizens > 0 && !seniorCitizenIdFile && !shouldSkipSeniorCitizenId) {
