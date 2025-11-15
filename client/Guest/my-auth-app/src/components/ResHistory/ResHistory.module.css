@@ -346,7 +346,7 @@
     background: linear-gradient(135deg, #1e3c24 0%, #1e7030 50%, #558B5E 100%);
     color: white;
     border: none;
-    padding: 12px 24px;
+    padding: 12px 50px;
     border-radius: 40px;
     font-size: 0.95em;
     font-weight: 700;
@@ -864,6 +864,7 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+  width: 100%;
 }
 
 .amountRow {
@@ -871,17 +872,19 @@
   align-items: center;
   justify-content: space-between;
   gap: 20px;
+  width: 100%;
 }
 
 .amountValueContainer {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 16px;
+  padding: 16px 20px;
   background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
   border-radius: 8px;
   border-left: 4px solid #2d5016;
-  flex: 1;
+  width: 100%;
+  min-width: 0;
 }
 
 .totalAmountLabel {
@@ -910,7 +913,7 @@
 
 /* File Link Styles */
 .fileLink {
-  color: #2d5016;
+  color: #1f60d7;
   text-decoration: none;
   font-weight: 600;
   transition: all 0.3s ease;
@@ -919,7 +922,7 @@
 }
 
 .fileLink:hover {
-  color: #558B5E;
+  color: #220356;
   text-decoration: underline;
   transform: translateY(-1px);
 }
