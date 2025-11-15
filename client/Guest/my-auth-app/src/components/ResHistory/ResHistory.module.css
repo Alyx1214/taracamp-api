@@ -933,3 +933,13 @@
 .fileList .fileLink {
   display: inline-block;
 }
+
+@media (max-width: 768px) {
+  .headerSection {
+    margin-top: 25px;
+  }
+
+  .pageTitle {
+    margin: 0;
+  }
+}
