@@ -71,12 +71,27 @@ function ResDetails({ onClose }) {
       return;
     }
 
-    // For private groups: route back to Letter of Intent upload (step 3)
-    // Only Letter of Intent is needed, no ID uploads required
+    // For private groups: route back appropriately based on what IDs were uploaded
+    // If PWD IDs were uploaded, go back to PWD ID upload page
+    // If senior citizen IDs were uploaded, go back to senior citizen ID upload page
+    // Otherwise, go back to Letter of Intent upload
     if (isGroup && isPrivateCategory) {
-      navigate(`/reservation-step3/${type}/${facilityName}/${id}`, {
-        state: { step1, step2, file, seniorCitizenIdFiles: [], pwdIdFiles: [], governmentIdFiles: [] }
-      });
+      if (pwdFiles.length > 0) {
+        // If PWD IDs were uploaded, go back to PWD ID upload page
+        navigate(`/reservation-step3-pwd/${type}/${facilityName}/${id}`, {
+          state: { step1, step2, file, seniorCitizenIdFiles: seniorCitizenFiles, pwdIdFiles: pwdFiles, governmentIdFiles: [] }
+        });
+      } else if (seniorCitizenFiles.length > 0) {
+        // If senior citizen IDs were uploaded, go back to senior citizen ID upload page
+        navigate(`/reservation-step3-senior/${type}/${facilityName}/${id}`, {
+          state: { step1, step2, file, seniorCitizenIdFiles: seniorCitizenFiles, pwdIdFiles: [], governmentIdFiles: [] }
+        });
+      } else {
+        // No IDs uploaded, go back to Letter of Intent upload
+        navigate(`/reservation-step3/${type}/${facilityName}/${id}`, {
+          state: { step1, step2, file, seniorCitizenIdFiles: [], pwdIdFiles: [], governmentIdFiles: [] }
+        });
+      }
       return;
     }
 
@@ -266,20 +281,21 @@ function ResDetails({ onClose }) {
       // Require Senior Citizen ID if there are seniors, EXCEPT for:
       // - gov/deped groups or individuals (only gov ID needed)
       // - PWD groups or individuals (only PWD ID needed)
-      // - private groups (only Letter of Intent needed)
       // - private+individual WITHOUT seniors (no ID needed)
-      // But DO require it for private+individual WITH seniors
+      // But DO require it for:
+      // - private groups WITH seniors (Senior Citizen ID is required)
+      // - private+individual WITH seniors
       const shouldSkipSeniorCitizenId = (isGroup && isGovernmentCategory) || 
                                        (isIndividual && isGovernmentCategory) || 
                                        (isGroup && isPwdCategory) || 
                                        (isIndividual && isPwdCategory) ||
-                                       (isGroup && isPrivateCategory) ||
                                        (isPrivateAndIndividual && !isPrivateAndIndividualWithSeniors);
       if (numberOfSeniors > 0 && seniorCitizenFiles.length === 0 && !shouldSkipSeniorCitizenId) {
         throw new Error('At least one Senior Citizen ID file is required when there are senior citizens.');
       }
-      // Skip PWD ID requirement for government/deped groups, government individuals, private groups, and private+individual (without seniors) - only government ID is needed for gov't, and PWD ID is not required for private groups or private+individual
-      if (numberOfPwds > 0 && pwdFiles.length === 0 && !(isGroup && isGovernmentCategory) && !(isIndividual && isGovernmentCategory) && !(isGroup && isPrivateCategory) && !isPrivateAndIndividual) {
+      // Skip PWD ID requirement for government/deped groups, government individuals, and private+individual (without seniors) - only government ID is needed for gov't
+      // Note: PWD ID is required for private groups when PWDs are present
+      if (numberOfPwds > 0 && pwdFiles.length === 0 && !(isGroup && isGovernmentCategory) && !(isIndividual && isGovernmentCategory) && !isPrivateAndIndividual) {
         throw new Error('At least one PWD ID file is required when there are PWD guests.');
       }
       // Skip government ID requirement for private groups and private+individual - no ID needed for private groups (only Letter of Intent), and for private+individual only Senior Citizen ID if seniors present

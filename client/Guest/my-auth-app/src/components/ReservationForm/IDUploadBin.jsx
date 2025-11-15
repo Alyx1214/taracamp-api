@@ -99,7 +99,7 @@ function IDUploadForm({ idType = 'pwd' }) {
   const isPrivateAndIndividual = isPrivateCategory && isIndividual;
   const isPrivateAndIndividualWithSeniors = isPrivateAndIndividual && hasSeniors;
   const isRequired = (isGroup && isPrivateCategory)
-    ? false // No ID required for private groups - only Letter of Intent is needed
+    ? (numberOfGuests > 0) // IDs are required for private groups when guests of that type are present
     : isPrivateAndIndividualWithSeniors && idType === 'senior'
     ? true // Senior Citizen ID required for private+individual with seniors
     : isPrivateAndIndividual
@@ -110,7 +110,8 @@ function IDUploadForm({ idType = 'pwd' }) {
     ? ((isPwdCategoryForThisIdType && isIndividual) || (numberOfGuests > 0 && !(isGroup && isPrivateCategory) && !(isGovernmentCategory && isIndividual))) // Required for PWD category+indiv OR (PWD guests and not private group and not gov+indiv)
     : (numberOfGuests > 0 && !(isGovernmentCategory && isIndividual)); // Skip senior ID requirement for gov/deped+indiv
   
-  // Redirect private groups away from all ID upload pages - only Letter of Intent is required
+  // For private groups: IDs are required when guests of that type are present
+  // Only redirect if we're on the wrong ID type page (e.g., government ID for private group)
   useEffect(() => {
     if (isGroup && isPrivateCategory && step1 && Object.keys(step1).length > 0) {
       const letterOfIntentFile = location.state?.file || null;
@@ -118,12 +119,59 @@ function IDUploadForm({ idType = 'pwd' }) {
       const pwdIdFiles = location.state?.pwdIdFiles || [];
       const governmentIdFiles = location.state?.governmentIdFiles || [];
       
-      // Redirect directly to step 4 (review) - no ID needed for private groups
-      navigate(`/reservation-step4/${type}/${facilityName}/${id}`, {
-        state: { step1, step2, file: letterOfIntentFile, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles }
-      });
+      // Redirect away from government ID upload page (not applicable for private groups)
+      if (idType === 'government') {
+        // If seniors present, redirect to senior citizen ID upload
+        if (hasSeniors) {
+          navigate(`/reservation-step3-senior/${type}/${facilityName}/${id}`, {
+            state: { step1, step2, file: letterOfIntentFile, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles }
+          });
+        } 
+        // If PWDs present, redirect to PWD ID upload
+        else if (numberOfGuests > 0) {
+          navigate(`/reservation-step3-pwd/${type}/${facilityName}/${id}`, {
+            state: { step1, step2, file: letterOfIntentFile, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles }
+          });
+        }
+        // Otherwise go to step 4
+        else {
+          navigate(`/reservation-step4/${type}/${facilityName}/${id}`, {
+            state: { step1, step2, file: letterOfIntentFile, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles }
+          });
+        }
+      }
+      // For senior citizen ID page: only redirect if no seniors present
+      else if (idType === 'senior' && !hasSeniors) {
+        // If PWDs present, redirect to PWD ID upload
+        if (numberOfGuests > 0) {
+          navigate(`/reservation-step3-pwd/${type}/${facilityName}/${id}`, {
+            state: { step1, step2, file: letterOfIntentFile, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles }
+          });
+        }
+        // Otherwise go to step 4
+        else {
+          navigate(`/reservation-step4/${type}/${facilityName}/${id}`, {
+            state: { step1, step2, file: letterOfIntentFile, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles }
+          });
+        }
+      }
+      // For PWD ID page: only redirect if no PWDs present
+      else if (idType === 'pwd' && numberOfGuests === 0) {
+        // If seniors present, redirect to senior citizen ID upload
+        if (hasSeniors) {
+          navigate(`/reservation-step3-senior/${type}/${facilityName}/${id}`, {
+            state: { step1, step2, file: letterOfIntentFile, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles }
+          });
+        }
+        // Otherwise go to step 4
+        else {
+          navigate(`/reservation-step4/${type}/${facilityName}/${id}`, {
+            state: { step1, step2, file: letterOfIntentFile, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles }
+          });
+        }
+      }
     }
-  }, [idType, isGroup, isPrivateCategory, step1, step2, type, facilityName, id, navigate, location.state]);
+  }, [idType, isGroup, isPrivateCategory, hasSeniors, numberOfGuests, step1, step2, type, facilityName, id, navigate, location.state]);
   
   // Redirect gov+indiv away from PWD and senior citizen ID upload pages to government ID upload
   useEffect(() => {
@@ -483,6 +531,7 @@ function IDUploadForm({ idType = 'pwd' }) {
     
     const routeType = String(type || '').toLowerCase();
     const isGroup = routeType === 'group' || !!step1?.type?.groups || !!step1?.type?.group;
+    const isPrivateCategory = step1?.category?.private === true || step1?.category?.Private === true;
     
     if (idType === 'pwd') {
       // For PWD category groups: route back to letter of intent (not senior citizen ID)
@@ -490,16 +539,30 @@ function IDUploadForm({ idType = 'pwd' }) {
       if (isGroup) {
         const seniorCitizenIdFiles = location.state?.seniorCitizenIdFiles || [];
         const governmentIdFiles = location.state?.governmentIdFiles || [];
-        navigate(`/reservation-step3/${type}/${facilityName}/${id}`, { 
-          state: { 
-            step1, 
-            step2, 
-            file: location.state?.file, 
-            seniorCitizenIdFiles,
-            governmentIdFiles,
-            [config.stateKey]: currentFiles 
-          } 
-        });
+        // For private groups: if seniors are present, go back to senior citizen ID page
+        if (isGroup && isPrivateCategory && hasSeniors) {
+          navigate(`/reservation-step3-senior/${type}/${facilityName}/${id}`, { 
+            state: { 
+              step1, 
+              step2, 
+              file: location.state?.file, 
+              seniorCitizenIdFiles,
+              governmentIdFiles,
+              [config.stateKey]: currentFiles 
+            } 
+          });
+        } else {
+          navigate(`/reservation-step3/${type}/${facilityName}/${id}`, { 
+            state: { 
+              step1, 
+              step2, 
+              file: location.state?.file, 
+              seniorCitizenIdFiles,
+              governmentIdFiles,
+              [config.stateKey]: currentFiles 
+            } 
+          });
+        }
         return;
       }
     } else if (idType === 'government') {
@@ -519,19 +582,34 @@ function IDUploadForm({ idType = 'pwd' }) {
         return;
       }
     } else {
+      // Senior citizen ID page
       if (isGroup) {
         const pwdIdFiles = location.state?.pwdIdFiles || [];
         const governmentIdFiles = location.state?.governmentIdFiles || [];
-        navigate(`/reservation-step3/${type}/${facilityName}/${id}`, { 
-          state: { 
-            step1, 
-            step2, 
-            file: location.state?.file, 
-            [config.stateKey]: currentFiles,
-            pwdIdFiles,
-            governmentIdFiles
-          } 
-        });
+        // For private groups: go back to Letter of Intent
+        if (isGroup && isPrivateCategory) {
+          navigate(`/reservation-step3/${type}/${facilityName}/${id}`, { 
+            state: { 
+              step1, 
+              step2, 
+              file: location.state?.file, 
+              [config.stateKey]: currentFiles,
+              pwdIdFiles,
+              governmentIdFiles
+            } 
+          });
+        } else {
+          navigate(`/reservation-step3/${type}/${facilityName}/${id}`, { 
+            state: { 
+              step1, 
+              step2, 
+              file: location.state?.file, 
+              [config.stateKey]: currentFiles,
+              pwdIdFiles,
+              governmentIdFiles
+            } 
+          });
+        }
         return;
       }
     }
@@ -580,8 +658,19 @@ function IDUploadForm({ idType = 'pwd' }) {
             pwdIdFiles
           } 
         });
+      } else if (isGroup && isPrivateCategory && hasPwds) {
+        // For private groups with PWDs: allow optional PWD ID upload
+        navigate(`/reservation-step3-pwd/${type}/${facilityName}/${id}`, { 
+          state: { 
+            step1, 
+            step2, 
+            file: letterOfIntentFile,
+            [config.stateKey]: currentFiles,
+            pwdIdFiles
+          } 
+        });
       } else if (hasPwds && !(isGroup && isPrivateCategory)) {
-        // For private groups: skip PWD ID even if PWDs are present
+        // For non-private groups with PWDs: PWD ID is required
         navigate(`/reservation-step3-pwd/${type}/${facilityName}/${id}`, { 
           state: { 
             step1, 
@@ -686,6 +775,17 @@ function IDUploadForm({ idType = 'pwd' }) {
             governmentIdFiles
           } 
         });
+      } else if (isGroup && isPrivateCategory && hasSeniors) {
+        // For private groups with seniors: allow optional senior citizen ID upload (already done, go to step 4)
+        navigate(`/reservation-step4/${type}/${facilityName}/${id}`, { 
+          state: { 
+            step1, 
+            step2, 
+            file: letterOfIntentFile,
+            seniorCitizenIdFiles: location.state?.seniorCitizenIdFiles || [],
+            [config.stateKey]: currentFiles
+          } 
+        });
       } else {
         navigate(`/reservation-step4/${type}/${facilityName}/${id}`, { 
           state: { 
@@ -788,7 +888,7 @@ function IDUploadForm({ idType = 'pwd' }) {
           <div className={styles.formCard}>
             <div className={styles.formTitle}>
               {config.formTitle}
-              <span className={styles.requiredAsterisk}>*</span>
+              {isRequired && <span className={styles.requiredAsterisk}>*</span>}
             </div>
             <div className={styles.formSubtitle}>
               → Please upload a clear copy of your {config.subtitle}  {config.description}
@@ -808,6 +908,11 @@ function IDUploadForm({ idType = 'pwd' }) {
             {idType === 'pwd' && isPwdCategory && hasSeniors && (
               <div className={styles.groupNote} style={{ color: '#0066cc', fontWeight: '500' }}>
                 Note: Only one type of discount applies. Since you have selected PWD category{isIndividual ? ' with individual type' : ''}, only PWD ID is required. Senior citizen discount will not apply.
+              </div>
+            )}
+            {isGroup && isPrivateCategory && isRequired && (
+              <div className={styles.groupNote} style={{ color: '#0066cc', fontWeight: '500' }}>
+                Note: For private group reservations with {config.subtitle.toLowerCase()} guests, {config.subtitle} upload is required along with the Letter of Intent.
               </div>
             )}
             <div className={styles.uploadBox} onClick={handleBoxClick} role="button" tabIndex={0}>

@@ -350,14 +350,14 @@ const reservationModule = {
             // Require Senior Citizen ID if there are seniors, EXCEPT for:
             // - gov/deped groups or individuals (only gov ID needed)
             // - PWD groups or individuals (only PWD ID needed)
-            // - private groups (only Letter of Intent needed)
             // - private+individual WITHOUT seniors (no ID needed)
-            // But DO require it for private+individual WITH seniors
+            // But DO require it for:
+            // - private groups WITH seniors (Senior Citizen ID is required)
+            // - private+individual WITH seniors
             const shouldSkipSeniorCitizenId = (isGroupReservation && isGovCategory) || 
                                              (isIndividualReservation && isGovCategory) || 
                                              (isGroupReservation && isPwdCategory) || 
                                              (isIndividualReservation && isPwdCategory) ||
-                                             (isGroupReservation && isPrivateCategory) ||
                                              (isPrivateAndIndividual && !isPrivateAndIndividualWithSeniors);
             
             if (seniorCitizens > 0 && !seniorCitizenIdFile && !shouldSkipSeniorCitizenId) {
@@ -409,8 +409,9 @@ const reservationModule = {
             }
 
             // Validate and handle PWD ID files
-            // Skip PWD ID requirement for government/deped groups, government individuals, private groups, and private+individual - only government ID is needed for gov't, and PWD ID is not required for private groups or private+individual
-            if (pwds > 0 && (!pwdIdFiles || !Array.isArray(pwdIdFiles) || pwdIdFiles.length === 0) && !(isGroupReservation && isGovCategory) && !(isIndividualReservation && isGovCategory) && !(isGroupReservation && isPrivateCategory) && !isPrivateAndIndividual) {
+            // Skip PWD ID requirement for government/deped groups, government individuals, and private+individual - only government ID is needed for gov't
+            // Note: PWD ID is required for private groups when PWDs are present
+            if (pwds > 0 && (!pwdIdFiles || !Array.isArray(pwdIdFiles) || pwdIdFiles.length === 0) && !(isGroupReservation && isGovCategory) && !(isIndividualReservation && isGovCategory) && !isPrivateAndIndividual) {
                 responseData.status = Status.BAD_REQUEST;
                 responseData.error = 'PWD ID file(s) are required when there are PWD guests in the reservation';
                 return responseData;
