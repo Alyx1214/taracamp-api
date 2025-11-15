@@ -473,7 +473,7 @@ export default function ConfGroupRSVDetails() {
         </table>
         <hr className={styles["rsv-details-divider"]} />
         <div className={styles["rsv-details-foot"]}>
-          <div className={styles["rsv-details-status-row"]}>
+          <div className={`${styles["rsv-details-status-row"]} ${styles.confirmed}`}>
             <span className={styles["rsv-details-status-label"]}>Status:</span>
             <span className={styles["rsv-details-status-value"]}>{reservation.status || "N/A"}</span>
           </div>

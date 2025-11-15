@@ -550,7 +550,7 @@ export default function PendingRSVDetails() {
             </tbody>
           </table>
           <div className={styles["reservation-details-foot"]}>
-            <div className={styles["reservation-details-status-row"]}>
+            <div className={`${styles["rsv-details-status-row"]} ${styles.pending}`}>
               <span className={styles["reservation-details-status-label"]}>Status:</span>
               <span className={styles["reservation-details-status-value-pending"]}>
                 {reservation.status || "N/A"}

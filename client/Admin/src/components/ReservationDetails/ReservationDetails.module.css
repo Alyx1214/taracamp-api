@@ -205,6 +205,18 @@
   box-shadow: 0 2px 6px rgba(22, 163, 74, 0.2);
 }
 
+/* Status Variants for Confirmed */
+.rsv-details-status-row.confirmed {
+  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+  border: 1px solid rgba(22, 163, 74, 0.2);
+  box-shadow: 0 4px 12px rgba(22, 163, 74, 0.15);
+}
+
+.rsv-details-status-row.confirmed .rsv-details-status-value {
+  color: #16a34a;
+  box-shadow: 0 2px 6px rgba(22, 163, 74, 0.2);
+}
+
 /* Status Variants for Pending */
 .rsv-details-status-row.pending {
   background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
@@ -219,14 +231,14 @@
 
 /* Status Variants for Cancelled */
 .rsv-details-status-row.cancelled {
-  background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%);
-  border: 1px solid rgba(107, 114, 128, 0.2);
-  box-shadow: 0 4px 12px rgba(107, 114, 128, 0.15);
+  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+  border: 1px solid rgba(220, 38, 38, 0.2);
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.15);
 }
 
 .rsv-details-status-row.cancelled .rsv-details-status-value {
-  color: #6b7280;
-  box-shadow: 0 2px 6px rgba(107, 114, 128, 0.2);
+  color: #b91c1c;
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.15);
 }
 
 /* Footer Section */
