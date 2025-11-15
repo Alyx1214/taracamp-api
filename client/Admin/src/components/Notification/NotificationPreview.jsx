@@ -114,7 +114,7 @@ export default function NotificationPreview({
     notif.title ||
     (isApproved 
       ? 'Congratulations, Camper! Your reservation has been approved!'
-      : 'Congratulations, Camper!  You have successfully booked a reservation!');
+      : 'Congratulations, Camper!  You have successfully submitted your reservation request!');
   const body =
     notif.message ||
     (isApproved
