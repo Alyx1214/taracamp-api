@@ -106,15 +106,22 @@ function ReservationFormStep3() {
       return;
     }
     
-    // For private groups: check if seniors are present
+    // For private groups: Letter of Intent is required, but allow optional ID uploads if seniors or PWDs are present
+    // Priority: PWD ID over Senior Citizen ID (if both are present, only PWD ID should appear)
     if (isGroup && isPrivateCategory) {
-      if (hasSeniors) {
-        // Private group with seniors: Letter of Intent → Senior Citizen ID
+      // If PWDs are present, route to PWD ID upload (optional) - prioritize PWD over senior
+      if (hasPwds) {
+        navigate(`/reservation-step3-pwd`, { 
+          state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles, reservationId, isEdit, userEmail, originalType, typeChangedToGroup }
+        });
+      }
+      // If seniors are present (and no PWDs), route to senior citizen ID upload (optional)
+      else if (hasSeniors) {
         navigate(`/reservation-step3-senior`, { 
           state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles, reservationId, isEdit, userEmail, originalType, typeChangedToGroup }
         });
       } else {
-        // Private group without seniors: only Letter of Intent is required
+        // Private group without seniors or PWDs: only Letter of Intent is required
         navigate(`/reservation-step4`, { 
           state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles, reservationId, isEdit, userEmail, originalType, typeChangedToGroup } 
         });
