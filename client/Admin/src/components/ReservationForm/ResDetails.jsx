@@ -18,15 +18,20 @@ function ResDetails({ onClose }) {
   const [breakdown, setBreakdown] = useState(null);
   const [allAddons, setAllAddons] = useState([]);
   const [reservationId, setReservationId] = useState(null);
-  const { step1 = {}, step2 = {}, file, seniorCitizenIdFiles, seniorCitizenIdFile, pwdIdFiles, pwdIdFile, reservationId: editReservationId, isEdit } = location.state || {};
+  const { step1 = {}, step2 = {}, file, seniorCitizenIdFiles, seniorCitizenIdFile, pwdIdFiles, pwdIdFile, governmentIdFiles, governmentIdFile, reservationId: editReservationId, isEdit, originalType, typeChangedToGroup } = location.state || {};
   const selectedAddons = step2?.selectedAddons || [];
   const isGroup = step1?.type?.groups || false;
+  const isIndividual = step1?.type?.individual || false;
   const numberOfSeniors = parseInt(step1?.guests?.senior || 0, 10) || 0;
   const numberOfPwds = parseInt(step1?.guests?.pwds || 0, 10) || 0;
+  const isGovernmentCategory = step1?.category?.government === true || step1?.category?.deped === true;
+  const isPwdCategory = step1?.category?.pwds === true || step1?.category?.PWDs === true;
+  const isPrivateCategory = step1?.category?.private === true || step1?.category?.Private === true;
   
   // Handle backward compatibility: convert single file to array
   const seniorCitizenFiles = seniorCitizenIdFiles || (seniorCitizenIdFile ? [seniorCitizenIdFile] : []);
   const pwdFiles = pwdIdFiles || (pwdIdFile ? [pwdIdFile] : []);
+  const governmentFiles = governmentIdFiles || (governmentIdFile ? [governmentIdFile] : []);
 
   // Helper function to render add-ons with label and indented items
   const renderAddOns = () => {
@@ -167,9 +172,40 @@ function ResDetails({ onClose }) {
       if (!payload.dateOfArrival || !payload.dateOfDeparture)
         throw new Error('Arrival and departure dates are required.');
       if (!payload.timeOfArrival) throw new Error('Time of arrival is required.');
-      if (isGroup && !file) throw new Error('Letter of Intent file is required for group reservations.');
-      if (numberOfSeniors > 0 && seniorCitizenFiles.length === 0) throw new Error('At least one Senior Citizen ID file is required when there are senior citizens.');
-      if (numberOfPwds > 0 && pwdFiles.length === 0) throw new Error('At least one PWD ID file is required when there are PWD guests.');
+      // Require Letter of Intent for groups, especially if type changed from individual to group
+      if (isGroup && !file) {
+        if (typeChangedToGroup) {
+          throw new Error('Letter of Intent file is required. Since you changed the reservation type from Individual to Group, please upload a Letter of Intent.');
+        } else {
+          throw new Error('Letter of Intent file is required for group reservations.');
+        }
+      }
+      // For private category with individual type: Senior Citizen ID is required if there are seniors
+      const isPrivateAndIndividual = isPrivateCategory && isIndividual;
+      const isPrivateAndIndividualWithSeniors = isPrivateAndIndividual && numberOfSeniors > 0;
+      // Require Senior Citizen ID if there are seniors, EXCEPT for:
+      // - gov/deped groups or individuals (only gov ID needed)
+      // - PWD groups or individuals (only PWD ID needed)
+      // - private groups (only Letter of Intent needed)
+      // - private+individual WITHOUT seniors (no ID needed)
+      // But DO require it for private+individual WITH seniors
+      const shouldSkipSeniorCitizenId = (isGroup && isGovernmentCategory) || 
+                                       (isIndividual && isGovernmentCategory) || 
+                                       (isGroup && isPwdCategory) || 
+                                       (isIndividual && isPwdCategory) ||
+                                       (isGroup && isPrivateCategory) ||
+                                       (isPrivateAndIndividual && !isPrivateAndIndividualWithSeniors);
+      if (numberOfSeniors > 0 && seniorCitizenFiles.length === 0 && !shouldSkipSeniorCitizenId) {
+        throw new Error('At least one Senior Citizen ID file is required when there are senior citizens.');
+      }
+      // Skip PWD ID requirement for government/deped groups, government individuals, private groups, and private+individual (without seniors) - only government ID is needed for gov't, and PWD ID is not required for private groups or private+individual
+      if (numberOfPwds > 0 && pwdFiles.length === 0 && !(isGroup && isGovernmentCategory) && !(isIndividual && isGovernmentCategory) && !(isGroup && isPrivateCategory) && !isPrivateAndIndividual) {
+        throw new Error('At least one PWD ID file is required when there are PWD guests.');
+      }
+      // Skip government ID requirement for private groups and private+individual - no ID needed for private groups (only Letter of Intent), and for private+individual only Senior Citizen ID if seniors present
+      if ((isGroup || isIndividual) && isGovernmentCategory && governmentFiles.length === 0 && !isPrivateAndIndividual && !(isGroup && isPrivateCategory)) {
+        throw new Error('At least one Government ID file is required for government/DepEd reservations.');
+      }
 
       const facilityForPost = typeof step2?.facilityIdFromList === 'string' ? step2.facilityIdFromList : '';
       const currentSelectedAddons = step2?.selectedAddons || [];
@@ -184,11 +220,11 @@ function ResDetails({ onClose }) {
       let response;
       if (isEdit && editReservationId) {
         // Update existing reservation
-        response = await apiUpdateReservation(editReservationId, apiPayload, file, seniorCitizenFiles, pwdFiles);
+        response = await apiUpdateReservation(editReservationId, apiPayload, file, seniorCitizenFiles, pwdFiles, governmentFiles);
         setReservationId(editReservationId);
       } else {
         // Create new reservation
-        response = await apiCreateReservation(apiPayload, file, seniorCitizenFiles, pwdFiles);
+        response = await apiCreateReservation(apiPayload, file, seniorCitizenFiles, pwdFiles, governmentFiles);
         if (response?.reservationId) {
           setReservationId(response.reservationId);
         }

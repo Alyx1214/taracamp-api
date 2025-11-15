@@ -19,7 +19,7 @@ import ReservationForm from './components/ReservationForm/ResForm';
 import ReservationFormStep2 from './components/ReservationForm/ResForm2';
 import ReservationFormStep3 from './components/ReservationForm/ResForm3';
 import ReservationFormStep4 from './components/ReservationForm/ResDetails';
-import { SeniorCitizenReservationForm, PWDReservationForm } from './components/ReservationForm/IDUploadBin';
+import { SeniorCitizenReservationForm, PWDReservationForm, GovernmentReservationForm } from './components/ReservationForm/IDUploadBin';
 import RequireAuth from './components/Utilities/RequireAuth'; 
 import backgroundImage from './assets/background-blur.png';
 import VerifyCode from './components/VerifyCode/VerifyCode';
@@ -185,12 +185,14 @@ function App() {
         <Route path="/reservation-step3" element={<ReservationFormStep3 />} />
         <Route path="/reservation-step3-senior" element={<SeniorCitizenReservationForm />} />
         <Route path="/reservation-step3-pwd" element={<PWDReservationForm />} />
+        <Route path="/reservation-step3-government" element={<GovernmentReservationForm />} />
         <Route path="/reservation-step4" element={<ReservationFormStep4 />} />
         <Route path="/reservation-form/:type/:facilityName/:id" element={<ReservationForm />} />
         <Route path="/reservation-step2/:type/:facilityName/:id" element={<ReservationFormStep2 />} />
         <Route path="/reservation-step3/:type/:facilityName/:id" element={<ReservationFormStep3 />} />
         <Route path="/reservation-step3-senior/:type/:facilityName/:id" element={<SeniorCitizenReservationForm />} />
         <Route path="/reservation-step3-pwd/:type/:facilityName/:id" element={<PWDReservationForm />} />
+        <Route path="/reservation-step3-government/:type/:facilityName/:id" element={<GovernmentReservationForm />} />
         <Route path="/reservation-step4/:type/:facilityName/:id" element={<ReservationFormStep4 />} />
       </Route>
     </Routes>

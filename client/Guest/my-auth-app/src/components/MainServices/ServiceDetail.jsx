@@ -104,6 +104,7 @@ function MainServicesServiceDetail() {
             capacity: facilityData.capacity || 0,
             ratePerPerson: facilityData.ratePerPerson || 0,
             price: facilityData.price || 0,
+            status: facilityData.status || 'Available',
             image: facilityData.images?.[0] || placeholderImage,
             features: [
               { icon: '🏔️', title: 'Great View', description: 'Scenic mountain views' },
@@ -531,6 +532,22 @@ const getCalendarData = (date) => {
           setDepartureDateError('Departure date must be after arrival date');
           return;
         }
+        
+        // Validate that ALL dates between arrival and departure are available
+        const availableDatesSet = new Set(availableDates || []);
+        const unavailableDaysInRange = [];
+        
+        for (let d = new Date(arrivalDateObj); d < dateObj; d.setDate(d.getDate() + 1)) {
+          const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          if (!availableDatesSet.has(dateStr)) {
+            unavailableDaysInRange.push(dateStr);
+          }
+        }
+        
+        if (unavailableDaysInRange.length > 0) {
+          setDepartureDateError('Selected date range includes unavailable dates. Please select a different range.');
+          return;
+        }
       }
       setSelectedDepartureDateDisplay(`${formattedDate} - ${dayName}`);
       setSelectedDepartureDate(selectedDateStr);
@@ -557,6 +574,11 @@ const getCalendarData = (date) => {
   };
 
   const onReserveNow = () => {
+    // Prevent reservation if facility is unavailable
+    if (isFacilityUnavailable) {
+      return;
+    }
+
     // Clear previous errors
     setArrivalDateError('');
     setDepartureDateError('');
@@ -621,6 +643,22 @@ const getCalendarData = (date) => {
       if (diffDays < 1) {
         setDepartureDateError('Stay must be at least 1 day');
         hasError = true;
+      } else {
+        // Validate that ALL dates between arrival and departure are available
+        const availableDatesSet = new Set(availableDates || []);
+        const unavailableDaysInRange = [];
+        
+        for (let d = new Date(arrivalDateObj); d < departureDateObj; d.setDate(d.getDate() + 1)) {
+          const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          if (!availableDatesSet.has(dateStr)) {
+            unavailableDaysInRange.push(dateStr);
+          }
+        }
+        
+        if (unavailableDaysInRange.length > 0) {
+          setDepartureDateError(`Selected date range includes unavailable dates. Please select a different range.`);
+          hasError = true;
+        }
       }
     }
 
@@ -690,6 +728,8 @@ const getCalendarData = (date) => {
     ? 'Price' 
     : 'Rates per Person';
 
+  // Check if facility is unavailable
+  const isFacilityUnavailable = facility?.status !== 'Available' || (availableDates && availableDates.length === 0);
 
   return (
     <section className={styles.serviceDetailSection}>
@@ -720,6 +760,18 @@ const getCalendarData = (date) => {
                   Check-in time is at 2:00 PM. Guests requesting an earlier check-in should note that the previous day will be included in the billing and must be selected at the time of reservation. 
                   For individual bookings, a confirmation fee of 10% of the total cost is required. The prices displayed already include a 10% service fee and are subject to change.
                 </p>
+                {isFacilityUnavailable && (
+                  <div style={{ 
+                    marginTop: '15px', 
+                    padding: '12px', 
+                    backgroundColor: '#fff3cd', 
+                    border: '1px solid #ffc107', 
+                    borderRadius: '4px',
+                    color: '#856404'
+                  }}>
+                    <strong>⚠️ Facility Currently Unavailable:</strong> This facility is not currently accepting reservations. Please check back later or contact us for more information.
+                  </div>
+                )}
               </div>
             </div>
 
@@ -766,7 +818,15 @@ const getCalendarData = (date) => {
                     )}
                   </div>
                 </div>
-                <button className={styles.reserveButton} onClick={onReserveNow}>
+                <button 
+                  className={styles.reserveButton} 
+                  onClick={onReserveNow}
+                  disabled={isFacilityUnavailable}
+                  style={isFacilityUnavailable ? { 
+                    opacity: 0.6, 
+                    cursor: 'not-allowed' 
+                  } : {}}
+                >
                   Reserve Now
                 </button>
               </div>
@@ -816,6 +876,27 @@ const getCalendarData = (date) => {
                           setDepartureDateError('Departure date must be after arrival date');
                           return;
                         }
+                        
+                        // Validate that ALL dates between arrival and departure are available
+                        if (selectedArrivalDate) {
+                          const availableDatesSet = new Set(availableDates || []);
+                          const arrivalDateObj = new Date(selectedArrivalDate);
+                          const departureDateObj = new Date(ymd);
+                          const unavailableDaysInRange = [];
+                          
+                          for (let d = new Date(arrivalDateObj); d < departureDateObj; d.setDate(d.getDate() + 1)) {
+                            const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                            if (!availableDatesSet.has(dateStr)) {
+                              unavailableDaysInRange.push(dateStr);
+                            }
+                          }
+                          
+                          if (unavailableDaysInRange.length > 0) {
+                            setDepartureDateError('Selected date range includes unavailable dates. Please select a different range.');
+                            return;
+                          }
+                        }
+                        
                         setSelectedDepartureDate(ymd);
                         setSelectedDepartureDateDisplay(`${formatted} - ${date.toLocaleString('default', { weekday: 'long' })}`);
                         setDepartureDateError('');

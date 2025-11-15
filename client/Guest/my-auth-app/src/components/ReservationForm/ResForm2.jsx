@@ -59,6 +59,17 @@ function ReservationFormStep2() {
   const [specialOptions, setSpecialOptions] = useState([]);
   const [selectedAddons, setSelectedAddons] = useState([]);
   const [loadingSpecials, setLoadingSpecials] = useState(false);
+  
+  // Filter out catering add-ons when includeFood is "no"
+  const filteredSpecialOptions = useMemo(() => {
+    if (formData.includeFood === 'no') {
+      return specialOptions.filter(opt => {
+        const label = (opt.label || '').toLowerCase();
+        return !label.includes('catering');
+      });
+    }
+    return specialOptions;
+  }, [specialOptions, formData.includeFood]);
   const [err, setErr] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
   const [checkingAvail, setCheckingAvail] = useState(false);
@@ -158,7 +169,7 @@ function ReservationFormStep2() {
     }
   }, [isDormitory, isIndividual, specialOptions]);
 
-  // Auto-add corkage fee when includeFood is "no" and specialOptions are loaded
+  // Auto-add corkage fee and remove catering when includeFood is "no" and specialOptions are loaded
   useEffect(() => {
     if (!isDormitory && !isIndividual && formData.includeFood === 'no' && specialOptions.length > 0) {
       const corkageFeeAddon = specialOptions.find(opt => 
@@ -174,10 +185,16 @@ function ReservationFormStep2() {
           return prev;
         });
       }
+      
+      // Remove any catering add-ons
+      setSelectedAddons(prev => prev.filter(addon => {
+        const label = (addon.label || '').toLowerCase();
+        return !label.includes('catering');
+      }));
     }
   }, [formData.includeFood, specialOptions, isDormitory, isIndividual]);
 
-  // Ensure corkage fee remains when includeFood is "no" (safeguard against manual removal)
+  // Ensure corkage fee remains and catering is removed when includeFood is "no" (safeguard against manual removal)
   useEffect(() => {
     if (!isDormitory && !isIndividual && formData.includeFood === 'no' && specialOptions.length > 0) {
       const corkageFeeAddon = specialOptions.find(opt => 
@@ -189,6 +206,32 @@ function ReservationFormStep2() {
           const exists = prev.some(addon => addon.value === corkageFeeAddon.value);
           if (!exists) {
             return [...prev, corkageFeeAddon];
+          }
+          // Also ensure no catering add-ons are present
+          const hasCatering = prev.some(addon => {
+            const label = (addon.label || '').toLowerCase();
+            return label.includes('catering');
+          });
+          if (hasCatering) {
+            return prev.filter(addon => {
+              const label = (addon.label || '').toLowerCase();
+              return !label.includes('catering');
+            });
+          }
+          return prev;
+        });
+      } else {
+        // Even if no corkage fee, remove catering
+        setSelectedAddons(prev => {
+          const hasCatering = prev.some(addon => {
+            const label = (addon.label || '').toLowerCase();
+            return label.includes('catering');
+          });
+          if (hasCatering) {
+            return prev.filter(addon => {
+              const label = (addon.label || '').toLowerCase();
+              return !label.includes('catering');
+            });
           }
           return prev;
         });
@@ -198,11 +241,11 @@ function ReservationFormStep2() {
 
 
   const handleGoBack = () => {
-    // Preserve files from location.state if they exist
     const seniorCitizenIdFiles = location.state?.seniorCitizenIdFiles || [];
     const pwdIdFiles = location.state?.pwdIdFiles || [];
+    const governmentIdFiles = location.state?.governmentIdFiles || [];
     navigate(`/reservation-form/${type}/${facilityName}/${id}`, { 
-      state: { step1, step2: formData, file, seniorCitizenIdFiles, pwdIdFiles } 
+      state: { step1, step2: formData, file, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles } 
     });
   };
 
@@ -289,7 +332,7 @@ function ReservationFormStep2() {
       return;
     }
 
-    // Handle includeFood change - automatically add/remove corkage fee
+    // Handle includeFood change - automatically add/remove corkage fee and remove catering
     // Only process if question is visible (not dormitory and not individual)
     if (name === 'includeFood') {
       const isDorm = formData.typeFacilities?.toLowerCase().includes('dormitory');
@@ -305,15 +348,23 @@ function ReservationFormStep2() {
           opt.label && opt.label.toLowerCase().includes('corkage')
         );
         
-        if (value === 'no' && corkageFeeAddon) {
+        if (value === 'no') {
           // Add corkage fee if not already in selectedAddons
-          setSelectedAddons(prev => {
-            const exists = prev.some(addon => addon.value === corkageFeeAddon.value);
-            if (!exists) {
-              return [...prev, corkageFeeAddon];
-            }
-            return prev;
-          });
+          if (corkageFeeAddon) {
+            setSelectedAddons(prev => {
+              const exists = prev.some(addon => addon.value === corkageFeeAddon.value);
+              if (!exists) {
+                return [...prev, corkageFeeAddon];
+              }
+              return prev;
+            });
+          }
+          
+          // Remove any catering add-ons when user selects "no"
+          setSelectedAddons(prev => prev.filter(addon => {
+            const label = (addon.label || '').toLowerCase();
+            return !label.includes('catering');
+          }));
         } else if (value === 'yes' && corkageFeeAddon) {
           // Remove corkage fee if it exists in selectedAddons
           setSelectedAddons(prev => prev.filter(addon => addon.value !== corkageFeeAddon.value));
@@ -431,11 +482,11 @@ function ReservationFormStep2() {
   }, [isIndividual, isDormitory, formData.typeService]); 
 
   const handlePrevious = () => {
-    // Preserve files from location.state if they exist
     const seniorCitizenIdFiles = location.state?.seniorCitizenIdFiles || [];
     const pwdIdFiles = location.state?.pwdIdFiles || [];
+    const governmentIdFiles = location.state?.governmentIdFiles || [];
     navigate(`/reservation-form/${type}/${facilityName}/${id}`, { 
-      state: { step1, step2: formData, file, seniorCitizenIdFiles, pwdIdFiles } 
+      state: { step1, step2: formData, file, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles } 
     });
   };
 
@@ -481,55 +532,71 @@ function ReservationFormStep2() {
     const numberOfPwds = parseInt(step1?.guests?.pwds || 0, 10) || 0;
     const hasPwds = numberOfPwds > 0;
 
-    // Preserve files from location.state if they exist
     const seniorCitizenIdFiles = location.state?.seniorCitizenIdFiles || [];
     const pwdIdFiles = location.state?.pwdIdFiles || [];
+    const governmentIdFiles = location.state?.governmentIdFiles || [];
 
-    // Determine the next step based on reservation type, senior citizens, and PWDs
-    // Priority order: Letter of Intent (if group) -> Senior Citizen ID -> PWD ID -> Final Step
+    const isGovernmentCategory = step1?.category?.government === true || step1?.category?.deped === true;
+    const isPwdCategory = step1?.category?.pwds === true || step1?.category?.PWDs === true;
+    const isPrivateCategory = step1?.category?.private === true || step1?.category?.Private === true;
+
     if (isIndividual) {
-      if (hasSeniors && hasPwds) {
-        // Individual with both: go to senior citizen ID first, then PWD ID
+      // If category is private and guest type is individual, check for seniors
+      if (isPrivateCategory) {
+        // If private+individual with seniors, require Senior Citizen ID
+        if (hasSeniors) {
+          navigate(`/reservation-step3-senior/${type}/${facilityName}/${id}`, {
+            state: { step1, step2, file: null, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles },
+          });
+        } else {
+          // If no seniors, no ID needed - go directly to step 4
+          navigate(`/reservation-step4/${type}/${facilityName}/${id}`, {
+            state: { step1, step2, file: null, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles },
+          });
+        }
+      } else if (isPwdCategory) {
+        // If category is PWD and guest type is individual, upload PWD ID only (no gov't or Senior Citizen ID required)
+        navigate(`/reservation-step3-pwd/${type}/${facilityName}/${id}`, {
+          state: { step1, step2, file: null, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles },
+        });
+      } else if (isGovernmentCategory) {
+        // If category is gov/deped and guest type is individual, upload gov't ID only (no PWD or Senior Citizen ID required)
+        navigate(`/reservation-step3-government/${type}/${facilityName}/${id}`, {
+          state: { step1, step2, file: null, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles },
+        });
+      } else if (hasSeniors && hasPwds) {
         navigate(`/reservation-step3-senior/${type}/${facilityName}/${id}`, {
-          state: { step1, step2, file: null, seniorCitizenIdFiles, pwdIdFiles },
+          state: { step1, step2, file: null, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles },
         });
       } else if (hasSeniors) {
-        // Individual with seniors only: go to senior citizen ID upload
         navigate(`/reservation-step3-senior/${type}/${facilityName}/${id}`, {
-          state: { step1, step2, file: null, seniorCitizenIdFiles, pwdIdFiles },
+          state: { step1, step2, file: null, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles },
         });
       } else if (hasPwds) {
-        // Individual with PWDs only: go to PWD ID upload
         navigate(`/reservation-step3-pwd/${type}/${facilityName}/${id}`, {
-          state: { step1, step2, file: null, seniorCitizenIdFiles, pwdIdFiles },
+          state: { step1, step2, file: null, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles },
         });
       } else {
-        // Individual without seniors or PWDs: skip to final step
         navigate(`/reservation-step4/${type}/${facilityName}/${id}`, {
-          state: { step1, step2, file: null, seniorCitizenIdFiles, pwdIdFiles },
+          state: { step1, step2, file: null, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles },
         });
       }
     } else {
-      // Group reservation
       if (hasSeniors && hasPwds) {
-        // Group with both: go to Letter of Intent first, then senior citizen ID, then PWD ID
         navigate(`/reservation-step3/${type}/${facilityName}/${id}`, {
-          state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles },
+          state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles },
         });
       } else if (hasSeniors) {
-        // Group with seniors only: go to Letter of Intent first, then senior citizen ID
         navigate(`/reservation-step3/${type}/${facilityName}/${id}`, {
-          state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles },
+          state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles },
         });
       } else if (hasPwds) {
-        // Group with PWDs only: go to Letter of Intent first, then PWD ID
         navigate(`/reservation-step3/${type}/${facilityName}/${id}`, {
-          state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles },
+          state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles },
         });
       } else {
-        // Group without seniors or PWDs: just Letter of Intent
         navigate(`/reservation-step3/${type}/${facilityName}/${id}`, {
-          state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles },
+          state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles },
         });
       }
     }
@@ -735,7 +802,7 @@ function ReservationFormStep2() {
                     <option value="">
                       {loadingSpecials ? 'Loading options…' : 'Select add ons'}
                     </option>
-                    {specialOptions.map(request => (
+                    {filteredSpecialOptions.map(request => (
                       <option key={request.value} value={request.value}>
                         {request.label}
                       </option>
@@ -746,7 +813,7 @@ function ReservationFormStep2() {
                     className={styles.addRequestButton}
                     onClick={() => {
                       if (formData.specialRequests) {
-                        const selectedOption = specialOptions.find(opt => opt.value === formData.specialRequests);
+                        const selectedOption = filteredSpecialOptions.find(opt => opt.value === formData.specialRequests);
                         if (selectedOption && !selectedAddons.some(addon => addon.value === selectedOption.value)) {
                           setSelectedAddons(prev => [...prev, selectedOption]);
                           setFormData(prev => ({ ...prev, specialRequests: '' }));

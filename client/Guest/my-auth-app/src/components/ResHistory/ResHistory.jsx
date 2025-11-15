@@ -50,13 +50,6 @@ const uploadFields = {
       key: 'funds',
     },
   ],
-  individual: [
-    {
-      label: 'Upload Valid ID (optional)',
-      accept: '.pdf,.jpg,.jpeg,.png',
-      key: 'id',
-    },
-  ],
 };
 
 function ReservationHistory() {
@@ -134,15 +127,16 @@ function ReservationHistory() {
     if (showUploadFor && reservationsRaw.length > 0) {
       // Find the reservation that matches
       const matchingReservation = reservationsRaw.find(r => String(r._id || r.id) === showUploadFor);
-      if (matchingReservation) {
+      // Only show upload if reservation exists AND is approved
+      if (matchingReservation && String(matchingReservation?.status || '').toLowerCase() === 'approved') {
         // Compute the id the same way as in reservationsView
         const computedId = String(matchingReservation._id || matchingReservation.id || Math.random().toString(36).slice(2));
         // Set the reservation to open and show upload
         setOpenReservationId(computedId);
         setShowUploadForId(String(matchingReservation._id || ''));
-        // Clear location state to prevent re-triggering
-        navigate(location.pathname, { state: {}, replace: true });
       }
+      // Clear location state to prevent re-triggering
+      navigate(location.pathname, { state: {}, replace: true });
     }
   }, [location.state, reservationsRaw, navigate, location.pathname]);
 
@@ -174,7 +168,7 @@ function ReservationHistory() {
         setReservationsRaw(list);
 
         // Only set default open reservation if not already set by location state
-        if (!location.state?.showUploadFor) {
+        if (!location.state?.showUploadFor && !location.state?.openLatest) {
           const firstId = String(list[0]._id || list[0].id || '');
           setOpenReservationId(firstId || null);
         }
@@ -223,6 +217,7 @@ function ReservationHistory() {
         _id: String(r?._id || ''),
         id: rid,
         date: fmtMDY(r?.createdAt || r?.dateOfArrival || Date.now()),
+        createdAt: r?.createdAt || r?.dateOfArrival || Date.now(),
         type: facType,
         category: r?.category || 'N/A',
         details: {
@@ -240,7 +235,6 @@ function ReservationHistory() {
           typeOfFacility: facType,
           facilityName: facName,
           typeOfService: r?.serviceType || 'N/A',
-          letterOfIntent: r?.letterOfIntent || 'N/A',
         },
         breakdown: {
           facilityFee: facilityFee,
@@ -249,11 +243,46 @@ function ReservationHistory() {
           serviceFee: serviceFee,
           discount: discount,
         },
+        files: {
+          letterOfIntentFile: r?.letterOfIntentFile || null,
+          seniorCitizenIdFiles: Array.isArray(r?.seniorCitizenIdFiles) ? r.seniorCitizenIdFiles : [],
+          pwdIdFiles: Array.isArray(r?.pwdIdFiles) ? r.pwdIdFiles : [],
+          governmentIdFiles: Array.isArray(r?.governmentIdFiles) ? r.governmentIdFiles : [],
+          moaFile: r?.moaFile || null,
+          serviceContractFile: r?.serviceContractFile || null,
+          fundsFile: r?.fundsFile || null,
+        },
         totalEstimatedAmount: fmtPeso(r?.totalEstimatedAmount),
+        status: r?.status || 'Pending',
+        approved: String(r?.status || '').toLowerCase() === 'approved',
         confirmed: String(r?.status || '') === 'Confirmed',
       };
+    }).sort((a, b) => {
+      // Sort by createdAt date, latest first (descending order)
+      const dateA = new Date(a.createdAt).getTime();
+      const dateB = new Date(b.createdAt).getTime();
+      return dateB - dateA;
     });
   }, [reservationsRaw]);
+
+  // Handle openLatest state - scroll to top and open latest reservation
+  // This must come after reservationsView is defined
+  useEffect(() => {
+    const openLatest = location.state?.openLatest;
+    if (openLatest && reservationsView.length > 0) {
+      // Scroll to top
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      
+      // Open the latest reservation (first in sorted reservationsView, which is already sorted by createdAt descending)
+      const latestReservation = reservationsView[0];
+      if (latestReservation) {
+        setOpenReservationId(latestReservation.id || null);
+      }
+      
+      // Clear location state to prevent re-triggering
+      navigate(location.pathname, { state: {}, replace: true });
+    }
+  }, [location.state, reservationsView, navigate, location.pathname]);
 
   const handleGoBack = () => navigate(-1);
   
@@ -355,6 +384,9 @@ function ReservationHistory() {
       // Hide upload section
       setShowUploadForId(null);
       
+      // Show success message
+      alert('Documents submitted and reservation confirmed. Thank you!');
+      
       // Refresh reservations to show updated status
       const data = await getMyReservations().catch((e) => {
         if (e?.status === 404) return { reservations: [] };
@@ -371,10 +403,6 @@ function ReservationHistory() {
           setOpenReservationId(computedId);
         }
       }
-      
-      // Notification will be created by the server and appear in the notification icon
-      // Navigate to transactions page
-      navigate(`/transactions?reservationId=${encodeURIComponent(reservationId)}`);
     } catch (error) {
       console.error('Failed to upload documents and confirm reservation:', error);
       const errorMessage = error?.data?.error || 
@@ -443,26 +471,171 @@ function ReservationHistory() {
 
                     {openReservationId === reservation.id && (
                       <div className={styles.cardDetails}>
-                        {Object.entries(reservation.details).map(([key, value]) => (
-                          <div className={styles.detailRow} key={key}>
-                            <span className={styles.detailLabel}>
-                              {key.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase())}
-                            </span>
-                            <span className={styles.detailSeparator}>:</span>
-                            <span className={styles.detailValue}>
-                              {(key === 'facilityName' || key === 'typeOfService')
-                                ? String(value ?? '')
-                                    .toLowerCase()
-                                    .split(/(\s|\/)/)
-                                    .map(word => /[a-zA-Z]/.test(word)
-                                      ? word.charAt(0).toUpperCase() + word.slice(1)
-                                      : word
-                                    )
-                                    .join('')
-                                : value}
-                            </span>
-                          </div>
-                        ))}
+                        {Object.entries(reservation.details).map(([key, value]) => {
+                          const isTypeOfService = key === 'typeOfService';
+                          
+                          return (
+                            <React.Fragment key={key}>
+                              <div className={styles.detailRow}>
+                                <span className={styles.detailLabel}>
+                                  {key.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase())}
+                                </span>
+                                <span className={styles.detailSeparator}>:</span>
+                                <span className={styles.detailValue}>
+                                  {(key === 'facilityName' || key === 'typeOfService')
+                                    ? String(value ?? '')
+                                        .toLowerCase()
+                                        .split(/(\s|\/)/)
+                                        .map(word => /[a-zA-Z]/.test(word)
+                                          ? word.charAt(0).toUpperCase() + word.slice(1)
+                                          : word
+                                        )
+                                        .join('')
+                                    : value}
+                                </span>
+                              </div>
+                              
+                              {/* Insert uploaded files after Type of Service */}
+                              {isTypeOfService && (
+                                <>
+                                  {reservation.files.letterOfIntentFile && (
+                                    <div className={styles.detailRow}>
+                                      <span className={styles.detailLabel}>Letter of Intent</span>
+                                      <span className={styles.detailSeparator}>:</span>
+                                      <span className={styles.detailValue}>
+                                        <a 
+                                          href={reservation.files.letterOfIntentFile.url} 
+                                          target="_blank" 
+                                          rel="noopener noreferrer"
+                                          className={styles.fileLink}
+                                        >
+                                          Click to open
+                                        </a>
+                                      </span>
+                                    </div>
+                                  )}
+                                  
+                                  {reservation.files.governmentIdFiles.length > 0 && (
+                                    <div className={styles.detailRow}>
+                                      <span className={styles.detailLabel}>Government ID</span>
+                                      <span className={styles.detailSeparator}>:</span>
+                                      <span className={styles.detailValue}>
+                                        <div className={styles.fileList}>
+                                          {reservation.files.governmentIdFiles.map((file, idx) => (
+                                            <a 
+                                              key={idx}
+                                              href={file.url} 
+                                              target="_blank" 
+                                              rel="noopener noreferrer"
+                                              className={styles.fileLink}
+                                            >
+                                              Click to open
+                                            </a>
+                                          ))}
+                                        </div>
+                                      </span>
+                                    </div>
+                                  )}
+                                  
+                                  {reservation.files.seniorCitizenIdFiles.length > 0 && (
+                                    <div className={styles.detailRow}>
+                                      <span className={styles.detailLabel}>Senior Citizen ID</span>
+                                      <span className={styles.detailSeparator}>:</span>
+                                      <span className={styles.detailValue}>
+                                        <div className={styles.fileList}>
+                                          {reservation.files.seniorCitizenIdFiles.map((file, idx) => (
+                                            <a 
+                                              key={idx}
+                                              href={file.url} 
+                                              target="_blank" 
+                                              rel="noopener noreferrer"
+                                              className={styles.fileLink}
+                                            >
+                                              Click to open
+                                            </a>
+                                          ))}
+                                        </div>
+                                      </span>
+                                    </div>
+                                  )}
+                                  
+                                  {reservation.files.pwdIdFiles.length > 0 && (
+                                    <div className={styles.detailRow}>
+                                      <span className={styles.detailLabel}>PWD ID</span>
+                                      <span className={styles.detailSeparator}>:</span>
+                                      <span className={styles.detailValue}>
+                                        <div className={styles.fileList}>
+                                          {reservation.files.pwdIdFiles.map((file, idx) => (
+                                            <a 
+                                              key={idx}
+                                              href={file.url} 
+                                              target="_blank" 
+                                              rel="noopener noreferrer"
+                                              className={styles.fileLink}
+                                            >
+                                              Click to open
+                                            </a>
+                                          ))}
+                                        </div>
+                                      </span>
+                                    </div>
+                                  )}
+                                  
+                                  {reservation.files.moaFile && (
+                                    <div className={styles.detailRow}>
+                                      <span className={styles.detailLabel}>Memorandum of Agreement</span>
+                                      <span className={styles.detailSeparator}>:</span>
+                                      <span className={styles.detailValue}>
+                                        <a 
+                                          href={reservation.files.moaFile.url} 
+                                          target="_blank" 
+                                          rel="noopener noreferrer"
+                                          className={styles.fileLink}
+                                        >
+                                          Click to open
+                                        </a>
+                                      </span>
+                                    </div>
+                                  )}
+                                  
+                                  {reservation.files.serviceContractFile && (
+                                    <div className={styles.detailRow}>
+                                      <span className={styles.detailLabel}>Service Contract</span>
+                                      <span className={styles.detailSeparator}>:</span>
+                                      <span className={styles.detailValue}>
+                                        <a 
+                                          href={reservation.files.serviceContractFile.url} 
+                                          target="_blank" 
+                                          rel="noopener noreferrer"
+                                          className={styles.fileLink}
+                                        >
+                                          Click to open
+                                        </a>
+                                      </span>
+                                    </div>
+                                  )}
+                                  
+                                  {reservation.files.fundsFile && (
+                                    <div className={styles.detailRow}>
+                                      <span className={styles.detailLabel}>Certificate of Availability of Funds</span>
+                                      <span className={styles.detailSeparator}>:</span>
+                                      <span className={styles.detailValue}>
+                                        <a 
+                                          href={reservation.files.fundsFile.url} 
+                                          target="_blank" 
+                                          rel="noopener noreferrer"
+                                          className={styles.fileLink}
+                                        >
+                                          Click to open
+                                        </a>
+                                      </span>
+                                    </div>
+                                  )}
+                                </>
+                              )}
+                            </React.Fragment>
+                          );
+                        })}
 
                         {/* Breakdown of Fees Section */}
                         <div className={styles.breakdownSection}>
@@ -582,17 +755,14 @@ function ReservationHistory() {
                               <span className={styles.totalAmountValue}>{reservation.totalEstimatedAmount}</span>
                             </div>
 
-                            {!isUploadVisible && (
+                            {!isUploadVisible && reservation.approved && (
                               <button
-                                className={`${styles.confirmButton} ${reservation.confirmed ? styles.confirmedButton : ''}`}
+                                className={styles.confirmButton}
                                 onClick={() => handleConfirmNow(reservation._id, reservation.category)}
-                                title={reservation.confirmed ? 'Upload required documents' : undefined}
                               >
-                                {reservation.confirmed
-                                  ? 'Confirm Now'
-                                  : reservation.details.category === 'Private'
-                                    ? 'Pay Now!'
-                                    : 'Confirm Now!'}
+                                {reservation.details.category === 'Private'
+                                  ? 'Pay Now!'
+                                  : 'Confirm Now!'}
                               </button>
                             )}
                           </div>

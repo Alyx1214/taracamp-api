@@ -1219,6 +1219,24 @@ function computeEstimate({ facilityDoc, adults = 0, children = 0, pwds = 0, seni
 
     const flatBookingPrice = Number(facilityDoc?.price ?? facilityDoc?.conferencePrice ?? facilityDoc?.flatPrice);
 
+    // Normalize category for comparison (handle case and whitespace)
+    const normalizedCategory = category ? String(category).trim() : '';
+    
+    // Check if category has a discount (GOVERNMENT, DEPED, PWDS)
+    // If category has discount, PWD/senior citizen one-time discount should not apply
+    const hasCategoryDiscount = normalizedCategory === Category.GOVERNMENT || normalizedCategory === Category.DEPED || normalizedCategory === Category.PWDS;
+    
+    // PWDs and senior citizens always pay full rate (1.0) - no per-person discount
+    const pwdSeniorRate = 1.0;
+    
+    // Check if there are PWD or senior citizen guests for one-time discount eligibility
+    const hasPwdOrSeniorGuests = (pwds > 0) || (seniorCitizens > 0);
+    
+    // Children are free (0 rate) for dormitory facilities with per-person pricing
+    // For other facilities, children pay full rate (1.0) - no discount
+    const isDormitory = facilityDoc?.facilityType === FacilityType.DORMITORY;
+    const childrenRate = (isDormitory && usePerPersonPricing) ? 0 : 1.0;
+
     // Check if arrival time is earlier than 2pm (14:00) - add 1 night's price
     let earlyArrivalFee = 0;
     if (isAccommodationFacility && timeOfArrival) {
@@ -1230,7 +1248,7 @@ function computeEstimate({ facilityDoc, adults = 0, children = 0, pwds = 0, seni
             if (!isNaN(hours) && hours < 14) {
                 // Arrival is before 2pm, calculate 1 night's price
                 if (usePerPersonPricing && Number.isFinite(perPersonRate) && perPersonRate >= 0) {
-                    const perNightFee = adults * perPersonRate + (children + pwds + seniorCitizens) * perPersonRate * 0.80;
+                    const perNightFee = adults * perPersonRate + children * perPersonRate * childrenRate + (pwds + seniorCitizens) * perPersonRate * pwdSeniorRate;
                     earlyArrivalFee = perNightFee;
                 } else if (Number.isFinite(flatBookingPrice) && flatBookingPrice >= 0) {
                     earlyArrivalFee = flatBookingPrice;
@@ -1245,7 +1263,7 @@ function computeEstimate({ facilityDoc, adults = 0, children = 0, pwds = 0, seni
         if (!Number.isFinite(perPersonRate) || perPersonRate < 0) {
             baseAmount = addonsTotal + earlyArrivalFee;
         } else {
-            const perNightFee = adults * perPersonRate + (children + pwds + seniorCitizens) * perPersonRate * 0.80;
+            const perNightFee = adults * perPersonRate + children * perPersonRate * childrenRate + (pwds + seniorCitizens) * perPersonRate * pwdSeniorRate;
             baseAmount = (perNightFee * numberOfNights) + addonsTotal + earlyArrivalFee;
         }
     } else {
@@ -1257,22 +1275,30 @@ function computeEstimate({ facilityDoc, adults = 0, children = 0, pwds = 0, seni
         }
     }
 
-    // Normalize category for comparison (handle case and whitespace)
-    const normalizedCategory = category ? String(category).trim() : '';
-    
     let finalAmount = baseAmount;
+    
+    // Check if service fee applies (PRIVATE, GOVERNMENT, DEPED, PWDS categories)
+    const hasServiceFee = normalizedCategory === Category.PRIVATE || normalizedCategory === Category.GOVERNMENT || normalizedCategory === Category.DEPED || normalizedCategory === Category.PWDS;
     
     if (normalizedCategory === Category.PRIVATE) {
         finalAmount = baseAmount * 1.10;
-    } else if (normalizedCategory === Category.GOVERNMENT || normalizedCategory === Category.DEPED || normalizedCategory === Category.PWDS) {
-        const withServiceFee = baseAmount * 1.10;
+    } else if (hasCategoryDiscount) {
+        // Category discount: 20% off total (after service fee)
+        const withServiceFee = hasServiceFee ? baseAmount * 1.10 : baseAmount;
         finalAmount = withServiceFee * 0.80;
+    } else if (hasPwdOrSeniorGuests) {
+        // One-time 20% discount for PWD/senior citizen guests when no category discount
+        const withServiceFee = hasServiceFee ? baseAmount * 1.10 : baseAmount;
+        finalAmount = withServiceFee * 0.80;
+    } else if (hasServiceFee) {
+        // No discount, but service fee applies
+        finalAmount = baseAmount * 1.10;
     }
 
     let facilityFee = 0;
     if (usePerPersonPricing) {
         if (Number.isFinite(perPersonRate) && perPersonRate >= 0) {
-            const perNightFee = adults * perPersonRate + (children + pwds + seniorCitizens) * perPersonRate * 0.80;
+            const perNightFee = adults * perPersonRate + children * perPersonRate * childrenRate + (pwds + seniorCitizens) * perPersonRate * pwdSeniorRate;
             facilityFee = perNightFee * numberOfNights;
         }
     } else {
@@ -1282,9 +1308,15 @@ function computeEstimate({ facilityDoc, adults = 0, children = 0, pwds = 0, seni
         }
     }
 
-    // Use normalized category for service fee and discount calculations
-    const hasServiceFee = normalizedCategory === Category.PRIVATE || normalizedCategory === Category.GOVERNMENT || normalizedCategory === Category.DEPED || normalizedCategory === Category.PWDS;
-    const hasDiscount = normalizedCategory === Category.GOVERNMENT || normalizedCategory === Category.DEPED || normalizedCategory === Category.PWDS;
+    // Discount applies if: category has discount OR (no category discount AND has PWD/senior guests)
+    const hasDiscount = hasCategoryDiscount || (!hasCategoryDiscount && hasPwdOrSeniorGuests);
+    
+    // Calculate discount amount (20% of amount after service fee if applicable)
+    let discountAmount = 0;
+    if (hasDiscount) {
+        const amountBeforeDiscount = hasServiceFee ? baseAmount * 1.10 : baseAmount;
+        discountAmount = amountBeforeDiscount * 0.20;
+    }
     
     return { 
         amount: finalAmount,
@@ -1292,7 +1324,7 @@ function computeEstimate({ facilityDoc, adults = 0, children = 0, pwds = 0, seni
         baseAmount: baseAmount,
         facilityFee: facilityFee,
         serviceFee: hasServiceFee ? baseAmount * 0.10 : 0,
-        discount: hasDiscount ? (baseAmount * 1.10) * 0.20 : 0
+        discount: discountAmount
     };
 }
 

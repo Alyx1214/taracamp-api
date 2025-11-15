@@ -907,3 +907,29 @@
   letter-spacing: 0.5px;
   flex: 0 0 auto;
 }
+
+/* File Link Styles */
+.fileLink {
+  color: #2d5016;
+  text-decoration: none;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  display: inline-block;
+  padding-bottom: 2px;
+}
+
+.fileLink:hover {
+  color: #558B5E;
+  text-decoration: underline;
+  transform: translateY(-1px);
+}
+
+.fileList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fileList .fileLink {
+  display: inline-block;
+}

@@ -35,11 +35,12 @@ const reservationModule = {
      * @param {Object} letterOfIntentFile - The Letter of Intent file.
      * @param {Object} seniorCitizenIdFile - The Senior Citizen ID file.
      * @param {Array} pwdIdFiles - Array of PWD ID files (optional).
+     * @param {Array} governmentIdFiles - Array of Government ID files (optional).
      * @param {Object} user - The logged-in user.
      * @param {Object} userSocketMap - The map of user sockets.
      * @return {Promise<Object>} A promise that resolves to an object with the status, error, message, reservationId, and reservation properties.
      */
-    addReservation: async (dbHelper, data, letterOfIntentFile, seniorCitizenIdFile, pwdIdFiles, user) => {
+    addReservation: async (dbHelper, data, letterOfIntentFile, seniorCitizenIdFile, pwdIdFiles, governmentIdFiles, user) => {
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
             error: 'Error on booking reservation',
@@ -336,7 +337,30 @@ const reservationModule = {
                 }
             }
 
-            if (seniorCitizens > 0 && !seniorCitizenIdFile) {
+            // Skip senior citizen ID requirement for government/deped groups, government individuals, PWD category groups, PWD category individuals - only government ID or PWD ID is needed
+            // Exception: private+individual with seniors still requires Senior Citizen ID
+            const isGovCategory = category === Category.GOVERNMENT || category === Category.DEPED;
+            const isPwdCategory = category === Category.PWDS;
+            const isPrivateCategory = category === Category.PRIVATE;
+            const isGroupReservation = guestType !== GuestType.INDIVIDUAL;
+            const isIndividualReservation = guestType === GuestType.INDIVIDUAL;
+            const isPrivateAndIndividual = isPrivateCategory && isIndividualReservation;
+            const isPrivateAndIndividualWithSeniors = isPrivateAndIndividual && seniorCitizens > 0;
+            
+            // Require Senior Citizen ID if there are seniors, EXCEPT for:
+            // - gov/deped groups or individuals (only gov ID needed)
+            // - PWD groups or individuals (only PWD ID needed)
+            // - private groups (only Letter of Intent needed)
+            // - private+individual WITHOUT seniors (no ID needed)
+            // But DO require it for private+individual WITH seniors
+            const shouldSkipSeniorCitizenId = (isGroupReservation && isGovCategory) || 
+                                             (isIndividualReservation && isGovCategory) || 
+                                             (isGroupReservation && isPwdCategory) || 
+                                             (isIndividualReservation && isPwdCategory) ||
+                                             (isGroupReservation && isPrivateCategory) ||
+                                             (isPrivateAndIndividual && !isPrivateAndIndividualWithSeniors);
+            
+            if (seniorCitizens > 0 && !seniorCitizenIdFile && !shouldSkipSeniorCitizenId) {
                 responseData.status = Status.BAD_REQUEST;
                 responseData.error = 'Senior Citizen ID file is required when there are senior citizens in the reservation';
                 return responseData;
@@ -385,7 +409,8 @@ const reservationModule = {
             }
 
             // Validate and handle PWD ID files
-            if (pwds > 0 && (!pwdIdFiles || !Array.isArray(pwdIdFiles) || pwdIdFiles.length === 0)) {
+            // Skip PWD ID requirement for government/deped groups, government individuals, private groups, and private+individual - only government ID is needed for gov't, and PWD ID is not required for private groups or private+individual
+            if (pwds > 0 && (!pwdIdFiles || !Array.isArray(pwdIdFiles) || pwdIdFiles.length === 0) && !(isGroupReservation && isGovCategory) && !(isIndividualReservation && isGovCategory) && !(isGroupReservation && isPrivateCategory) && !isPrivateAndIndividual) {
                 responseData.status = Status.BAD_REQUEST;
                 responseData.error = 'PWD ID file(s) are required when there are PWD guests in the reservation';
                 return responseData;
@@ -397,7 +422,19 @@ const reservationModule = {
                 return responseData;
             }
 
-            // Handle PWD ID files (will be saved after reservation is created to link reservationId)
+            // Reuse isGovCategory, isGroupReservation, isIndividualReservation, and isPrivateAndIndividual from earlier declaration
+            // Skip government ID requirement for private+individual - no ID needed
+            if (isGovCategory && (isGroupReservation || isIndividualReservation) && (!governmentIdFiles || !Array.isArray(governmentIdFiles) || governmentIdFiles.length === 0) && !isPrivateAndIndividual) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Government ID file(s) are required for government/DepEd reservations';
+                return responseData;
+            }
+            
+            if (governmentIdFiles && Array.isArray(governmentIdFiles) && governmentIdFiles.length > 0 && !(isGovCategory && (isGroupReservation || isIndividualReservation))) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Government ID file(s) should only be uploaded for government/DepEd reservations';
+                return responseData;
+            }
             const pwdIdFileDocs = [];
             if (pwds > 0 && pwdIdFiles && Array.isArray(pwdIdFiles) && pwdIdFiles.length > 0) {
                 for (const file of pwdIdFiles) {
@@ -433,24 +470,59 @@ const reservationModule = {
                 }
             }
 
-            // For walk-in reservations (admin creating for guest) or reservations created by frontdesk/superintendent:
-            // - If arrival date is today → CONFIRMED
-            // - If arrival date is future → PENDING
+            const governmentIdFileDocs = [];
+            // Reuse isGovCategory from earlier declaration
+            if (isGovCategory && governmentIdFiles && Array.isArray(governmentIdFiles) && governmentIdFiles.length > 0) {
+                for (const file of governmentIdFiles) {
+                    if (!file) continue;
+                    try {
+                        const filename = `government_id/${Date.now()}_${file.originalname.replace(/\s/g, '_')}`;
+                        const blob = bucket.file(filename);
+                        await new Promise((resolve, reject) => {
+                            const stream = blob.createWriteStream({
+                                resumable: false,
+                                contentType: file.mimetype,
+                            });
+                            stream.on('error', reject);
+                            stream.on('finish', resolve);
+                            stream.end(file.buffer);
+                        });
+
+                        const fileDoc = await dbHelper.create('file', {
+                            path: filename,
+                            mimetype: file.mimetype,
+                            size: file.size,
+                            kind: FileKind.GOVERNMENT_ID,
+                            userId: user.userId,
+                            createdAt: new Date(),
+                        });
+                        governmentIdFileDocs.push(fileDoc);
+                    } catch (err) {
+                        console.error('Error uploading Government ID file:', err);
+                        responseData.status = Status.INTERNAL_SERVER_ERROR;
+                        responseData.error = 'Government ID file upload failed: ' + err.message;
+                        return responseData;
+                    }
+                }
+            }
+
+            // Auto-approve reservations created by admins
+            // Check if user is an admin (any admin role)
+            const isAdmin = user && (
+                user.role === UserRole.FRONTDESK || 
+                user.role === UserRole.SUPERINTENDENT || 
+                user.role === UserRole.CRMSTEAM
+            );
+            
+            // For walk-in reservations (admin creating for guest) or reservations created by admins:
+            // - Auto-approve all admin-created reservations
             // Otherwise, use default PENDING status
             let initialStatus = ReservationStatus.PENDING;
-            const isWalkIn = creatingForGuest || (user && (user.role === UserRole.FRONTDESK || user.role === UserRole.SUPERINTENDENT));
+            const isWalkIn = creatingForGuest || isAdmin;
             
             if (isWalkIn) {
-                const arrivalDate = normalizeDateOnly(dateOfArrival);
-                const today = normalizeDateOnly(new Date().toISOString().split('T')[0]);
-                
-                if (arrivalDate && today && arrivalDate.getTime() === today.getTime()) {
-                    // Arrival date is today → CONFIRMED
-                    initialStatus = ReservationStatus.CONFIRMED;
-                } else {
-                    // Arrival date is future → PENDING
-                    initialStatus = ReservationStatus.PENDING;
-                }
+                // Auto-approve all admin-created reservations
+                initialStatus = ReservationStatus.APPROVED;
             }
 
             const { amount: totalEstimatedAmount, } = computeEstimate({
@@ -639,7 +711,6 @@ const reservationModule = {
                 }
             }
 
-            // Link PWD ID files to reservation
             if (pwdIdFileDocs && pwdIdFileDocs.length > 0) {
                 for (const fileDoc of pwdIdFileDocs) {
                     if (fileDoc?._id) {
@@ -647,7 +718,18 @@ const reservationModule = {
                             await dbHelper.findOneAndUpdate('file', { _id: fileDoc._id, }, { reservationId: reservation._id, });
                         } catch (e) {
                             console.error('Failed to backfill reservationId on PWD ID file:', e?.message);
-                            // Don't fail the entire request if one file update fails
+                        }
+                    }
+                }
+            }
+
+            if (governmentIdFileDocs && governmentIdFileDocs.length > 0) {
+                for (const fileDoc of governmentIdFileDocs) {
+                    if (fileDoc?._id) {
+                        try {
+                            await dbHelper.findOneAndUpdate('file', { _id: fileDoc._id, }, { reservationId: reservation._id, });
+                        } catch (e) {
+                            console.error('Failed to backfill reservationId on Government ID file:', e?.message);
                         }
                     }
                 }
@@ -1112,12 +1194,195 @@ const reservationModule = {
                     }
                 }
                 
+                // Fetch file information
+                const reservationId = String(reservationObj._id || '');
+                let letterOfIntentFile = null;
+                let seniorCitizenIdFiles = [];
+                let pwdIdFiles = [];
+                let governmentIdFiles = [];
+                let moaFile = null;
+                let serviceContractFile = null;
+                let fundsFile = null;
+                
+                try {
+                    // Fetch Letter of Intent
+                    const loiFile = await dbHelper.findOne('file', { 
+                        reservationId, 
+                        kind: FileKind.LETTER_OF_INTENT 
+                    });
+                    if (loiFile?.path) {
+                        try {
+                            const [signedUrl] = await bucket.file(loiFile.path).getSignedUrl({
+                                version: 'v4',
+                                expires: Date.now() + 1000 * 60 * 60,
+                                action: 'read',
+                            });
+                            letterOfIntentFile = {
+                                url: signedUrl,
+                                name: loiFile.originalname || loiFile.name || 'Letter of Intent',
+                            };
+                        } catch (err) {
+                            console.warn('Error generating signed URL for Letter of Intent:', err);
+                        }
+                    }
+                    
+                    // Fetch Senior Citizen ID files
+                    const seniorFiles = await dbHelper.find('file', { 
+                        reservationId, 
+                        kind: FileKind.SENIOR_CITIZEN_ID 
+                    });
+                    const seniorFilesFiltered = (seniorFiles || []).filter(file => 
+                        file.path && !file.path.startsWith('pwd_id/')
+                    );
+                    if (seniorFilesFiltered.length > 0) {
+                        const seniorPromises = seniorFilesFiltered.map(async (file) => {
+                            try {
+                                const [signedUrl] = await bucket.file(file.path).getSignedUrl({
+                                    version: 'v4',
+                                    expires: Date.now() + 1000 * 60 * 60,
+                                    action: 'read',
+                                });
+                                return {
+                                    url: signedUrl,
+                                    name: file.originalname || file.name || 'Senior Citizen ID',
+                                };
+                            } catch (err) {
+                                return null;
+                            }
+                        });
+                        seniorCitizenIdFiles = (await Promise.all(seniorPromises)).filter(Boolean);
+                    }
+                    
+                    // Fetch PWD ID files
+                    const allIdFiles = await dbHelper.find('file', { 
+                        reservationId, 
+                        kind: FileKind.SENIOR_CITIZEN_ID 
+                    });
+                    const pwdFiles = (allIdFiles || []).filter(file => 
+                        file.path && file.path.startsWith('pwd_id/')
+                    );
+                    if (pwdFiles.length > 0) {
+                        const pwdPromises = pwdFiles.map(async (file) => {
+                            try {
+                                const [signedUrl] = await bucket.file(file.path).getSignedUrl({
+                                    version: 'v4',
+                                    expires: Date.now() + 1000 * 60 * 60,
+                                    action: 'read',
+                                });
+                                return {
+                                    url: signedUrl,
+                                    name: file.originalname || file.name || 'PWD ID',
+                                };
+                            } catch (err) {
+                                return null;
+                            }
+                        });
+                        pwdIdFiles = (await Promise.all(pwdPromises)).filter(Boolean);
+                    }
+                    
+                    // Fetch Government ID files
+                    const govFiles = await dbHelper.find('file', { 
+                        reservationId, 
+                        kind: FileKind.GOVERNMENT_ID 
+                    });
+                    if (govFiles && govFiles.length > 0) {
+                        const govPromises = govFiles.map(async (file) => {
+                            try {
+                                const [signedUrl] = await bucket.file(file.path).getSignedUrl({
+                                    version: 'v4',
+                                    expires: Date.now() + 1000 * 60 * 60,
+                                    action: 'read',
+                                });
+                                return {
+                                    url: signedUrl,
+                                    name: file.originalname || file.name || 'Government ID',
+                                };
+                            } catch (err) {
+                                return null;
+                            }
+                        });
+                        governmentIdFiles = (await Promise.all(govPromises)).filter(Boolean);
+                    }
+                    
+                    // Fetch MOA file
+                    const moaFileDoc = await dbHelper.findOne('file', { 
+                        reservationId, 
+                        kind: FileKind.MEMORANDUM_OF_AGREEMENT 
+                    });
+                    if (moaFileDoc?.path) {
+                        try {
+                            const [signedUrl] = await bucket.file(moaFileDoc.path).getSignedUrl({
+                                version: 'v4',
+                                expires: Date.now() + 1000 * 60 * 60,
+                                action: 'read',
+                            });
+                            moaFile = {
+                                url: signedUrl,
+                                name: moaFileDoc.originalname || moaFileDoc.name || 'Memorandum of Agreement',
+                            };
+                        } catch (err) {
+                            console.warn('Error generating signed URL for MOA:', err);
+                        }
+                    }
+                    
+                    // Fetch Service Contract file
+                    const serviceContractFileDoc = await dbHelper.findOne('file', { 
+                        reservationId, 
+                        kind: FileKind.SERVICE_CONTRACT 
+                    });
+                    if (serviceContractFileDoc?.path) {
+                        try {
+                            const [signedUrl] = await bucket.file(serviceContractFileDoc.path).getSignedUrl({
+                                version: 'v4',
+                                expires: Date.now() + 1000 * 60 * 60,
+                                action: 'read',
+                            });
+                            serviceContractFile = {
+                                url: signedUrl,
+                                name: serviceContractFileDoc.originalname || serviceContractFileDoc.name || 'Service Contract',
+                            };
+                        } catch (err) {
+                            console.warn('Error generating signed URL for Service Contract:', err);
+                        }
+                    }
+                    
+                    // Fetch Certificate of Availability of Funds file
+                    const fundsFileDoc = await dbHelper.findOne('file', { 
+                        reservationId, 
+                        kind: FileKind.CERTIFICATE_OF_AVAILABILITY_OF_FUNDS 
+                    });
+                    if (fundsFileDoc?.path) {
+                        try {
+                            const [signedUrl] = await bucket.file(fundsFileDoc.path).getSignedUrl({
+                                version: 'v4',
+                                expires: Date.now() + 1000 * 60 * 60,
+                                action: 'read',
+                            });
+                            fundsFile = {
+                                url: signedUrl,
+                                name: fundsFileDoc.originalname || fundsFileDoc.name || 'Certificate of Availability of Funds',
+                            };
+                        } catch (err) {
+                            console.warn('Error generating signed URL for Certificate of Availability of Funds:', err);
+                        }
+                    }
+                } catch (fileError) {
+                    console.warn('Error fetching files for reservation:', fileError);
+                }
+                
                 return {
                     ...reservationObj,
                     facilityName,
                     facilityType,
                     addOns: addOnsDetails,
                     breakdown,
+                    letterOfIntentFile,
+                    seniorCitizenIdFiles,
+                    pwdIdFiles,
+                    governmentIdFiles,
+                    moaFile,
+                    serviceContractFile,
+                    fundsFile,
                 };
             }));
             
@@ -2038,18 +2303,39 @@ const reservationModule = {
                 return responseData;
             }
 
+            // Find all files associated with this reservation
             const files = await dbHelper.find('file', { reservationId: reservationId, });
+            
+            // Delete all files from Google Cloud Storage
+            // Continue deleting even if some fail (log errors but don't stop)
+            let deletedCount = 0;
+            let failedCount = 0;
             for (const file of files) {
                 try {
                     await bucket.file(file.path).delete();
+                    deletedCount++;
                 } catch (err) {
-                    console.error('Failed to delete file in bucket:', file.path, err.message);
-                    responseData.status = Status.INTERNAL_SERVER_ERROR;
-                    responseData.error = 'Failed to delete file in bucket';
-                    return responseData;
+                    // If file doesn't exist (404), that's okay - it may have been deleted already
+                    if (err.code === 404) {
+                        console.log(`File not found in bucket (already deleted?): ${file.path}`);
+                        deletedCount++;
+                    } else {
+                        console.error('Failed to delete file in bucket:', file.path, err.message);
+                        failedCount++;
+                    }
                 }
             }
+            
+            // Log summary of file deletions
+            if (files.length > 0) {
+                console.log(`File deletion summary for reservation ${reservationId}: ${deletedCount} deleted, ${failedCount} failed out of ${files.length} total`);
+            }
+            
+            // Delete all file records from database
             await dbHelper.deleteMany('file', { reservationId: reservationId, });
+
+            // Delete all notifications associated with this reservation
+            await dbHelper.deleteMany('notification', { reservationId: reservationId, });
 
             const deletedReservation = await dbHelper.deleteOne('reservation', { _id: reservationId, });
 
@@ -2535,6 +2821,31 @@ const reservationModule = {
                 responseData.status = Status.BAD_REQUEST;
                 responseData.error = 'Invalid Letter of Intent file';
                 return responseData;
+            }
+
+            // Ensure group reservations always have a Letter of Intent
+            const finalGuestType = guestType !== undefined ? guestType : existingReservation.guestType;
+            if (finalGuestType !== GuestType.INDIVIDUAL) {
+                // If changing from Individual to Group, Letter of Intent is required
+                if (guestType !== undefined && existingReservation.guestType === GuestType.INDIVIDUAL) {
+                    if (!letterOfIntentFile) {
+                        responseData.status = Status.BAD_REQUEST;
+                        responseData.error = 'Letter of Intent file is required when changing reservation type to Group';
+                        return responseData;
+                    }
+                } else if (!letterOfIntentFile) {
+                    // If no new file is being uploaded, check if existing reservation has one
+                    const hasExistingLOI = existingReservation.letterOfIntentFileId || 
+                        await dbHelper.findOne('file', { 
+                            reservationId: reservationId, 
+                            kind: FileKind.LETTER_OF_INTENT 
+                        });
+                    if (!hasExistingLOI) {
+                        responseData.status = Status.BAD_REQUEST;
+                        responseData.error = 'Letter of Intent file is required for group reservations';
+                        return responseData;
+                    }
+                }
             }
 
             if (moaFile && !isValidFile(moaFile)) {

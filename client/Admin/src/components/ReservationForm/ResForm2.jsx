@@ -18,6 +18,7 @@ function ReservationFormStep2() {
   const reservationId = location.state?.reservationId || null;
   const isEdit = location.state?.isEdit || false;
   const userEmail = location.state?.userEmail || null;
+  const originalType = location.state?.originalType || null; // Original type from edit mode
 
   useEffect(() => {
     if (!location.state?.step1 || !Object.keys(location.state.step1).length) {
@@ -569,9 +570,21 @@ function ReservationFormStep2() {
     };
 
     const isGroup = step1?.type?.groups || false;
+    const isIndividual = step1?.type?.individual || false;
+    
+    // Detect if type changed from individual to group in edit mode
+    const typeChangedToGroup = isEdit && originalType && 
+      (originalType === 'Individual' || originalType === 'individual') && 
+      isGroup;
     
     // Get current file from location.state to ensure it's up to date
-    const currentFile = location.state?.file || file || null;
+    // If type changed from individual to group, clear the file (individuals don't have Letter of Intent)
+    let currentFile = location.state?.file || file || null;
+    if (typeChangedToGroup) {
+      // If changing from individual to group, clear any existing file
+      // because individual reservations don't have Letter of Intent
+      currentFile = null;
+    }
     
     // Check for seniors and PWDs to determine routing
     const numberOfSeniors = parseInt(step1?.guests?.senior || 0, 10) || 0;
@@ -579,23 +592,66 @@ function ReservationFormStep2() {
     const hasSeniors = numberOfSeniors > 0;
     const hasPwds = numberOfPwds > 0;
     
+    // Check category
+    const isGovernmentCategory = step1?.category?.government === true || step1?.category?.deped === true;
+    const isPwdCategory = step1?.category?.pwds === true || step1?.category?.PWDs === true;
+    const isPrivateCategory = step1?.category?.private === true || step1?.category?.Private === true;
+    const governmentIdFiles = location.state?.governmentIdFiles || [];
+    
     let nextStep;
     if (isGroup) {
       // Group reservations: go to Letter of Intent first
+      // If type changed from individual to group, Letter of Intent is now required
       nextStep = `/reservation-step3`;
-    } else if (hasSeniors) {
-      // Individual with seniors: go directly to senior citizen ID upload
-      nextStep = `/reservation-step3-senior`;
-    } else if (hasPwds) {
-      // Individual with PWDs: go directly to PWD ID upload
-      nextStep = `/reservation-step3-pwd`;
+    } else if (isIndividual) {
+      // Individual reservations: check category first
+      if (isPrivateCategory) {
+        // Private+individual: check for seniors
+        if (hasSeniors) {
+          // Private+individual with seniors: require Senior Citizen ID
+          nextStep = `/reservation-step3-senior`;
+        } else {
+          // Private+individual without seniors: no ID needed, go directly to step 4
+          nextStep = `/reservation-step4`;
+        }
+      } else if (isPwdCategory) {
+        // PWD+individual: only PWD ID needed (even if seniors present)
+        nextStep = `/reservation-step3-pwd`;
+      } else if (isGovernmentCategory) {
+        // Government/deped+individual: only government ID needed (even if seniors present)
+        nextStep = `/reservation-step3-government`;
+      } else if (hasSeniors && hasPwds) {
+        // Individual with both seniors and PWDs: go to senior citizen ID first
+        nextStep = `/reservation-step3-senior`;
+      } else if (hasSeniors) {
+        // Individual with seniors: go directly to senior citizen ID upload
+        nextStep = `/reservation-step3-senior`;
+      } else if (hasPwds) {
+        // Individual with PWDs: go directly to PWD ID upload
+        nextStep = `/reservation-step3-pwd`;
+      } else {
+        // Individual without seniors/PWDs: go directly to final step
+        nextStep = `/reservation-step4`;
+      }
     } else {
-      // Individual without seniors/PWDs: go directly to final step
-      nextStep = `/reservation-step4`;
+      // Fallback: go to step 3 (Letter of Intent)
+      nextStep = `/reservation-step3`;
     }
     
     navigate(nextStep, {
-      state: { step1, step2, file: currentFile, seniorCitizenIdFiles, pwdIdFiles, reservationId, isEdit, userEmail },
+      state: { 
+        step1, 
+        step2, 
+        file: currentFile, 
+        seniorCitizenIdFiles, 
+        pwdIdFiles, 
+        governmentIdFiles, 
+        reservationId, 
+        isEdit, 
+        userEmail,
+        originalType: originalType, // Pass original type to next step
+        typeChangedToGroup: typeChangedToGroup, // Flag indicating type changed to group
+      },
     });
   };
 

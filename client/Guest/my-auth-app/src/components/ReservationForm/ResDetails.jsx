@@ -20,14 +20,20 @@ function ResDetails({ onClose }) {
   const [breakdown, setBreakdown] = useState(null);
   const [allAddons, setAllAddons] = useState([]);
   const { type, facilityName, id } = useParams();
-  const { step1 = {}, step2 = {}, file, seniorCitizenIdFiles, seniorCitizenIdFile, pwdIdFiles, pwdIdFile } = location.state || {};
+  const { step1 = {}, step2 = {}, file, seniorCitizenIdFiles, seniorCitizenIdFile, pwdIdFiles, pwdIdFile, governmentIdFiles, governmentIdFile } = location.state || {};
   const selectedAddons = step2.selectedAddons || [];
   const numberOfSeniors = parseInt(step1?.guests?.senior || 0, 10) || 0;
   const numberOfPwds = parseInt(step1?.guests?.pwds || 0, 10) || 0;
+  const isGovernmentCategory = step1?.category?.government === true || step1?.category?.deped === true;
+  const isPwdCategory = step1?.category?.pwds === true || step1?.category?.PWDs === true;
+  const isPrivateCategory = step1?.category?.private === true || step1?.category?.Private === true;
+  const routeType = String(type || '').toLowerCase();
+  const isGroup = routeType === 'group' || !!step1?.type?.groups || !!step1?.type?.group;
+  const isIndividual = routeType === 'individual' || !!step1?.type?.individual;
   
-  // Handle backward compatibility: convert single file to array
   const seniorCitizenFiles = seniorCitizenIdFiles || (seniorCitizenIdFile ? [seniorCitizenIdFile] : []);
   const pwdFiles = pwdIdFiles || (pwdIdFile ? [pwdIdFile] : []);
+  const governmentFiles = governmentIdFiles || (governmentIdFile ? [governmentIdFile] : []);
 
   const handlePrevious = () => {
     const numberOfSeniors = parseInt(step1?.guests?.senior || 0, 10) || 0;
@@ -37,34 +43,75 @@ function ResDetails({ onClose }) {
     const routeType = String(type || '').toLowerCase();
     const isIndividual = Boolean(step1?.type?.individual) || routeType === 'individual';
     const isGroup = Boolean(step1?.type?.groups) || routeType === 'group';
+    const isPrivateAndIndividual = isPrivateCategory && isIndividual;
+    const isPrivateAndIndividualWithSeniors = isPrivateAndIndividual && hasSeniors;
+
+    // For private+individual: check if seniors are present
+    if (isPrivateAndIndividual) {
+      if (hasSeniors) {
+        // If seniors present, go back to senior citizen ID upload
+        navigate(`/reservation-step3-senior/${type}/${facilityName}/${id}`, {
+          state: { step1, step2, file: null, seniorCitizenIdFiles: seniorCitizenFiles, pwdIdFiles: [], governmentIdFiles: [] }
+        });
+      } else {
+        // If no seniors, go directly back to step 2
+        navigate(`/reservation-step2/${type}/${facilityName}/${id}`, {
+          state: { step1, step2, file: null, seniorCitizenIdFiles: [], pwdIdFiles: [], governmentIdFiles: [] }
+        });
+      }
+      return;
+    }
+
+    // For gov't/deped groups or individuals: route back to government ID upload (even if seniors/PWDs present)
+    // Only gov't/deped ID is needed, not senior citizen ID
+    if ((isGroup || isIndividual) && isGovernmentCategory) {
+      navigate(`/reservation-step3-government/${type}/${facilityName}/${id}`, {
+        state: { step1, step2, file, seniorCitizenIdFiles: seniorCitizenFiles, pwdIdFiles: pwdFiles, governmentIdFiles: governmentFiles }
+      });
+      return;
+    }
+
+    // For private groups: route back to Letter of Intent upload (step 3)
+    // Only Letter of Intent is needed, no ID uploads required
+    if (isGroup && isPrivateCategory) {
+      navigate(`/reservation-step3/${type}/${facilityName}/${id}`, {
+        state: { step1, step2, file, seniorCitizenIdFiles: [], pwdIdFiles: [], governmentIdFiles: [] }
+      });
+      return;
+    }
+
+    // For PWD category groups: route back to PWD ID upload (even if seniors present)
+    // Only PWD ID is needed, not senior citizen ID
+    if (isGroup && isPwdCategory) {
+      navigate(`/reservation-step3-pwd/${type}/${facilityName}/${id}`, {
+        state: { step1, step2, file, seniorCitizenIdFiles: seniorCitizenFiles, pwdIdFiles: pwdFiles, governmentIdFiles: governmentFiles }
+      });
+      return;
+    }
 
     if (hasPwds) {
-      // With PWDs, previous should return to the PWD ID step
       navigate(`/reservation-step3-pwd/${type}/${facilityName}/${id}`, {
-        state: { step1, step2, file, seniorCitizenIdFiles: seniorCitizenFiles, pwdIdFiles: pwdFiles }
+        state: { step1, step2, file, seniorCitizenIdFiles: seniorCitizenFiles, pwdIdFiles: pwdFiles, governmentIdFiles: governmentFiles }
       });
       return;
     }
 
     if (hasSeniors) {
-      // With seniors, previous should return to the Senior Citizen ID step
       navigate(`/reservation-step3-senior/${type}/${facilityName}/${id}`, {
-        state: { step1, step2, file, seniorCitizenIdFiles: seniorCitizenFiles, pwdIdFiles: [] }
+        state: { step1, step2, file, seniorCitizenIdFiles: seniorCitizenFiles, pwdIdFiles: [], governmentIdFiles: governmentFiles }
       });
       return;
     }
 
     if (isGroup) {
-      // Group without seniors or PWDs returns to Letter of Intent step
       navigate(`/reservation-step3/${type}/${facilityName}/${id}`, {
-        state: { step1, step2, file, seniorCitizenIdFiles: [], pwdIdFiles: [] }
+        state: { step1, step2, file, seniorCitizenIdFiles: [], pwdIdFiles: [], governmentIdFiles: governmentFiles }
       });
       return;
     }
 
-    // Default: go back to step 2 (date/facility/service)
     navigate(`/reservation-step2/${type}/${facilityName}/${id}`, {
-      state: { step1, step2, file, seniorCitizenIdFiles: [], pwdIdFiles: [] }
+      state: { step1, step2, file, seniorCitizenIdFiles: [], pwdIdFiles: [], governmentIdFiles: governmentFiles }
     });
   };
 
@@ -213,13 +260,44 @@ function ResDetails({ onClose }) {
         throw new Error('Arrival and departure dates are required.');
       if (!payload.timeOfArrival) throw new Error('Time of arrival is required.');
       if (!file && type === 'Group') throw new Error('Letter of Intent file is required.');
-      if (numberOfSeniors > 0 && seniorCitizenFiles.length === 0) throw new Error('At least one Senior Citizen ID file is required when there are senior citizens.');
-      if (numberOfPwds > 0 && pwdFiles.length === 0) throw new Error('At least one PWD ID file is required when there are PWD guests.');
+      // For private category with individual type: Senior Citizen ID is required if there are seniors
+      const isPrivateAndIndividual = isPrivateCategory && isIndividual;
+      const isPrivateAndIndividualWithSeniors = isPrivateAndIndividual && numberOfSeniors > 0;
+      // Require Senior Citizen ID if there are seniors, EXCEPT for:
+      // - gov/deped groups or individuals (only gov ID needed)
+      // - PWD groups or individuals (only PWD ID needed)
+      // - private groups (only Letter of Intent needed)
+      // - private+individual WITHOUT seniors (no ID needed)
+      // But DO require it for private+individual WITH seniors
+      const shouldSkipSeniorCitizenId = (isGroup && isGovernmentCategory) || 
+                                       (isIndividual && isGovernmentCategory) || 
+                                       (isGroup && isPwdCategory) || 
+                                       (isIndividual && isPwdCategory) ||
+                                       (isGroup && isPrivateCategory) ||
+                                       (isPrivateAndIndividual && !isPrivateAndIndividualWithSeniors);
+      if (numberOfSeniors > 0 && seniorCitizenFiles.length === 0 && !shouldSkipSeniorCitizenId) {
+        throw new Error('At least one Senior Citizen ID file is required when there are senior citizens.');
+      }
+      // Skip PWD ID requirement for government/deped groups, government individuals, private groups, and private+individual (without seniors) - only government ID is needed for gov't, and PWD ID is not required for private groups or private+individual
+      if (numberOfPwds > 0 && pwdFiles.length === 0 && !(isGroup && isGovernmentCategory) && !(isIndividual && isGovernmentCategory) && !(isGroup && isPrivateCategory) && !isPrivateAndIndividual) {
+        throw new Error('At least one PWD ID file is required when there are PWD guests.');
+      }
+      // Skip government ID requirement for private groups and private+individual - no ID needed for private groups (only Letter of Intent), and for private+individual only Senior Citizen ID if seniors present
+      if ((isGroup || isIndividual) && isGovernmentCategory && governmentFiles.length === 0 && !isPrivateAndIndividual && !(isGroup && isPrivateCategory)) {
+        throw new Error('At least one Government ID file is required for government/DepEd reservations.');
+      }
 
       const facilityForPost = typeof step2?.facilityIdFromList === 'string' ? step2.facilityIdFromList : id;
+      const currentSelectedAddons = step2?.selectedAddons || [];
+      const addonIds = currentSelectedAddons.map(addon => addon.value || addon._id).filter(Boolean);
       const apiPayload = { ...payload, facility: facilityForPost };
+      
+      // Include addons in payload if any are selected
+      if (addonIds.length > 0) {
+        apiPayload.addOns = addonIds;
+      }
 
-      await apiCreateReservation(apiPayload, file, seniorCitizenFiles, pwdFiles);
+      await apiCreateReservation(apiPayload, file, seniorCitizenFiles, pwdFiles, governmentFiles);
       setShowOverlay(true); 
     } catch (e) {
       const server = {
@@ -387,7 +465,7 @@ function ResDetails({ onClose }) {
       {showOverlay && (
         <ConfirmationOverlay
           onDone={() => navigate('/homepage')}
-          onReview={() => navigate('/reservations')}
+          onReview={() => navigate('/reservations', { state: { openLatest: true } })}
         />
       )}
     </>

@@ -12,12 +12,15 @@ function ReservationFormStep3() {
   const step1 = location.state?.step1 || {};
   const step2 = location.state?.step2 || {};
   const isGroup = step1?.type?.groups || false;
+  const originalType = location.state?.originalType || null;
+  const typeChangedToGroup = location.state?.typeChangedToGroup || false;
 
   const [file, setFile] = useState(() => {
     return location.state?.file || null;
   });
   const seniorCitizenIdFiles = location.state?.seniorCitizenIdFiles || [];
   const pwdIdFiles = location.state?.pwdIdFiles || [];
+  const governmentIdFiles = location.state?.governmentIdFiles || [];
   const reservationId = location.state?.reservationId || null;
   const isEdit = location.state?.isEdit || false;
   const userEmail = location.state?.userEmail || null;
@@ -51,44 +54,86 @@ function ReservationFormStep3() {
   }, [file]);
 
   const handleGoBack = () => {
-    navigate(`/reservation-step2`, { state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles, reservationId, isEdit, userEmail } });
+    navigate(`/reservation-step2`, { state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles, reservationId, isEdit, userEmail, originalType, typeChangedToGroup } });
   };
 
   const handlePrevious = () => {
-    navigate(`/reservation-step2`, { state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles, reservationId, isEdit, userEmail } });
+    navigate(`/reservation-step2`, { state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles, reservationId, isEdit, userEmail, originalType, typeChangedToGroup } });
   };
 
   const handleNext = () => {
+    // Require Letter of Intent for groups, especially if type changed from individual to group
     if (isGroup && !file) {
-      setFileError('Letter of Intent is required.');
+      if (typeChangedToGroup) {
+        setFileError('Letter of Intent is required. Since you changed the reservation type from Individual to Group, please upload a Letter of Intent.');
+      } else {
+        setFileError('Letter of Intent is required.');
+      }
       return;
     }
     setFileError('');
     
-    // Priority: Senior Citizen ID -> PWD ID -> Final Step
     const numberOfSeniors = parseInt(step1?.guests?.senior || 0, 10) || 0;
     const numberOfPwds = parseInt(step1?.guests?.pwds || 0, 10) || 0;
     const hasSeniors = numberOfSeniors > 0;
     const hasPwds = numberOfPwds > 0;
     
+    // Check category
+    const isGovernmentCategory = step1?.category?.government === true || step1?.category?.deped === true;
+    const isPwdCategory = step1?.category?.pwds === true || step1?.category?.PWDs === true;
+    const isPrivateCategory = step1?.category?.private === true || step1?.category?.Private === true;
+    
     // Preserve files from location.state if they exist
     const seniorCitizenIdFiles = location.state?.seniorCitizenIdFiles || [];
     const pwdIdFiles = location.state?.pwdIdFiles || [];
+    const governmentIdFiles = location.state?.governmentIdFiles || [];
     
+    // For gov't/deped groups: route to government ID upload (even if seniors present)
+    // Senior citizen ID will be skipped - only gov't/deped ID is needed
+    if (isGroup && isGovernmentCategory) {
+      navigate(`/reservation-step3-government`, { 
+        state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles, reservationId, isEdit, userEmail, originalType, typeChangedToGroup }
+      });
+      return;
+    }
+    
+    // For PWD groups: route to PWD ID upload (even if seniors present)
+    // Senior citizen ID will be skipped - only PWD ID is needed
+    if (isGroup && isPwdCategory) {
+      navigate(`/reservation-step3-pwd`, { 
+        state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles, reservationId, isEdit, userEmail, originalType, typeChangedToGroup }
+      });
+      return;
+    }
+    
+    // For private groups: check if seniors are present
+    if (isGroup && isPrivateCategory) {
+      if (hasSeniors) {
+        // Private group with seniors: Letter of Intent → Senior Citizen ID
+        navigate(`/reservation-step3-senior`, { 
+          state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles, reservationId, isEdit, userEmail, originalType, typeChangedToGroup }
+        });
+      } else {
+        // Private group without seniors: only Letter of Intent is required
+        navigate(`/reservation-step4`, { 
+          state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles, reservationId, isEdit, userEmail, originalType, typeChangedToGroup } 
+        });
+      }
+      return;
+    }
+    
+    // For other groups with seniors: route to senior citizen ID upload
     if (hasSeniors) {
-      // Route to senior citizen ID upload first
       navigate(`/reservation-step3-senior`, { 
-        state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles, reservationId, isEdit, userEmail } // file is Letter of Intent
+        state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles, reservationId, isEdit, userEmail, originalType, typeChangedToGroup }
       });
     } else if (hasPwds) {
-      // Route to PWD ID upload
       navigate(`/reservation-step3-pwd`, { 
-        state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles, reservationId, isEdit, userEmail } // file is Letter of Intent
+        state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles, reservationId, isEdit, userEmail, originalType, typeChangedToGroup }
       });
     } else {
-      // No seniors or PWDs, go to final step
       navigate(`/reservation-step4`, { 
-        state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles, reservationId, isEdit, userEmail } 
+        state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles, reservationId, isEdit, userEmail, originalType, typeChangedToGroup } 
       });
     }
   };
@@ -149,6 +194,11 @@ function ReservationFormStep3() {
               for your reference and make sure your uploaded file covers all required information.
             </div>
             <div className={styles.groupNote}>This section is required for group reservations.</div>
+            {typeChangedToGroup && (
+              <div className={styles.groupNote} style={{ color: '#0066cc', fontWeight: '500', marginTop: '8px' }}>
+                Note: You have changed the reservation type from Individual to Group. A Letter of Intent is now required.
+              </div>
+            )}
             <div className={styles.uploadBox} onClick={handleBoxClick} role="button" tabIndex={0}>
               <input
                 type="file"

@@ -355,13 +355,6 @@ export default function Notif() {
       setStage('reviews');
       return;
     }
-    // Check for documents uploaded notification - show NotifUpload
-    if (notif.kind === 'documents_uploaded' || 
-        (notif.title && notif.title.includes('Documents Successfully Uploaded'))) {
-      setSelected(notif);
-      setStage('upload_success');
-      return;
-    }
   }
 
   // Route based on what NotifPreview tells us, WITH reservation id.
@@ -575,24 +568,6 @@ export default function Notif() {
         clientType={uploadClientType}
         onBack={handleUploadBack}
         onSubmit={handleUploadSubmit}
-      />
-    );
-  }
-
-  // Handle upload success stage - show NotifUpload as a success notification
-  if (stage === 'upload_success') {
-    const reservationId = selected?.reservationId || selected?.reservation_id;
-    
-    return (
-      <NotifUpload
-        onBack={() => {
-          setSelected(null);
-          setStage('list');
-          // Navigate to transactions page if reservation ID is available
-          if (reservationId) {
-            navigate(`/transactions?reservationId=${encodeURIComponent(reservationId)}`);
-          }
-        }}
       />
     );
   }
