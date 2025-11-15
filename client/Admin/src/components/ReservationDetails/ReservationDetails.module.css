@@ -205,6 +205,18 @@
   box-shadow: 0 2px 6px rgba(22, 163, 74, 0.2);
 }
 
+/* Status Variants for Confirmed */
+.rsv-details-status-row.confirmed {
+  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+  border: 1px solid rgba(22, 163, 74, 0.2);
+  box-shadow: 0 4px 12px rgba(22, 163, 74, 0.15);
+}
+
+.rsv-details-status-row.confirmed .rsv-details-status-value {
+  color: #16a34a;
+  box-shadow: 0 2px 6px rgba(22, 163, 74, 0.2);
+}
+
 /* Status Variants for Pending */
 .rsv-details-status-row.pending {
   background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
@@ -219,14 +231,14 @@
 
 /* Status Variants for Cancelled */
 .rsv-details-status-row.cancelled {
-  background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%);
-  border: 1px solid rgba(107, 114, 128, 0.2);
-  box-shadow: 0 4px 12px rgba(107, 114, 128, 0.15);
+  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+  border: 1px solid rgba(220, 38, 38, 0.2);
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.15);
 }
 
 .rsv-details-status-row.cancelled .rsv-details-status-value {
-  color: #6b7280;
-  box-shadow: 0 2px 6px rgba(107, 114, 128, 0.2);
+  color: #b91c1c;
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.15);
 }
 
 /* Footer Section */
@@ -264,37 +276,6 @@
 }
 
 .rsv-details-link:hover {
-  color: #1d4ed8;
-}
-
-/* Food Link */
-.rsv-details-food-link {
-  color: #2563eb;
-  text-decoration: none;
-  font-size: 1.05rem;
-  cursor: pointer;
-  font-weight: 600;
-  position: relative;
-  transition: all 0.3s ease;
-  display: inline-block;
-}
-
-.rsv-details-food-link::after {
-  content: '';
-  position: absolute;
-  bottom: -2px;
-  left: 0;
-  width: 0;
-  height: 2px;
-  background: #2563eb;
-  transition: width 0.3s ease;
-}
-
-.rsv-details-food-link:hover::after {
-  width: 100%;
-}
-
-.rsv-details-food-link:hover {
   color: #1d4ed8;
 }
 
@@ -927,4 +908,18 @@
     width: 100%;
     justify-content: center;
   }
+}
+
+.rsv-details-placeholder {
+  color: #999;
+  font-style: italic;
+}
+
+.rsv-details-note {
+  padding: 12px;
+  background-color: #fff3cd;
+  color: #856404;
+  border-left: 4px solid #ffc107;
+  font-style: italic;
+  text-align: left;
 }

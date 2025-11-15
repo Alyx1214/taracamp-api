@@ -431,7 +431,18 @@ const paymentModule = {
 
                         const nextStatus = totalPaid > 0 ? ReservationStatus.CONFIRMED : reservation.status;
 
-                        if (nextStatus !== reservation.status) {
+                        if (nextStatus !== reservation.status && nextStatus === ReservationStatus.CONFIRMED) {
+                            // Check if arrival date is at least one month away before confirming
+                            if (isAtLeastOneMonthAway(reservation.dateOfArrival)) {
+                                updatedReservation = await dbHelper.findOneAndUpdate(
+                                    'reservation',
+                                    { _id: reservationId, },
+                                    { status: nextStatus, }
+                                );
+                            } else {
+                                console.warn(`Cannot confirm reservation ${reservationId}: arrival date is less than one month away`);
+                            }
+                        } else if (nextStatus !== reservation.status) {
                             updatedReservation = await dbHelper.findOneAndUpdate(
                                 'reservation',
                                 { _id: reservationId, },
@@ -618,7 +629,12 @@ const paymentModule = {
                     const paidRows = await dbHelper.findMany('payment', { reservationId, status: { $in: successfulStatuses, }, }, { sort: { createdAt: 1, }, });
                     const totalPaid = (paidRows || []).reduce((acc, p) => acc + (Number(p.amountCentavos || 0) / 100), 0);
                     if (totalPaid > 0 && reservation.status !== ReservationStatus.CONFIRMED) {
-                        updatedReservation = await dbHelper.findOneAndUpdate('reservation', { _id: reservationId, }, { status: ReservationStatus.CONFIRMED, });
+                        // Check if arrival date is at least one month away before confirming
+                        if (isAtLeastOneMonthAway(reservation.dateOfArrival)) {
+                            updatedReservation = await dbHelper.findOneAndUpdate('reservation', { _id: reservationId, }, { status: ReservationStatus.CONFIRMED, });
+                        } else {
+                            console.warn(`Cannot confirm reservation ${reservationId}: arrival date is less than one month away`);
+                        }
                     }
                 } catch (e) {
                     console.error('Failed to confirm reservation during reconcile:', e);
@@ -1193,6 +1209,7 @@ function computeEstimate({ facilityDoc, adults = 0, children = 0, pwds = 0, seni
 
     // Calculate number of nights for accommodation facilities
     let numberOfNights = 1; // Default to 1 night if dates not provided
+    let adjustedArrivalDate = dateOfArrival; // Will be adjusted if early arrival
     if (isAccommodationFacility && dateOfArrival && dateOfDeparture) {
         const arrival = dateOfArrival instanceof Date ? dateOfArrival : new Date(dateOfArrival);
         const departure = dateOfDeparture instanceof Date ? dateOfDeparture : new Date(dateOfDeparture);
@@ -1203,21 +1220,53 @@ function computeEstimate({ facilityDoc, adults = 0, children = 0, pwds = 0, seni
 
     const flatBookingPrice = Number(facilityDoc?.price ?? facilityDoc?.conferencePrice ?? facilityDoc?.flatPrice);
 
-    // Check if arrival time is earlier than 2pm (14:00) - add 1 night's price
+    // Normalize category for comparison (handle case and whitespace)
+    const normalizedCategory = category ? String(category).trim() : '';
+    
+    // Check if category has a discount (GOVERNMENT, DEPED, PWDS)
+    // If category has discount, PWD/senior citizen one-time discount should not apply
+    const hasCategoryDiscount = normalizedCategory === Category.GOVERNMENT || normalizedCategory === Category.DEPED || normalizedCategory === Category.PWDS;
+    
+    // PWDs and senior citizens always pay full rate (1.0) - no per-person discount
+    const pwdSeniorRate = 1.0;
+    
+    // Check if there are PWD or senior citizen guests for one-time discount eligibility
+    const hasPwdOrSeniorGuests = (pwds > 0) || (seniorCitizens > 0);
+    
+    // Children are free (0 rate) for dormitory facilities with per-person pricing
+    // For other facilities, children pay full rate (1.0) - no discount
+    const isDormitory = facilityDoc?.facilityType === FacilityType.DORMITORY;
+    const childrenRate = (isDormitory && usePerPersonPricing) ? 0 : 1.0;
+
+    // Check if arrival time is earlier than 2pm (14:00) - add 1 night's price and adjust arrival date
+    // Note: 2pm (14:00) is the standard check-in time, so it should NOT trigger early arrival fee
     let earlyArrivalFee = 0;
+    let isEarlyArrival = false;
     if (isAccommodationFacility && timeOfArrival) {
         const timeStr = String(timeOfArrival).trim();
         // Parse time in format "HH:MM" or "HH:00"
         const timeMatch = timeStr.match(/^(\d{1,2}):(\d{2})$/);
         if (timeMatch) {
             const hours = parseInt(timeMatch[1], 10);
+            // Only charge early arrival fee if time is strictly before 2pm (14:00)
+            // 2pm (14:00) and later should NOT trigger the early arrival fee
             if (!isNaN(hours) && hours < 14) {
+                isEarlyArrival = true;
                 // Arrival is before 2pm, calculate 1 night's price
                 if (usePerPersonPricing && Number.isFinite(perPersonRate) && perPersonRate >= 0) {
-                    const perNightFee = adults * perPersonRate + (children + pwds + seniorCitizens) * perPersonRate * 0.80;
+                    const perNightFee = adults * perPersonRate + children * perPersonRate * childrenRate + (pwds + seniorCitizens) * perPersonRate * pwdSeniorRate;
                     earlyArrivalFee = perNightFee;
                 } else if (Number.isFinite(flatBookingPrice) && flatBookingPrice >= 0) {
                     earlyArrivalFee = flatBookingPrice;
+                }
+                
+                // Adjust arrival date to previous day for early check-in
+                if (dateOfArrival) {
+                    const arrival = dateOfArrival instanceof Date ? new Date(dateOfArrival) : new Date(dateOfArrival);
+                    if (!isNaN(arrival.getTime())) {
+                        arrival.setDate(arrival.getDate() - 1);
+                        adjustedArrivalDate = arrival.toISOString().split('T')[0];
+                    }
                 }
             }
         }
@@ -1229,7 +1278,7 @@ function computeEstimate({ facilityDoc, adults = 0, children = 0, pwds = 0, seni
         if (!Number.isFinite(perPersonRate) || perPersonRate < 0) {
             baseAmount = addonsTotal + earlyArrivalFee;
         } else {
-            const perNightFee = adults * perPersonRate + (children + pwds + seniorCitizens) * perPersonRate * 0.80;
+            const perNightFee = adults * perPersonRate + children * perPersonRate * childrenRate + (pwds + seniorCitizens) * perPersonRate * pwdSeniorRate;
             baseAmount = (perNightFee * numberOfNights) + addonsTotal + earlyArrivalFee;
         }
     } else {
@@ -1241,34 +1290,52 @@ function computeEstimate({ facilityDoc, adults = 0, children = 0, pwds = 0, seni
         }
     }
 
-    // Normalize category for comparison (handle case and whitespace)
-    const normalizedCategory = category ? String(category).trim() : '';
-    
     let finalAmount = baseAmount;
+    
+    // Check if service fee applies (PRIVATE, GOVERNMENT, DEPED, PWDS categories)
+    const hasServiceFee = normalizedCategory === Category.PRIVATE || normalizedCategory === Category.GOVERNMENT || normalizedCategory === Category.DEPED || normalizedCategory === Category.PWDS;
     
     if (normalizedCategory === Category.PRIVATE) {
         finalAmount = baseAmount * 1.10;
-    } else if (normalizedCategory === Category.GOVERNMENT || normalizedCategory === Category.DEPED || normalizedCategory === Category.PWDS) {
-        const withServiceFee = baseAmount * 1.10;
+    } else if (hasCategoryDiscount) {
+        // Category discount: 20% off total (after service fee)
+        const withServiceFee = hasServiceFee ? baseAmount * 1.10 : baseAmount;
         finalAmount = withServiceFee * 0.80;
+    } else if (hasPwdOrSeniorGuests) {
+        // One-time 20% discount for PWD/senior citizen guests when no category discount
+        const withServiceFee = hasServiceFee ? baseAmount * 1.10 : baseAmount;
+        finalAmount = withServiceFee * 0.80;
+    } else if (hasServiceFee) {
+        // No discount, but service fee applies
+        finalAmount = baseAmount * 1.10;
     }
 
     let facilityFee = 0;
     if (usePerPersonPricing) {
         if (Number.isFinite(perPersonRate) && perPersonRate >= 0) {
-            const perNightFee = adults * perPersonRate + (children + pwds + seniorCitizens) * perPersonRate * 0.80;
-            facilityFee = perNightFee * numberOfNights;
+            const perNightFee = adults * perPersonRate + children * perPersonRate * childrenRate + (pwds + seniorCitizens) * perPersonRate * pwdSeniorRate;
+            facilityFee = (perNightFee * numberOfNights) + earlyArrivalFee;
+        } else {
+            facilityFee = earlyArrivalFee;
         }
     } else {
         if (Number.isFinite(flatBookingPrice) && flatBookingPrice >= 0) {
             // For accommodation facilities, multiply by nights; for events, use flat price
-            facilityFee = isAccommodationFacility ? flatBookingPrice * numberOfNights : flatBookingPrice;
+            facilityFee = (isAccommodationFacility ? flatBookingPrice * numberOfNights : flatBookingPrice) + earlyArrivalFee;
+        } else {
+            facilityFee = earlyArrivalFee;
         }
     }
 
-    // Use normalized category for service fee and discount calculations
-    const hasServiceFee = normalizedCategory === Category.PRIVATE || normalizedCategory === Category.GOVERNMENT || normalizedCategory === Category.DEPED || normalizedCategory === Category.PWDS;
-    const hasDiscount = normalizedCategory === Category.GOVERNMENT || normalizedCategory === Category.DEPED || normalizedCategory === Category.PWDS;
+    // Discount applies if: category has discount OR (no category discount AND has PWD/senior guests)
+    const hasDiscount = hasCategoryDiscount || (!hasCategoryDiscount && hasPwdOrSeniorGuests);
+    
+    // Calculate discount amount (20% of amount after service fee if applicable)
+    let discountAmount = 0;
+    if (hasDiscount) {
+        const amountBeforeDiscount = hasServiceFee ? baseAmount * 1.10 : baseAmount;
+        discountAmount = amountBeforeDiscount * 0.20;
+    }
     
     return { 
         amount: finalAmount,
@@ -1276,7 +1343,9 @@ function computeEstimate({ facilityDoc, adults = 0, children = 0, pwds = 0, seni
         baseAmount: baseAmount,
         facilityFee: facilityFee,
         serviceFee: hasServiceFee ? baseAmount * 0.10 : 0,
-        discount: hasDiscount ? (baseAmount * 1.10) * 0.20 : 0
+        discount: discountAmount,
+        adjustedArrivalDate: isEarlyArrival ? adjustedArrivalDate : undefined,
+        earlyArrivalFee: earlyArrivalFee
     };
 }
 
@@ -1364,4 +1433,38 @@ function calculateConfirmationFee(category, totalAmount) {
     return needsConfirmationFee 
         ? Math.max(0, Math.round(totalAmount * DOWNPAYMENT_PERCENT * 100) / 100)
         : 0;
+}
+
+/**
+ * Checks if the arrival date is at least one month (30 days) away from today
+ * @param {Date|string} arrivalDate - The arrival date to check
+ * @returns {boolean} True if the arrival date is at least one month away, false otherwise
+ */
+function isAtLeastOneMonthAway(arrivalDate) {
+    if (!arrivalDate) return false;
+    
+    // Normalize the arrival date
+    let normalizedArrival;
+    if (arrivalDate instanceof Date) {
+        normalizedArrival = new Date(arrivalDate);
+        normalizedArrival.setHours(0, 0, 0, 0);
+    } else if (typeof arrivalDate === 'string') {
+        const ymd = arrivalDate.split('T')[0].split(' ')[0];
+        normalizedArrival = new Date(`${ymd}T00:00:00+08:00`);
+    } else {
+        return false;
+    }
+    
+    if (isNaN(normalizedArrival.getTime())) return false;
+    
+    // Get today's date at midnight
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // Calculate one month from today (30 days)
+    const oneMonthFromToday = new Date(today);
+    oneMonthFromToday.setDate(oneMonthFromToday.getDate() + 30);
+    
+    // Compare dates (arrival must be >= one month from today)
+    return normalizedArrival.getTime() >= oneMonthFromToday.getTime();
 }

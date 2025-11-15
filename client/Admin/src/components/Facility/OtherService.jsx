@@ -3,7 +3,16 @@ import { FaEdit, FaTrash } from "react-icons/fa";
 import styles from "./OtherService.module.css";
 import { getAllAddons, createAddon, deleteAddon, updateManyAddons, searchAddons } from "../../apis/addonsApi";
 
+const SERVICE_TYPES = ["Event", "Event and Lodging", "Lodging", "All"];
+
 const cloneAddons = (addons) => addons.map(addon => ({ ...addon }));
+
+const normalizeType = (t) => String(t || "").toLowerCase().trim();
+const titleCase = (s) => String(s || "")
+  .split(" ")
+  .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+  .join(" ");
+const formatTypes = (arr) => (arr && arr.length) ? arr.map(titleCase).join(", ") : "—";
 
 const SkeletonLoader = ({ count = 3 }) => {
   return (
@@ -11,6 +20,7 @@ const SkeletonLoader = ({ count = 3 }) => {
       {Array.from({ length: count }, (_, index) => (
         <li key={index} className={`${styles.skeletonItem} ${styles.tableGridView}`}>
           <div className={`${styles.skeletonText} ${styles.skeletonTextMedium}`}></div>
+          <div className={`${styles.skeletonText} ${styles.skeletonTextShort}`}></div>
           <div className={`${styles.skeletonText} ${styles.skeletonTextShort}`}></div>
         </li>
       ))}
@@ -63,7 +73,10 @@ export default function OtherService({ onEdit, editable, onSave, onCancel, searc
             name: addon.name,
             price: `P${Number(addon.price).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`,
             unit: addon.unit,
-            priceValue: Number(addon.price) // Store numeric value for sorting
+            priceValue: Number(addon.price), // Store numeric value for sorting
+            serviceTypes: Array.isArray(addon.serviceTypes)
+              ? addon.serviceTypes.map(normalizeType)
+              : (addon.serviceType ? [normalizeType(addon.serviceType)] : [])
           }));
           
           // Apply sorting
@@ -149,7 +162,8 @@ export default function OtherService({ onEdit, editable, onSave, onCancel, searc
       id: null,
       name: '',
       price: 'P0.00',
-      unit: 'pc'
+      unit: 'pc',
+      serviceTypes: []
     };
     setServices([...services, newItem]);
   };
@@ -159,12 +173,21 @@ export default function OtherService({ onEdit, editable, onSave, onCancel, searc
     setServices(updated);
   };
 
-const handleSave = async () => {
-  const token = localStorage.getItem('accessToken');
+  const arraysEqualSet = (a = [], b = []) => {
+    const A = new Set(a), B = new Set(b);
+    if (A.size !== B.size) return false;
+    for (const v of A) if (!B.has(v)) return false;
+    return true;
+  };
+
+  const handleSave = async () => {
+    const token = localStorage.getItem('accessToken');
   if (!token) {
     setError('You must be logged in to edit add-ons');
     return;
   }
+
+  const allowed = SERVICE_TYPES.map(t => t.toLowerCase());
 
   // === Validation ===
   for (let i = 0; i < services.length; i++) {
@@ -177,6 +200,10 @@ const handleSave = async () => {
       setError(`Item ${i + 1}: Unit is required`);
       return;
     }
+    if (!item.serviceTypes?.length) {
+      setError(`Item ${i + 1}: Service Type is required`);
+      return;
+    }
     const price = parsePrice(item.price);
     if (price < 0) {
       setError(`Item ${i + 1}: Price must be a valid positive number`);
@@ -184,89 +211,92 @@ const handleSave = async () => {
     }
   }
 
-  try {
-    setLoading(true);
-    setError(null);
+    try {
+      setLoading(true);
+      setError(null);
 
-    const changes = [];
+      const changes = [];
 
-    // === Detect changes ===
-    for (let i = 0; i < services.length; i++) {
-      const current = services[i];
-      const original = originalServices.find(o => o.id === current.id);
-      const currentPrice = parsePrice(current.price);
+      // === Detect changes ===
+      for (let i = 0; i < services.length; i++) {
+        const current = services[i];
+        const original = originalServices.find(o => o.id === current.id);
+        const currentPrice = parsePrice(current.price);
 
-      if (original) {
-        const originalPrice = parsePrice(original.price);
-        if (
-          current.name !== original.name ||
-          currentPrice !== originalPrice ||
-          current.unit !== original.unit
-        ) {
-          changes.push({
-            type: 'update',
-            id: current.id,
-            data: { name: current.name, price: currentPrice, unit: current.unit }
-          });
+        const data = {
+          name: current.name,
+          price: currentPrice,
+          unit: current.unit
+        };
+
+        if (original) {
+          const originalPrice = parsePrice(original.price);
+          const changed =
+            current.name !== original.name ||
+            currentPrice !== originalPrice ||
+            current.unit !== original.unit;
+
+          if (changed) {
+            changes.push({ type: 'update', id: current.id, data });
+          }
+        } else {
+          changes.push({ type: 'create', data });
         }
-      } else {
-        changes.push({
-          type: 'create',
-          data: { name: current.name, price: currentPrice, unit: current.unit }
-        });
       }
+
+      // === Detect deleted items ===
+      for (const original of originalServices) {
+        if (!services.some(current => current.id === original.id)) {
+          changes.push({ type: 'delete', id: original.id });
+        }
+      }
+
+      // === Apply changes ===
+      for (const change of changes) {
+        let response;
+        if (change.type === 'update') {
+          response = await updateManyAddons([{
+            id: change.id,
+            ...change.data
+          }]);
+        } else if (change.type === 'create') {
+          response = await createAddon(change.data);
+        } else if (change.type === 'delete') {
+          response = await deleteAddon(change.id);
+        }
+
+        if (response?.status && response.status >= 400) {
+          throw new Error(response.error || response.message || 'Failed to save changes');
+        }
+      }
+
+      // === Refresh list ===
+      const response = await getAllAddons();
+      const addons = response.addons || response.data?.addons || [];
+      const formattedAddons = addons.map(addon => ({
+        id: addon._id,
+        name: addon.name,
+        price: `P${Number(addon.price).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`,
+        unit: addon.unit,
+        serviceTypes: Array.isArray(addon.serviceTypes)
+          ? addon.serviceTypes.map(normalizeType)
+          : (addon.serviceType ? [normalizeType(addon.serviceType)] : [])
+      }));
+
+      setServices(formattedAddons);
+      setOriginalServices(cloneAddons(formattedAddons));
+      setError(null);
+      setIsEditing(false);
+      setMenuOpen(false);
+
+      if (onSave) onSave(cloneAddons(formattedAddons));
+
+    } catch (err) {
+      setError(err.message || 'Failed to save changes');
+    } finally {
+      setLoading(false);
     }
-
-    // === Detect deleted items ===
-    for (const original of originalServices) {
-      if (!services.some(current => current.id === original.id)) {
-        changes.push({ type: 'delete', id: original.id });
-      }
-    }
-
-    // === Apply changes ===
-    for (const change of changes) {
-      let response;
-      if (change.type === 'update') {
-        response = await updateManyAddons([{
-          id: change.id,
-          ...change.data
-        }]);
-      } else if (change.type === 'create') {
-        response = await createAddon(change.data);
-      } else if (change.type === 'delete') {
-        response = await deleteAddon(change.id);
-      }
-
-      if (response?.status && response.status >= 400) {
-        throw new Error(response.error || response.message || 'Failed to save changes');
-      }
-    }
-
-    // === Refresh list ===
-    const response = await getAllAddons();
-    const addons = response.addons || response.data?.addons || [];
-    const formattedAddons = addons.map(addon => ({
-      id: addon._id,
-      name: addon.name,
-      price: `P${Number(addon.price).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`,
-      unit: addon.unit
-    }));
-
-    setServices(formattedAddons);
-    setOriginalServices(cloneAddons(formattedAddons));
-    setError(null);
-    setIsEditing(false); 
-    setMenuOpen(false);
-
-    if (onSave) onSave(cloneAddons(formattedAddons));
-
-  } catch (err) {
-    setError(err.message || 'Failed to save changes');
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   const parsePrice = (priceStr) => {
     if (!priceStr) return 0;
@@ -288,6 +318,12 @@ const handleSave = async () => {
     if (onCancel) onCancel();
   };
 
+  const handleServiceTypeChange = (index, value) => {
+    const updated = [...services];
+    updated[index].serviceTypes = value ? [normalizeType(value)] : [];
+    setServices(updated);
+  };
+
   if (editable || isEditing) {
     return (
       <div className={styles.container}>
@@ -301,6 +337,7 @@ const handleSave = async () => {
             <span>EQUIPMENTS</span>
             <span className={styles.priceLabel}>PRICE</span>
             <span className={styles.unitLabel}>UNIT</span>
+            <span className={styles.serviceTypeLabel}>SERVICE TYPE</span>
             <span className={styles.actionLabel} aria-hidden="true"></span>
           </div>
 
@@ -333,12 +370,26 @@ const handleSave = async () => {
                     className={styles.unitInput}
                     value={item.unit}
                     onChange={(e) => handleInputChange(index, "unit", e.target.value)}
-                    >
-                      <option value="day">day</option>
-                      <option value="pc">pc</option>
-                      <option value="watts">watts</option>
-                      <option value="mins">mins</option>
-                      <option value="cert">cert</option>
+                  >
+                    <option value="day">day</option>
+                    <option value="pc">pc</option>
+                    <option value="watts">watts</option>
+                    <option value="mins">mins</option>
+                    <option value="cert">cert</option>
+                  </select>
+
+                  {/* NEW: Service Type dropdown */}
+                  <select
+                    className={styles.serviceTypeSelect}
+                    value={item.serviceTypes?.[0] || ""}
+                    onChange={(e) => handleServiceTypeChange(index, e.target.value)}
+                    required
+                  >
+                    <option value="">Select type</option>
+                    <option value="event">Event</option>
+                    <option value="event and lodging">Event and Lodging</option>
+                    <option value="lodging">Lodging</option>
+                    <option value="all">All</option>
                   </select>
 
                   <button
@@ -366,19 +417,28 @@ const handleSave = async () => {
         )}
         <div className={styles.buttonGroup}>
           <button 
-            className={styles.cancelBtn} 
-            onClick={handleCancel}
+            className={styles.addItemBtn} 
+            onClick={handleAddNewItem}
             disabled={loading}
           >
-            CANCEL
+            + ADD ITEM
           </button>
-          <button 
-            className={styles.saveBtn} 
-            onClick={handleSave}
-            disabled={loading}
-          >
-            {loading ? 'SAVING...' : 'SAVE CHANGES'}
-          </button>
+          <div className={styles.actionButtons}>
+            <button 
+              className={styles.cancelBtn} 
+              onClick={handleCancel}
+              disabled={loading}
+            >
+              CANCEL
+            </button>
+            <button 
+              className={styles.saveBtn} 
+              onClick={handleSave}
+              disabled={loading}
+            >
+              {loading ? 'SAVING...' : 'SAVE CHANGES'}
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -411,6 +471,7 @@ const handleSave = async () => {
         <div className={`${styles.tableHeader} ${styles.tableGridView}`}>
           <span>EQUIPMENTS</span>
           <span className={styles.priceLabel}>PRICE</span>
+          <span className={styles.serviceTypeLabel}>SERVICE TYPE</span>
         </div>
 
         <ul className={styles.tableList}>
@@ -424,6 +485,7 @@ const handleSave = async () => {
               >
                 <span>{item.name}</span>
                 <span className={styles.priceDisplay}>{item.price}/{item.unit}</span>
+                <span className={styles.serviceTypeDisplay}>{formatTypes(item.serviceTypes)}</span>
               </li>
             ))
           ) : hasInitiallyLoaded ? (

@@ -3,6 +3,12 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import styles from './ResForm3.module.css';
 import { UploadCloud } from 'lucide-react';
 
+const fileCache = {
+  seniorCitizenIdFiles: [],
+  pwdIdFiles: [],
+  governmentIdFiles: []
+};
+
 // Configuration for different ID types
 const ID_TYPE_CONFIG = {
   pwd: {
@@ -10,7 +16,7 @@ const ID_TYPE_CONFIG = {
     formTitle: 'Upload PWD ID',
     subtitle: 'PWD ID',
     linkText: 'PWD ID Card',
-    templateUrl: '#', // TODO: real URL
+    templateUrl: '#',
     sessionStorageKey: 'pwd.step3.fileNames',
     stateKey: 'pwdIdFiles',
     stateKeySingular: 'pwdIdFile',
@@ -27,7 +33,7 @@ const ID_TYPE_CONFIG = {
     formTitle: 'Upload Senior Citizen ID',
     subtitle: 'Senior Citizen ID',
     linkText: 'Senior Citizen Discount Card',
-    templateUrl: '#', // TODO: real URL
+    templateUrl: '#',
     sessionStorageKey: 'seniorCitizen.step3.fileNames',
     stateKey: 'seniorCitizenIdFiles',
     stateKeySingular: 'seniorCitizenIdFile',
@@ -38,6 +44,23 @@ const ID_TYPE_CONFIG = {
     note: 'This section is required for senior citizen reservations.',
     mandatoryNote: 'Valid senior citizen identification is mandatory for processing your reservation.',
     disabledMessage: 'Upload at least one Senior Citizen ID file to continue.'
+  },
+  government: {
+    title: 'GOVERNMENT RESERVATION FORM',
+    formTitle: 'Upload Government ID',
+    subtitle: 'Government ID',
+    linkText: 'Government ID (e.g., UMID ID)',
+    templateUrl: '#',
+    sessionStorageKey: 'government.step3.fileNames',
+    stateKey: 'governmentIdFiles',
+    stateKeySingular: 'governmentIdFile',
+    guestKey: null,
+    errorMessage: 'At least one Government ID file is required.',
+    uploadText: 'Click to upload Government ID (e.g., UMID ID) (multiple files allowed)',
+    description: 'to verify your eligibility for government employee benefits and discounts.',
+    note: 'This section is required for government group reservations.',
+    mandatoryNote: 'Valid government identification (e.g., UMID ID) is mandatory for processing your reservation.',
+    disabledMessage: 'Upload at least one Government ID file to continue.'
   }
 };
 
@@ -51,11 +74,40 @@ function IDUploadForm({ idType = 'pwd' }) {
   const reservationId = location.state?.reservationId || null;
   const isEdit = location.state?.isEdit || false;
   const userEmail = location.state?.userEmail || null;
+  const originalType = location.state?.originalType || null;
+  const typeChangedToGroup = location.state?.typeChangedToGroup || false;
   
-  // Check if there are guests of this type in the guest count
-  const numberOfGuests = parseInt(step1?.guests?.[config.guestKey] || 0, 10) || 0;
-  const isRequired = numberOfGuests > 0;
+  const numberOfGuests = config.guestKey 
+    ? parseInt(step1?.guests?.[config.guestKey] || 0, 10) || 0
+    : 0;
+  const numberOfSeniors = parseInt(step1?.guests?.senior || 0, 10) || 0;
+  const hasSeniors = numberOfSeniors > 0;
+  const isGovernmentCategory = step1?.category?.government === true || step1?.category?.deped === true;
+  const isGovernmentCategoryForThisIdType = idType === 'government' && isGovernmentCategory;
+  const isPwdCategory = step1?.category?.pwds === true || step1?.category?.PWDs === true;
+  const isPwdCategoryForThisIdType = idType === 'pwd' && isPwdCategory;
+  const isPrivateCategory = step1?.category?.private === true || step1?.category?.Private === true;
+  const isGroup = !!step1?.type?.groups || !!step1?.type?.group;
+  const isIndividual = step1?.type?.individual === true;
+  // For private category with individual type: no ID required unless there are senior citizens (then SC ID is required)
+  // For PWD category with individual type: only PWD ID is required
+  // For deped/government category with individual type: only government ID is required
+  const isPrivateAndIndividual = isPrivateCategory && isIndividual;
+  const isPrivateAndIndividualWithSeniors = isPrivateAndIndividual && hasSeniors;
+  const isRequired = (isGroup && isPrivateCategory)
+    ? false // No ID required for private groups - only Letter of Intent is needed
+    : isPrivateAndIndividualWithSeniors && idType === 'senior'
+    ? true // Senior Citizen ID required for private+individual with seniors
+    : isPrivateAndIndividual
+    ? false // No ID required for private + individual (unless seniors, handled above)
+    : idType === 'government' 
+    ? (isGovernmentCategoryForThisIdType && (isGroup || isIndividual)) // Required for gov/deped category with group OR individual
+    : idType === 'pwd'
+    ? ((isPwdCategoryForThisIdType && isIndividual) || (numberOfGuests > 0 && !(isGroup && isPrivateCategory) && !(isGovernmentCategory && isIndividual))) // Required for PWD category+indiv OR (PWD guests and not private group and not gov+indiv)
+    : (numberOfGuests > 0 && !(isGovernmentCategory && isIndividual)); // Skip senior ID requirement for gov/deped+indiv
 
+  const cacheKey = config.stateKey;
+  
   // ID files should be independent from other files
   const getStateFiles = () => {
     const stateFiles = location.state?.[config.stateKey] || 
@@ -63,47 +115,93 @@ function IDUploadForm({ idType = 'pwd' }) {
     return Array.isArray(stateFiles) ? stateFiles : [];
   };
 
-  const [files, setFiles] = useState(() => getStateFiles());
+  // Initialize files from state or cache
+  const initializeFiles = () => {
+    const stateFiles = getStateFiles();
+    const validStateFiles = Array.isArray(stateFiles) && stateFiles.length > 0 
+      ? stateFiles.filter(f => f && (f instanceof File || f.name))
+      : [];
+    
+    if (validStateFiles.length > 0) {
+      // Cache files from state
+      fileCache[cacheKey] = validStateFiles;
+      return validStateFiles;
+    }
+    
+    // Use cache if available
+    if (fileCache[cacheKey] && fileCache[cacheKey].length > 0) {
+      return fileCache[cacheKey];
+    }
+    
+    return [];
+  };
+
+  const initialFiles = initializeFiles();
+  const filesRef = useRef(initialFiles);
+  const [files, setFiles] = useState(initialFiles);
   const [fileError, setFileError] = useState('');
   const fileInputRef = useRef();
-  const prevLocationStateRef = useRef(location.state);
+  const mountedRef = useRef(false);
+
+  // Update filesRef when files change
+  useEffect(() => {
+    if (files.length > 0) {
+      filesRef.current = files;
+      fileCache[cacheKey] = files;
+    }
+  }, [files, cacheKey]);
 
   // Initialize files on mount and update when location.state changes
   useEffect(() => {
-    const normalizedStateFiles = getStateFiles();
-    
-    // Always set files if they exist in location.state
-    if (normalizedStateFiles.length > 0) {
-      setFiles(prevFiles => {
-        // Check if files are different by comparing URLs and names
-        const currentFileIds = prevFiles.map(f => f.url || f.name || '').sort().join(',');
-        const stateFileIds = normalizedStateFiles.map(f => f.url || f.name || '').sort().join(',');
-        
-        if (currentFileIds !== stateFileIds || prevFiles.length === 0) {
-          return normalizedStateFiles;
-        }
-        return prevFiles;
-      });
+    if (!mountedRef.current) {
+      const stateFiles = getStateFiles();
+      const validStateFiles = Array.isArray(stateFiles) && stateFiles.length > 0 
+        ? stateFiles.filter(f => f && (f instanceof File || f.name))
+        : [];
+      
+      if (validStateFiles.length > 0) {
+        setFiles(validStateFiles);
+        filesRef.current = validStateFiles;
+        fileCache[cacheKey] = validStateFiles;
+      } else if (fileCache[cacheKey] && fileCache[cacheKey].length > 0) {
+        // Use cache if available
+        setFiles(fileCache[cacheKey]);
+        filesRef.current = fileCache[cacheKey];
+      }
+      mountedRef.current = true;
+      return;
     }
-    
-    prevLocationStateRef.current = location.state;
-  }, [location.state, config.stateKey, config.stateKeySingular]);
 
-  // Ensure files are set on initial mount - run after initial render
-  useEffect(() => {
-    const normalizedStateFiles = getStateFiles();
-    if (normalizedStateFiles.length > 0) {
-      setFiles(normalizedStateFiles);
+    const stateFiles = getStateFiles();
+    const validStateFiles = Array.isArray(stateFiles) && stateFiles.length > 0 
+      ? stateFiles.filter(f => f && (f instanceof File || f.name))
+      : [];
+    
+    if (validStateFiles.length > 0) {
+      const currentFiles = filesRef.current.length > 0 ? filesRef.current : files;
+      const currentFileNames = currentFiles.map(f => f?.name || '').filter(Boolean).sort().join(',');
+      const stateFileNames = validStateFiles.map(f => f?.name || '').filter(Boolean).sort().join(',');
+      
+      if (currentFileNames !== stateFileNames) {
+        setFiles(validStateFiles);
+        filesRef.current = validStateFiles;
+        fileCache[cacheKey] = validStateFiles;
+      }
+    } else if (files.length === 0 && fileCache[cacheKey] && fileCache[cacheKey].length > 0) {
+      // Use cache if files are empty
+      setFiles(fileCache[cacheKey]);
+      filesRef.current = fileCache[cacheKey];
     }
-  }, []); // Run only on mount
+  }, [location.state, config.stateKey, config.stateKeySingular, files, cacheKey]);
 
   useEffect(() => {
     if (!step1 || !Object.keys(step1).length || !step2 || !Object.keys(step2).length) {
+      const currentFiles = filesRef.current.length > 0 ? filesRef.current : files;
       navigate(`/reservation-step2`, { 
-        state: { step1, step2, [config.stateKey]: files, reservationId, isEdit, userEmail } 
+        state: { step1, step2, [config.stateKey]: currentFiles, reservationId, isEdit, userEmail, originalType, typeChangedToGroup } 
       });
     }
-  }, [step1, step2, navigate, files, config.stateKey, reservationId, isEdit, userEmail]);
+  }, [step1, step2, navigate, files, config.stateKey, reservationId, isEdit, userEmail, originalType, typeChangedToGroup]);
 
   useEffect(() => {
     try {
@@ -112,9 +210,86 @@ function IDUploadForm({ idType = 'pwd' }) {
     } catch {}
   }, [files, config.sessionStorageKey]);
 
+  // Redirect private groups away from ID upload pages (except senior citizen ID if seniors present)
+  useEffect(() => {
+    if (isGroup && isPrivateCategory && step1 && Object.keys(step1).length > 0) {
+      const letterOfIntentFile = location.state?.file || null;
+      const seniorCitizenIdFiles = location.state?.seniorCitizenIdFiles || [];
+      const pwdIdFiles = location.state?.pwdIdFiles || [];
+      const governmentIdFiles = location.state?.governmentIdFiles || [];
+      
+      // If private group with seniors and on government or PWD ID upload page, redirect to senior citizen ID upload
+      if (hasSeniors && (idType === 'government' || idType === 'pwd')) {
+        navigate(`/reservation-step3-senior`, {
+          state: { step1, step2, file: letterOfIntentFile, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles, reservationId, isEdit, userEmail, originalType, typeChangedToGroup }
+        });
+      } else if (!hasSeniors) {
+        // If no seniors, redirect directly to step 4 (review) - no ID needed for private groups
+        navigate(`/reservation-step4`, {
+          state: { step1, step2, file: letterOfIntentFile, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles, reservationId, isEdit, userEmail, originalType, typeChangedToGroup }
+        });
+      }
+      // If has seniors and on senior citizen ID upload page, stay on that page (don't redirect)
+    }
+  }, [idType, isGroup, isPrivateCategory, hasSeniors, step1, step2, navigate, location.state, reservationId, isEdit, userEmail, originalType, typeChangedToGroup]);
+  
+  // Redirect gov+indiv away from PWD and senior citizen ID upload pages to government ID upload
+  useEffect(() => {
+    if ((idType === 'pwd' || idType === 'senior') && isGovernmentCategory && isIndividual && step1 && Object.keys(step1).length > 0) {
+      const letterOfIntentFile = location.state?.file || null;
+      const seniorCitizenIdFiles = location.state?.seniorCitizenIdFiles || [];
+      const pwdIdFiles = location.state?.pwdIdFiles || [];
+      const governmentIdFiles = location.state?.governmentIdFiles || [];
+      
+      // Redirect to government ID upload
+      navigate(`/reservation-step3-government`, {
+        state: { step1, step2, file: letterOfIntentFile, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles, reservationId, isEdit, userEmail, originalType, typeChangedToGroup }
+      });
+    }
+  }, [idType, isGovernmentCategory, isIndividual, step1, step2, navigate, location.state, reservationId, isEdit, userEmail, originalType, typeChangedToGroup]);
+  
+  // Redirect PWD category+indiv away from government and senior citizen ID upload pages to PWD ID upload
+  useEffect(() => {
+    if ((idType === 'government' || idType === 'senior') && isPwdCategory && isIndividual && step1 && Object.keys(step1).length > 0) {
+      const letterOfIntentFile = location.state?.file || null;
+      const seniorCitizenIdFiles = location.state?.seniorCitizenIdFiles || [];
+      const pwdIdFiles = location.state?.pwdIdFiles || [];
+      const governmentIdFiles = location.state?.governmentIdFiles || [];
+      
+      // Redirect to PWD ID upload
+      navigate(`/reservation-step3-pwd`, {
+        state: { step1, step2, file: letterOfIntentFile, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles, reservationId, isEdit, userEmail, originalType, typeChangedToGroup }
+      });
+    }
+  }, [idType, isPwdCategory, isIndividual, step1, step2, navigate, location.state, reservationId, isEdit, userEmail, originalType, typeChangedToGroup]);
+  
+  // Redirect private+individual away from ID upload pages (except senior citizen ID if seniors present)
+  useEffect(() => {
+    if (isPrivateAndIndividual && step1 && Object.keys(step1).length > 0) {
+      const letterOfIntentFile = location.state?.file || null;
+      const seniorCitizenIdFiles = location.state?.seniorCitizenIdFiles || [];
+      const pwdIdFiles = location.state?.pwdIdFiles || [];
+      const governmentIdFiles = location.state?.governmentIdFiles || [];
+      
+      // If private+individual with seniors and on government or PWD ID upload page, redirect to senior citizen ID upload
+      if (hasSeniors && (idType === 'government' || idType === 'pwd')) {
+        navigate(`/reservation-step3-senior`, {
+          state: { step1, step2, file: letterOfIntentFile, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles, reservationId, isEdit, userEmail, originalType, typeChangedToGroup }
+        });
+      } else if (!hasSeniors) {
+        // If no seniors, redirect directly to step 4 (review) - no ID needed for private+individual
+        navigate(`/reservation-step4`, {
+          state: { step1, step2, file: letterOfIntentFile, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles, reservationId, isEdit, userEmail, originalType, typeChangedToGroup }
+        });
+      }
+      // If has seniors and on senior citizen ID upload page, stay on that page (don't redirect)
+    }
+  }, [isPrivateAndIndividual, hasSeniors, idType, step1, step2, navigate, location.state, reservationId, isEdit, userEmail, originalType, typeChangedToGroup]);
+
   const handleGoBack = () => {
+    const currentFiles = filesRef.current.length > 0 ? filesRef.current : files;
     navigate(`/reservation-step2`, { 
-      state: { step1, step2, [config.stateKey]: files, reservationId, isEdit, userEmail } 
+      state: { step1, step2, [config.stateKey]: currentFiles, reservationId, isEdit, userEmail, originalType, typeChangedToGroup } 
     });
   };
 
@@ -129,16 +304,19 @@ function IDUploadForm({ idType = 'pwd' }) {
       
       if (hasSeniors) {
         // Go back to senior citizen ID step (for both group and individual)
+        const currentFiles = filesRef.current.length > 0 ? filesRef.current : files;
         navigate(`/reservation-step3-senior`, { 
           state: { 
             step1, 
             step2, 
             file: location.state?.file, // Preserve Letter of Intent if group
             seniorCitizenIdFiles: location.state?.seniorCitizenIdFiles || [],
-            [config.stateKey]: files,
+            [config.stateKey]: currentFiles,
             reservationId,
             isEdit,
-            userEmail
+            userEmail,
+            originalType,
+            typeChangedToGroup
           } 
         });
         return;
@@ -147,16 +325,19 @@ function IDUploadForm({ idType = 'pwd' }) {
       // No seniors, check if it's a group to go back to Letter of Intent
       if (isGroup) {
         // For group reservations without seniors, go back to Letter of Intent upload step
+        const currentFiles = filesRef.current.length > 0 ? filesRef.current : files;
         navigate(`/reservation-step3`, { 
           state: { 
             step1, 
             step2, 
             file: location.state?.file, 
             seniorCitizenIdFiles: location.state?.seniorCitizenIdFiles || [],
-            [config.stateKey]: files,
+            [config.stateKey]: currentFiles,
             reservationId,
             isEdit,
-            userEmail
+            userEmail,
+            originalType,
+            typeChangedToGroup
           } 
         });
         return;
@@ -167,16 +348,19 @@ function IDUploadForm({ idType = 'pwd' }) {
         // For group reservations, go back to Letter of Intent upload step
         // Preserve PWD files from location.state if they exist
         const pwdIdFiles = location.state?.pwdIdFiles || [];
+        const currentFiles = filesRef.current.length > 0 ? filesRef.current : files;
         navigate(`/reservation-step3`, { 
           state: { 
             step1, 
             step2, 
             file: location.state?.file, 
-            [config.stateKey]: files, // Senior Citizen ID files
+            [config.stateKey]: currentFiles, // Senior Citizen ID files
             pwdIdFiles, // Preserve PWD files
             reservationId,
             isEdit,
-            userEmail
+            userEmail,
+            originalType,
+            typeChangedToGroup
           } 
         });
         return;
@@ -184,69 +368,220 @@ function IDUploadForm({ idType = 'pwd' }) {
     }
     
     // Otherwise return to step 2
+    const currentFiles = filesRef.current.length > 0 ? filesRef.current : files;
     navigate(`/reservation-step2`, { 
-      state: { step1, step2, [config.stateKey]: files, reservationId, isEdit, userEmail } 
+      state: { step1, step2, [config.stateKey]: currentFiles, reservationId, isEdit, userEmail, originalType, typeChangedToGroup } 
     });
   };
 
   const handleNext = () => {
-    if (isRequired && files.length === 0) {
+    const currentFiles = filesRef.current.length > 0 ? filesRef.current : files;
+    
+    if (isRequired && currentFiles.length === 0) {
       setFileError(config.errorMessage);
       return;
     }
     setFileError('');
     
-    const letterOfIntentFile = location.state?.file || null; // From step3 if group
+    const letterOfIntentFile = location.state?.file || null;
+    const seniorCitizenIdFiles = location.state?.seniorCitizenIdFiles || [];
+    const pwdIdFiles = location.state?.pwdIdFiles || [];
+    const governmentIdFiles = location.state?.governmentIdFiles || [];
     
     if (idType === 'senior') {
-      // Senior: Check if there are PWDs - if yes, route to PWD ID upload next
       const numberOfPwds = parseInt(step1?.guests?.pwds || 0, 10) || 0;
       const hasPwds = numberOfPwds > 0;
       
-      // Preserve PWD files from location.state if they exist
-      const pwdIdFiles = location.state?.pwdIdFiles || [];
-      
-      if (hasPwds) {
-        // Route to PWD ID upload
-        navigate(`/reservation-step3-pwd`, { 
-          state: { 
-            step1, 
-            step2, 
-            file: letterOfIntentFile, // Letter of Intent file
-            [config.stateKey]: files, // Senior Citizen ID files (array)
-            pwdIdFiles, // Preserve existing PWD files
-            reservationId,
-            isEdit,
-            userEmail
-          } 
-        });
-      } else {
-        // No PWDs, go directly to final step
+      // For private+individual with seniors: only Senior Citizen ID is needed, go directly to step 4
+      if (isPrivateAndIndividualWithSeniors) {
         navigate(`/reservation-step4`, { 
           state: { 
             step1, 
             step2, 
-            file: letterOfIntentFile, // Letter of Intent file
-            [config.stateKey]: files, // Senior Citizen ID files (array)
-            pwdIdFiles, // Preserve existing PWD files (should be empty if no PWDs)
+            file: letterOfIntentFile,
+            [config.stateKey]: currentFiles,
+            pwdIdFiles,
+            governmentIdFiles,
             reservationId,
             isEdit,
-            userEmail
+            userEmail,
+            originalType,
+            typeChangedToGroup
+          } 
+        });
+      } else if (hasPwds && !(isGroup && isPrivateCategory)) {
+        // For private groups: skip PWD ID even if PWDs are present
+        navigate(`/reservation-step3-pwd`, { 
+          state: { 
+            step1, 
+            step2, 
+            file: letterOfIntentFile,
+            [config.stateKey]: currentFiles,
+            pwdIdFiles,
+            governmentIdFiles,
+            reservationId,
+            isEdit,
+            userEmail,
+            originalType,
+            typeChangedToGroup
+          } 
+        });
+      } else {
+        navigate(`/reservation-step4`, { 
+          state: { 
+            step1, 
+            step2, 
+            file: letterOfIntentFile,
+            [config.stateKey]: currentFiles,
+            pwdIdFiles,
+            governmentIdFiles,
+            reservationId,
+            isEdit,
+            userEmail,
+            originalType,
+            typeChangedToGroup
+          } 
+        });
+      }
+    } else if (idType === 'government') {
+      const numberOfPwds = parseInt(step1?.guests?.pwds || 0, 10) || 0;
+      const hasPwds = numberOfPwds > 0;
+      
+      // For gov't/deped category with individual type: only gov't ID is needed (no PWD or Senior Citizen ID required) - route directly to step 4
+      if (isGovernmentCategoryForThisIdType && isIndividual) {
+        navigate(`/reservation-step4`, { 
+          state: { 
+            step1, 
+            step2, 
+            file: letterOfIntentFile,
+            [config.stateKey]: currentFiles,
+            seniorCitizenIdFiles,
+            pwdIdFiles,
+            reservationId,
+            isEdit,
+            userEmail,
+            originalType,
+            typeChangedToGroup
+          } 
+        });
+      } else if (hasSeniors) {
+        // For gov't/deped groups with seniors: skip senior citizen ID upload
+        // Only gov't/deped ID is needed - route directly to step 4
+        navigate(`/reservation-step4`, { 
+          state: { 
+            step1, 
+            step2, 
+            file: letterOfIntentFile,
+            [config.stateKey]: currentFiles,
+            seniorCitizenIdFiles,
+            pwdIdFiles,
+            reservationId,
+            isEdit,
+            userEmail,
+            originalType,
+            typeChangedToGroup
+          } 
+        });
+      } else if (hasPwds) {
+        navigate(`/reservation-step3-pwd`, { 
+          state: { 
+            step1, 
+            step2, 
+            file: letterOfIntentFile,
+            [config.stateKey]: currentFiles,
+            seniorCitizenIdFiles,
+            pwdIdFiles,
+            reservationId,
+            isEdit,
+            userEmail,
+            originalType,
+            typeChangedToGroup
+          } 
+        });
+      } else {
+        navigate(`/reservation-step4`, { 
+          state: { 
+            step1, 
+            step2, 
+            file: letterOfIntentFile,
+            [config.stateKey]: currentFiles,
+            seniorCitizenIdFiles,
+            pwdIdFiles,
+            reservationId,
+            isEdit,
+            userEmail,
+            originalType,
+            typeChangedToGroup
+          } 
+        });
+      }
+    } else if (idType === 'pwd') {
+      // For PWD category with individual type: only PWD ID is needed (no gov't or Senior Citizen ID required) - route directly to step 4
+      if (isPwdCategory && isIndividual) {
+        navigate(`/reservation-step4`, { 
+          state: { 
+            step1, 
+            step2, 
+            file: letterOfIntentFile,
+            [config.stateKey]: currentFiles,
+            seniorCitizenIdFiles,
+            governmentIdFiles,
+            reservationId,
+            isEdit,
+            userEmail,
+            originalType,
+            typeChangedToGroup
+          } 
+        });
+      } else if (isPwdCategory && hasSeniors) {
+        // For PWD category groups with seniors: skip senior citizen ID upload
+        // Only PWD ID is needed - route directly to step 4
+        navigate(`/reservation-step4`, { 
+          state: { 
+            step1, 
+            step2, 
+            file: letterOfIntentFile,
+            [config.stateKey]: currentFiles,
+            seniorCitizenIdFiles,
+            governmentIdFiles,
+            reservationId,
+            isEdit,
+            userEmail,
+            originalType,
+            typeChangedToGroup
+          } 
+        });
+      } else {
+        navigate(`/reservation-step4`, { 
+          state: { 
+            step1, 
+            step2, 
+            file: letterOfIntentFile,
+            seniorCitizenIdFiles,
+            [config.stateKey]: currentFiles,
+            governmentIdFiles,
+            reservationId,
+            isEdit,
+            userEmail,
+            originalType,
+            typeChangedToGroup
           } 
         });
       }
     } else {
-      // PWD: Always go to final step
       navigate(`/reservation-step4`, { 
         state: { 
           step1, 
           step2, 
-          file: letterOfIntentFile, // Letter of Intent file
-          seniorCitizenIdFiles: location.state?.seniorCitizenIdFiles || [], // Senior Citizen ID files (array)
-          [config.stateKey]: files, // PWD ID files (array)
+          file: letterOfIntentFile,
+          seniorCitizenIdFiles: location.state?.seniorCitizenIdFiles || [],
+          [config.stateKey]: currentFiles,
+          governmentIdFiles,
           reservationId,
           isEdit,
-          userEmail
+          userEmail,
+          originalType,
+          typeChangedToGroup
         } 
       });
     }
@@ -285,7 +620,12 @@ function IDUploadForm({ idType = 'pwd' }) {
 
       if (validFiles.length > 0) {
         setFileError('');
-        setFiles(prev => [...prev, ...validFiles]);
+        setFiles(prev => {
+          const updated = [...prev, ...validFiles];
+          filesRef.current = updated;
+          fileCache[cacheKey] = updated;
+          return updated;
+        });
         // Reset input to allow selecting the same file again
         if (fileInputRef.current) {
           fileInputRef.current.value = '';
@@ -298,7 +638,12 @@ function IDUploadForm({ idType = 'pwd' }) {
   };
 
   const handleRemoveFile = (index) => {
-    setFiles(prev => prev.filter((_, i) => i !== index));
+    setFiles(prev => {
+      const updated = prev.filter((_, i) => i !== index);
+      filesRef.current = updated;
+      fileCache[cacheKey] = updated;
+      return updated;
+    });
     setFileError('');
   };
 
@@ -329,6 +674,21 @@ function IDUploadForm({ idType = 'pwd' }) {
             </div>
             <div className={styles.groupNote}>{config.note}</div>
             {isRequired && <div className={styles.groupNote}>{config.mandatoryNote}</div>}
+            {idType === 'government' && hasSeniors && (isGroup || isIndividual) && (
+              <div className={styles.groupNote} style={{ color: '#0066cc', fontWeight: '500' }}>
+                Note: Only one type of discount applies. Since you have selected government/DepEd category{isIndividual ? ' with individual type' : isGroup ? ' with group type' : ''}, only government/DepEd ID is required. Senior citizen discount will not apply.
+              </div>
+            )}
+            {idType === 'pwd' && isPwdCategory && isIndividual && !hasSeniors && (
+              <div className={styles.groupNote} style={{ color: '#0066cc', fontWeight: '500' }}>
+                Note: Since you have selected PWD category with individual type, only PWD ID is required. Government ID and Senior Citizen ID are not required.
+              </div>
+            )}
+            {idType === 'pwd' && isPwdCategory && hasSeniors && (
+              <div className={styles.groupNote} style={{ color: '#0066cc', fontWeight: '500' }}>
+                Note: Only one type of discount applies. Since you have selected PWD category{isIndividual ? ' with individual type' : ''}, only PWD ID is required. Senior citizen discount will not apply.
+              </div>
+            )}
             <div className={styles.uploadBox} onClick={handleBoxClick} role="button" tabIndex={0}>
               <input
                 type="file"
@@ -431,6 +791,10 @@ export function PWDReservationForm() {
 
 export function SeniorCitizenReservationForm() {
   return <IDUploadForm idType="senior" />;
+}
+
+export function GovernmentReservationForm() {
+  return <IDUploadForm idType="government" />;
 }
 
 export default IDUploadForm;

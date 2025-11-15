@@ -4,8 +4,11 @@ import styles from './Controls.module.css';
 
 const Controls = ({ facilityType = 'All', onApplyFilters, sharedFilters, updateSharedFilters }) => {
   const today = new Date();
-  const defaultCheckIn = new Date();
+  // Calculate default check-in as 2 months + 1 day from today to ensure it's beyond the 2-month restriction
+  // The Calendar component restricts dates <= (today + 2 months), so we need to be > (today + 2 months)
+  const defaultCheckIn = new Date(today);
   defaultCheckIn.setMonth(today.getMonth() + 2);
+  defaultCheckIn.setDate(defaultCheckIn.getDate() + 1); // Add 1 day to ensure it's more than 2 months away
   const defaultCheckOut = new Date(defaultCheckIn);
   defaultCheckOut.setDate(defaultCheckIn.getDate() + 1);
 

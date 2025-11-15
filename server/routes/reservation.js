@@ -19,6 +19,7 @@ export default function buildReservationRouter(userSocketMap) {
         { name: 'seniorCitizenIdFile', maxCount: 1 },
         { name: 'seniorCitizenIdFiles', maxCount: 10 },
         { name: 'pwdIdFiles', maxCount: 10 },
+        { name: 'governmentIdFiles', maxCount: 10 },
         { name: 'serviceContractFile', maxCount: 1 },
         { name: 'moaFile', maxCount: 1 },
         { name: 'fundsFile', maxCount: 1 }
@@ -93,25 +94,24 @@ export default function buildReservationRouter(userSocketMap) {
           .filter(Boolean);
       }
     }
-    // Drop any client-sent file id hints
     delete data.letterOfIntentFileId;
     delete data.seniorCitizenIdFileId;
     delete data.pwdIdFileId;
+    delete data.governmentIdFileId;
     
-    // Handle file uploads - support both singular and plural field names
     const letterOfIntentFile = req.files?.letterOfIntentFile?.[0] || null;
     
-    // Support both seniorCitizenIdFile (singular) and seniorCitizenIdFiles (plural)
-    // Take the first file if multiple are provided (schema only supports one)
     const seniorCitizenIdFile = req.files?.seniorCitizenIdFile?.[0] 
       || req.files?.seniorCitizenIdFiles?.[0] 
       || null;
     
-    // Handle PWD ID files (multiple files allowed)
     const pwdIdFiles = req.files?.pwdIdFiles || [];
     const pwdIdFilesArray = Array.isArray(pwdIdFiles) ? pwdIdFiles : [];
     
-    const response = await reservationModule.addReservation(dbHelper, data, letterOfIntentFile, seniorCitizenIdFile, pwdIdFilesArray, req.user);
+    const governmentIdFiles = req.files?.governmentIdFiles || [];
+    const governmentIdFilesArray = Array.isArray(governmentIdFiles) ? governmentIdFiles : [];
+    
+    const response = await reservationModule.addReservation(dbHelper, data, letterOfIntentFile, seniorCitizenIdFile, pwdIdFilesArray, governmentIdFilesArray, req.user);
 
     res.status(response.status).json(response);
 
@@ -130,6 +130,8 @@ export default function buildReservationRouter(userSocketMap) {
       ).catch(e => console.warn('Notify failed:', e?.message));
 
       // Send reservation confirmation email
+      // COMMENTED OUT: Email functionality disabled
+      /*
       try {
         // Determine recipient email - use guestEmail if it's a guest reservation, otherwise get user's email
         let recipientEmail = null;
@@ -193,6 +195,7 @@ export default function buildReservationRouter(userSocketMap) {
       } catch (error) {
         // Silently handle email preparation errors - don't fail reservation creation
       }
+      */
     }
   }));
 

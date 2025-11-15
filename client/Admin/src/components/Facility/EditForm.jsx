@@ -15,6 +15,10 @@ const FACILITY_ENUM = {
   Conference: "Conference",
 };
 
+const SERVICE_TYPES = ["Event", "Event and Lodging", "Lodging", "All"];
+
+const normalizeType = (t) => String(t || "").toLowerCase().trim();
+
 export default function EditForm() {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -25,13 +29,14 @@ export default function EditForm() {
   const [formData, setFormData] = useState({
     name: "",
     rate: "",
-    ratePerPerson: "",     // added to hold dormitory per-person rate
+    ratePerPerson: "",
     baseRate: "",
     discountRate: "",
     capacity: "",
     quantity: "",
     status: "Available",
     unit: "",
+    serviceType: "", // NEW: for add-ons service type
     images: Array(MAX_IMAGES).fill(null),
     previewUrls: Array(MAX_IMAGES).fill(null),
     extraRows: [],
@@ -84,9 +89,19 @@ export default function EditForm() {
           previews[0] = data.images;
         }
 
+        // NEW: Extract service type from add-on data
+        let serviceTypeValue = "";
+        if (isSpecialService || categoryFromState === "Add-ons") {
+          if (Array.isArray(data.serviceTypes) && data.serviceTypes.length > 0) {
+            serviceTypeValue = normalizeType(data.serviceTypes[0]);
+          } else if (data.serviceType) {
+            serviceTypeValue = normalizeType(data.serviceType);
+          }
+        }
+
         setFormData({
           name: data.name || "",
-          rate: data.ratePerExcessCapacity || data.rate || "",
+          rate: data.ratePerExcessCapacity || data.rate || data.price || "",
           ratePerPerson: data.ratePerPerson || "",
           baseRate: data.price || data.baseRate || "",
           discountRate: data.discountedFacilityRate || data.discountRate || "",
@@ -94,6 +109,7 @@ export default function EditForm() {
           quantity: data.quantity || "",
           status: data.status || "Available",
           unit: data.unit || "",
+          serviceType: serviceTypeValue, // NEW
           images: Array(MAX_IMAGES).fill(null),
           previewUrls: previews,
           extraRows: data.extraRows || [],
@@ -109,7 +125,7 @@ export default function EditForm() {
     return () => {
       cancelled = true;
     };
-  }, [id, categoryFromState]);
+  }, [id, categoryFromState, isSpecialService]);
 
   useEffect(() => {
     return () => {
@@ -186,10 +202,19 @@ export default function EditForm() {
 
     try {
       if (isSpecialService) {
+        // NEW: Validate service type
+        if (!formData.serviceType) {
+          setError("Service Type is required");
+          setSubmitting(false);
+          return;
+        }
+
         await updateAddon(id, {
           name: formData.name,
           price: formData.rate,
           unit: formData.unit,
+          serviceTypes: [formData.serviceType], // NEW: send as array
+          serviceType: formData.serviceType, // NEW: also send as string for backward compatibility
         });
       } else {
         const payload = {
@@ -208,11 +233,11 @@ export default function EditForm() {
         if (facilityType === "Conference" || facilityType === "Cottage") {
           payload.capacity = formData.capacity;
           payload.baseRate = formData.baseRate;
-          payload.rate = formData.rate; // Rate per Excess Capacity
+          payload.rate = formData.rate;
           payload.discountRate = formData.discountRate;
         } else if (facilityType === "Dormitory") {
           payload.capacity = formData.capacity;
-          payload.ratePerPerson = formData.ratePerPerson; // use the dormitory-specific field
+          payload.ratePerPerson = formData.ratePerPerson;
         }
 
         await updateFacility(id, payload);
@@ -353,7 +378,7 @@ export default function EditForm() {
                 </label>
               ) : (
                 <label>
-                  Rate per Excess Capacity:
+                  {isSpecialService ? "Price:" : "Rate per Excess Capacity:"}
                   <input
                     type="number"
                     name="rate"
@@ -365,7 +390,7 @@ export default function EditForm() {
               )}
             </div>
 
-            {facilityType !== "Dormitory" && (
+            {facilityType !== "Dormitory" && !isSpecialService && (
               <div className={styles.formRow}>
                 <label>
                   {facilityType === "Conference" || facilityType === "Cottage" ? "Facility Rate (Inclusive of 10% Service Fee)" : "Facility Rate (Inclusive of 10% Service Fee):"}
@@ -393,47 +418,67 @@ export default function EditForm() {
 
             <div className={styles.formRow}>
               {isSpecialService ? (
-                <label>
-                  Unit:
-                  <select
-                    name="unit"
-                    value={formData.unit}
-                    onChange={handleChange}
-                    required
-                  >
-                    <option value="">Select unit</option>
-                    <option value="day">day</option>
-                    <option value="pc">pc</option>
-                    <option value="watts">watts</option>
-                    <option value="mins">mins</option>
-                    <option value="cert">cert</option>
-                  </select>
-                </label>
+                <>
+                  <label>
+                    Unit:
+                    <select
+                      name="unit"
+                      value={formData.unit}
+                      onChange={handleChange}
+                      required
+                    >
+                      <option value="">Select unit</option>
+                      <option value="day">day</option>
+                      <option value="pc">pc</option>
+                      <option value="watts">watts</option>
+                      <option value="mins">mins</option>
+                      <option value="cert">cert</option>
+                    </select>
+                  </label>
+
+                  {/* NEW: Service Type dropdown for Add-ons */}
+                  <label>
+                    Service Type:
+                    <select
+                      name="serviceType"
+                      value={formData.serviceType}
+                      onChange={handleChange}
+                      required
+                    >
+                      <option value="">Select type</option>
+                      {SERVICE_TYPES.map((type) => (
+                        <option key={type} value={normalizeType(type)}>
+                          {type}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </>
               ) : (
                 <>
-                <label>
-                  Status:
-                  <select
-                  name="status"
-                  value={formData.status}
-                  onChange={handleChange}
-                  >
-                  <option value="Available">Available</option>
-                  <option value="Unavailable">Unavailable</option>
-                  </select>
-                </label>
+                  <label>
+                    Status:
+                    <select
+                      name="status"
+                      value={formData.status}
+                      onChange={handleChange}
+                    >
+                      <option value="Available">Available</option>
+                      <option value="Unavailable">Unavailable</option>
+                    </select>
+                  </label>
 
-                <label>
-                  Capacity:
-                  <input
-                    type="number"
-                    name="capacity"
-                    value={formData.capacity}
-                    onChange={handleChange}
-                    required
-                  />
-                </label>
-              </>
+                  <label>
+                    Capacity:
+                    <input
+                      type="number"
+                      name="capacity"
+                      value={formData.capacity}
+                      onChange={handleChange}
+                      required
+                    />
+                  </label>
+                </>
               )}
             </div>
 

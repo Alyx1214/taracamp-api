@@ -3,6 +3,7 @@ import { useNavigate, useLocation, useParams } from "react-router-dom";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import { addUser, updateUser } from "../../apis/userApi";
 import ConfirmModal from "../Shared/ConfirmModal";
+import SuccessModal from "../Users/UsersModal";
 import styles from "./AddUsersForm.module.css";
 
 export default function AddUserForm({ onAddUser }) {
@@ -22,6 +23,8 @@ export default function AddUserForm({ onAddUser }) {
 
   const [showPassword, setShowPassword] = useState(false);
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
+  const [successModalOpen, setSuccessModalOpen] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [pendingFormData, setPendingFormData] = useState(null);
 
@@ -98,7 +101,7 @@ export default function AddUserForm({ onAddUser }) {
           updateData.password = pendingFormData.password;
         }
         await updateUser(userId, updateData);
-        alert("User updated successfully.");
+        setSuccessMessage(`User "${fullName}" has been successfully updated.`);
       } else {
         await addUser({
           name: fullName,
@@ -108,17 +111,18 @@ export default function AddUserForm({ onAddUser }) {
           role: pendingFormData.role,
           password: pendingFormData.password,
         });
-        alert("User added successfully.");
+        setSuccessMessage(`User "${fullName}" has been successfully added to the system.`);
       }
       setConfirmModalOpen(false);
       setPendingFormData(null);
-      navigate("/users");
+      setSuccessModalOpen(true);
     } catch (err) {
       const msg =
         err?.data?.error ||
         err?.message ||
         (isEditMode ? "Failed to update user" : "Failed to add user");
       alert(msg);
+      setConfirmModalOpen(false);
     } finally {
       setSubmitting(false);
     }
@@ -127,6 +131,11 @@ export default function AddUserForm({ onAddUser }) {
   const handleCancelModal = () => {
     setConfirmModalOpen(false);
     setPendingFormData(null);
+  };
+
+  const handleSuccessModalClose = () => {
+    setSuccessModalOpen(false);
+    navigate("/users");
   };
 
   const getConfirmMessage = () => {
@@ -273,6 +282,14 @@ export default function AddUserForm({ onAddUser }) {
         variant={isEditMode ? "primary" : "success"}
         onCancel={handleCancelModal}
         onConfirm={handleConfirmSubmit}
+      />
+
+      {/* Success Modal */}
+      <SuccessModal
+        open={successModalOpen}
+        message={successMessage}
+        onClose={handleSuccessModalClose}
+        autoClose={false}
       />
     </>
   );

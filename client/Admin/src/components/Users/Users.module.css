@@ -81,3 +81,30 @@
 .editBtn:hover {
   opacity: 0.9;
 }
+
+.deleteBtn {
+  padding: 8px 25px;
+  background-color: #4F3718;
+  color: white;
+  border: none;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background-color 0.2s ease;
+}
+
+.deleteBtn:hover {
+  background-color: #c62828;
+}
+
+.deleteBtn:active {
+  background-color: #b71c1c;
+}
+
+.deleteBtn:disabled,
+.editBtn:disabled {
+  background-color: #bdbdbd;
+  cursor: not-allowed;
+  opacity: 0.6;
+}

@@ -6,6 +6,9 @@ import { createFacility } from "../../apis/facilityApi";
 import { createAddon } from "../../apis/addonsApi";
 
 const MAX_IMAGES = 5;
+const SERVICE_TYPES = ["Event", "Event and Lodging", "Lodging", "All"];
+
+const normalizeType = (t) => String(t || "").toLowerCase().trim();
 
 const AddForm = () => {
   const navigate = useNavigate();
@@ -21,6 +24,7 @@ const AddForm = () => {
     baseRate: "",
     discountRate: "",
     unit: "",
+    serviceType: "", // NEW
     capacity: "",
     status: "Available",
     images: Array(MAX_IMAGES).fill(null),
@@ -76,10 +80,19 @@ const AddForm = () => {
 
     try {
       if (isSpecialService) {
+        // NEW: Validate service type
+        if (!formData.serviceType) {
+          setError("Service Type is required");
+          setSubmitting(false);
+          return;
+        }
+
         const res = await createAddon({
           name: formData.name,
           price: formData.price,
           unit: formData.unit,
+          serviceTypes: [formData.serviceType], // NEW: send as array
+          serviceType: formData.serviceType, // NEW: also send as string for backward compatibility
         });
         setSuccess(res.message || "Service created successfully");
       } else {
@@ -200,152 +213,170 @@ const AddForm = () => {
                     hidden
                   />
                 </div>
+              );
+            })}
+          </div>
 
-                    ); })}
-                    </div>
+          {selectedCount > 0 && (
+            <div style={{ marginBottom: 16 }}>
+              <small>
+                Selected ({selectedCount}):{" "}
+                {(formData.images || []).filter(Boolean).map((f) => f.name).join(", ")}
+              </small>
+            </div>
+          )}
+        </>
+      )}
 
-                    {selectedCount > 0 && (
-                    <div style={{ marginBottom: 16 }}>
-                      <small>
-                      Selected ({selectedCount}):{" "}
-                      {(formData.images || []).filter(Boolean).map((f) => f.name).join(", ")}
-                      </small>
-                    </div>
-                    )}
-                  </>
-                  )}
+      <form onSubmit={handleSubmit}>
+        <div className={styles.formRow}>
+          <label>
+            {category} Name:
+            <input
+              type="text"
+              name="name"
+              value={formData.name}
+              onChange={handleChange}
+              required
+            />
+          </label>
 
-                  <form onSubmit={handleSubmit}>
-                  <div className={styles.formRow}>
-                    <label>
-                    {category} Name:
-                    <input
-                      type="text"
-                      name="name"
-                      value={formData.name}
-                      onChange={handleChange}
-                      required
-                    />
-                    </label>
+          {isSpecialService ? (
+            <label>
+              Price:
+              <input
+                type="number"
+                name="price"
+                value={formData.price}
+                onChange={handleChange}
+                required
+              />
+            </label>
+          ) : facilityType === "Dormitory" ? (
+            <label>
+              Rate per Person:
+              <input
+                type="number"
+                name="ratePerPerson"
+                value={formData.ratePerPerson}
+                onChange={handleChange}
+                required
+              />
+            </label>
+          ) : (
+            <label>
+              Rate per Excess Capacity:
+              <input
+                type="number"
+                name="rate"
+                value={formData.rate}
+                onChange={handleChange}
+                required
+              />
+            </label>
+          )}
+        </div>
 
-                    {isSpecialService ? (
-                      <label>
-                        Price:
-                        <input
-                          type="number"
-                          name="price"
-                          value={formData.price}
-                          onChange={handleChange}
-                          required
-                        />
-                      </label>
-                    ) : facilityType === "Dormitory" ? (
-                      <label>
-                        Rate per Person:
-                        <input
-                          type="number"
-                          name="ratePerPerson"
-                          value={formData.ratePerPerson}
-                          onChange={handleChange}
-                          required
-                        />
-                      </label>
-                    ) : (
-                      <label>
-                        Rate per Excess Capacity:
-                        <input
-                          type="number"
-                          name="rate"
-                          value={formData.rate}
-                          onChange={handleChange}
-                          required
-                        />
-                      </label>
-                    )}
-                  </div>
+        <div className={styles.formRow}>
+          {isSpecialService ? (
+            <>
+              <label>
+                Unit:
+                <select
+                  name="unit"
+                  value={formData.unit}
+                  onChange={handleChange}
+                  required
+                >
+                  <option value="">Select unit</option>
+                  <option value="day">day</option>
+                  <option value="pc">pc</option>
+                  <option value="watts">watts</option>
+                  <option value="mins">mins</option>
+                  <option value="cert">cert</option>
+                </select>
+              </label>
 
-                  <div className={styles.formRow}>
-                    {isSpecialService ? (
-                    <label>
-                      Unit:
-                      <select
-                      name="unit"
-                      value={formData.unit}
-                      onChange={handleChange}
-                      required
-                      >
-                      <option value="">Select unit</option>
-                      <option value="day">day</option>
-                      <option value="pc">pc</option>
-                      <option value="watts">watts</option>
-                      <option value="mins">mins</option>
-                      <option value="cert">cert</option>
-                      </select>
-                    </label>
-                    ) : (
-                    <>
-                      <label>
-                        Status:
-                        <select
-                        name="status"
-                        value={formData.status}
-                        onChange={handleChange}
-                        >
-                        <option value="Available">Available</option>
-                        <option value="Unavailable">Unavailable</option>
-                        </select>
-                      </label>
+              {/* NEW: Service Type dropdown */}
+              <label>
+                Service Type:
+                <select
+                  name="serviceType"
+                  value={formData.serviceType}
+                  onChange={handleChange}
+                  required
+                >
+                  <option value="">Select type</option>
+                  {SERVICE_TYPES.map((type) => (
+                    <option key={type} value={normalizeType(type)}>
+                      {type}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          ) : (
+            <>
+              <label>
+                Status:
+                <select
+                  name="status"
+                  value={formData.status}
+                  onChange={handleChange}
+                >
+                  <option value="Available">Available</option>
+                  <option value="Unavailable">Unavailable</option>
+                </select>
+              </label>
 
-                      <label>
-                        Capacity:
-                        <input
-                          type="number"
-                          name="capacity"
-                          value={formData.capacity}
-                          onChange={handleChange}
-                          required
-                        />
-                      </label>
-                    </>
-                    )}
-                  </div>
+              <label>
+                Capacity:
+                <input
+                  type="number"
+                  name="capacity"
+                  value={formData.capacity}
+                  onChange={handleChange}
+                  required
+                />
+              </label>
+            </>
+          )}
+        </div>
 
-                  {!isSpecialService && facilityType !== "Dormitory" && (
-                    <div className={styles.formRow}>
-                      <label>
-                        {facilityType === "Conference" || facilityType === "Cottage" ? "Facility Rate (Inclusive of 10% Service Fee)" : "Facility Rate (Inclusive of 10% Service Fee):"}
-                        <input
-                          type="number"
-                          name="baseRate"
-                          value={formData.baseRate}
-                          onChange={handleChange}
-                          required
-                        />
-                      </label>
-      
-                      <label>
-                        {facilityType === "Conference" || facilityType === "Cottage" ? "Discounted Facility Rate:" : "Discounted Facility Rate:"}
-                        <input
-                          type="number"
-                          name="discountRate"
-                          value={formData.discountRate}
-                          onChange={handleChange}
-                          required
-                        />
-                      </label>
-                    </div>
-                  )} 
+        {!isSpecialService && facilityType !== "Dormitory" && (
+          <div className={styles.formRow}>
+            <label>
+              {facilityType === "Conference" || facilityType === "Cottage" ? "Facility Rate (Inclusive of 10% Service Fee)" : "Facility Rate (Inclusive of 10% Service Fee):"}
+              <input
+                type="number"
+                name="baseRate"
+                value={formData.baseRate}
+                onChange={handleChange}
+                required
+              />
+            </label>
 
-                  
+            <label>
+              {facilityType === "Conference" || facilityType === "Cottage" ? "Discounted Facility Rate:" : "Discounted Facility Rate:"}
+              <input
+                type="number"
+                name="discountRate"
+                value={formData.discountRate}
+                onChange={handleChange}
+                required
+              />
+            </label>
+          </div>
+        )}
 
-                  {error && <p style={{ color: 'red' }}>{error}</p>}
-                  {success && <p style={{ color: 'green' }}>{success}</p>}
-                  
-                  <div className={styles.buttonContainer}>
-                    <button 
-                    type="button" 
-                    className={styles.cancelBtn} 
-                    onClick={() => {
+        {error && <p style={{ color: 'red' }}>{error}</p>}
+        {success && <p style={{ color: 'green' }}>{success}</p>}
+        
+        <div className={styles.buttonContainer}>
+          <button 
+            type="button" 
+            className={styles.cancelBtn} 
+            onClick={() => {
               if (isSpecialService) {
                 navigate('/facilities', { state: { activeTab: 'Add-ons' } });
               } else {

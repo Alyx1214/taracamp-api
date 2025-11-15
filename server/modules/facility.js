@@ -589,15 +589,31 @@ const facilityModule = {
                 for (const reservation of associatedReservations) {
                     // Delete all files associated with this reservation
                     const files = await dbHelper.find('file', { reservationId: reservation._id, });
+                    let deletedCount = 0;
+                    let failedCount = 0;
                     for (const file of files) {
                         try {
                             await bucket.file(file.path).delete();
+                            deletedCount++;
                         } catch (err) {
-                            console.warn('Failed to delete file in bucket:', file.path, err.message);
+                            // If file doesn't exist (404), that's okay - it may have been deleted already
+                            if (err.code === 404) {
+                                console.log(`File not found in bucket (already deleted?): ${file.path}`);
+                                deletedCount++;
+                            } else {
+                                console.warn('Failed to delete file in bucket:', file.path, err.message);
+                                failedCount++;
+                            }
                         }
+                    }
+                    if (files.length > 0) {
+                        console.log(`File deletion summary for reservation ${reservation._id}: ${deletedCount} deleted, ${failedCount} failed out of ${files.length} total`);
                     }
                     // Delete file records from database
                     await dbHelper.deleteMany('file', { reservationId: reservation._id, });
+                    
+                    // Delete all notifications associated with this reservation
+                    await dbHelper.deleteMany('notification', { reservationId: reservation._id, });
                 }
                 // Delete all associated reservations
                 await dbHelper.deleteMany('reservation', { facility: id, });
@@ -716,6 +732,14 @@ const facilityModule = {
                 return responseData;
             }
 
+            // Check if facility is available for booking
+            if (facility.status !== FacilityStatus.AVAILABLE) {
+                responseData.status = Status.OK;
+                responseData.error = null;
+                responseData.availableDates = []; // Return empty array if facility is unavailable
+                return responseData;
+            }
+
             const todayYmd = toAppYMD(new Date());
             const today = fromAppYMD(todayYmd) || new Date();
             const endDate = new Date(today);
@@ -724,9 +748,8 @@ const facilityModule = {
             const reservations = await dbHelper.find('reservation', {
                 facility: facilityId,
                 status: { $in: BLOCKING_RESERVATION_STATUSES, },
-                $or: [
-                    { dateOfArrival: { $lte: endDate, }, dateOfDeparture: { $gte: today, }, },
-                ],
+                dateOfArrival: { $lt: endDate, },
+                dateOfDeparture: { $gt: today, },
             });
 
             const unavailableDates = new Set();
@@ -746,11 +769,39 @@ const facilityModule = {
                 }
             });
 
-            const availableDates = [];
+            // First, collect all potentially available dates
+            const allAvailableDates = [];
             for (let currentDate = new Date(today); currentDate <= endDate; currentDate = addAppDays(currentDate, 1)) {
                 const dateString = toAppYMD(currentDate);
                 if (dateString && !unavailableDates.has(dateString)) {
-                    availableDates.push(dateString);
+                    allAvailableDates.push(dateString);
+                }
+            }
+
+            // Filter to only include dates that are part of continuous available blocks
+            // A date is included if it's available AND (previous day OR next day is also available)
+            // This ensures users can only select valid date ranges (no isolated single days)
+            const availableDates = [];
+            const availableDatesSet = new Set(allAvailableDates);
+            
+            for (const currentDateStr of allAvailableDates) {
+                const currentDate = fromAppYMD(currentDateStr);
+                if (!currentDate) continue;
+                
+                // Check if previous day is available
+                const prevDate = addAppDays(currentDate, -1);
+                const prevDateStr = toAppYMD(prevDate);
+                const prevDayAvailable = prevDateStr && availableDatesSet.has(prevDateStr);
+                
+                // Check if next day is available
+                const nextDate = addAppDays(currentDate, 1);
+                const nextDateStr = toAppYMD(nextDate);
+                const nextDayAvailable = nextDateStr && availableDatesSet.has(nextDateStr);
+                
+                // Include date if it's part of a continuous block (has adjacent available day)
+                // This allows dates to be used as either arrival or departure dates
+                if (prevDayAvailable || nextDayAvailable) {
+                    availableDates.push(currentDateStr);
                 }
             }
 

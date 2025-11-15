@@ -12,19 +12,19 @@ export function getAllReservationsByStatus(status) {
   return apiGet(`/reservation/get-all-reservations-by-status/${encodeURIComponent(status)}`);
 }
 
-export function estimateAmount({ facility, adults, children, pwds, seniorCitizens, serviceType, category, addOns, dateOfArrival, dateOfDeparture }) {
-  return apiGet('/reservation/estimate-amount', { facility, adults, children, pwds, seniorCitizens, serviceType, category, addOns, dateOfArrival, dateOfDeparture });
+export function estimateAmount({ facility, adults, children, pwds, seniorCitizens, serviceType, category, addOns, dateOfArrival, dateOfDeparture, timeOfArrival }) {
+  return apiGet('/reservation/estimate-amount', { facility, adults, children, pwds, seniorCitizens, serviceType, category, addOns, dateOfArrival, dateOfDeparture, timeOfArrival });
 }
 
 export function checkAvailability(params) {
   return apiGet('/reservation/check-availability', params);
 }
 
-export function createReservation(payload = {}, letterOfIntentFile, seniorCitizenIdFiles = [], pwdIdFiles = []) {
+export function createReservation(payload = {}, letterOfIntentFile, seniorCitizenIdFiles = [], pwdIdFiles = [], governmentIdFiles = []) {
   const fd = new FormData();
 
   // Avoid leaking internal IDs and force primitives to strings
-  const { letterOfIntentFileId, seniorCitizenIdFileId, pwdIdFileId, ...safe } = payload || {};
+  const { letterOfIntentFileId, seniorCitizenIdFileId, pwdIdFileId, governmentIdFileId, ...safe } = payload || {};
 
   Object.entries(safe).forEach(([key, value]) => {
     if (value === undefined || value === null) return;
@@ -55,27 +55,30 @@ export function createReservation(payload = {}, letterOfIntentFile, seniorCitize
     }
   });
 
-  // Handle Letter of Intent file (single file)
   if (letterOfIntentFile) fd.append('letterOfIntentFile', letterOfIntentFile);
   
-  // Handle Senior Citizen ID files (multiple files)
   if (Array.isArray(seniorCitizenIdFiles)) {
     seniorCitizenIdFiles.forEach((file) => {
       if (file) fd.append('seniorCitizenIdFiles', file);
     });
   } else if (seniorCitizenIdFiles) {
-    // Backward compatibility: single file
     fd.append('seniorCitizenIdFiles', seniorCitizenIdFiles);
   }
   
-  // Handle PWD ID files (multiple files)
   if (Array.isArray(pwdIdFiles)) {
     pwdIdFiles.forEach((file) => {
       if (file) fd.append('pwdIdFiles', file);
     });
   } else if (pwdIdFiles) {
-    // Backward compatibility: single file
     fd.append('pwdIdFiles', pwdIdFiles);
+  }
+  
+  if (Array.isArray(governmentIdFiles)) {
+    governmentIdFiles.forEach((file) => {
+      if (file) fd.append('governmentIdFiles', file);
+    });
+  } else if (governmentIdFiles) {
+    fd.append('governmentIdFiles', governmentIdFiles);
   }
   
   return apiPost('/reservation/create-reservation', fd);

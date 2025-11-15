@@ -64,7 +64,7 @@ export function checkAvailability(params) {
   return apiGet('/reservation/check-availability', params);
 }
 
-export function createReservation(payload = {}, letterOfIntentFile, seniorCitizenIdFiles = [], pwdIdFiles = []) {
+export function createReservation(payload = {}, letterOfIntentFile, seniorCitizenIdFiles = [], pwdIdFiles = [], governmentIdFiles = []) {
   const fd = new FormData();
 
   // Avoid leaking internal IDs and force primitives to strings
@@ -120,12 +120,22 @@ export function createReservation(payload = {}, letterOfIntentFile, seniorCitize
   } else if (pwdIdFiles) {
     // Backward compatibility: single file
     fd.append('pwdIdFiles', pwdIdFiles);
+  }
+  
+  // Handle Government ID files (multiple files)
+  if (Array.isArray(governmentIdFiles)) {
+    governmentIdFiles.forEach((file) => {
+      if (file) fd.append('governmentIdFiles', file);
+    });
+  } else if (governmentIdFiles) {
+    // Backward compatibility: single file
+    fd.append('governmentIdFiles', governmentIdFiles);
   }
   
   return apiPost('/reservation/create-reservation', fd);
 }
 
-export function updateReservation(id, payload = {}, letterOfIntentFile, seniorCitizenIdFiles = [], pwdIdFiles = []) {
+export function updateReservation(id, payload = {}, letterOfIntentFile, seniorCitizenIdFiles = [], pwdIdFiles = [], governmentIdFiles = []) {
   const fd = new FormData();
 
   // Avoid leaking internal IDs and force primitives to strings
@@ -181,6 +191,16 @@ export function updateReservation(id, payload = {}, letterOfIntentFile, seniorCi
   } else if (pwdIdFiles) {
     // Backward compatibility: single file
     fd.append('pwdIdFiles', pwdIdFiles);
+  }
+  
+  // Handle Government ID files (multiple files)
+  if (Array.isArray(governmentIdFiles)) {
+    governmentIdFiles.forEach((file) => {
+      if (file) fd.append('governmentIdFiles', file);
+    });
+  } else if (governmentIdFiles) {
+    // Backward compatibility: single file
+    fd.append('governmentIdFiles', governmentIdFiles);
   }
   
   return apiPost(`/reservation/update-reservation/${id}`, fd);

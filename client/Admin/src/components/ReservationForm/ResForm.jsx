@@ -11,6 +11,7 @@ function ReservationForm() {
   const prevFileRef = useRef(location.state?.file || null);
   const isEdit = location.state?.isEdit || false;
   const userEmail = location.state?.userEmail || null;
+  const originalType = location.state?.originalType || null;
 
   const [formData, setFormData] = useState({
     groupAssociation: '',
@@ -103,7 +104,7 @@ function ReservationForm() {
   };
 
   const phoneOk = /^(\+63|0)9\d{9}$/.test(formData.phoneNo || '');
-  const emailOk = !formData.guestEmail || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.guestEmail);
+  const emailOk = formData.guestEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.guestEmail);
   const emerOk  = /^(\+63|0)9\d{9}$/.test(formData.emergencyContact || '');
   
   const normalizePhone = (phone) => {
@@ -122,7 +123,17 @@ function ReservationForm() {
     if (!formData.emergencyContactPerson?.trim()) e.emergencyContactPerson = 'Required';
     if (!emerOk) e.emergencyContact = 'Enter a valid PH mobile for emergency contact.';
     if (!phoneNumbersDifferent) e.emergencyContact = 'Emergency contact number must be different from the phone number.';
-    if (!emailOk) e.guestEmail = 'Enter a valid email address.';
+    // Require guest email when creating a new reservation (not in edit mode)
+    if (!isEdit) {
+      if (!formData.guestEmail?.trim()) {
+        e.guestEmail = 'Guest email is required.';
+      } else if (!emailOk) {
+        e.guestEmail = 'Enter a valid email address.';
+      }
+    } else if (formData.guestEmail && !emailOk) {
+      // In edit mode, only validate format if email is provided
+      e.guestEmail = 'Enter a valid email address.';
+    }
     if (!hasCategory) e.category = 'Please select a category.';
     if (!hasType) e.type = 'Please select a type.';
 
@@ -163,7 +174,7 @@ function ReservationForm() {
     // Get current file from location.state to ensure it's up to date
     const currentFile = location.state?.file || prevFileRef.current || null;
     navigate(`/reservation-step2`, {
-      state: { step1, step2: prevStep2Ref.current, file: currentFile, seniorCitizenIdFiles, pwdIdFiles, reservationId, isEdit, userEmail }
+      state: { step1, step2: prevStep2Ref.current, file: currentFile, seniorCitizenIdFiles, pwdIdFiles, reservationId, isEdit, userEmail, originalType }
     });
   };
 
@@ -300,7 +311,7 @@ function ReservationForm() {
 
               {!isEdit && (
                 <div className={styles.formGroup}>
-                  <label className={styles.label} htmlFor="guestEmail">Guest Email</label>
+                  <label className={styles.label} htmlFor="guestEmail">Guest Email<span className={styles.requiredAsterisk}>*</span></label>
                   <input
                     id="guestEmail"
                     type="email"
@@ -309,6 +320,7 @@ function ReservationForm() {
                     onChange={handleInputChange}
                     className={`${styles.input} ${errors.guestEmail ? styles.inputError : ''}`}
                     aria-invalid={!!errors.guestEmail}
+                    required
                   />
                   {errors.guestEmail && <div className={styles.fieldError}>{errors.guestEmail}</div>}
                 </div>

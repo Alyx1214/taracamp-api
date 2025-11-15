@@ -173,6 +173,16 @@ export default function EditReservation() {
           isExisting: true,
         }));
 
+        // Prepare Government ID files
+        const governmentIdFiles = (reservation.governmentIdFiles || []).map(file => ({
+          url: file.url,
+          name: file.name || 'Government ID',
+          isExisting: true,
+        }));
+
+        // Store original type to detect changes during edit
+        const originalType = reservation.guestType || 'Individual'; // 'Group' or 'Individual'
+        
         // Navigate to the first form step with pre-populated data
         navigate('/reservation-form', {
           state: {
@@ -180,9 +190,11 @@ export default function EditReservation() {
             step2,
             reservationId: id, // Pass reservation ID for edit mode
             isEdit: true,
+            originalType: originalType, // Store original type to detect changes
             file: letterOfIntentFile, // Letter of Intent file
             seniorCitizenIdFiles: seniorCitizenIdFiles,
             pwdIdFiles: pwdIdFiles,
+            governmentIdFiles: governmentIdFiles,
             userEmail: reservation.userEmail || null, // User account email
           },
           replace: true,
