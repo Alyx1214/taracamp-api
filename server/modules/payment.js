@@ -1209,6 +1209,7 @@ function computeEstimate({ facilityDoc, adults = 0, children = 0, pwds = 0, seni
 
     // Calculate number of nights for accommodation facilities
     let numberOfNights = 1; // Default to 1 night if dates not provided
+    let adjustedArrivalDate = dateOfArrival; // Will be adjusted if early arrival
     if (isAccommodationFacility && dateOfArrival && dateOfDeparture) {
         const arrival = dateOfArrival instanceof Date ? dateOfArrival : new Date(dateOfArrival);
         const departure = dateOfDeparture instanceof Date ? dateOfDeparture : new Date(dateOfDeparture);
@@ -1237,21 +1238,35 @@ function computeEstimate({ facilityDoc, adults = 0, children = 0, pwds = 0, seni
     const isDormitory = facilityDoc?.facilityType === FacilityType.DORMITORY;
     const childrenRate = (isDormitory && usePerPersonPricing) ? 0 : 1.0;
 
-    // Check if arrival time is earlier than 2pm (14:00) - add 1 night's price
+    // Check if arrival time is earlier than 2pm (14:00) - add 1 night's price and adjust arrival date
+    // Note: 2pm (14:00) is the standard check-in time, so it should NOT trigger early arrival fee
     let earlyArrivalFee = 0;
+    let isEarlyArrival = false;
     if (isAccommodationFacility && timeOfArrival) {
         const timeStr = String(timeOfArrival).trim();
         // Parse time in format "HH:MM" or "HH:00"
         const timeMatch = timeStr.match(/^(\d{1,2}):(\d{2})$/);
         if (timeMatch) {
             const hours = parseInt(timeMatch[1], 10);
+            // Only charge early arrival fee if time is strictly before 2pm (14:00)
+            // 2pm (14:00) and later should NOT trigger the early arrival fee
             if (!isNaN(hours) && hours < 14) {
+                isEarlyArrival = true;
                 // Arrival is before 2pm, calculate 1 night's price
                 if (usePerPersonPricing && Number.isFinite(perPersonRate) && perPersonRate >= 0) {
                     const perNightFee = adults * perPersonRate + children * perPersonRate * childrenRate + (pwds + seniorCitizens) * perPersonRate * pwdSeniorRate;
                     earlyArrivalFee = perNightFee;
                 } else if (Number.isFinite(flatBookingPrice) && flatBookingPrice >= 0) {
                     earlyArrivalFee = flatBookingPrice;
+                }
+                
+                // Adjust arrival date to previous day for early check-in
+                if (dateOfArrival) {
+                    const arrival = dateOfArrival instanceof Date ? new Date(dateOfArrival) : new Date(dateOfArrival);
+                    if (!isNaN(arrival.getTime())) {
+                        arrival.setDate(arrival.getDate() - 1);
+                        adjustedArrivalDate = arrival.toISOString().split('T')[0];
+                    }
                 }
             }
         }
@@ -1299,12 +1314,16 @@ function computeEstimate({ facilityDoc, adults = 0, children = 0, pwds = 0, seni
     if (usePerPersonPricing) {
         if (Number.isFinite(perPersonRate) && perPersonRate >= 0) {
             const perNightFee = adults * perPersonRate + children * perPersonRate * childrenRate + (pwds + seniorCitizens) * perPersonRate * pwdSeniorRate;
-            facilityFee = perNightFee * numberOfNights;
+            facilityFee = (perNightFee * numberOfNights) + earlyArrivalFee;
+        } else {
+            facilityFee = earlyArrivalFee;
         }
     } else {
         if (Number.isFinite(flatBookingPrice) && flatBookingPrice >= 0) {
             // For accommodation facilities, multiply by nights; for events, use flat price
-            facilityFee = isAccommodationFacility ? flatBookingPrice * numberOfNights : flatBookingPrice;
+            facilityFee = (isAccommodationFacility ? flatBookingPrice * numberOfNights : flatBookingPrice) + earlyArrivalFee;
+        } else {
+            facilityFee = earlyArrivalFee;
         }
     }
 
@@ -1324,7 +1343,9 @@ function computeEstimate({ facilityDoc, adults = 0, children = 0, pwds = 0, seni
         baseAmount: baseAmount,
         facilityFee: facilityFee,
         serviceFee: hasServiceFee ? baseAmount * 0.10 : 0,
-        discount: discountAmount
+        discount: discountAmount,
+        adjustedArrivalDate: isEarlyArrival ? adjustedArrivalDate : undefined,
+        earlyArrivalFee: earlyArrivalFee
     };
 }
 

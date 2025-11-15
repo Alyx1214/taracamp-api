@@ -526,7 +526,7 @@ const reservationModule = {
                 initialStatus = ReservationStatus.APPROVED;
             }
 
-            const { amount: totalEstimatedAmount, } = computeEstimate({
+            const { amount: totalEstimatedAmount, adjustedArrivalDate } = computeEstimate({
                 facilityDoc,
                 adults,
                 children,
@@ -545,6 +545,9 @@ const reservationModule = {
                 responseData.error = 'Failed to compute estimated amount';
                 return responseData;
             }
+
+            // Use adjusted arrival date if early arrival (before 2pm) was detected
+            const finalArrivalDate = adjustedArrivalDate || dateOfArrival;
 
             // Generate unique reservation code using shortened timestamp + random for better readability
             const timestamp = Date.now();
@@ -577,7 +580,7 @@ const reservationModule = {
                 },
                 emergencyContact,
                 emergencyContactPerson,
-                dateOfArrival: normalizeDateOnly(dateOfArrival),
+                dateOfArrival: normalizeDateOnly(finalArrivalDate),
                 dateOfDeparture: normalizeDateOnly(dateOfDeparture),
                 timeOfArrival,
                 facility: facilityDoc._id,
@@ -2527,7 +2530,7 @@ const reservationModule = {
                 ? ServiceType.LODGING
                 : ServiceType.EVENT);
 
-            const { amount, model, baseAmount, facilityFee, serviceFee, discount } = computeEstimate({
+            const { amount, model, baseAmount, facilityFee, serviceFee, discount, adjustedArrivalDate, earlyArrivalFee } = computeEstimate({
                 facilityDoc,
                 adults: Number(adults) || 0,
                 children: Number(children) || 0,
@@ -2551,6 +2554,8 @@ const reservationModule = {
             responseData.serviceFee = serviceFee;
             responseData.discount = discount;
             responseData.addonsTotal = addonsTotal;
+            responseData.adjustedArrivalDate = adjustedArrivalDate;
+            responseData.earlyArrivalFee = earlyArrivalFee;
         } catch (err) {
             console.error('Error estimating amount:', err);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
@@ -3190,7 +3195,7 @@ const reservationModule = {
             const finalDateOfDeparture = dateOfDeparture !== undefined ? normalizeDateOnly(dateOfDeparture) : existingReservation.dateOfDeparture;
             const finalTimeOfArrival = timeOfArrival !== undefined ? timeOfArrival : existingReservation.timeOfArrival;
 
-            const { amount: totalEstimatedAmount } = computeEstimate({
+            const { amount: totalEstimatedAmount, adjustedArrivalDate } = computeEstimate({
                 facilityDoc,
                 adults,
                 children,
@@ -3210,6 +3215,9 @@ const reservationModule = {
                 return responseData;
             }
 
+            // Use adjusted arrival date if early arrival (before 2pm) was detected
+            const finalAdjustedArrivalDate = adjustedArrivalDate || finalDateOfArrival;
+
             // Build update object
             const updateData = {};
             if (guestName !== undefined) updateData.guestName = guestName;
@@ -3221,7 +3229,7 @@ const reservationModule = {
             if (officeTelephone !== undefined) updateData.officeTelephone = officeTelephone;
             if (emergencyContact !== undefined) updateData.emergencyContact = emergencyContact;
             if (emergencyContactPerson !== undefined) updateData.emergencyContactPerson = emergencyContactPerson;
-            if (dateOfArrival !== undefined) updateData.dateOfArrival = normalizeDateOnly(dateOfArrival);
+            if (dateOfArrival !== undefined) updateData.dateOfArrival = normalizeDateOnly(finalAdjustedArrivalDate);
             if (dateOfDeparture !== undefined) updateData.dateOfDeparture = normalizeDateOnly(dateOfDeparture);
             if (timeOfArrival !== undefined) updateData.timeOfArrival = timeOfArrival;
             if (facility !== undefined) updateData.facility = facilityDoc._id;

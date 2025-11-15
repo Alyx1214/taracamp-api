@@ -12,8 +12,8 @@ export function getAllReservationsByStatus(status) {
   return apiGet(`/reservation/get-all-reservations-by-status/${encodeURIComponent(status)}`);
 }
 
-export function estimateAmount({ facility, adults, children, pwds, seniorCitizens, serviceType, category, addOns, dateOfArrival, dateOfDeparture }) {
-  return apiGet('/reservation/estimate-amount', { facility, adults, children, pwds, seniorCitizens, serviceType, category, addOns, dateOfArrival, dateOfDeparture });
+export function estimateAmount({ facility, adults, children, pwds, seniorCitizens, serviceType, category, addOns, dateOfArrival, dateOfDeparture, timeOfArrival }) {
+  return apiGet('/reservation/estimate-amount', { facility, adults, children, pwds, seniorCitizens, serviceType, category, addOns, dateOfArrival, dateOfDeparture, timeOfArrival });
 }
 
 export function checkAvailability(params) {

@@ -623,11 +623,34 @@ function ReservationFormStep2() {
                 <div className={styles.formGroup}>
                   <label className={styles.label}>Date of Arrival</label>
                   <div className={styles.input} style={{ backgroundColor: '#f5f5f5', color: '#333' }}>
-                    {formData.dateArrival ? new Date(formData.dateArrival).toLocaleDateString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric'
-                    }) : 'Not specified'}
+                    {(() => {
+                      if (!formData.dateArrival) return 'Not specified';
+                      
+                      // Check if arrival time is before 2pm (early arrival)
+                      const timeArrivalHour = parseInt(formData.timeArrivalHour || '02', 10) || 2;
+                      const timeArrivalAMPM = formData.timeArrivalAMPM || 'PM';
+                      const hour24 = timeArrivalAMPM === 'PM' && timeArrivalHour !== 12 
+                        ? timeArrivalHour + 12 
+                        : (timeArrivalAMPM === 'AM' && timeArrivalHour === 12 ? 0 : timeArrivalHour);
+                      const isEarlyArrival = hour24 < 14;
+                      
+                      if (isEarlyArrival) {
+                        // Adjust date to previous day
+                        const arrivalDate = new Date(formData.dateArrival);
+                        arrivalDate.setDate(arrivalDate.getDate() - 1);
+                        return arrivalDate.toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric'
+                        });
+                      }
+                      
+                      return new Date(formData.dateArrival).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric'
+                      });
+                    })()}
                   </div>
                 </div>
 
@@ -941,11 +964,41 @@ function ReservationFormStep2() {
                   <div className={styles.summaryRow}>
                     <span className={styles.summaryLabel}>Date of Arrival:</span>
                     <span className={styles.summaryValue}>
-                      {formData.dateArrival ? new Date(formData.dateArrival).toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric'
-                      }) : 'Not selected'}
+                      {(() => {
+                        if (!formData.dateArrival) return 'Not selected';
+                        
+                        // Check if arrival time is before 2pm (early arrival)
+                        const timeArrivalHour = parseInt(formData.timeArrivalHour || '02', 10) || 2;
+                        const timeArrivalAMPM = formData.timeArrivalAMPM || 'PM';
+                        const hour24 = timeArrivalAMPM === 'PM' && timeArrivalHour !== 12 
+                          ? timeArrivalHour + 12 
+                          : (timeArrivalAMPM === 'AM' && timeArrivalHour === 12 ? 0 : timeArrivalHour);
+                        const isEarlyArrival = hour24 < 14;
+                        
+                        if (isEarlyArrival) {
+                          // Adjust date to previous day
+                          const arrivalDate = new Date(formData.dateArrival);
+                          arrivalDate.setDate(arrivalDate.getDate() - 1);
+                          return (
+                            <>
+                              {arrivalDate.toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric'
+                              })}
+                              <span style={{ color: '#666', fontSize: '0.85em', marginLeft: '6px', display: 'block' }}>
+                                (adjusted for early check-in)
+                              </span>
+                            </>
+                          );
+                        }
+                        
+                        return new Date(formData.dateArrival).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric'
+                        });
+                      })()}
                     </span>
                   </div>
 

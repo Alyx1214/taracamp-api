@@ -142,8 +142,11 @@ function IDUploadForm({ idType = 'pwd' }) {
       }
       // For senior citizen ID page: only redirect if no seniors present
       else if (idType === 'senior' && !hasSeniors) {
+        // Check for PWDs using the correct key
+        const numberOfPwds = parseInt(step1?.guests?.pwds || 0, 10) || 0;
+        const hasPwds = numberOfPwds > 0;
         // If PWDs present, redirect to PWD ID upload
-        if (numberOfGuests > 0) {
+        if (hasPwds) {
           navigate(`/reservation-step3-pwd/${type}/${facilityName}/${id}`, {
             state: { step1, step2, file: letterOfIntentFile, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles }
           });
@@ -156,19 +159,26 @@ function IDUploadForm({ idType = 'pwd' }) {
         }
       }
       // For PWD ID page: only redirect if no PWDs present
-      else if (idType === 'pwd' && numberOfGuests === 0) {
-        // If seniors present, redirect to senior citizen ID upload
-        if (hasSeniors) {
-          navigate(`/reservation-step3-senior/${type}/${facilityName}/${id}`, {
-            state: { step1, step2, file: letterOfIntentFile, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles }
-          });
+      else if (idType === 'pwd') {
+        // Check for PWDs using the correct key for PWD ID type
+        const numberOfPwds = parseInt(step1?.guests?.pwds || 0, 10) || 0;
+        const hasPwds = numberOfPwds > 0;
+        if (!hasPwds) {
+          // If no PWDs present, redirect based on what's available
+          // If seniors present, redirect to senior citizen ID upload
+          if (hasSeniors) {
+            navigate(`/reservation-step3-senior/${type}/${facilityName}/${id}`, {
+              state: { step1, step2, file: letterOfIntentFile, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles }
+            });
+          }
+          // Otherwise go to step 4
+          else {
+            navigate(`/reservation-step4/${type}/${facilityName}/${id}`, {
+              state: { step1, step2, file: letterOfIntentFile, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles }
+            });
+          }
         }
-        // Otherwise go to step 4
-        else {
-          navigate(`/reservation-step4/${type}/${facilityName}/${id}`, {
-            state: { step1, step2, file: letterOfIntentFile, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles }
-          });
-        }
+        // If PWDs are present, stay on PWD ID page (no redirect)
       }
     }
   }, [idType, isGroup, isPrivateCategory, hasSeniors, numberOfGuests, step1, step2, type, facilityName, id, navigate, location.state]);

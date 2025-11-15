@@ -178,6 +178,9 @@ function ResDetails({ onClose }) {
     return () => { cancelled = true; };
   }, []);
 
+  const [adjustedArrivalDate, setAdjustedArrivalDate] = useState(null);
+  const [earlyArrivalFee, setEarlyArrivalFee] = useState(0);
+
   useEffect(() => {
     if (!id) return;
 
@@ -195,6 +198,15 @@ function ResDetails({ onClose }) {
       .map(addon => addon.value || addon._id)
       .filter(Boolean);
 
+    // Convert time to 24-hour format
+    const timeArrivalHour = step2?.timeArrivalHour || '02';
+    const timeArrivalAMPM = step2?.timeArrivalAMPM || 'PM';
+    const hour12 = parseInt(timeArrivalHour, 10) || 2;
+    const hour24 = timeArrivalAMPM === 'PM' && hour12 !== 12 
+      ? hour12 + 12 
+      : (timeArrivalAMPM === 'AM' && hour12 === 12 ? 0 : hour12);
+    const timeOfArrival = `${String(hour24).padStart(2, '0')}:00`;
+
     let abort = false;
     (async () => {
       try {
@@ -209,6 +221,7 @@ function ResDetails({ onClose }) {
           addOns: addonIds.length > 0 ? addonIds : undefined,
           dateOfArrival: step2?.dateArrival,
           dateOfDeparture: step2?.dateDeparture,
+          timeOfArrival: timeOfArrival,
         });
         if (!abort) {
           setQuote(data.amount);
@@ -219,11 +232,15 @@ function ResDetails({ onClose }) {
             discount: data.discount || 0,
             addonsTotal: data.addonsTotal || 0
           });
+          setAdjustedArrivalDate(data.adjustedArrivalDate || null);
+          setEarlyArrivalFee(data.earlyArrivalFee || 0);
         }
       } catch {
         if (!abort) {
           setQuote(null);
           setBreakdown(null);
+          setAdjustedArrivalDate(null);
+          setEarlyArrivalFee(0);
         }
       }
     })();
@@ -242,6 +259,9 @@ function ResDetails({ onClose }) {
       (parseInt(step1?.guests?.pwds || '0', 10) || 0) +
       (parseInt(step1?.guests?.senior || '0', 10) || 0);
 
+    // Use adjusted arrival date if available, otherwise use original
+    const displayArrival = adjustedArrivalDate || step2.dateArrival || 'N/A';
+
     return {
       group: step1.groupAssociation || 'N/A',
       address: step1.homeAddress || 'N/A',
@@ -251,13 +271,13 @@ function ResDetails({ onClose }) {
       officeTel: step1.officeTelephoneNo || 'N/A',
       guests: String(guestsTotal),
       emergency: step1.emergencyContact || 'N/A',
-      arrival: step2.dateArrival || 'N/A',
+      arrival: displayArrival,
       departure: step2.dateDeparture || 'N/A',
       facilityType: step2.typeFacilities || 'N/A',
       facilityName: step2.facilityLabelFromList || step2.facilityName || 'N/A',
       service: step2.typeService === 'Other' ? step2.customService || 'Other' : step2.typeService || '—',
     };
-  }, [step1, step2]);
+  }, [step1, step2, adjustedArrivalDate]);
 
   async function handleSubmit() {
     if (inFlight.current) return;
