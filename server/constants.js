@@ -73,7 +73,10 @@ export const ServiceType = {
 
 export const UnitType = {
     DAY: 'day',
+    PER_DAY: 'per day',
+    PER_EVENT: 'per event',
     WATT: 'watt',
+    WATTS: 'watts',
     PC: 'pc',
     MINS: 'mins',
     CERT: 'cert',

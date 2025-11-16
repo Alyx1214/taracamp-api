@@ -14,6 +14,25 @@ const titleCase = (s) => String(s || "")
   .join(" ");
 const formatTypes = (arr) => (arr && arr.length) ? arr.map(titleCase).join(", ") : "—";
 
+// Map frontend service type values to server ServiceType constants
+const mapServiceTypeToServer = (value) => {
+  if (!value) return '';
+  const normalized = String(value).toLowerCase().trim();
+  switch (normalized) {
+    case 'event':
+      return 'Event';
+    case 'event and lodging':
+      return 'Event and Lodging';
+    case 'lodging':
+      return 'Lodging';
+    case 'all':
+      return 'All'; // Special case for "All"
+    default:
+      // Fallback to title case for any other values
+      return titleCase(value);
+  }
+};
+
 const SkeletonLoader = ({ count = 3 }) => {
   return (
     <>
@@ -53,10 +72,11 @@ export default function OtherService({ onEdit, editable, onSave, onCancel, searc
         const searchParams = {
           ...(query && query.trim() && { query: query.trim() }),
           ...(filterParams?.minPrice && { minPrice: Number(filterParams.minPrice) }),
-          ...(filterParams?.maxPrice && { maxPrice: Number(filterParams.maxPrice) })
+          ...(filterParams?.maxPrice && { maxPrice: Number(filterParams.maxPrice) }),
+          ...(filterParams?.serviceType && filterParams.serviceType !== '' && { serviceType: filterParams.serviceType })
         };
         
-        const hasFilters = query?.trim() || filterParams?.minPrice || filterParams?.maxPrice;
+        const hasFilters = query?.trim() || filterParams?.minPrice || filterParams?.maxPrice || (filterParams?.serviceType && filterParams.serviceType !== '');
         
         let response;
         if (hasFilters) {
@@ -118,7 +138,7 @@ export default function OtherService({ onEdit, editable, onSave, onCancel, searc
         clearTimeout(searchTimeoutRef.current);
       }
     };
-  }, [searchQuery, filters?.minPrice, filters?.maxPrice, filters?.sortBy, debouncedSearch]);
+  }, [searchQuery, filters?.minPrice, filters?.maxPrice, filters?.serviceType, filters?.sortBy, debouncedSearch]);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -222,19 +242,32 @@ export default function OtherService({ onEdit, editable, onSave, onCancel, searc
         const current = services[i];
         const original = originalServices.find(o => o.id === current.id);
         const currentPrice = parsePrice(current.price);
+        
+        // Extract serviceType from serviceTypes array and normalize it
+        const currentServiceType = current.serviceTypes?.[0] || '';
+        const normalizedServiceType = mapServiceTypeToServer(currentServiceType);
 
         const data = {
           name: current.name,
           price: currentPrice,
           unit: current.unit
         };
+        
+        // Always include serviceType (validation ensures it's required)
+        // If normalizedServiceType is empty, it means no valid type was selected
+        // but we still need to send it (as null/empty) or the server won't save it
+        data.serviceType = normalizedServiceType || null;
 
         if (original) {
           const originalPrice = parsePrice(original.price);
+          const originalServiceType = original.serviceTypes?.[0] || '';
+          const normalizedOriginalServiceType = mapServiceTypeToServer(originalServiceType);
+          
           const changed =
             current.name !== original.name ||
             currentPrice !== originalPrice ||
-            current.unit !== original.unit;
+            current.unit !== original.unit ||
+            normalizedServiceType !== normalizedOriginalServiceType;
 
           if (changed) {
             changes.push({ type: 'update', id: current.id, data });
@@ -372,6 +405,8 @@ export default function OtherService({ onEdit, editable, onSave, onCancel, searc
                     onChange={(e) => handleInputChange(index, "unit", e.target.value)}
                   >
                     <option value="day">day</option>
+                    <option value="per day">per day</option>
+                    <option value="per event">per event</option>
                     <option value="pc">pc</option>
                     <option value="watts">watts</option>
                     <option value="mins">mins</option>

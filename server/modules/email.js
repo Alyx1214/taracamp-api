@@ -333,6 +333,15 @@ const emailModule = {
             error: 'Error on sending reservation confirmation email',
         };
         
+        // Only send email if status is Confirmed, not Pending
+        const status = reservationDetails?.status;
+        if (status !== 'Confirmed') {
+            responseData.status = Status.OK;
+            responseData.error = null;
+            responseData.message = 'Email not sent - reservation status is not Confirmed';
+            return responseData;
+        }
+        
         const maxRetries = 3;
         const retryDelay = 2000;
         
@@ -348,7 +357,7 @@ const emailModule = {
                 totalEstimatedAmount,
                 serviceType,
                 category,
-                status
+                status: reservationStatus
             } = reservationDetails;
 
             // Format dates
@@ -388,7 +397,7 @@ const emailModule = {
                 ? `Total: ${numberOfGuests.total || 0} (Adults: ${numberOfGuests.adult || 0}, Children: ${numberOfGuests.children || 0}${numberOfGuests.pwds ? `, PWDs: ${numberOfGuests.pwds}` : ''}${numberOfGuests.seniorCitizen ? `, Senior Citizens: ${numberOfGuests.seniorCitizen}` : ''})`
                 : 'N/A';
 
-            const statusText = status || 'Pending';
+            const statusText = reservationStatus || 'Confirmed';
 
             // Generate HTML using the helper function
             const html = generateReservationEmailHTML(reservationDetails);

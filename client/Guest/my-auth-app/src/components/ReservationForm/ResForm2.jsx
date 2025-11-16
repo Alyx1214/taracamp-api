@@ -57,19 +57,51 @@ function ReservationFormStep2() {
 
   const [facilityOptions, setFacilityOptions] = useState([]);
   const [specialOptions, setSpecialOptions] = useState([]);
+  const [allAddons, setAllAddons] = useState([]); // Store all addons with serviceType
   const [selectedAddons, setSelectedAddons] = useState([]);
   const [loadingSpecials, setLoadingSpecials] = useState(false);
   
-  // Filter out catering add-ons when includeFood is "no"
+  // Filter add-ons based on service type and includeFood
   const filteredSpecialOptions = useMemo(() => {
+    let filtered = specialOptions;
+    
+    // Filter by service type if selected
+    if (formData.typeService) {
+      const selectedServiceType = formData.typeService;
+      
+      // If "Event and Lodging" is selected, show all add-ons (don't filter by service type)
+      if (selectedServiceType !== 'Event and Lodging') {
+        filtered = filtered.filter(opt => {
+          const addon = allAddons.find(a => String(a._id) === opt.value);
+          if (!addon || !addon.serviceType) {
+            // If addon has no serviceType, show it for all service types
+            return true;
+          }
+          
+          const addonServiceType = addon.serviceType;
+          
+          // Match logic:
+          // - If user selects "Event", show addons with serviceType "Event" or "All"
+          // - If user selects "Lodging", show addons with "Lodging" or "All"
+          if (addonServiceType === 'All') {
+            return true; // "All" type addons appear for all service types
+          }
+          
+          return addonServiceType === selectedServiceType;
+        });
+      }
+    }
+    
+    // Filter out catering add-ons when includeFood is "no" (existing logic)
     if (formData.includeFood === 'no') {
-      return specialOptions.filter(opt => {
+      filtered = filtered.filter(opt => {
         const label = (opt.label || '').toLowerCase();
         return !label.includes('catering');
       });
     }
-    return specialOptions;
-  }, [specialOptions, formData.includeFood]);
+    
+    return filtered;
+  }, [specialOptions, formData.typeService, formData.includeFood, allAddons]);
   const [err, setErr] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
   const [checkingAvail, setCheckingAvail] = useState(false);
@@ -258,9 +290,12 @@ function ReservationFormStep2() {
         if (!active) return;
 
         const arr = Array.isArray(json.addons) ? json.addons : [];
+        // Store all addons with their serviceType
+        setAllAddons(arr);
         const opts = arr.map((s) => ({
           value: String(s._id),
           label: s.name,
+          serviceType: s.serviceType || null,
         }));
         setSpecialOptions(opts);
       } catch (e) {

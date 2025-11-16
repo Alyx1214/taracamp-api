@@ -41,6 +41,7 @@ function ReservationFormStep2() {
 
   const [facilityOptions, setFacilityOptions] = useState([]);
   const [specialOptions, setSpecialOptions] = useState([]);
+  const [allAddons, setAllAddons] = useState([]); // Store all addons with serviceType
   const [selectedAddons, setSelectedAddons] = useState([]);
   const [loadingFacilities, setLoadingFacilities] = useState(false);
   const [loadingSpecials, setLoadingSpecials] = useState(false);
@@ -248,9 +249,12 @@ function ReservationFormStep2() {
         if (!active) return;
 
         const arr = Array.isArray(json.addons) ? json.addons : [];
+        // Store all addons with their serviceType
+        setAllAddons(arr);
         const opts = arr.map((s) => ({
           value: String(s._id),
           label: s.name,
+          serviceType: s.serviceType || null,
         }));
         setSpecialOptions(opts);
       } catch (e) {
@@ -261,6 +265,40 @@ function ReservationFormStep2() {
     })();
     return () => { active = false; };
   }, []);
+
+  // Filter add-ons based on selected service type
+  const filteredSpecialOptions = useMemo(() => {
+    if (!formData.typeService) {
+      return specialOptions;
+    }
+    
+    const selectedServiceType = formData.typeService;
+    
+    // If "Event and Lodging" is selected, show all add-ons
+    if (selectedServiceType === 'Event and Lodging') {
+      return specialOptions;
+    }
+    
+    // Filter add-ons that match the selected service type
+    return specialOptions.filter(opt => {
+      const addon = allAddons.find(a => String(a._id) === opt.value);
+      if (!addon || !addon.serviceType) {
+        // If addon has no serviceType, show it for all service types
+        return true;
+      }
+      
+      const addonServiceType = addon.serviceType;
+      
+      // Match logic:
+      // - If user selects "Event", show addons with serviceType "Event" or "All"
+      // - If user selects "Lodging", show addons with "Lodging" or "All"
+      if (addonServiceType === 'All') {
+        return true; // "All" type addons appear for all service types
+      }
+      
+      return addonServiceType === selectedServiceType;
+    });
+  }, [specialOptions, formData.typeService, allAddons]);
 
   useEffect(() => {
     let active = true;
@@ -878,7 +916,7 @@ function ReservationFormStep2() {
                     <option value="">
                       {loadingSpecials ? 'Loading options…' : 'Select add ons'}
                     </option>
-                    {specialOptions.map(request => (
+                    {filteredSpecialOptions.map(request => (
                       <option key={request.value} value={request.value}>
                         {request.label}
                       </option>
@@ -889,7 +927,7 @@ function ReservationFormStep2() {
                     className={styles.addRequestButton}
                     onClick={() => {
                       if (formData.specialRequests) {
-                        const selectedOption = specialOptions.find(opt => opt.value === formData.specialRequests);
+                        const selectedOption = filteredSpecialOptions.find(opt => opt.value === formData.specialRequests);
                         if (selectedOption && !selectedAddons.some(addon => addon.value === selectedOption.value)) {
                           setSelectedAddons(prev => [...prev, selectedOption]);
                           setFormData(prev => ({ ...prev, specialRequests: '' }));

@@ -130,8 +130,6 @@ export default function buildReservationRouter(userSocketMap) {
       ).catch(e => console.warn('Notify failed:', e?.message));
 
       // Send reservation confirmation email
-      // COMMENTED OUT: Email functionality disabled
-      /*
       try {
         // Determine recipient email - use guestEmail if it's a guest reservation, otherwise get user's email
         let recipientEmail = null;
@@ -195,7 +193,6 @@ export default function buildReservationRouter(userSocketMap) {
       } catch (error) {
         // Silently handle email preparation errors - don't fail reservation creation
       }
-      */
     }
   }));
 
@@ -457,6 +454,59 @@ export default function buildReservationRouter(userSocketMap) {
       fundsFile
     );
     res.status(response.status).json(response);
+
+    // Send reservation confirmation email if status was updated to Confirmed
+    if (response.status === 200 && data.status === ReservationStatus.CONFIRMED && response.reservation) {
+      try {
+        const reservation = await dbHelper.findOne('reservation', { _id: req.params.id });
+        if (reservation && reservation.status === ReservationStatus.CONFIRMED) {
+          // Determine recipient email - use guestEmail if it's a guest reservation, otherwise get user's email
+          let recipientEmail = null;
+          if (reservation.guestEmail) {
+            recipientEmail = reservation.guestEmail;
+          } else if (reservation.userId) {
+            const user = await dbHelper.findOne('user', { _id: reservation.userId }, { 
+              projection: { email: 1 } 
+            });
+            recipientEmail = user?.email;
+          }
+
+          if (recipientEmail) {
+            // Fetch facility name
+            let facilityName = 'N/A';
+            if (reservation.facility) {
+              const facility = await dbHelper.findOne('facility', { _id: reservation.facility }, { 
+                projection: { name: 1 } 
+              });
+              facilityName = facility?.name || 'N/A';
+            }
+
+            // Prepare reservation details for email
+            const reservationDetails = {
+              reservationCode: reservation.reservationCode || 'N/A',
+              guestName: reservation.guestName || 'Guest',
+              facilityName: facilityName,
+              dateOfArrival: reservation.dateOfArrival,
+              dateOfDeparture: reservation.dateOfDeparture,
+              timeOfArrival: reservation.timeOfArrival,
+              numberOfGuests: reservation.numberOfGuests || { total: 0 },
+              totalEstimatedAmount: reservation.totalEstimatedAmount || 0,
+              serviceType: reservation.serviceType || 'N/A',
+              category: reservation.category || 'N/A',
+              status: reservation.status,
+            };
+
+            // Send email (don't block the response if email fails)
+            emailModule.sendReservationConfirmationEmail(recipientEmail, reservationDetails)
+              .catch(() => {
+                // Silently handle email errors - don't fail reservation update
+              });
+          }
+        }
+      } catch (error) {
+        // Silently handle email preparation errors - don't fail reservation update
+      }
+    }
   }));
 
   return r;

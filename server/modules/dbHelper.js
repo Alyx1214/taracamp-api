@@ -157,6 +157,7 @@ const dbHelper = {
                 name: { type: String, required: true, },
                 price: { type: Number, required: true, },
                 unit: { type: String, required: false, },
+                serviceType: { type: String, required: false, },
                 createdAt: { type: Date, default: Date.now, },
             });
 

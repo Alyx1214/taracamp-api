@@ -72,7 +72,8 @@ export default function Facilities() {
       maxPrice: "",
       capacity: "",
       maxCapacity: "",
-      sortBy: ""
+      sortBy: "",
+      serviceType: ""
     });
   };
 
@@ -80,6 +81,17 @@ export default function Facilities() {
   const getFilterFields = () => {
     if (activeTab === "Add-ons") {
       return [
+        {
+          name: "serviceType",
+          label: "Service Type",
+          type: "select",
+          options: [
+            { value: "", label: "All Types" },
+            { value: "Event", label: "Event" },
+            { value: "Event and Lodging", label: "Event and Lodging" },
+            { value: "Lodging", label: "Lodging" }
+          ]
+        },
         {
           name: "minPrice",
           label: "Min Price",
