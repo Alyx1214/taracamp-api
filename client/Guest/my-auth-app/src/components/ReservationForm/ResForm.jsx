@@ -394,7 +394,8 @@ function ReservationForm() {
                 )}
               </div>
 
-              <div className={styles.formRow}>
+            <div className={styles.formRow}>
+              <div className={styles.guestRow}>
                 <div className={styles.formGroup}>
                   <label className={styles.label} htmlFor="adult">Adult</label>
                   <input
@@ -409,6 +410,7 @@ function ReservationForm() {
                   />
                   {errors.guestsAdult && <div className={styles.fieldError}>{errors.guestsAdult}</div>}
                 </div>
+
                 <div className={styles.formGroup}>
                   <label className={styles.label} htmlFor="children">Children (6 below)</label>
                   <input
@@ -423,6 +425,9 @@ function ReservationForm() {
                   />
                   {errors.guestsChildren && <div className={styles.fieldError}>{errors.guestsChildren}</div>}
                 </div>
+              </div>
+
+              <div className={styles.guestRow}>
                 <div className={styles.formGroup}>
                   <label className={styles.label} htmlFor="senior">Senior Citizen</label>
                   <input
@@ -437,6 +442,7 @@ function ReservationForm() {
                   />
                   {errors.guestsSenior && <div className={styles.fieldError}>{errors.guestsSenior}</div>}
                 </div>
+
                 <div className={styles.formGroup}>
                   <label className={styles.label} htmlFor="pwds">PWDs</label>
                   <input
@@ -451,18 +457,20 @@ function ReservationForm() {
                   />
                   {errors.guestsPwds && <div className={styles.fieldError}>{errors.guestsPwds}</div>}
                 </div>
-                <div className={styles.formGroup}>
-                  <label className={styles.label} htmlFor="guestsTotal">Total Guests<span className={styles.requiredAsterisk}>*</span></label>
-                  <input
-                    id="guestsTotal"
-                    type="number"
-                    value={totalGuests}
-                    readOnly
-                    className={styles.input}
-                  />
-                  {errors.guestsTotal && <div className={styles.fieldError}>{errors.guestsTotal}</div>}
               </div>
+
+              <div className={styles.formGroup}>
+                <label className={styles.label} htmlFor="guestsTotal">Total Guests<span className={styles.requiredAsterisk}>*</span></label>
+                <input
+                  id="guestsTotal"
+                  type="number"
+                  value={totalGuests}
+                  readOnly
+                  className={styles.input}
+                />
+                {errors.guestsTotal && <div className={styles.fieldError}>{errors.guestsTotal}</div>}
               </div>
+            </div>
 
               <div className={styles.formGroup}>
                 <label className={styles.label} htmlFor="emergencyContactPerson">Person/s to be notified in case of emergency<span className={styles.requiredAsterisk}>*</span></label>

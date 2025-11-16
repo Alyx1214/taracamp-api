@@ -874,6 +874,10 @@
   .reviewNavigation {
     gap: 1rem;
   }
+
+  .sectionTitle {
+    text-align: center;
+  }
 }
 
 @media (max-width: 480px) {

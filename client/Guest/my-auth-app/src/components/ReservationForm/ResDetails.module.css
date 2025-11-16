@@ -137,7 +137,11 @@
   background: #335533;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
+  .detailsCard {
+    max-width: 90%;
+  }
+
   .title {
     font-size: 1.2rem;
   }
@@ -152,7 +156,7 @@
 
   .detailsTable {
     border-collapse: separate;
-    border-spacing: 5px;
+    border-spacing: 10px;
   }
 
   .detailsTable td {

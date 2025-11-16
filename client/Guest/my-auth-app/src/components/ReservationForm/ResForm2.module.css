@@ -347,26 +347,6 @@
   font-weight: 400;
 }
 
-/* Responsive adjustments */
-@media (max-width: 768px) {
-  .pageTitle {
-    font-size: 2em;
-  }
-  .formCard {
-    padding: 20px;
-  }
-  .formRow {
-    flex-direction: column;
-    gap: 0;
-  }
-  .formRow .formGroup {
-    width: 100%;
-  }
-  .buttonContainer {
-    justify-content: center;
-  }
-}
-
 .fieldError {
   color: #d32f2f;   
   font-size: 0.85rem;
@@ -405,36 +385,62 @@
   margin-left: 4px;
 }
 
-@media (max-width: 1024px) {
+
+@media (max-width: 768px) {
   .mainContent {
     flex-direction: column;
   }
 
-  .formCard {
-    max-width: 100%;
-    margin: 0 auto 20px auto;
+  .contentWrapper {
+      padding-top: 0;
   }
-  
-  .summaryContainer {
-    width: 100%;
-    order: -1;
-  }
-  
-  .summaryCard {
-    position: static;
-  }
-}
 
-@media (max-width: 768px) {
   .summaryContainer {
     margin-top: 0px;
     margin-bottom: 1rem;
     max-width: 100%;
-    padding: 20px;
+    padding: 0;
     padding-top: 0px;
+    width: 100%;
+    order: -1;
+  }
+
+  .summaryCard {
+    position: static;
+    padding: 1.5rem;
   }
 
   .formRow .formGroup {
   margin-bottom: 10px;
+  }
+
+  .formRow .formRow {
+    margin-bottom: 10px;
+  }
+
+  .pageTitle {
+    font-size: 2em;
+  }
+  .formCard {
+    max-width: 100%;
+    width: 100%;
+    padding: 20px;
+    margin: 0 auto 20px auto;
+  }
+  .formRow {
+    flex-direction: column;
+    gap: 0;
+  }
+  .formRow .formGroup {
+    width: 100%;
+  }
+  .buttonContainer {
+    justify-content: center;
+  }
+
+  .buttonContainer .previousButton,
+  .buttonContainer .nextButton {
+    width: 100%;
+    padding: 15px 0px;
   }
 }

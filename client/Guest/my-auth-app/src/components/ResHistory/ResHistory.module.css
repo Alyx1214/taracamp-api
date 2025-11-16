@@ -937,12 +937,97 @@
   display: inline-block;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   .headerSection {
     margin-top: 25px;
   }
 
   .pageTitle {
     margin: 0;
+  }
+
+  /*
+  .detailRow {
+  }
+ */
+  .detailLabel {
+    width: 20%;
+  }
+
+  .detailSeparator {
+    margin: 0 30%;
+    margin-right: 10%;
+  }
+
+  /*
+  .detailValue {
+  }
+
+  .breakdownSection .detailRow {
+  }
+  */
+
+  .breakdownSection .detailLabel {
+    width: 20%;
+  }
+
+  .breakdownSection .detailSeparator {
+    margin: 0 30%;
+    margin-right: 10%;
+  }
+
+  /*
+  .breakdownSection .detailValue {
+  }
+  */
+
+  .amountSection {
+
+  }
+}
+
+@media (max-width: 768px) {
+  .amountRow {
+    flex-wrap: wrap;        /* allow items to move to next line if needed */
+    gap: 12px;              /* smaller spacing */
+  }
+
+  .amountValueContainer {
+    flex: 1 1 100%;         /* grow, shrink, full width on small screens */
+    min-width: 0;           /* very important to allow text to shrink */
+  }
+
+  .totalAmountLabel,
+  .totalAmountValue {
+    flex: 1 1 auto;         /* allow them to shrink */
+    min-width: 0;           /* prevents overflow */
+    margin: 0;              /* remove fixed margin that may push outside */
+    text-align: left;       /* optional: aligns nicely when stacked */
+  }
+  
+  .totalAmountLabel {
+    font-size: 0.8rem;  /* slightly smaller */
+  }
+
+  .totalAmountSeparator {
+    font-size: 0.85rem;   /* adjust proportionally */
+    margin-right: 0;
+  }
+
+  .totalAmountValue {
+    font-size: 0.85rem;   /* smaller to prevent overflow */
+    white-space: nowrap;  /* keeps number in one line */
+  }
+}
+
+@media (max-width: 435px) {
+  .amountRow {
+    flex-wrap: nowrap;      /* prevent wrapping of row itself */
+    min-width: 0;           /* allows children to shrink */
+  }
+
+  .totalAmountValue {
+    flex-shrink: 1;         /* allows the number to shrink */
+    min-width: 0;           /* prevents overflow on flex items */
   }
 }
