@@ -78,7 +78,6 @@ function ReservationHistory() {
     if (s.includes('CONFERENCE')) return 'Conference Hall';
     if (s.includes('DORM')) return 'Dormitory';
     if (s.includes('COTTAGE') || s.includes('GUEST')) return 'Cottage';
-    // If no match, return the original value (might already be formatted)
     return String(t).trim() || 'N/A';
   };
 
@@ -121,78 +120,11 @@ function ReservationHistory() {
     } catch { return 'N/A'; }
   };
 
-  // Check for location state to show upload section (separate from data loading)
-  useEffect(() => {
-    const showUploadFor = location.state?.showUploadFor;
-    if (showUploadFor && reservationsRaw.length > 0) {
-      // Find the reservation that matches
-      const matchingReservation = reservationsRaw.find(r => String(r._id || r.id) === showUploadFor);
-      // Only show upload if reservation exists AND is approved
-      if (matchingReservation && String(matchingReservation?.status || '').toLowerCase() === 'approved') {
-        // Compute the id the same way as in reservationsView
-        const computedId = String(matchingReservation._id || matchingReservation.id || Math.random().toString(36).slice(2));
-        // Set the reservation to open and show upload
-        setOpenReservationId(computedId);
-        setShowUploadForId(String(matchingReservation._id || ''));
-      }
-      // Clear location state to prevent re-triggering
-      navigate(location.pathname, { state: {}, replace: true });
-    }
-  }, [location.state, reservationsRaw, navigate, location.pathname]);
-
-  useEffect(() => {
-    let active = true;
-
-    (async () => {
-      // Only show loading if we don't have data yet
-      if (reservationsRaw.length === 0) {
-        setLoading(true);
-      }
-      setErr(null);
-      try {
-        const data = await getMyReservations().catch((e) => {
-          if (e?.status === 404) return { reservations: [] }; 
-          throw e;
-        });
-
-        if (!active) return;
-
-        const list = Array.isArray(data?.reservations) ? data.reservations : [];
-        if (list.length === 0) {
-          setReservationsRaw([]);
-          setOpenReservationId(null);
-          return;
-        }
-
-        // Server now provides facilityName, facilityType, addOns, and breakdown
-        setReservationsRaw(list);
-
-        // Only set default open reservation if not already set by location state
-        if (!location.state?.showUploadFor && !location.state?.openLatest) {
-          const firstId = String(list[0]._id || list[0].id || '');
-          setOpenReservationId(firstId || null);
-        }
-      } catch (e) {
-        if (!active) return;
-        setErr({ message: e?.data?.error || e?.message || 'Unable to load reservations' });
-        if (e?.status === 401 || e?.status === 403) {
-          navigate('/auth/login', { replace: true });
-        }
-      } finally {
-        if (active) setLoading(false);
-      }
-    })();
-
-    return () => { active = false; };
-  }, [navigate]);
-
   const reservationsView = useMemo(() => {
     return reservationsRaw.map((r) => {
       const rid = String(r._id || r.id || Math.random().toString(36).slice(2));
       
-      // Use server-provided facility name and type
       const facName = r?.facilityName || 'N/A';
-      // Map facility type from server
       const facType = mapFacilityTypeLabel(r?.facilityType);
       
       const totalGuests = r?.numberOfGuests?.total ?? (
@@ -201,12 +133,10 @@ function ReservationHistory() {
         (parseInt(r?.numberOfPwds || 0, 10) || 0)
       );
 
-      // Use server-provided addOns (already populated with details)
       const addOns = Array.isArray(r?.addOns) && r.addOns.length > 0
         ? r.addOns
         : null;
 
-      // Use server-provided breakdown
       const breakdown = r?.breakdown || {};
       const facilityFee = Number(breakdown?.facilityFee || 0);
       const addOnsTotal = Number(breakdown?.addOnsTotal || 0);
@@ -258,28 +188,82 @@ function ReservationHistory() {
         confirmed: String(r?.status || '') === 'Confirmed',
       };
     }).sort((a, b) => {
-      // Sort by createdAt date, latest first (descending order)
       const dateA = new Date(a.createdAt).getTime();
       const dateB = new Date(b.createdAt).getTime();
       return dateB - dateA;
     });
   }, [reservationsRaw]);
 
-  // Handle openLatest state - scroll to top and open latest reservation
-  // This must come after reservationsView is defined
+  useEffect(() => {
+    let active = true;
+
+    (async () => {
+      if (reservationsRaw.length === 0) {
+        setLoading(true);
+      }
+      setErr(null);
+      try {
+        const data = await getMyReservations().catch((e) => {
+          if (e?.status === 404) return { reservations: [] }; 
+          throw e;
+        });
+
+        if (!active) return;
+
+        const list = Array.isArray(data?.reservations) ? data.reservations : [];
+        if (list.length === 0) {
+          setReservationsRaw([]);
+          setOpenReservationId(null);
+          return;
+        }
+
+        setReservationsRaw(list);
+
+        // Open the most recent (first) reservation by default
+        if (!location.state?.showUploadFor && !location.state?.openLatest) {
+          const sortedList = [...list].sort((a, b) => {
+            const dateA = new Date(a.createdAt || a.dateOfArrival || 0).getTime();
+            const dateB = new Date(b.createdAt || b.dateOfArrival || 0).getTime();
+            return dateB - dateA;
+          });
+          const mostRecentId = String(sortedList[0]?._id || sortedList[0]?.id || '');
+          setOpenReservationId(mostRecentId || null);
+        }
+      } catch (e) {
+        if (!active) return;
+        setErr({ message: e?.data?.error || e?.message || 'Unable to load reservations' });
+        if (e?.status === 401 || e?.status === 403) {
+          navigate('/auth/login', { replace: true });
+        }
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+
+    return () => { active = false; };
+  }, [navigate, location.state]);
+
+  useEffect(() => {
+    const showUploadFor = location.state?.showUploadFor;
+    if (showUploadFor && reservationsRaw.length > 0) {
+      const matchingReservation = reservationsRaw.find(r => String(r._id || r.id) === showUploadFor);
+      if (matchingReservation && String(matchingReservation?.status || '').toLowerCase() === 'approved') {
+        const computedId = String(matchingReservation._id || matchingReservation.id || Math.random().toString(36).slice(2));
+        setOpenReservationId(computedId);
+        setShowUploadForId(String(matchingReservation._id || ''));
+      }
+      navigate(location.pathname, { state: {}, replace: true });
+    }
+  }, [location.state, reservationsRaw, navigate, location.pathname]);
+
   useEffect(() => {
     const openLatest = location.state?.openLatest;
     if (openLatest && reservationsView.length > 0) {
-      // Scroll to top
       window.scrollTo({ top: 0, behavior: 'smooth' });
-      
-      // Open the latest reservation (first in sorted reservationsView, which is already sorted by createdAt descending)
       const latestReservation = reservationsView[0];
       if (latestReservation) {
         setOpenReservationId(latestReservation.id || null);
       }
-      
-      // Clear location state to prevent re-triggering
       navigate(location.pathname, { state: {}, replace: true });
     }
   }, [location.state, reservationsView, navigate, location.pathname]);
@@ -290,9 +274,7 @@ function ReservationHistory() {
     setOpenReservationId(openReservationId === id ? null : id);
   
   const handleConfirmNow = (reservationId, category) => {
-    // Show upload section for this reservation
     setShowUploadForId(reservationId);
-    // Clear any previous file selections
     setSelectedFiles({});
   };
 
@@ -311,9 +293,8 @@ function ReservationHistory() {
   const handleSubmitDocuments = async (e, reservationId) => {
     e.preventDefault();
     
-    if (uploadingReservationId === reservationId) return; // Prevent double submission
+    if (uploadingReservationId === reservationId) return;
     
-    // Get the reservation to determine client type
     const reservation = reservationsView.find(r => r._id === reservationId);
     if (!reservation) {
       alert('Reservation not found. Please try again.');
@@ -323,14 +304,12 @@ function ReservationHistory() {
     const clientType = getClientType(reservation?.category);
     const fields = uploadFields[clientType] || uploadFields['deped'];
     
-    // Collect files from file inputs or selectedFiles state
     const files = {};
     fields.forEach(f => {
       const file = fileRefs.current[f.key]?.files?.[0] || selectedFiles[f.key] || null;
       files[f.key] = file;
     });
     
-    // Validate required files based on client type
     const requiredFields = fields.filter(f => !f.label.toLowerCase().includes('optional'));
     const missingFiles = requiredFields.filter(f => !files[f.key]);
     
@@ -340,18 +319,14 @@ function ReservationHistory() {
       return;
     }
     
-    // Map files to API format
-    // Backend supports: moaFile (for deped), serviceContractFile (for gov/priva-group), and fundsFile
     const moaFile = files.moa || null;
     const serviceContractFile = files.service || null;
     const fundsFile = files.funds || null;
     
-    // For individual type, there's no backend support yet, but we'll still try
     if (files.id) {
       console.warn('ID file upload not yet supported by backend:', files.id.name);
     }
     
-    // Validate that at least one supported file is provided
     if (!moaFile && !serviceContractFile && !fundsFile) {
       alert('Please upload at least one required document (MOA, Service Contract, or Certificate of Availability of Funds).');
       return;
@@ -367,13 +342,10 @@ function ReservationHistory() {
         fundsFile: fundsFile ? fundsFile.name : 'none'
       });
       
-      // Upload documents and confirm reservation
       await uploadConfirmationDocuments(reservationId, moaFile, serviceContractFile, fundsFile);
       
-      // Clear cached reservation data since it's been updated
       clearCachedReservation(reservationId);
       
-      // Clear file selections
       setSelectedFiles({});
       Object.keys(fileRefs.current).forEach(key => {
         if (fileRefs.current[key] && fileRefs.current[key].value) {
@@ -381,13 +353,10 @@ function ReservationHistory() {
         }
       });
       
-      // Hide upload section
       setShowUploadForId(null);
       
-      // Show success message
       alert('Documents submitted and reservation confirmed. Thank you!');
       
-      // Refresh reservations to show updated status
       const data = await getMyReservations().catch((e) => {
         if (e?.status === 404) return { reservations: [] };
         throw e;
@@ -396,7 +365,6 @@ function ReservationHistory() {
       const list = Array.isArray(data?.reservations) ? data.reservations : [];
       if (list.length > 0) {
         setReservationsRaw(list);
-        // Keep the same reservation open
         const currentReservation = list.find(r => String(r._id || r.id) === reservationId);
         if (currentReservation) {
           const computedId = String(currentReservation._id || currentReservation.id || Math.random().toString(36).slice(2));
@@ -495,7 +463,6 @@ function ReservationHistory() {
                                 </span>
                               </div>
                               
-                              {/* Insert uploaded files after Type of Service */}
                               {isTypeOfService && (
                                 <>
                                   {reservation.files.letterOfIntentFile && (
@@ -637,7 +604,6 @@ function ReservationHistory() {
                           );
                         })}
 
-                        {/* Breakdown of Fees Section */}
                         <div className={styles.breakdownSection}>
                           <h3 className={styles.breakdownTitle}>Breakdown of Fees</h3>
                           
@@ -684,8 +650,7 @@ function ReservationHistory() {
                           </div>
                         </div>
 
-                        {/* Upload Section - Separate and Below Breakdown */}
-                        {isUploadVisible && (
+                        {isUploadVisible && !reservation.confirmed && (
                           <div className={styles.uploadSection}>
                             <div className={styles.uploadHeader}>
                               <div className={styles.uploadHeaderTitle}>
@@ -746,7 +711,6 @@ function ReservationHistory() {
                           </div>
                         )}
 
-                        {/* Amount Section*/}
                         <div className={styles.amountSection}>
                           <div className={styles.amountRow}>
                             <div className={styles.amountValueContainer}>
@@ -755,7 +719,7 @@ function ReservationHistory() {
                               <span className={styles.totalAmountValue}>{reservation.totalEstimatedAmount}</span>
                             </div>
 
-                            {!isUploadVisible && reservation.approved && (
+                            {!isUploadVisible && reservation.approved && !reservation.confirmed && (
                               <button
                                 className={styles.confirmButton}
                                 onClick={() => handleConfirmNow(reservation._id, reservation.category)}

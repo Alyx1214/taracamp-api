@@ -40,7 +40,7 @@ html, body {
 @media (max-width: 768px) {
   .authContainer {
     flex-direction: column;
-    width: 95%;
+    width: 100%;
     max-width: 500px;
     height: auto;
     min-height: unset;

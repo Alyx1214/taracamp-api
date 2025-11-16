@@ -86,9 +86,13 @@
   .formContainer {
     flex: unset;
     padding: 20px;
-    border-radius: 15px;
+    border-radius: 0px;
     width: 100%;
     max-width: 100%;
+  }
+
+  .formContainer h2 {
+    margin-top: 10px;
   }
   
   .formInput {
@@ -102,5 +106,9 @@
 
   .formInput, .formButton {
     font-size: 16px;
+  }
+
+  .formContainer h2 {
+    text-align: center;
   }
 }

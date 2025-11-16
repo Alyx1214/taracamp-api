@@ -114,7 +114,7 @@ export default function NotifPreview({
 
   const title =
     notif.title ||
-    'Congratulations, Camper!  You have successfully booked a reservation!';
+    'Congratulations, Camper! You have successfully submitted your reservation request!';
   const body =
     notif.message ||
     "Thank you for choosing Teachers' Camp! Your reservation has been submitted. Please wait for the approval of your booking.";
