@@ -149,7 +149,7 @@ const dbHelper = {
                 discountedFacilityRate: { type: Number, required: false, },
                 status: { type: String, enum: Object.values(FacilityStatus), default: FacilityStatus.AVAILABLE, required: true, },
                 images: { type: [String], default: [] },
-                rooms: { type: [{ name: String, capacity: Number, status: String }], default: [] },
+                rooms: { type: [{ name: String, capacity: Number, status: String, assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: 'reservation', required: false }, assignedGuests: { type: Number, required: false, default: 0 } }], default: [] },
                 createdAt: { type: Date, default: Date.now, },
             });
 

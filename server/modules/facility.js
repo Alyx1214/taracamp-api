@@ -959,7 +959,7 @@ const facilityModule = {
                 return responseData;
             }
 
-            const { capacity, name, status, extraRows } = data;
+            const { capacity, name, status, assignedTo, assignedGuests, extraRows } = data;
 
             // Build rooms array from main name/capacity/status and extraRows
             const rooms = [];
@@ -981,6 +981,17 @@ const facilityModule = {
                             return responseData;
                         }
                         mainRoom.status = statusValue;
+                    }
+                    // Add assignedTo if provided (reservation ID)
+                    if (isPresent(assignedTo)) {
+                        mainRoom.assignedTo = assignedTo;
+                    }
+                    // Add assignedGuests if provided (number of guests assigned to this room)
+                    if (assignedGuests !== undefined && assignedGuests !== null) {
+                        const guests = parseInt(String(assignedGuests).replace(/,/g, ''), 10);
+                        if (!Number.isNaN(guests) && guests >= 0) {
+                            mainRoom.assignedGuests = guests;
+                        }
                     }
                     rooms.push(mainRoom);
                 }
@@ -1005,6 +1016,17 @@ const facilityModule = {
                                     return responseData;
                                 }
                                 extraRoom.status = statusValue;
+                            }
+                            // Add assignedTo if provided (reservation ID)
+                            if (isPresent(row.assignedTo)) {
+                                extraRoom.assignedTo = row.assignedTo;
+                            }
+                            // Add assignedGuests if provided (number of guests assigned to this room)
+                            if (row.assignedGuests !== undefined && row.assignedGuests !== null) {
+                                const guests = parseInt(String(row.assignedGuests).replace(/,/g, ''), 10);
+                                if (!Number.isNaN(guests) && guests >= 0) {
+                                    extraRoom.assignedGuests = guests;
+                                }
                             }
                             rooms.push(extraRoom);
                         }

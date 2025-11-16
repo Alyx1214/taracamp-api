@@ -238,51 +238,36 @@ const autoResponseEngine = {
                 return responseData;
             }
 
-            // Check for recent admin replies - if admin has replied, don't send auto-response
-            // Get all recent messages to check for admin replies
-            const recentAllMessages = await dbHelper.findMany('message', 
-                { userId }, 
-                { sort: { createdAt: -1 }, limit: 20 }
-            );
-
-            // The first message in the list is the current user message that was just saved
-            // Skip it and check the rest for admin replies
-            const messagesToCheck = recentAllMessages.slice(1);
-
-            // Check if the most recent non-user message is an admin reply
-            // If admin has replied, we should not send an auto-response
-            const mostRecentNonUserMessage = messagesToCheck.find(msg => {
-                // Get raw document (handle both Mongoose documents and plain objects)
-                const raw = msg?.toObject ? msg.toObject() : msg;
-                return raw && raw.isUser === false;
-            });
+            // Check if there's ever been an admin reply in the conversation history
+            // Query for any non-user message that is an admin reply (not an auto-response)
+            // We check for messages where:
+            // 1. isUser is false (not from the client)
+            // 2. Either has metadata.isAdminReply === true OR has a role that's not 'system' and not an auto-response
+            const adminReplyQuery = {
+                userId,
+                isUser: false,
+                $or: [
+                    { 'metadata.isAdminReply': true },
+                    { 
+                        role: { $ne: 'system' },
+                        'metadata.isAutoResponse': { $ne: true }
+                    }
+                ]
+            };
             
-            if (mostRecentNonUserMessage) {
-                // Get raw document to access metadata
-                const raw = mostRecentNonUserMessage?.toObject ? mostRecentNonUserMessage.toObject() : mostRecentNonUserMessage;
-                const isAdminReply = raw?.metadata?.isAdminReply === true;
-                // Fallback: check if role is not 'system' (auto-responses have role 'system', admin replies have admin roles)
-                const isLikelyAdminReply = raw?.role && raw.role !== 'system' && !raw?.metadata?.isAutoResponse;
+            // Use findOne to efficiently check if any admin reply exists
+            const adminReplyExists = await dbHelper.findOne('message', adminReplyQuery);
+            const hasAdminReply = adminReplyExists !== null;
 
-                if (isAdminReply || isLikelyAdminReply) {
-                    responseData.status = Status.OK;
-                    responseData.error = null;
-                    responseData.shouldSendAutoResponse = false;
-                    responseData.analysis = {
-                        confidence: 0,
-                        category: 'admin_replied',
-                        reason: 'Most recent non-user message is admin reply, skipping auto-response'
-                    };
-                    return responseData;
-                }
-            }
+            // Store this information in the response data for use in sendMessage
+            responseData.hasAdminReply = hasAdminReply;
 
             const recentMessages = await dbHelper.findMany('message', 
                 { userId, isUser: true }, 
                 { sort: { createdAt: -1 }, limit: 5 }
             );
 
-            const analysis = generateContextualResponse(recentMessages, messageText            );
+            const analysis = generateContextualResponse(recentMessages, messageText);
 
             const shouldSend = analysis.confidence >= AUTO_RESPONSE_CONFIG.confidenceThreshold ||
                              analysis.category === 'low_confidence' ||
