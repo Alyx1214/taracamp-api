@@ -190,6 +190,17 @@
   }
 }
 
+@media (max-width: 768px) {
+  .reserveNowButtonMobile {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .navbarNav {
+    width: 50%;
+  }
+}
+
 @media (max-width: 576px) {
   .headerLogoText {
     display: none;
