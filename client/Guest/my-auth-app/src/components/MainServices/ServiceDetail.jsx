@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import styles from './ServiceDetail.module.css';
 import placeholderImage from '../../assets/conference.jpg';
@@ -51,7 +51,7 @@ function MainServicesServiceDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [availableDates, setAvailableDates] = useState([]);
-  const [reservations, setReservations] = useState([]);
+  const [reservations, setReservations] = useState([]); // Initialize as empty array to avoid uninitialized variable errors
   const [reviews, setReviews] = useState([]);
   const [reviewsLoading, setReviewsLoading] = useState(false);
   const [averageRatings, setAverageRatings] = useState({
@@ -74,6 +74,24 @@ function MainServicesServiceDetail() {
   const navigate = useNavigate();
   const { isLoggedIn } = useAuth();
   const hasValidatedDatesRef = useRef(false);
+  
+  // Use refs to store values for useMemo to avoid TDZ issues
+  const availableDatesRef = useRef([]);
+  const facilityRef = useRef(null);
+  const reservationsRef = useRef([]);
+  
+  // Update refs whenever values change
+  useEffect(() => {
+    availableDatesRef.current = availableDates;
+  }, [availableDates]);
+  
+  useEffect(() => {
+    facilityRef.current = facility;
+  }, [facility]);
+  
+  useEffect(() => {
+    reservationsRef.current = reservations;
+  }, [reservations]);
 
   useEffect(() => {
     // Reset validation ref when facility ID changes
@@ -317,104 +335,332 @@ function MainServicesServiceDetail() {
   }, [id]);
 
   // Helper: Get available capacity for a dormitory on a specific date
-  const getDormAvailableCapacity = (dateStr) => {
+  // Only counts approved and confirmed reservations
+  const getDormAvailableCapacity = useCallback((dateStr) => {
     if (!facility || facility.facilityType !== 'Dormitory') {
       return facility?.capacity || 0;
     }
 
-    const reservedCapacity = reservations
-      .filter(res => {
-        const arrivalDate = new Date(res.dateArrival);
-        const departureDate = new Date(res.dateDeparture);
-        const checkDate = new Date(dateStr);
+    // Defensive check to prevent "uninitialized variable" errors
+    const resList = (reservations !== undefined && reservations !== null && Array.isArray(reservations)) ? reservations : [];
+    if (resList.length === 0) {
+      return facility?.capacity || 0;
+    }
 
-        return checkDate >= arrivalDate && checkDate < departureDate;
+    // Filter to only approved and confirmed reservations, then check date overlap
+    const reservedCapacity = resList
+      .filter(res => {
+        // Only count approved and confirmed reservations
+        const status = res.status?.toLowerCase();
+        if (status !== 'confirmed' && status !== 'approved') {
+          return false;
+        }
+        
+        if (!res || !res.dateArrival || !res.dateDeparture) return false;
+        try {
+          const arrivalDate = new Date(res.dateArrival);
+          const departureDate = new Date(res.dateDeparture);
+          const checkDate = new Date(dateStr);
+
+          if (isNaN(arrivalDate.getTime()) || isNaN(departureDate.getTime()) || isNaN(checkDate.getTime())) {
+            return false;
+          }
+
+          // Check if the date falls within the reservation period
+          return checkDate >= arrivalDate && checkDate < departureDate;
+        } catch {
+          return false;
+        }
       })
       .reduce((total, res) => total + (res.totalPax || 1), 0);
 
+    // Return available capacity (total capacity minus reserved capacity)
     return Math.max(0, (facility.capacity || 0) - reservedCapacity);
-  };
+  }, [facility, reservations]);
 
   // Helper: Check if a date is unavailable based on reservations
-  const isDateUnavailable = (dateStr) => {
-    if (!facility || !dateStr) return false;
+  // Using useMemo to ensure stable reference and avoid circular dependencies
+  const isDateUnavailable = useMemo(() => {
+    return (dateStr) => {
+      if (!facility || !dateStr) return false;
+      
+      // Ensure reservations is initialized and is an array
+      // Defensive check to prevent "uninitialized variable" errors
+      const resList = (reservations !== undefined && reservations !== null && Array.isArray(reservations)) ? reservations : [];
 
-    if (facility.facilityType === 'Dormitory') {
-      // For dormitory: mark unavailable only if available capacity is 0 or less
-      return getDormAvailableCapacity(dateStr) <= 0;
-    } else {
-      // For other types: mark unavailable if any confirmed/approved reservation overlaps
-      return reservations.some(res => {
-        const arrivalDate = new Date(res.dateArrival);
-        const departureDate = new Date(res.dateDeparture);
-        const checkDate = new Date(dateStr);
+      if (facility.facilityType === 'Dormitory') {
+        // For dormitory: mark unavailable only if available capacity is 0 or less
+        // Only counts approved and confirmed reservations
+        if (resList.length === 0) {
+          return false;
+        }
 
-        return checkDate >= arrivalDate && checkDate < departureDate;
-      });
-    }
-  };
+        // Filter to only approved and confirmed reservations, then check date overlap
+        const reservedCapacity = resList
+          .filter(res => {
+            // Only count approved and confirmed reservations
+            const status = res.status?.toLowerCase();
+            if (status !== 'confirmed' && status !== 'approved') {
+              return false;
+            }
+            
+            if (!res || !res.dateArrival || !res.dateDeparture) return false;
+            try {
+              const arrivalDate = new Date(res.dateArrival);
+              const departureDate = new Date(res.dateDeparture);
+              const checkDate = new Date(dateStr);
+
+              if (isNaN(arrivalDate.getTime()) || isNaN(departureDate.getTime()) || isNaN(checkDate.getTime())) {
+                return false;
+              }
+
+              // Check if the date falls within the reservation period
+              return checkDate >= arrivalDate && checkDate < departureDate;
+            } catch {
+              return false;
+            }
+          })
+          .reduce((total, res) => total + (res.totalPax || 1), 0);
+
+        // Mark as unavailable if available capacity is 0 or less
+        return Math.max(0, (facility.capacity || 0) - reservedCapacity) <= 0;
+      } else {
+        // For other types: mark unavailable if any confirmed/approved reservation overlaps
+        if (resList.length === 0) {
+          return false;
+        }
+
+        return resList.some(res => {
+          // Only check approved and confirmed reservations
+          const status = res.status?.toLowerCase();
+          if (status !== 'confirmed' && status !== 'approved') {
+            return false;
+          }
+          
+          if (!res || !res.dateArrival || !res.dateDeparture) return false;
+          try {
+            const arrivalDate = new Date(res.dateArrival);
+            const departureDate = new Date(res.dateDeparture);
+            const checkDate = new Date(dateStr);
+
+            if (isNaN(arrivalDate.getTime()) || isNaN(departureDate.getTime()) || isNaN(checkDate.getTime())) {
+              return false;
+            }
+
+            // Check if the date falls within the reservation period
+            return checkDate >= arrivalDate && checkDate < departureDate;
+          } catch {
+            return false;
+          }
+        });
+      }
+    };
+  }, [facility, reservations]);
 
   // Helper: Check if entire date range is available
-  const isDateRangeAvailable = (arrivalDateStr, departureDateStr) => {
-    if (!arrivalDateStr || !departureDateStr) return false;
+  const isDateRangeAvailable = useMemo(() => {
+    return (arrivalDateStr, departureDateStr) => {
+      if (!arrivalDateStr || !departureDateStr) return false;
 
-    const arrivalDate = new Date(arrivalDateStr);
-    const departureDate = new Date(departureDateStr);
+      try {
+        const arrivalDate = new Date(arrivalDateStr);
+        const departureDate = new Date(departureDateStr);
 
-    for (let d = new Date(arrivalDate); d < departureDate; d.setDate(d.getDate() + 1)) {
-      const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        if (isNaN(arrivalDate.getTime()) || isNaN(departureDate.getTime())) {
+          return false;
+        }
+
+        for (let d = new Date(arrivalDate); d < departureDate; d.setDate(d.getDate() + 1)) {
+          const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          
+          if (d < today) return false;
+          if (isDateUnavailable(dateStr)) return false;
+        }
+
+        return true;
+      } catch {
+        return false;
+      }
+    };
+  }, [isDateUnavailable]);
+
+  // Helper function to compute reserved dates - defined outside useMemo to avoid TDZ issues
+  const computeReservedDates = useCallback((availDates, fac, res) => {
+    const safeReturn = { reservedDatesForCalendar: [], reservedDatesSet: new Set() };
+    
+    try {
+      const availableDatesSafe = Array.isArray(availDates) ? availDates : [];
       
+      if (availableDatesSafe.length === 0) {
+        return safeReturn;
+      }
+      
+      const facilityVal = fac || null;
+      const reservationsVal = Array.isArray(res) ? res : [];
+      const resList = Array.isArray(reservationsVal) ? reservationsVal : [];
+
+      // Helper function to check if a date is unavailable (defined inside useMemo to avoid initialization issues)
+      const checkDateUnavailable = (dateStr, fac, res) => {
+        try {
+          if (!fac || !dateStr) return false;
+
+          // Defensive check to prevent "uninitialized variable" errors
+          // Ensure all parameters are properly initialized
+          if (fac === undefined || fac === null) return false;
+          if (res === undefined || res === null) return false;
+          
+          const resList = Array.isArray(res) ? res : [];
+
+          if (fac.facilityType === 'Dormitory') {
+            // For dormitory: mark unavailable only if available capacity is 0 or less
+            // Only counts approved and confirmed reservations
+            if (resList.length === 0) {
+              return false;
+            }
+
+            // Filter to only approved and confirmed reservations, then check date overlap
+            const reservedCapacity = resList
+              .filter(reservation => {
+                // Only count approved and confirmed reservations
+                const status = reservation.status?.toLowerCase();
+                if (status !== 'confirmed' && status !== 'approved') {
+                  return false;
+                }
+                
+                if (!reservation || !reservation.dateArrival || !reservation.dateDeparture) return false;
+                try {
+                  const arrivalDate = new Date(reservation.dateArrival);
+                  const departureDate = new Date(reservation.dateDeparture);
+                  const checkDate = new Date(dateStr);
+
+                  if (isNaN(arrivalDate.getTime()) || isNaN(departureDate.getTime()) || isNaN(checkDate.getTime())) {
+                    return false;
+                  }
+
+                  // Check if the date falls within the reservation period
+                  return checkDate >= arrivalDate && checkDate < departureDate;
+                } catch {
+                  return false;
+                }
+              })
+              .reduce((total, reservation) => total + (reservation.totalPax || 1), 0);
+
+            // Mark as unavailable if available capacity is 0 or less
+            return Math.max(0, (fac.capacity || 0) - reservedCapacity) <= 0;
+          } else {
+            // For other types: mark unavailable if any confirmed/approved reservation overlaps
+            if (resList.length === 0) {
+              return false;
+            }
+
+            return resList.some(reservation => {
+              // Only check approved and confirmed reservations
+              const status = reservation.status?.toLowerCase();
+              if (status !== 'confirmed' && status !== 'approved') {
+                return false;
+              }
+              
+              if (!reservation || !reservation.dateArrival || !reservation.dateDeparture) return false;
+              try {
+                const arrivalDate = new Date(reservation.dateArrival);
+                const departureDate = new Date(reservation.dateDeparture);
+                const checkDate = new Date(dateStr);
+
+                if (isNaN(arrivalDate.getTime()) || isNaN(departureDate.getTime()) || isNaN(checkDate.getTime())) {
+                  return false;
+                }
+
+                // Check if the date falls within the reservation period
+                return checkDate >= arrivalDate && checkDate < departureDate;
+              } catch {
+                return false;
+              }
+            });
+          }
+        } catch (err) {
+          // If there's any error checking date availability, treat as available
+          return false;
+        }
+      };
+
+      const availableSet = new Set(availableDatesSafe.filter(Boolean));
       const today = new Date();
       today.setHours(0, 0, 0, 0);
+
+      const endDate = new Date(today);
+      endDate.setMonth(endDate.getMonth() + 6);
+
+      const reserved = [];
+      const reservedSet = new Set();
+      const currentDate = new Date(today);
       
-      if (d < today) return false;
-      if (isDateUnavailable(dateStr)) return false;
-    }
+      while (currentDate <= endDate) {
+        const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
+        
+        // Check if date is in the past
+        if (currentDate < today) {
+          reserved.push(dateStr);
+          reservedSet.add(dateStr);
+        }
+        // Check if date is not in available dates from API
+        else if (!availableSet.has(dateStr)) {
+          reserved.push(dateStr);
+          reservedSet.add(dateStr);
+        }
+        // Check if date is unavailable based on reservations (using inline function)
+        else if (facilityVal && checkDateUnavailable(dateStr, facilityVal, resList)) {
+          reserved.push(dateStr);
+          reservedSet.add(dateStr);
+        }
+        
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
 
-    return true;
-  };
-
-  // Compute reserved dates for calendar based on reservations with confirmed/approved status
-  const { reservedDatesForCalendar, reservedDatesSet } = useMemo(() => {
-    if (!availableDates || availableDates.length === 0) {
+      return { reservedDatesForCalendar: reserved, reservedDatesSet };
+    } catch (error) {
+      // If there's any error, return empty arrays to prevent crashes
+      console.error('Error computing reserved dates:', error);
       return { reservedDatesForCalendar: [], reservedDatesSet: new Set() };
     }
+  }, []); // Empty deps - function doesn't depend on any external variables
 
-    const availableSet = new Set(availableDates.filter(Boolean));
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const endDate = new Date(today);
-    endDate.setMonth(endDate.getMonth() + 6);
-
-    const reserved = [];
-    const reservedSet = new Set();
-    const currentDate = new Date(today);
+  // Use useMemo to call the function with current values from refs
+  // Using refs ensures values are always accessible and avoids TDZ issues
+  const { reservedDatesForCalendar, reservedDatesSet } = useMemo(() => {
+    // Access values from refs - these are always initialized and never in TDZ
+    const availDates = availableDatesRef.current ?? [];
+    const fac = facilityRef.current ?? null;
+    const res = reservationsRef.current ?? [];
     
-    while (currentDate <= endDate) {
-      const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
-      
-      // Check if date is in the past
-      if (currentDate < today) {
-        reserved.push(dateStr);
-        reservedSet.add(dateStr);
+    return computeReservedDates(availDates, fac, res);
+  }, [
+    // Use safe primitive values for dependency tracking
+    // Wrap in IIFE to safely access values and fallback to refs if TDZ
+    (() => {
+      try {
+        return availableDates?.length ?? 0;
+      } catch {
+        return availableDatesRef.current?.length ?? 0;
       }
-      // Check if date is not in available dates from API
-      else if (!availableSet.has(dateStr)) {
-        reserved.push(dateStr);
-        reservedSet.add(dateStr);
+    })(),
+    (() => {
+      try {
+        return facility?.id ?? null;
+      } catch {
+        return facilityRef.current?.id ?? null;
       }
-      // Check if date is unavailable based on reservations
-      else if (isDateUnavailable(dateStr)) {
-        reserved.push(dateStr);
-        reservedSet.add(dateStr);
+    })(),
+    (() => {
+      try {
+        return reservations?.length ?? 0;
+      } catch {
+        return reservationsRef.current?.length ?? 0;
       }
-      
-      currentDate.setDate(currentDate.getDate() + 1);
-    }
-
-    return { reservedDatesForCalendar: reserved, reservedDatesSet };
-  }, [availableDates, reservations, facility]);
+    })()
+  ]);
 
   if (loading) {
     return (

@@ -338,12 +338,18 @@ function IDUploadForm({ idType = 'pwd' }) {
   const handlePrevious = () => {
     const isGroup = !!step1?.type?.groups || !!step1?.type?.group;
     const isPrivateCategory = step1?.category?.private === true || step1?.category?.Private === true;
+    const isPwdCategory = step1?.category?.pwds === true || step1?.category?.PWDs === true;
+    const numberOfSeniors = parseInt(step1?.guests?.senior || 0, 10) || 0;
+    const hasSeniors = numberOfSeniors > 0;
+    const numberOfPwds = parseInt(step1?.guests?.pwds || 0, 10) || 0;
+    const hasPwds = numberOfPwds > 0;
     
     if (idType === 'pwd') {
       const currentFiles = filesRef.current.length > 0 ? filesRef.current : files;
       
       // For private groups: always go back to Letter of Intent (step 3)
       // Even if seniors are present, we prioritize PWD ID, so we don't show senior citizen ID page
+      // This applies to private groups regardless of whether they have PWD category or not
       if (isGroup && isPrivateCategory) {
         navigate(`/reservation-step3`, { 
           state: { 
@@ -363,11 +369,29 @@ function IDUploadForm({ idType = 'pwd' }) {
         return;
       }
       
-      // For non-private groups: check for seniors first
-      // If there are seniors, we should go back to senior citizen step before Letter of Intent
-      const numberOfSeniors = parseInt(step1?.guests?.senior || 0, 10) || 0;
-      const hasSeniors = numberOfSeniors > 0;
+      // For PWD category groups: go back to Letter of Intent (step 3)
+      // PWD category groups only need PWD ID, not Senior Citizen ID
+      if (isGroup && isPwdCategory) {
+        navigate(`/reservation-step3`, { 
+          state: { 
+            step1, 
+            step2, 
+            file: location.state?.file, 
+            seniorCitizenIdFiles: location.state?.seniorCitizenIdFiles || [],
+            governmentIdFiles: location.state?.governmentIdFiles || [],
+            [config.stateKey]: currentFiles,
+            reservationId,
+            isEdit,
+            userEmail,
+            originalType,
+            typeChangedToGroup
+          } 
+        });
+        return;
+      }
       
+      // For non-private, non-PWD category groups: check for seniors first
+      // If there are seniors, we should go back to senior citizen step before Letter of Intent
       if (hasSeniors) {
         // Go back to senior citizen ID step (for both group and individual)
         navigate(`/reservation-step3-senior`, { 

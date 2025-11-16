@@ -1603,6 +1603,97 @@ const reservationModule = {
     },
 
     /**
+     * Gets reservations by facility ID, optionally filtered by status.
+     * This endpoint is accessible to guests and public users.
+     * @param {Object} dbHelper - The database helper for database operations.
+     * @param {string} facilityId - The facility ID.
+     * @param {Object} options - Query options including status filter.
+     * @returns {Object} Response data with status, error, and an array of reservations on success.
+     */
+    getReservationsByFacility: async (dbHelper, facilityId, options = {}) => {
+        const responseData = {
+            status: Status.INTERNAL_SERVER_ERROR,
+            error: 'Error fetching reservations by facility',
+            reservations: [],
+        };
+
+        try {
+            if (!facilityId) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Facility ID is required';
+                return responseData;
+            }
+
+            if (!isValidObjectId(facilityId)) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Invalid facility ID';
+                return responseData;
+            }
+
+            const { status } = options || {};
+            const filter = { facility: facilityId };
+
+            // Filter by status if provided (supports comma-separated values)
+            // Normalize status values to match ReservationStatus constants (case-insensitive)
+            if (isPresent(status)) {
+                const statusArray = String(status).split(',').map(s => s.trim()).filter(Boolean);
+                const statusMap = {
+                    'pending': ReservationStatus.PENDING,
+                    'approved': ReservationStatus.APPROVED,
+                    'confirmed': ReservationStatus.CONFIRMED,
+                    'declined': ReservationStatus.DECLINED,
+                    'cancelled': ReservationStatus.CANCELLED,
+                    'checked-in': ReservationStatus.CHECKED_IN,
+                    'checked-out': ReservationStatus.CHECKED_OUT,
+                };
+                const validStatuses = statusArray
+                    .map(s => statusMap[s.toLowerCase()] || (isValidReservationStatus(s) ? s : null))
+                    .filter(Boolean);
+                
+                if (validStatuses.length > 0) {
+                    filter.status = validStatuses.length === 1 
+                        ? validStatuses[0] 
+                        : { $in: validStatuses };
+                }
+            }
+
+            const reservations = await dbHelper.findMany(
+                'reservation',
+                filter,
+                {
+                    projection: {
+                        _id: 1,
+                        guestName: 1,
+                        dateOfArrival: 1,
+                        dateOfDeparture: 1,
+                        timeOfArrival: 1,
+                        status: 1,
+                        serviceType: 1,
+                        category: 1,
+                        numberOfGuests: 1,
+                        facility: 1,
+                        createdAt: 1,
+                    },
+                    sort: { dateOfArrival: 1 },
+                }
+            );
+
+            const list = (reservations || []).map((r) => (typeof r.toObject === 'function' ? r.toObject() : r));
+
+            responseData.status = Status.OK;
+            responseData.error = null;
+            responseData.reservations = list;
+            responseData.totalCount = list.length;
+            return responseData;
+        } catch (error) {
+            console.error('Error fetching reservations by facility:', error);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Error fetching reservations by facility';
+            return responseData;
+        }
+    },
+
+    /**
      * Searches for reservations based on the provided query object.
      * @param {Object} dbHelper - The database helper for database operations.
      * @param {Object} options - Additional options for the search.
@@ -1682,8 +1773,15 @@ const reservationModule = {
                 }
             }
 
-            if (isPresent(status) && isValidReservationStatus(status)) {
-                filter.status = status;
+            if (isPresent(status)) {
+                const statusArray = String(status).split(',').map(s => s.trim()).filter(Boolean);
+                const validStatuses = statusArray.filter(s => isValidReservationStatus(s));
+                
+                if (validStatuses.length > 0) {
+                    filter.status = validStatuses.length === 1 
+                        ? validStatuses[0] 
+                        : { $in: validStatuses };
+                }
             }
 
             if (isPresent(serviceType)) {
