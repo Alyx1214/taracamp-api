@@ -156,19 +156,27 @@
   transform: translateY(-2px);
 }
 
+.guestRow {
+  display: flex;
+  gap: 20px;
+  width: 100%;
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .pageTitle {
     font-size: 2em;
   }
   .formCard {
-    padding: 20px;
+    margin: 10px;
+    padding: 30px;
   }
   .formRow {
     flex-direction: column;
-    gap: 0;
+    gap: 0; 
   }
   .formRow .formGroup {
+    min-width: 0;
     width: 100%;
     margin-bottom: 15px;
   }
@@ -182,6 +190,16 @@
   }
   .buttonContainer {
     justify-content: center;
+  }
+  .guestRow {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+  }
+  .guestRow .label {
+    min-height: 36px;
+    display: flex;
+    align-items: flex-end;
   }
 }
 
