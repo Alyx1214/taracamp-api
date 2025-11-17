@@ -819,18 +819,6 @@ function MainServicesServiceDetail() {
                     Check-in time is at 2:00 PM. Guests requesting an earlier check-in should note that the previous day will be included in the billing and must be selected at the time of reservation. 
                     For individual bookings, a confirmation fee of 10% of the total cost is required. The prices displayed already include a 10% service fee and are subject to change.
                   </p>
-                  {isFacilityUnavailable && (
-                    <div style={{ 
-                      marginTop: '15px', 
-                      padding: '12px', 
-                      backgroundColor: '#fff3cd', 
-                      border: '1px solid #ffc107', 
-                      borderRadius: '4px',
-                      color: '#856404'
-                    }}>
-                      <strong>⚠️ Selected dates unavailable:</strong> The date range you selected is not available. Please choose different dates.
-                    </div>
-                  )}
                 </div>
               </div>
 
@@ -877,6 +865,18 @@ function MainServicesServiceDetail() {
                     )}
                   </div>
                 </div>
+                {isFacilityUnavailable && (
+                  <div style={{ 
+                    marginTop: '15px', 
+                    padding: '12px', 
+                    backgroundColor: '#fff3cd', 
+                    border: '1px solid #ffc107', 
+                    borderRadius: '4px',
+                    color: '#856404'
+                  }}>
+                    <strong>⚠️ Selected dates unavailable:</strong> The date range you selected is not available. Please choose different dates.
+                  </div>
+                )}
                 <button 
                   className={styles.reserveButton} 
                   onClick={onReserveNow}
