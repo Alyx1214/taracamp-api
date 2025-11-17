@@ -536,6 +536,12 @@
   }
 }
 
+@media (max-width: 786px) {
+  .navbarNav {
+    width: 50%;
+  }
+}
+
 @media (max-width: 576px) {
   .headerLogoText {
     display: none;

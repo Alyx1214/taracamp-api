@@ -17,7 +17,7 @@ function buildUrl(path) {
   return `${API_BASE}${API_V1_PREFIX}${path}`;                      
 }
 
-async function rawFetch(path, options = {}) {
+export async function rawFetch(path, options = {}) {
   const url = buildUrl(path);
   const headers = new Headers(options.headers || {});
   if (!headers.has('Content-Type') && options.body && !isFormData(options.body)) {

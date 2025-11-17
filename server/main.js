@@ -149,10 +149,18 @@ wss.on('connection', (ws, req) => {
   const userId = req.user.userId?.toString?.() || String(req.user.userId || '');
   userSocketMap.set(userId, ws);
   ws.isAlive = true;
+  // Store connection timestamp to track how long admin has been online
+  ws.connectedAt = Date.now();
+  // Initialize last activity time to connection time (admin is active when they connect)
+  ws.lastActivityTime = Date.now();
 
   ws.on('pong', () => { ws.isAlive = true; });
-  ws.on('close', () => userSocketMap.delete(userId));
-  ws.on('error', () => userSocketMap.delete(userId));
+  ws.on('close', () => {
+    userSocketMap.delete(userId);
+  });
+  ws.on('error', () => {
+    userSocketMap.delete(userId);
+  });
   ws.on('message', msg => {
     console.log(`WS from ${userId}:`, msg.toString());
   });
@@ -166,6 +174,7 @@ const interval = setInterval(() => {
       continue;
     }
     ws.isAlive = false;
+    ws.lastPingTime = Date.now(); // Track when we sent the ping
     ws.ping();
   }
 }, 30000);

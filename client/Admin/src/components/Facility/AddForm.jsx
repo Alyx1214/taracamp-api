@@ -91,8 +91,7 @@ const AddForm = () => {
           name: formData.name,
           price: formData.price,
           unit: formData.unit,
-          serviceTypes: [formData.serviceType], // NEW: send as array
-          serviceType: formData.serviceType, // NEW: also send as string for backward compatibility
+          serviceType: formData.serviceType,
         });
         setSuccess(res.message || "Service created successfully");
       } else {

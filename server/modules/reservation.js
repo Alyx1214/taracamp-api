@@ -350,14 +350,15 @@ const reservationModule = {
             // Require Senior Citizen ID if there are seniors, EXCEPT for:
             // - gov/deped groups or individuals (only gov ID needed)
             // - PWD groups or individuals (only PWD ID needed)
+            // - private groups (Senior Citizen ID is optional, PWD ID takes priority if both present)
             // - private+individual WITHOUT seniors (no ID needed)
             // But DO require it for:
-            // - private groups WITH seniors (Senior Citizen ID is required)
             // - private+individual WITH seniors
             const shouldSkipSeniorCitizenId = (isGroupReservation && isGovCategory) || 
                                              (isIndividualReservation && isGovCategory) || 
                                              (isGroupReservation && isPwdCategory) || 
                                              (isIndividualReservation && isPwdCategory) ||
+                                             (isGroupReservation && isPrivateCategory) ||
                                              (isPrivateAndIndividual && !isPrivateAndIndividualWithSeniors);
             
             if (seniorCitizens > 0 && !seniorCitizenIdFile && !shouldSkipSeniorCitizenId) {
@@ -557,9 +558,37 @@ const reservationModule = {
             const reservationCode = `TC${shortTimestamp}${random}`;
 
             // Validate capacity and dormitory requirements before transaction
-            if (total > facilityDoc.capacity) {
+            // For dormitories, only count available rooms (status === "Available")
+            let facilityCapacity = facilityDoc.capacity;
+            if (facilityDoc.facilityType === FacilityType.DORMITORY && 
+                Array.isArray(facilityDoc.rooms) && facilityDoc.rooms.length > 0) {
+                // Calculate capacity from only available rooms
+                // A room is available if status === "Available"
+                const availableRoomsCapacity = facilityDoc.rooms.reduce((sum, room) => {
+                    // Check if room is marked as available
+                    if (room.status === 'Available') {
+                        const roomCapacity = Number(room.capacity) || 0;
+                        return sum + roomCapacity;
+                    }
+                    return sum;
+                }, 0);
+                
+                // Use available rooms capacity if it's greater than 0, otherwise fall back to facility capacity
+                if (availableRoomsCapacity > 0) {
+                    facilityCapacity = availableRoomsCapacity;
+                }
+            }
+            
+            // Validate capacity - ensure it's a valid number
+            if (facilityCapacity == null || facilityCapacity === undefined || isNaN(facilityCapacity) || facilityCapacity <= 0) {
                 responseData.status = Status.BAD_REQUEST;
-                responseData.error = `Number of guests (${total}) exceeds the facility capacity (${facilityDoc.capacity}).`;
+                responseData.error = 'Facility capacity is not set or invalid. Please configure the facility capacity.';
+                return responseData;
+            }
+            
+            if (total > facilityCapacity) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = `Number of guests (${total}) exceeds the available facility capacity (${facilityCapacity}).`;
                 return responseData;
             }
 
@@ -1602,6 +1631,97 @@ const reservationModule = {
     },
 
     /**
+     * Gets reservations by facility ID, optionally filtered by status.
+     * This endpoint is accessible to guests and public users.
+     * @param {Object} dbHelper - The database helper for database operations.
+     * @param {string} facilityId - The facility ID.
+     * @param {Object} options - Query options including status filter.
+     * @returns {Object} Response data with status, error, and an array of reservations on success.
+     */
+    getReservationsByFacility: async (dbHelper, facilityId, options = {}) => {
+        const responseData = {
+            status: Status.INTERNAL_SERVER_ERROR,
+            error: 'Error fetching reservations by facility',
+            reservations: [],
+        };
+
+        try {
+            if (!facilityId) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Facility ID is required';
+                return responseData;
+            }
+
+            if (!isValidObjectId(facilityId)) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Invalid facility ID';
+                return responseData;
+            }
+
+            const { status } = options || {};
+            const filter = { facility: facilityId };
+
+            // Filter by status if provided (supports comma-separated values)
+            // Normalize status values to match ReservationStatus constants (case-insensitive)
+            if (isPresent(status)) {
+                const statusArray = String(status).split(',').map(s => s.trim()).filter(Boolean);
+                const statusMap = {
+                    'pending': ReservationStatus.PENDING,
+                    'approved': ReservationStatus.APPROVED,
+                    'confirmed': ReservationStatus.CONFIRMED,
+                    'declined': ReservationStatus.DECLINED,
+                    'cancelled': ReservationStatus.CANCELLED,
+                    'checked-in': ReservationStatus.CHECKED_IN,
+                    'checked-out': ReservationStatus.CHECKED_OUT,
+                };
+                const validStatuses = statusArray
+                    .map(s => statusMap[s.toLowerCase()] || (isValidReservationStatus(s) ? s : null))
+                    .filter(Boolean);
+                
+                if (validStatuses.length > 0) {
+                    filter.status = validStatuses.length === 1 
+                        ? validStatuses[0] 
+                        : { $in: validStatuses };
+                }
+            }
+
+            const reservations = await dbHelper.findMany(
+                'reservation',
+                filter,
+                {
+                    projection: {
+                        _id: 1,
+                        guestName: 1,
+                        dateOfArrival: 1,
+                        dateOfDeparture: 1,
+                        timeOfArrival: 1,
+                        status: 1,
+                        serviceType: 1,
+                        category: 1,
+                        numberOfGuests: 1,
+                        facility: 1,
+                        createdAt: 1,
+                    },
+                    sort: { dateOfArrival: 1 },
+                }
+            );
+
+            const list = (reservations || []).map((r) => (typeof r.toObject === 'function' ? r.toObject() : r));
+
+            responseData.status = Status.OK;
+            responseData.error = null;
+            responseData.reservations = list;
+            responseData.totalCount = list.length;
+            return responseData;
+        } catch (error) {
+            console.error('Error fetching reservations by facility:', error);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Error fetching reservations by facility';
+            return responseData;
+        }
+    },
+
+    /**
      * Searches for reservations based on the provided query object.
      * @param {Object} dbHelper - The database helper for database operations.
      * @param {Object} options - Additional options for the search.
@@ -1681,8 +1801,15 @@ const reservationModule = {
                 }
             }
 
-            if (isPresent(status) && isValidReservationStatus(status)) {
-                filter.status = status;
+            if (isPresent(status)) {
+                const statusArray = String(status).split(',').map(s => s.trim()).filter(Boolean);
+                const validStatuses = statusArray.filter(s => isValidReservationStatus(s));
+                
+                if (validStatuses.length > 0) {
+                    filter.status = validStatuses.length === 1 
+                        ? validStatuses[0] 
+                        : { $in: validStatuses };
+                }
             }
 
             if (isPresent(serviceType)) {
@@ -1808,9 +1935,10 @@ const reservationModule = {
 
             // Date range filtering - support dateOfArrival, dateOfDeparture, or createdAt
             // Support filtering with just startDate, just endDate, or both
+            // Use UTC midnight to match how dates are stored in the database
             if (isPresent(dateStart) && isValidDate(dateStart)) {
                 const sYMD = String(dateStart).split('T')[0].split(' ')[0];
-                const startDate = new Date(sYMD + 'T00:00:00' + APP_TZ_OFFSET);
+                const startDate = new Date(sYMD + 'T00:00:00Z');
                 const dateFieldKey = dateFieldToUse;
                 filter[dateFieldKey] = filter[dateFieldKey] || {};
                 filter[dateFieldKey].$gte = startDate;
@@ -1819,9 +1947,9 @@ const reservationModule = {
             if (isPresent(dateEnd) && isValidDate(dateEnd)) {
                 const eYMD = String(dateEnd).split('T')[0].split(' ')[0];
                 // Add 1 day and subtract 1 millisecond to include the entire end date
-                const endDate = new Date(eYMD + 'T00:00:00' + APP_TZ_OFFSET);
-                endDate.setDate(endDate.getDate() + 1);
-                endDate.setMilliseconds(endDate.getMilliseconds() - 1);
+                const endDate = new Date(eYMD + 'T00:00:00Z');
+                endDate.setUTCDate(endDate.getUTCDate() + 1);
+                endDate.setUTCMilliseconds(endDate.getUTCMilliseconds() - 1);
                 const dateFieldKey = dateFieldToUse;
                 filter[dateFieldKey] = filter[dateFieldKey] || {};
                 filter[dateFieldKey].$lte = endDate;
@@ -2942,9 +3070,37 @@ const reservationModule = {
             }
 
             // Validate capacity
-            if (total > facilityDoc.capacity) {
+            // For dormitories, only count available rooms (status === "Available")
+            let facilityCapacity = facilityDoc.capacity;
+            if (facilityDoc.facilityType === FacilityType.DORMITORY && 
+                Array.isArray(facilityDoc.rooms) && facilityDoc.rooms.length > 0) {
+                // Calculate capacity from only available rooms
+                // A room is available if status === "Available"
+                const availableRoomsCapacity = facilityDoc.rooms.reduce((sum, room) => {
+                    // Check if room is marked as available
+                    if (room.status === 'Available') {
+                        const roomCapacity = Number(room.capacity) || 0;
+                        return sum + roomCapacity;
+                    }
+                    return sum;
+                }, 0);
+                
+                // Use available rooms capacity if it's greater than 0, otherwise fall back to facility capacity
+                if (availableRoomsCapacity > 0) {
+                    facilityCapacity = availableRoomsCapacity;
+                }
+            }
+            
+            // Validate capacity - ensure it's a valid number
+            if (facilityCapacity == null || facilityCapacity === undefined || isNaN(facilityCapacity) || facilityCapacity <= 0) {
                 responseData.status = Status.BAD_REQUEST;
-                responseData.error = `Number of guests (${total}) exceeds the facility capacity (${facilityDoc.capacity}).`;
+                responseData.error = 'Facility capacity is not set or invalid. Please configure the facility capacity.';
+                return responseData;
+            }
+            
+            if (total > facilityCapacity) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = `Number of guests (${total}) exceeds the available facility capacity (${facilityCapacity}).`;
                 return responseData;
             }
 
@@ -3543,18 +3699,20 @@ function isValidDateRange(dateOfArrival, dateOfDeparture, user = null) {
 function normalizeDateOnly(dateStr) {
     if (!dateStr || typeof dateStr !== 'string') return null;
     const ymd = dateStr.split('T')[0].split(' ')[0];
-    const d = new Date(`${ymd}T00:00:00${APP_TZ_OFFSET}`);
+    // Create date at midnight UTC to avoid timezone conversion issues
+    // This ensures the date stored in MongoDB matches the date selected by the user
+    const d = new Date(`${ymd}T00:00:00Z`);
     return isNaN(d.getTime()) ? null : d;
 }
 
 /**
- * Normalizes a Date object to date-only (midnight in app timezone)
+ * Normalizes a Date object to date-only (midnight UTC)
  * Works with both Date objects and date strings
- * Since dates in DB are already normalized, this ensures consistent comparison
+ * Since dates in DB are stored as UTC midnight, this ensures consistent comparison
  */
 function normalizeDateToDateOnly(date) {
     if (!date) return null;
-    // If it's already a Date object, extract the date part and normalize to app timezone
+    // If it's already a Date object, extract the date part and normalize to UTC
     if (date instanceof Date) {
         // Use the date's UTC methods to get year, month, day (avoids timezone issues)
         // Since dates in DB are stored normalized, we can safely extract the date components
@@ -3562,8 +3720,8 @@ function normalizeDateToDateOnly(date) {
         const month = String(date.getUTCMonth() + 1).padStart(2, '0');
         const day = String(date.getUTCDate()).padStart(2, '0');
         const ymd = `${year}-${month}-${day}`;
-        // Create a new date at midnight in the app timezone
-        const d = new Date(`${ymd}T00:00:00${APP_TZ_OFFSET}`);
+        // Create a new date at midnight UTC to match how dates are stored in the database
+        const d = new Date(`${ymd}T00:00:00Z`);
         return isNaN(d.getTime()) ? null : d;
     }
     // If it's a string, use the existing normalizeDateOnly function

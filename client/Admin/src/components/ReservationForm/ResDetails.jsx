@@ -91,6 +91,15 @@ function ResDetails({ onClose }) {
       .map(addon => addon.value || addon._id)
       .filter(Boolean);
 
+    // Convert time to 24-hour format for API
+    const timeArrivalHour = step2?.timeArrivalHour || '02';
+    const timeArrivalAMPM = step2?.timeArrivalAMPM || 'PM';
+    const hour12 = parseInt(timeArrivalHour, 10) || 2;
+    const hour24 = timeArrivalAMPM === 'PM' && hour12 !== 12 
+      ? hour12 + 12 
+      : (timeArrivalAMPM === 'AM' && hour12 === 12 ? 0 : hour12);
+    const timeOfArrival = `${String(hour24).padStart(2, '0')}:00`;
+
     let abort = false;
     (async () => {
       try {
@@ -105,6 +114,7 @@ function ResDetails({ onClose }) {
           addOns: addonIds.length > 0 ? addonIds : undefined,
           dateOfArrival: step2?.dateArrival,
           dateOfDeparture: step2?.dateDeparture,
+          timeOfArrival: timeOfArrival,
         });
         if (!abort) {
           setQuote(data.amount);
@@ -113,6 +123,7 @@ function ResDetails({ onClose }) {
             serviceFee: data.serviceFee || 0,
             discount: data.discount || 0,
             addonsTotal: data.addonsTotal || 0,
+            earlyArrivalFee: data.earlyArrivalFee || 0,
           });
         }
       } catch {
@@ -138,6 +149,25 @@ function ResDetails({ onClose }) {
       (parseInt(step1?.guests?.pwds || '0', 10) || 0) +
       (parseInt(step1?.guests?.senior || '0', 10) || 0);
 
+    // Calculate adjusted arrival date for display if arrival time is before 2pm
+    // The backend receives the original date and adjusts it internally
+    let displayArrival = step2.dateArrival || 'N/A';
+    if (step2.dateArrival && step2.timeArrivalHour) {
+      const timeArrivalHour = parseInt(step2.timeArrivalHour || '02', 10) || 2;
+      const timeArrivalAMPM = step2.timeArrivalAMPM || 'PM';
+      const hour24 = timeArrivalAMPM === 'PM' && timeArrivalHour !== 12 
+        ? timeArrivalHour + 12 
+        : (timeArrivalAMPM === 'AM' && timeArrivalHour === 12 ? 0 : timeArrivalHour);
+      const isEarlyArrival = hour24 < 14;
+      
+      if (isEarlyArrival) {
+        // Adjust date to previous day for display
+        const arrivalDate = new Date(step2.dateArrival);
+        arrivalDate.setDate(arrivalDate.getDate() - 1);
+        displayArrival = arrivalDate.toISOString().split('T')[0];
+      }
+    }
+
     return {
       group: step1.groupAssociation || 'N/A',
       guestEmail: step1.guestEmail || 'N/A',
@@ -149,7 +179,7 @@ function ResDetails({ onClose }) {
       guests: String(guestsTotal),
       emergencyContactPerson: step1.emergencyContactPerson || 'N/A',
       emergency: step1.emergencyContact || 'N/A',
-      arrival: step2.dateArrival || 'N/A',
+      arrival: displayArrival,
       departure: step2.dateDeparture || 'N/A',
       facilityType: step2.typeFacilities || 'N/A',
       facilityName: step2.facilityLabelFromList || step2.facilityName || 'N/A',
@@ -352,8 +382,26 @@ function ResDetails({ onClose }) {
                 <tr><td>Number of Guests</td><td>:</td><td>{data.guests}</td></tr>
                 <tr><td>Emergency Contact Person</td><td>:</td><td>{data.emergencyContactPerson}</td></tr>
                 <tr><td>Emergency Contact</td><td>:</td><td>{data.emergency}</td></tr>
-                <tr><td>Date of Arrival</td><td>:</td><td>{data.arrival}</td></tr>
-                <tr><td>Date of Departure</td><td>:</td><td>{data.departure}</td></tr>
+                <tr>
+                  <td>Date of Arrival</td>
+                  <td>:</td>
+                  <td>
+                    {data.arrival !== 'N/A' ? (
+                      new Date(data.arrival).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric'
+                      })
+                    ) : (
+                      'N/A'
+                    )}
+                  </td>
+                </tr>
+                <tr><td>Date of Departure</td><td>:</td><td>{data.departure !== 'N/A' ? new Date(data.departure).toLocaleDateString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric'
+                }) : 'N/A'}</td></tr>
                 <tr><td>Type of Facility</td><td>:</td><td>{data.facilityType}</td></tr>
                 <tr><td>Facility Name</td><td>:</td><td>{data.facilityName}</td></tr>
                 <tr><td>Type of Service</td><td>:</td><td>{data.service}</td></tr>
@@ -366,7 +414,14 @@ function ResDetails({ onClose }) {
                 <table className={styles.detailsTable}>
                   <tbody>
                     <tr><td><strong>Breakdown of Fees</strong></td><td></td><td></td></tr>
-                    <tr><td>Facility Fee</td><td>:</td><td>₱ {Math.round(breakdown.facilityFee || 0).toLocaleString()}</td></tr>
+                    <tr><td>Facility Fee</td><td>:</td><td>₱ {Math.round((breakdown.facilityFee || 0) - (breakdown.earlyArrivalFee || 0)).toLocaleString()}</td></tr>
+                    {breakdown.earlyArrivalFee > 0 && (
+                      <tr>
+                        <td style={{ paddingLeft: '20px' }}>• Early Arrival Fee (before 2pm)</td>
+                        <td>:</td>
+                        <td>₱ {Math.round(breakdown.earlyArrivalFee || 0).toLocaleString()}</td>
+                      </tr>
+                    )}
                     {renderAddOns()}
                     <tr><td>10% Service Fee</td><td>:</td><td>₱ {Math.round(breakdown.serviceFee || 0).toLocaleString()}</td></tr>
                     {breakdown.discount > 0 && (

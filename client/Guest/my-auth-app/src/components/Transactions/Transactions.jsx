@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import styles from './Transactions.module.css';
 import HeaderHome from '../HeaderHome/HeaderHome'; 
 import PaymentChannel from './PaymentChannel';
-import { createPaymentIntent, createPaymentMethod, attachPaymentMethod, listPaymentsByReservation, reconcilePaymentIntent, getPaymentSummary } from '../../apis/paymentApi';
+import { createPaymentIntent, createPaymentMethod, attachPaymentMethod, listPaymentsByReservation, reconcilePaymentIntent, getPaymentSummary, submitManualPayment } from '../../apis/paymentApi';
 
 function Transactions() {
   const navigate = useNavigate();
@@ -51,20 +51,35 @@ function Transactions() {
     setError(null);
     
     try {
-      // Here you would implement the API call to submit the manual payment
-      // For now, we'll just log it
-      console.log('Payment submitted:', paymentData);
+      // Create FormData for file upload
+      const formData = new FormData();
+      formData.append('amount', String(paymentData.amount || amount));
+      formData.append('referenceNumber', paymentData.referenceNumber);
+      formData.append('paymentMethodType', paymentData.channel || 'gcash');
+      formData.append('proofOfPayment', paymentData.proofOfPayment);
+      // Include OCR extracted reference number if available
+      if (paymentData.ocrExtractedReferenceNumber) {
+        formData.append('ocrExtractedReferenceNumber', paymentData.ocrExtractedReferenceNumber);
+      }
       
-      // TODO: Replace with actual API call
-      // await submitManualPayment(paymentData);
+      // Submit manual payment
+      await submitManualPayment(reservationId, formData);
       
       // Refresh payments list
       const listRes = await listPaymentsByReservation(reservationId);
       const rows = listRes?.data || listRes || [];
       setPayments(Array.isArray(rows) ? rows : []);
       
+      // Refresh summary
+      const summaryRes = await getPaymentSummary(reservationId);
+      const s = summaryRes?.data || summaryRes;
+      setSummary(s);
+      
       // Show success message
-      alert('Payment submitted successfully! Please wait for verification.');
+      alert('Payment submitted successfully! Your reservation has been confirmed.');
+      
+      // Close modal
+      setSelectedChannel(null);
       
     } catch (e) {
       setError(e?.data?.error || e?.message || 'Failed to submit payment');
@@ -314,6 +329,7 @@ function Transactions() {
           onClose={() => setSelectedChannel(null)}
           onSubmit={handlePaymentSubmit}
           reservationId={reservationId}
+          amount={amount}
         />
       )}
     </>

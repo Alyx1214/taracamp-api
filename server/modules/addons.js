@@ -1,4 +1,4 @@
-import { Status, UserRole, UnitType, } from '../constants.js';
+import { Status, UserRole, UnitType, ServiceType, } from '../constants.js';
 import dbHelper from './dbHelper.js';
 import { safeRedisOperations } from './redisCircuitBreaker.js';
 
@@ -17,7 +17,7 @@ const addonsModule = {
         };
 
         try {
-            const { name, price, unit, } = data;
+            const { name, price, unit, serviceType, } = data;
 
             if (!isPresent(name) || !isPresent(price) || !isPresent(unit)) {
                 responseData.status = Status.BAD_REQUEST;
@@ -34,6 +34,12 @@ const addonsModule = {
             if (!isValidUnit(unit)) {
                 responseData.status = Status.BAD_REQUEST;
                 responseData.error = 'Invalid unit type.';
+                return responseData;
+            }
+
+            if (isPresent(serviceType) && !isValidServiceType(serviceType)) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Invalid service type.';
                 return responseData;
             }
 
@@ -66,6 +72,12 @@ const addonsModule = {
                 price,
                 unit,
             };
+            if (isPresent(serviceType)) {
+                const normalizedServiceType = normalizeServiceType(serviceType);
+                if (normalizedServiceType) {
+                    addonData.serviceType = normalizedServiceType;
+                }
+            }
 
             const addon = await dbHelper.create('addon', addonData);
 
@@ -115,9 +127,16 @@ const addonsModule = {
                 const cached = await safeRedisOperations.get(cacheKey);
                 if (cached) {
                     const cachedData = JSON.parse(cached);
+                    // Ensure serviceType is included in cached addons
+                    const addonsWithServiceType = (cachedData.addons || []).map(addon => {
+                        if (!('serviceType' in addon)) {
+                            addon.serviceType = null;
+                        }
+                        return addon;
+                    });
                     responseData.status = Status.OK;
                     responseData.error = null;
-                    responseData.addons = cachedData.addons;
+                    responseData.addons = addonsWithServiceType;
                     return responseData;
                 }
             } catch (cacheError) {
@@ -131,16 +150,26 @@ const addonsModule = {
                 skip: skipValue,
             });
 
+            // Convert to plain objects and ensure serviceType is included
+            const addonsArray = (addons || []).map(addon => {
+                const addonObj = typeof addon.toObject === 'function' ? addon.toObject() : addon;
+                // Ensure serviceType field is present (even if null/undefined)
+                if (!('serviceType' in addonObj)) {
+                    addonObj.serviceType = null;
+                }
+                return addonObj;
+            });
+
             // Cache the result
             try {
-                await safeRedisOperations.set(cacheKey, JSON.stringify({ addons }), { EX: 300 }); // 5 minutes TTL
+                await safeRedisOperations.set(cacheKey, JSON.stringify({ addons: addonsArray }), { EX: 300 }); // 5 minutes TTL
             } catch (cacheError) {
                 console.warn('Cache write error:', cacheError.message);
             }
 
             responseData.status = Status.OK;
             responseData.error = null;
-            responseData.addons = addons;
+            responseData.addons = addonsArray;
         } catch (error) {
             console.error('Error fetching add-ons:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
@@ -176,6 +205,10 @@ const addonsModule = {
                 const cached = await safeRedisOperations.get(cacheKey);
                 if (cached) {
                     const cachedData = JSON.parse(cached);
+                    // Ensure serviceType is included in cached addon
+                    if (cachedData.addon && !('serviceType' in cachedData.addon)) {
+                        cachedData.addon.serviceType = null;
+                    }
                     responseData.status = Status.OK;
                     responseData.error = null;
                     responseData.addon = cachedData.addon;
@@ -195,6 +228,11 @@ const addonsModule = {
             const addonObject = addon.toObject();
             delete addonObject.__v;
             delete addonObject.createdAt;
+            
+            // Ensure serviceType field is present (even if null/undefined)
+            if (!('serviceType' in addonObject)) {
+                addonObject.serviceType = null;
+            }
 
             // Cache the result
             try {
@@ -273,6 +311,17 @@ const addonsModule = {
                 }
                 updateData.unit = data.unit;
             }
+            if (isPresent(data.serviceType)) {
+                if (!isValidServiceType(data.serviceType)) {
+                    responseData.status = Status.BAD_REQUEST;
+                    responseData.error = 'Invalid service type.';
+                    return responseData;
+                }
+                const normalizedServiceType = normalizeServiceType(data.serviceType);
+                if (normalizedServiceType) {
+                    updateData.serviceType = normalizedServiceType;
+                }
+            }
 
             const existing = await dbHelper.findOne('addon', {
                 _id: { $ne: id, },
@@ -337,7 +386,7 @@ const addonsModule = {
             }
 
             for (const update of updates) {
-                const { id, name, price, unit, } = update;
+                const { id, name, price, unit, serviceType, } = update;
                 
                 if (!id) {
                     responseData.status = Status.BAD_REQUEST;
@@ -369,6 +418,17 @@ const addonsModule = {
                         return responseData;
                     }
                     updateData.unit = unit;
+                }
+                if (isPresent(serviceType)) {
+                    if (!isValidServiceType(serviceType)) {
+                        responseData.status = Status.BAD_REQUEST;
+                        responseData.error = 'Invalid service type.';
+                        return responseData;
+                    }
+                    const normalizedServiceType = normalizeServiceType(serviceType);
+                    if (normalizedServiceType) {
+                        updateData.serviceType = normalizedServiceType;
+                    }
                 }
 
                 const existing = await dbHelper.findOne('addon', {
@@ -461,11 +521,11 @@ const addonsModule = {
     /**
      * Searches add-ons with optional filters.
      * @param {Object} dbHelper - Database helper.
-     * @param {Object} options - { query, minPrice, maxPrice, unit }
+     * @param {Object} options - { query, minPrice, maxPrice, unit, serviceType }
      * @returns {Object} Response data with status, error, and addons on success.
      */
     searchAddons: async (dbHelper, options = {}) => {
-        const { query, minPrice, maxPrice, unit, } = options;
+        const { query, minPrice, maxPrice, unit, serviceType, } = options;
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
             error: 'Error searching add-ons',
@@ -476,6 +536,16 @@ const addonsModule = {
             let filter = {};
             if (query) filter.name = new RegExp(query.trim(), 'i');
             if (unit) filter.unit = new RegExp(unit.trim(), 'i');
+            
+            if (serviceType && isPresent(serviceType)) {
+                // Normalize serviceType to match database format
+                const normalizedServiceType = normalizeServiceType(serviceType);
+                if (normalizedServiceType) {
+                    filter.serviceType = normalizedServiceType;
+                } else if (serviceType.toLowerCase() === 'all') {
+                    // "All" means no filter - don't add serviceType to filter
+                }
+            }
 
             if (minPrice || maxPrice) {
                 filter.price = {};
@@ -488,7 +558,8 @@ const addonsModule = {
                 query,
                 unit,
                 minPrice,
-                maxPrice
+                maxPrice,
+                serviceType
             })}`;
             
             // Try to get from cache first
@@ -496,9 +567,16 @@ const addonsModule = {
                 const cached = await safeRedisOperations.get(cacheKey);
                 if (cached) {
                     const cachedData = JSON.parse(cached);
+                    // Ensure serviceType is included in cached addons
+                    const addonsWithServiceType = (cachedData.addons || []).map(addon => {
+                        if (!('serviceType' in addon)) {
+                            addon.serviceType = null;
+                        }
+                        return addon;
+                    });
                     responseData.status = Status.OK;
                     responseData.error = null;
-                    responseData.addons = cachedData.addons;
+                    responseData.addons = addonsWithServiceType;
                     return responseData;
                 }
             } catch (cacheError) {
@@ -507,16 +585,26 @@ const addonsModule = {
 
             const addons = await dbHelper.find('addon', filter, { __v: 0, createdAt: 0, });
 
+            // Convert to plain objects and ensure serviceType is included
+            const addonsArray = (addons || []).map(addon => {
+                const addonObj = typeof addon.toObject === 'function' ? addon.toObject() : addon;
+                // Ensure serviceType field is present (even if null/undefined)
+                if (!('serviceType' in addonObj)) {
+                    addonObj.serviceType = null;
+                }
+                return addonObj;
+            });
+
             // Cache the result
             try {
-                await safeRedisOperations.set(cacheKey, JSON.stringify({ addons }), { EX: 300 }); // 5 minutes TTL
+                await safeRedisOperations.set(cacheKey, JSON.stringify({ addons: addonsArray }), { EX: 300 }); // 5 minutes TTL
             } catch (cacheError) {
                 console.warn('Cache write error:', cacheError.message);
             }
 
             responseData.status = Status.OK;
             responseData.error = null;
-            responseData.addons = addons;
+            responseData.addons = addonsArray;
         } catch (error) {
             console.error('Error searching add-ons:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
@@ -586,6 +674,41 @@ function isValidUnit(unit) {
     if (!isPresent(unit)) return false;
     const validUnits = Object.values(UnitType);
     return validUnits.includes(unit);
+}
+
+function isValidServiceType(serviceType) {
+    if (!isPresent(serviceType)) return false;
+    // Normalize the service type to match constants
+    const normalized = String(serviceType).toLowerCase().trim();
+    const validTypes = Object.values(ServiceType).map(v => v.toLowerCase());
+    // Also allow "all" (case-insensitive) as a special case
+    return validTypes.includes(normalized) || normalized === 'all';
+}
+
+/**
+ * Normalizes service type to match ServiceType constants format
+ * @param {string} serviceType - The service type to normalize
+ * @returns {string|null} - Normalized service type or null if invalid
+ */
+function normalizeServiceType(serviceType) {
+    if (!isPresent(serviceType)) return null;
+    const normalized = String(serviceType).toLowerCase().trim();
+    
+    // Map lowercase values to proper ServiceType constants
+    if (normalized === 'event') return ServiceType.EVENT;
+    if (normalized === 'event and lodging') return ServiceType.EVENT_AND_LODGING;
+    if (normalized === 'lodging') return ServiceType.LODGING;
+    if (normalized === 'all') return 'All'; // Special case
+    
+    // If it already matches a constant (case-insensitive), return the proper constant
+    const validTypes = Object.values(ServiceType);
+    for (const type of validTypes) {
+        if (type.toLowerCase() === normalized) {
+            return type;
+        }
+    }
+    
+    return null;
 }
 
 /**

@@ -29,6 +29,7 @@ export const FileKind = {
     MEMORANDUM_OF_AGREEMENT: 'Memorandum of Agreement',
     SERVICE_CONTRACT: 'Service Contract',
     CERTIFICATE_OF_AVAILABILITY_OF_FUNDS: 'Certificate of Availability of Funds',
+    PROOF_OF_PAYMENT: 'Proof of Payment',
 }
 
 export const Category = {
@@ -73,7 +74,10 @@ export const ServiceType = {
 
 export const UnitType = {
     DAY: 'day',
+    PER_DAY: 'per day',
+    PER_EVENT: 'per event',
     WATT: 'watt',
+    WATTS: 'watts',
     PC: 'pc',
     MINS: 'mins',
     CERT: 'cert',

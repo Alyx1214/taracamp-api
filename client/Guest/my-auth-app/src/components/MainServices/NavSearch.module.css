@@ -333,18 +333,21 @@
     height: 18px;
   }
   .searchFilter {
-    flex-direction: column;
+    flex-direction: row;
     align-items: stretch;
   }
-  .searchInput,
-  .filterInput,
-  .searchButton,
-  .filterButton {
+  .filterInput {
     width: 100%;
     max-width: none;
   }
   .searchButton,
   .filterButton {
     border-radius: 20px;
+  }
+}
+
+@media (max-width: 390px) {
+  .searchInput {
+    width: 35px;
   }
 }

@@ -15,11 +15,6 @@ function ContactsPage() {
     window.location.href = 'tel:+63744423517'; 
   };
 
-  const handleChatWithUsClick = () => {
-    console.log("Chat with us clicked!");
-    // TODO: Implement chat functionality
-  };
-
   const teachersCampAddress = "Teachers' Camp, Leonard Wood Road, Baguio City, Philippines";
 
   return (
@@ -79,10 +74,6 @@ function ContactsPage() {
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="feather feather-phone"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-3.07-8.63A2 2 0 0 1 4.11 2H7c.55 0 1.05.22 1.41.59L9.4 4.1a2 2 0 0 1 .27 2.53l-2.54 2.54a15.9 15.9 0 0 0 7.46 7.46l2.54-2.54a2 2 0 0 1 2.53.27l1.52 1.52c.37.36.59.86.59 1.41z"></path></svg>
                 TELEPHONE NUMBER
               </button>
-              <button className={styles.contactButton} onClick={handleChatWithUsClick}>
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="feather feather-message-square"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-                CHAT WITH US!
-              </button>
             </div>
 
             <div className={styles.howToGetHereCard}>
@@ -102,13 +93,6 @@ function ContactsPage() {
           </div>
         </section>
       </main>
-      {/* Floating Reserve Button
-      <ReserveNow
-        navigateTo="/user/services"
-        className={styles.floatingReserveBtn}
-      >
-        Reserve Now
-      </ReserveNow> */}
       <Footer />
     </div>
   );

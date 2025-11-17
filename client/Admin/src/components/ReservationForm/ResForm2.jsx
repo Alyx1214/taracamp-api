@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useParams, useSearchParams } from 'react-router-dom';
 import styles from './ResForm2.module.css';
 import { ArrowLeft } from 'lucide-react';
 import ErrorBanner from '../ErrorBanner/ErrorBanner';
@@ -10,6 +10,8 @@ import { getAllAddons } from '../../apis/addonsApi';
 function ReservationFormStep2() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const { type, facilityName, id } = useParams();
 
   const step1 = location.state?.step1 || {};
   const file = location.state?.file || null;
@@ -20,27 +22,47 @@ function ReservationFormStep2() {
   const userEmail = location.state?.userEmail || null;
   const originalType = location.state?.originalType || null; // Original type from edit mode
 
+  const routeFacilityType = useMemo(() => {
+    const t = String(type || '').toLowerCase();
+    if (t.startsWith('dormi')) return 'Dormitory';
+    if (t.startsWith('cott')) return 'Cottage';
+    if (t.startsWith('conf')) return 'Conference';
+    return '';
+  }, [type]);
+
+  const urlFacilityType = useMemo(() => {
+    const facilityType = searchParams.get('facilityType');
+    return facilityType || routeFacilityType;
+  }, [searchParams, routeFacilityType]);
+
   useEffect(() => {
     if (!location.state?.step1 || !Object.keys(location.state.step1).length) {
-      navigate(`/reservation-form`, { replace: true });
+      // If we have URL parameters, use them; otherwise fallback to basic route
+      if (type && facilityName && id) {
+        navigate(`/reservation-form/${type}/${facilityName}/${id}`, { replace: true });
+      } else {
+        navigate(`/reservation-form`, { replace: true });
+      }
     }
-  }, [location.state, navigate]);
+  }, [location.state, type, facilityName, id, navigate]);
 
 
 
   const [formData, setFormData] = useState({
     dateArrival: '',
     dateDeparture: '',
-    typeFacilities: '',
+    typeFacilities: urlFacilityType,
     facilityName: '',
     typeService: '',
-    timeArrivalHour: '2',
+    timeArrivalHour: '02',
     timeArrivalAMPM: 'PM',
+    customService: '',
     specialRequests: '',
   });
 
   const [facilityOptions, setFacilityOptions] = useState([]);
   const [specialOptions, setSpecialOptions] = useState([]);
+  const [allAddons, setAllAddons] = useState([]); // Store all addons with serviceType
   const [selectedAddons, setSelectedAddons] = useState([]);
   const [loadingFacilities, setLoadingFacilities] = useState(false);
   const [loadingSpecials, setLoadingSpecials] = useState(false);
@@ -49,6 +71,7 @@ function ReservationFormStep2() {
   const [checkingAvail, setCheckingAvail] = useState(false);
   const [isAvailable, setIsAvailable] = useState(null);
   const [availReason, setAvailReason] = useState('');
+  const [autoSetServiceForDorm, setAutoSetServiceForDorm] = useState(false);
   const availReqId = useRef(0);
   const totalGuests = useMemo(() => {
     const a = parseInt(step1?.guests?.adult || 0, 10) || 0;
@@ -58,10 +81,20 @@ function ReservationFormStep2() {
     return a + c + p + s;
   }, [step1]);
 
+  const numberOfSeniors = useMemo(() => {
+    return parseInt(step1?.guests?.senior || 0, 10) || 0;
+  }, [step1]);
+
   useEffect(() => {
     let hydrated = false;
     if (location.state?.step2) {
-      setFormData(prev => ({ ...prev, ...location.state.step2, typeFacilities: prev.typeFacilities || location.state.step2.typeFacilities || ''}));
+      // step2.dateArrival is now the original date (not adjusted)
+      // We can use it directly
+      setFormData(prev => ({
+        ...prev,
+        ...location.state.step2,
+        typeFacilities: prev.typeFacilities || urlFacilityType || location.state.step2.typeFacilities || ''
+      }));
       if (location.state.step2.selectedAddons) {
         setSelectedAddons(location.state.step2.selectedAddons);
       }
@@ -88,13 +121,35 @@ function ReservationFormStep2() {
       hydrated = true;
     }
     if (location.state?.errorsStep2) setFieldErrors(location.state.errorsStep2);
+
+    // Handle preselected dates from ServiceDetail
+    if (location.state?.preselectedDates) {
+      const { dateArrival, dateDeparture } = location.state.preselectedDates;
+      setFormData(prev => ({
+        ...prev,
+        dateArrival: dateArrival || prev.dateArrival,
+        dateDeparture: dateDeparture || prev.dateDeparture,
+        typeFacilities: prev.typeFacilities || urlFacilityType
+      }));
+      hydrated = true;
+    }
+
     if (!hydrated) {
       try {
         const saved = sessionStorage.getItem('reservation.step2');
         if (saved) {
           const parsed = JSON.parse(saved);
           if (parsed && typeof parsed === 'object') {
-            setFormData(prev => ({ ...prev, ...parsed }));
+            setFormData(prev => ({
+              ...prev,
+              ...parsed,
+              typeFacilities: prev.typeFacilities || urlFacilityType,
+              // Ensure preselected dates override sessionStorage
+              ...(location.state?.preselectedDates && {
+                dateArrival: location.state.preselectedDates.dateArrival || prev.dateArrival,
+                dateDeparture: location.state.preselectedDates.dateDeparture || prev.dateDeparture
+              })
+            }));
             if (parsed.selectedAddons) {
               setSelectedAddons(parsed.selectedAddons);
             }
@@ -102,7 +157,7 @@ function ReservationFormStep2() {
         }
       } catch {}
     }
-  }, [location.state]);
+  }, [location.state, urlFacilityType, isEdit]);
 
   // Add original facility to options list immediately when editing
   useEffect(() => {
@@ -166,7 +221,7 @@ function ReservationFormStep2() {
     }
   }, [isDormitory, isIndividual, specialOptions]);
 
-  // Auto-add corkage fee when includeFood is "no" and specialOptions are loaded
+  // Auto-add corkage fee and remove catering when includeFood is "no" and specialOptions are loaded
   useEffect(() => {
     if (!isDormitory && !isIndividual && formData.includeFood === 'no' && specialOptions.length > 0) {
       const corkageFeeAddon = specialOptions.find(opt => 
@@ -182,10 +237,16 @@ function ReservationFormStep2() {
           return prev;
         });
       }
+      
+      // Remove any catering add-ons
+      setSelectedAddons(prev => prev.filter(addon => {
+        const label = (addon.label || '').toLowerCase();
+        return !label.includes('catering');
+      }));
     }
   }, [formData.includeFood, specialOptions, isDormitory, isIndividual]);
 
-  // Ensure corkage fee remains when includeFood is "no" (safeguard against manual removal)
+  // Ensure corkage fee remains and catering is removed when includeFood is "no" (safeguard against manual removal)
   useEffect(() => {
     if (!isDormitory && !isIndividual && formData.includeFood === 'no' && specialOptions.length > 0) {
       const corkageFeeAddon = specialOptions.find(opt => 
@@ -197,6 +258,32 @@ function ReservationFormStep2() {
           const exists = prev.some(addon => addon.value === corkageFeeAddon.value);
           if (!exists) {
             return [...prev, corkageFeeAddon];
+          }
+          // Also ensure no catering add-ons are present
+          const hasCatering = prev.some(addon => {
+            const label = (addon.label || '').toLowerCase();
+            return label.includes('catering');
+          });
+          if (hasCatering) {
+            return prev.filter(addon => {
+              const label = (addon.label || '').toLowerCase();
+              return !label.includes('catering');
+            });
+          }
+          return prev;
+        });
+      } else {
+        // Even if no corkage fee, remove catering
+        setSelectedAddons(prev => {
+          const hasCatering = prev.some(addon => {
+            const label = (addon.label || '').toLowerCase();
+            return label.includes('catering');
+          });
+          if (hasCatering) {
+            return prev.filter(addon => {
+              const label = (addon.label || '').toLowerCase();
+              return !label.includes('catering');
+            });
           }
           return prev;
         });
@@ -248,9 +335,12 @@ function ReservationFormStep2() {
         if (!active) return;
 
         const arr = Array.isArray(json.addons) ? json.addons : [];
+        // Store all addons with their serviceType
+        setAllAddons(arr);
         const opts = arr.map((s) => ({
           value: String(s._id),
           label: s.name,
+          serviceType: s.serviceType || null,
         }));
         setSpecialOptions(opts);
       } catch (e) {
@@ -261,6 +351,48 @@ function ReservationFormStep2() {
     })();
     return () => { active = false; };
   }, []);
+
+  // Filter add-ons based on service type and includeFood
+  const filteredSpecialOptions = useMemo(() => {
+    let filtered = specialOptions;
+    
+    // Filter by service type if selected
+    if (formData.typeService) {
+      const selectedServiceType = formData.typeService;
+      
+      // If "Event and Lodging" is selected, show all add-ons (don't filter by service type)
+      if (selectedServiceType !== 'Event and Lodging') {
+        filtered = filtered.filter(opt => {
+          const addon = allAddons.find(a => String(a._id) === opt.value);
+          if (!addon || !addon.serviceType) {
+            // If addon has no serviceType, show it for all service types
+            return true;
+          }
+          
+          const addonServiceType = addon.serviceType;
+          
+          // Match logic:
+          // - If user selects "Event", show addons with serviceType "Event" or "All"
+          // - If user selects "Lodging", show addons with "Lodging" or "All"
+          if (addonServiceType === 'All') {
+            return true; // "All" type addons appear for all service types
+          }
+          
+          return addonServiceType === selectedServiceType;
+        });
+      }
+    }
+    
+    // Filter out catering add-ons when includeFood is "no" (existing logic)
+    if (formData.includeFood === 'no') {
+      filtered = filtered.filter(opt => {
+        const label = (opt.label || '').toLowerCase();
+        return !label.includes('catering');
+      });
+    }
+    
+    return filtered;
+  }, [specialOptions, formData.typeService, formData.includeFood, allAddons]);
 
   useEffect(() => {
     let active = true;
@@ -336,7 +468,10 @@ function ReservationFormStep2() {
               }
               return stillExists ? prev : { ...prev, facilityName: '' };
           }
-          return prev;
+
+          const urlMatch = list.find(o => o._id === String(id));
+          return urlMatch ? { ...prev, facilityName: urlMatch._id } : prev;
+
         });
       } catch (e) {
         if (active) setErr({ message: e.message || 'Failed to load facilities' });
@@ -382,7 +517,7 @@ function ReservationFormStep2() {
       return;
     }
 
-    // Handle includeFood change - automatically add/remove corkage fee
+    // Handle includeFood change - automatically add/remove corkage fee and remove catering
     // Only process if question is visible (not dormitory and not individual)
     if (name === 'includeFood') {
       const isDorm = formData.typeFacilities?.toLowerCase().includes('dormitory');
@@ -398,15 +533,23 @@ function ReservationFormStep2() {
           opt.label && opt.label.toLowerCase().includes('corkage')
         );
         
-        if (value === 'no' && corkageFeeAddon) {
+        if (value === 'no') {
           // Add corkage fee if not already in selectedAddons
-          setSelectedAddons(prev => {
-            const exists = prev.some(addon => addon.value === corkageFeeAddon.value);
-            if (!exists) {
-              return [...prev, corkageFeeAddon];
-            }
-            return prev;
-          });
+          if (corkageFeeAddon) {
+            setSelectedAddons(prev => {
+              const exists = prev.some(addon => addon.value === corkageFeeAddon.value);
+              if (!exists) {
+                return [...prev, corkageFeeAddon];
+              }
+              return prev;
+            });
+          }
+          
+          // Remove any catering add-ons when user selects "no"
+          setSelectedAddons(prev => prev.filter(addon => {
+            const label = (addon.label || '').toLowerCase();
+            return !label.includes('catering');
+          }));
         } else if (value === 'yes' && corkageFeeAddon) {
           // Remove corkage fee if it exists in selectedAddons
           setSelectedAddons(prev => prev.filter(addon => addon.value !== corkageFeeAddon.value));
@@ -415,29 +558,29 @@ function ReservationFormStep2() {
       return;
     }
 
+    // Reset arrival time to 2pm when arrival date changes
+    if (name === 'dateArrival') {
+      setFormData(prev => ({ 
+        ...prev, 
+        [name]: value,
+        timeArrivalHour: '02',
+        timeArrivalAMPM: 'PM'
+      }));
+      setFieldErrors(prev => ({ ...prev, [name]: undefined }));
+      setIsAvailable(null);
+      setAvailReason('');
+      return;
+    }
+
     setFormData(prev => ({ ...prev, [name]: value }));
     setFieldErrors(prev => ({ ...prev, [name]: undefined }));
 
-    if (name === 'dateArrival' || name === 'dateDeparture') {
+    if (name === 'dateDeparture') {
       setIsAvailable(null);
       setAvailReason('');
     }
   };
 
-  function validateStep2Local() {
-    const e = {};
-    if (!formData.dateArrival) e.dateArrival = 'Required';
-    if (!formData.dateDeparture) e.dateDeparture = 'Required';
-    if (formData.dateArrival && formData.dateDeparture && formData.dateDeparture < formData.dateArrival) {
-      e.dateDeparture = 'Departure must be after arrival.';
-    }
-    if (!formData.typeFacilities) e.typeFacilities = 'Select a facility type.';
-    if (!formData.facilityName) e.facilityName = 'Select a facility.';
-    if (!formData.typeService) e.typeService = 'Select a service type.';
-    if (!formData.timeArrivalHour) e.timeArrivalHour = 'Enter arrival hour.';
-    setFieldErrors(e);
-    return Object.keys(e).length === 0;
-  }
 
   const chosenFacility = facilityOptions.find(o => o._id === formData.facilityName);
   // When editing, use capacity from formData if available, otherwise use from chosenFacility
@@ -495,17 +638,47 @@ function ReservationFormStep2() {
     return () => clearTimeout(t);
   }, [formData.facilityName, formData.dateArrival, formData.dateDeparture, totalGuests, chosenFacility?.capacity, capacityOk, isEdit, reservationId]);
 
+  function validateStep2Local() {
+    const e = {};
+    if (!formData.typeService) e.typeService = 'Select a service type.';
+    setFieldErrors(e);
+    return Object.keys(e).length === 0;
+  }
+
+  useEffect(() => {
+    if (isDormitory) {
+      if (!formData.typeService) {
+        setFormData(prev => ({ ...prev, typeService: 'Lodging' }));
+        setAutoSetServiceForDorm(true);
+      } else {
+        setAutoSetServiceForDorm(false);
+      }
+      return;
+    }
+
+    if (!isDormitory && autoSetServiceForDorm) {
+      setFormData(prev => ({ ...prev, typeService: '' }));
+      setAutoSetServiceForDorm(false);
+    }
+  }, [isDormitory, formData.typeService, autoSetServiceForDorm]);
+
   // Restrict individuals from selecting Conference facility type
   useEffect(() => {
-    if (isIndividual && formData.typeFacilities === 'Conference') {
-      setFormData(prev => ({ ...prev, typeFacilities: '', facilityName: '' }));
-      setFacilityOptions([]);
+    if (isIndividual && formData.typeFacilities?.toLowerCase() === 'conference') {
+      // Redirect to reservation form step 1 if individual tries to access Conference
+      navigate('/reservation-form', { 
+        replace: true,
+        state: { 
+          error: 'Individuals cannot select Conference facility type. Please select Dormitory or Cottage instead.',
+          step1 
+        } 
+      });
     }
-  }, [isIndividual, formData.typeFacilities]);
+  }, [isIndividual, formData.typeFacilities, navigate, step1]);
 
   // Restrict individuals to only "Lodging" service type
   useEffect(() => {
-    if (isIndividual) {
+    if (isIndividual && !isDormitory) {
       // If individual has selected Event or Event and Lodging, reset to Lodging
       if (formData.typeService === 'Event' || formData.typeService === 'Event and Lodging') {
         setFormData(prev => ({ ...prev, typeService: 'Lodging' }));
@@ -514,7 +687,7 @@ function ReservationFormStep2() {
         setFormData(prev => ({ ...prev, typeService: 'Lodging' }));
       }
     }
-  }, [isIndividual, formData.typeService]);
+  }, [isIndividual, isDormitory, formData.typeService]);
 
   const handlePrevious = () => {
     navigate(`/reservation-form`, { state: { step1, step2: formData, file, seniorCitizenIdFiles, pwdIdFiles, reservationId, isEdit, userEmail } });
@@ -560,8 +733,13 @@ function ReservationFormStep2() {
       return;
     }
 
+    // Note: We don't adjust the date here - the backend will handle the adjustment in computeEstimate
+    // The backend validates the original date, then adjusts it internally for billing purposes
+    // We only adjust the date for display purposes in the UI
     const step2 = {
       ...formData,
+      // Keep the original dateArrival - backend will adjust it if needed
+      dateArrival: formData.dateArrival,
       facilityIdFromList: chosen._id,
       facilityLabelFromList: chosen.label,
       facilityCapacity: chosen.capacity,
@@ -680,14 +858,70 @@ function ReservationFormStep2() {
               <div className={styles.formRow}>
                 <div className={styles.formGroup}>
                   <label className={styles.label}>Date of Arrival <span className={styles.required}>*</span></label>
-                  <input
-                    type="date"
-                    name="dateArrival"
-                    min={minArrival}
-                    value={formData.dateArrival}
-                    onChange={handleInputChange}
-                    className={`${styles.input} ${fieldErrors.dateArrival ? styles.inputError : ''}`}
-                  />
+                  {(() => {
+                    // Calculate adjusted date for display if arrival time is before 2pm
+                    let displayDate = formData.dateArrival;
+                    if (formData.dateArrival && formData.timeArrivalHour) {
+                      const timeArrivalHour = parseInt(formData.timeArrivalHour || '02', 10) || 2;
+                      const timeArrivalAMPM = formData.timeArrivalAMPM || 'PM';
+                      const hour24 = timeArrivalAMPM === 'PM' && timeArrivalHour !== 12 
+                        ? timeArrivalHour + 12 
+                        : (timeArrivalAMPM === 'AM' && timeArrivalHour === 12 ? 0 : timeArrivalHour);
+                      const isEarlyArrival = hour24 < 14;
+                      
+                      if (isEarlyArrival) {
+                        // Adjust date to previous day for display
+                        const arrivalDate = new Date(formData.dateArrival);
+                        arrivalDate.setDate(arrivalDate.getDate() - 1);
+                        const year = arrivalDate.getFullYear();
+                        const month = String(arrivalDate.getMonth() + 1).padStart(2, '0');
+                        const day = String(arrivalDate.getDate()).padStart(2, '0');
+                        displayDate = `${year}-${month}-${day}`;
+                      }
+                    }
+                    
+                    return (
+                      <input
+                        type="date"
+                        name="dateArrival"
+                        min={minArrival}
+                        value={displayDate}
+                        onChange={(e) => {
+                          // When user changes the date, if time is before 2pm, adjust it back to original
+                          let originalDate = e.target.value;
+                          if (formData.timeArrivalHour) {
+                            const timeArrivalHour = parseInt(formData.timeArrivalHour || '02', 10) || 2;
+                            const timeArrivalAMPM = formData.timeArrivalAMPM || 'PM';
+                            const hour24 = timeArrivalAMPM === 'PM' && timeArrivalHour !== 12 
+                              ? timeArrivalHour + 12 
+                              : (timeArrivalAMPM === 'AM' && timeArrivalHour === 12 ? 0 : timeArrivalHour);
+                            const isEarlyArrival = hour24 < 14;
+                            
+                            if (isEarlyArrival) {
+                              // User is editing the adjusted date, so add one day to get the original
+                              const date = new Date(originalDate);
+                              date.setDate(date.getDate() + 1);
+                              const year = date.getFullYear();
+                              const month = String(date.getMonth() + 1).padStart(2, '0');
+                              const day = String(date.getDate()).padStart(2, '0');
+                              originalDate = `${year}-${month}-${day}`;
+                            }
+                          }
+                          // Reset time to 2pm when date changes
+                          setFormData(prev => ({ 
+                            ...prev, 
+                            dateArrival: originalDate,
+                            timeArrivalHour: '02',
+                            timeArrivalAMPM: 'PM'
+                          }));
+                          setFieldErrors(prev => ({ ...prev, dateArrival: undefined }));
+                          setIsAvailable(null);
+                          setAvailReason('');
+                        }}
+                        className={`${styles.input} ${fieldErrors.dateArrival ? styles.inputError : ''}`}
+                      />
+                    );
+                  })()}
                   {fieldErrors.dateArrival && (
                     <div className={styles.fieldError}>{fieldErrors.dateArrival}</div>
                   )}
@@ -695,14 +929,39 @@ function ReservationFormStep2() {
 
                 <div className={styles.formGroup}>
                   <label className={styles.label}>Date of Departure <span className={styles.required}>*</span></label>
-                  <input
-                    type="date"
-                    name="dateDeparture"
-                    min={formData.dateArrival || minArrival}
-                    value={formData.dateDeparture}
-                    onChange={handleInputChange}
-                    className={`${styles.input} ${fieldErrors.dateDeparture ? styles.inputError : ''}`}
-                  />
+                  {(() => {
+                    // Calculate min date for departure - should be based on the displayed arrival date (adjusted if early arrival)
+                    let minDepartureDate = formData.dateArrival || minArrival;
+                    if (formData.dateArrival && formData.timeArrivalHour) {
+                      const timeArrivalHour = parseInt(formData.timeArrivalHour || '02', 10) || 2;
+                      const timeArrivalAMPM = formData.timeArrivalAMPM || 'PM';
+                      const hour24 = timeArrivalAMPM === 'PM' && timeArrivalHour !== 12 
+                        ? timeArrivalHour + 12 
+                        : (timeArrivalAMPM === 'AM' && timeArrivalHour === 12 ? 0 : timeArrivalHour);
+                      const isEarlyArrival = hour24 < 14;
+                      
+                      if (isEarlyArrival) {
+                        // Use adjusted arrival date as min for departure
+                        const arrivalDate = new Date(formData.dateArrival);
+                        arrivalDate.setDate(arrivalDate.getDate() - 1);
+                        const year = arrivalDate.getFullYear();
+                        const month = String(arrivalDate.getMonth() + 1).padStart(2, '0');
+                        const day = String(arrivalDate.getDate()).padStart(2, '0');
+                        minDepartureDate = `${year}-${month}-${day}`;
+                      }
+                    }
+                    
+                    return (
+                      <input
+                        type="date"
+                        name="dateDeparture"
+                        min={minDepartureDate}
+                        value={formData.dateDeparture}
+                        onChange={handleInputChange}
+                        className={`${styles.input} ${fieldErrors.dateDeparture ? styles.inputError : ''}`}
+                      />
+                    );
+                  })()}
                   {fieldErrors.dateDeparture && (
                     <div className={styles.fieldError}>{fieldErrors.dateDeparture}</div>
                   )}
@@ -800,26 +1059,42 @@ function ReservationFormStep2() {
                     <div className={styles.fieldError}>{fieldErrors.typeService}</div>
                   )}
 
+                  {formData.typeService === 'Other' && (
+                    <input
+                      type="text"
+                      name="customService"
+                      value={formData.customService || ''}
+                      onChange={handleInputChange}
+                      placeholder="Please specify..."
+                      className={styles.input}
+                      style={{ marginTop: 8 }}
+                    />
+                  )}
                 </div>
 
                 <div className={styles.formGroup}>
                   <label className={styles.label}>Time of Arrival <span className={styles.required}>*</span></label>
-                  <div className={styles.timeInput}>
-                    <input
-                      type="number"
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <select
                       name="timeArrivalHour"
                       value={formData.timeArrivalHour}
                       onChange={handleInputChange}
-                      className={`${styles.timeInputBox} ${fieldErrors.timeArrivalHour ? styles.inputError : ''}`}
-                      placeholder="HH"
-                      min="1"
-                      max="12"
-                    />
+                      className={styles.input}
+                      style={{ flex: 1 }}
+                    >
+                      <option value="">Hour</option>
+                      {Array.from({ length: 12 }, (_, i) => i + 1).map(hour => (
+                        <option key={hour} value={hour.toString().padStart(2, '0')}>
+                          {hour.toString().padStart(2, '0')}
+                        </option>
+                      ))}
+                    </select>
                     <select
                       name="timeArrivalAMPM"
                       value={formData.timeArrivalAMPM}
                       onChange={handleInputChange}
-                      className={styles.ampmSelect}
+                      className={styles.input}
+                      style={{ flex: 0, minWidth: '70px' }}
                     >
                       <option value="AM">AM</option>
                       <option value="PM">PM</option>
@@ -878,7 +1153,7 @@ function ReservationFormStep2() {
                     <option value="">
                       {loadingSpecials ? 'Loading options…' : 'Select add ons'}
                     </option>
-                    {specialOptions.map(request => (
+                    {filteredSpecialOptions.map(request => (
                       <option key={request.value} value={request.value}>
                         {request.label}
                       </option>
@@ -889,7 +1164,7 @@ function ReservationFormStep2() {
                     className={styles.addRequestButton}
                     onClick={() => {
                       if (formData.specialRequests) {
-                        const selectedOption = specialOptions.find(opt => opt.value === formData.specialRequests);
+                        const selectedOption = filteredSpecialOptions.find(opt => opt.value === formData.specialRequests);
                         if (selectedOption && !selectedAddons.some(addon => addon.value === selectedOption.value)) {
                           setSelectedAddons(prev => [...prev, selectedOption]);
                           setFormData(prev => ({ ...prev, specialRequests: '' }));
@@ -1017,11 +1292,41 @@ function ReservationFormStep2() {
                   <div className={styles.summaryRow}>
                     <span className={styles.summaryLabel}>Date of Arrival:</span>
                     <span className={styles.summaryValue}>
-                      {formData.dateArrival ? new Date(formData.dateArrival).toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric'
-                      }) : 'Not selected'}
+                      {(() => {
+                        if (!formData.dateArrival) return 'Not selected';
+                        
+                        // Check if arrival time is before 2pm (early arrival)
+                        const timeArrivalHour = parseInt(formData.timeArrivalHour || '02', 10) || 2;
+                        const timeArrivalAMPM = formData.timeArrivalAMPM || 'PM';
+                        const hour24 = timeArrivalAMPM === 'PM' && timeArrivalHour !== 12 
+                          ? timeArrivalHour + 12 
+                          : (timeArrivalAMPM === 'AM' && timeArrivalHour === 12 ? 0 : timeArrivalHour);
+                        const isEarlyArrival = hour24 < 14;
+                        
+                        if (isEarlyArrival) {
+                          // Adjust date to previous day
+                          const arrivalDate = new Date(formData.dateArrival);
+                          arrivalDate.setDate(arrivalDate.getDate() - 1);
+                          return (
+                            <>
+                              {arrivalDate.toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric'
+                              })}
+                              <span style={{ color: '#666', fontSize: '0.85em', marginLeft: '6px', display: 'block' }}>
+                                (adjusted for early check-in)
+                              </span>
+                            </>
+                          );
+                        }
+                        
+                        return new Date(formData.dateArrival).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric'
+                        });
+                      })()}
                     </span>
                   </div>
 
@@ -1039,7 +1344,7 @@ function ReservationFormStep2() {
                   <div className={styles.summaryRow}>
                     <span className={styles.summaryLabel}>Type of Service:</span>
                     <span className={styles.summaryValue}>
-                      {formData.typeService || 'Not selected'}
+                      {formData.typeService === 'Other' ? (formData.customService || 'Other') : (formData.typeService || 'Not selected')}
                     </span>
                   </div>
 

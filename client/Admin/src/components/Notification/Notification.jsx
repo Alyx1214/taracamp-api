@@ -192,7 +192,7 @@ export default function Notification({ onMarkAllAsRead }) {
 
     // For booking_success notifications, show preview
     if (notif.kind === 'booking_success' || 
-        (notif.title && notif.title.includes("Congratulations, Camper! You have successfully booked a reservation!"))) {
+        (notif.title && notif.title.includes("Congratulations, Camper! You have successfully submitted your reservation request!"))) {
       setSelected(notif);
       setStage('preview');
       return;

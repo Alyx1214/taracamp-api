@@ -301,14 +301,15 @@ function ResDetails({ onClose }) {
       // Require Senior Citizen ID if there are seniors, EXCEPT for:
       // - gov/deped groups or individuals (only gov ID needed)
       // - PWD groups or individuals (only PWD ID needed)
+      // - private groups (Senior Citizen ID is optional, PWD ID takes priority if both present)
       // - private+individual WITHOUT seniors (no ID needed)
       // But DO require it for:
-      // - private groups WITH seniors (Senior Citizen ID is required)
       // - private+individual WITH seniors
       const shouldSkipSeniorCitizenId = (isGroup && isGovernmentCategory) || 
                                        (isIndividual && isGovernmentCategory) || 
                                        (isGroup && isPwdCategory) || 
                                        (isIndividual && isPwdCategory) ||
+                                       (isGroup && isPrivateCategory) ||
                                        (isPrivateAndIndividual && !isPrivateAndIndividualWithSeniors);
       if (numberOfSeniors > 0 && seniorCitizenFiles.length === 0 && !shouldSkipSeniorCitizenId) {
         throw new Error('At least one Senior Citizen ID file is required when there are senior citizens.');

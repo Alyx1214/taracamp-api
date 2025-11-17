@@ -125,12 +125,33 @@ function ReservationForm() {
     return Math.max(0, n);
   };
 
+  // Calculate available capacity - for dormitories, sum available rooms; otherwise use facility capacity
+  const getAvailableCapacity = () => {
+    if (!facility) return 0;
+    
+    // For dormitories, calculate capacity from available rooms
+    if (facility.facilityType === 'Dormitory' && Array.isArray(facility.rooms) && facility.rooms.length > 0) {
+      const availableRoomsCapacity = facility.rooms.reduce((sum, room) => {
+        if (room.status === 'Available') {
+          const roomCapacity = Number(room.capacity) || 0;
+          return sum + roomCapacity;
+        }
+        return sum;
+      }, 0);
+      return availableRoomsCapacity > 0 ? availableRoomsCapacity : (facility.capacity || 0);
+    }
+    
+    // For other facility types, use facility capacity
+    return facility.capacity || 0;
+  };
+
   const handleGuestChange = (e) => {
     const { name, value } = e.target;
     let clean = value === '' ? '' : clampNonNegativeInt(value);
     
     // If facility has a capacity, prevent total from exceeding it
-    if (facility?.capacity && clean !== '') {
+    const availableCapacity = getAvailableCapacity();
+    if (availableCapacity > 0 && clean !== '') {
       const currentValue = parseInt(clean, 10);
       if (Number.isFinite(currentValue)) {
         // Calculate total of all other guest fields (excluding the one being changed)
@@ -142,7 +163,7 @@ function ReservationForm() {
           }, 0);
         
         // Calculate maximum allowed value for this field
-        const maxAllowed = facility.capacity - otherTotals;
+        const maxAllowed = availableCapacity - otherTotals;
         
         // Clamp the value to not exceed capacity
         if (currentValue > maxAllowed) {
@@ -190,8 +211,20 @@ function ReservationForm() {
     if (p < 0) e.guestsPwds = 'PWD guests cannot be negative.';
     if (s < 0) e.guestsSenior = 'Senior citizen guests cannot be negative.';
     if (total <= 0) e.guestsTotal = 'At least 1 guest is required.';
-    if (facility?.capacity && total > facility.capacity) {
-      e.guestsTotal = `Total guests (${total}) exceeds facility capacity (${facility.capacity}).`;
+    
+    // Calculate available capacity - for dormitories, sum available rooms; otherwise use facility capacity
+    const availableCapacity = facility?.facilityType === 'Dormitory' && Array.isArray(facility?.rooms) && facility.rooms.length > 0
+      ? facility.rooms.reduce((sum, room) => {
+          if (room.status === 'Available') {
+            const roomCapacity = Number(room.capacity) || 0;
+            return sum + roomCapacity;
+          }
+          return sum;
+        }, 0)
+      : (facility?.capacity || 0);
+    
+    if (availableCapacity > 0 && total > availableCapacity) {
+      e.guestsTotal = `Total guests (${total}) exceeds available facility capacity (${availableCapacity}).`;
     }
 
     // Require at least 1 PWD guest when PWD category is selected
@@ -394,7 +427,8 @@ function ReservationForm() {
                 )}
               </div>
 
-              <div className={styles.formRow}>
+            <div className={styles.formRow}>
+              <div className={styles.guestRow}>
                 <div className={styles.formGroup}>
                   <label className={styles.label} htmlFor="adult">Adult</label>
                   <input
@@ -409,6 +443,7 @@ function ReservationForm() {
                   />
                   {errors.guestsAdult && <div className={styles.fieldError}>{errors.guestsAdult}</div>}
                 </div>
+
                 <div className={styles.formGroup}>
                   <label className={styles.label} htmlFor="children">Children (6 below)</label>
                   <input
@@ -423,6 +458,9 @@ function ReservationForm() {
                   />
                   {errors.guestsChildren && <div className={styles.fieldError}>{errors.guestsChildren}</div>}
                 </div>
+              </div>
+
+              <div className={styles.guestRow}>
                 <div className={styles.formGroup}>
                   <label className={styles.label} htmlFor="senior">Senior Citizen</label>
                   <input
@@ -437,6 +475,7 @@ function ReservationForm() {
                   />
                   {errors.guestsSenior && <div className={styles.fieldError}>{errors.guestsSenior}</div>}
                 </div>
+
                 <div className={styles.formGroup}>
                   <label className={styles.label} htmlFor="pwds">PWDs</label>
                   <input
@@ -451,18 +490,20 @@ function ReservationForm() {
                   />
                   {errors.guestsPwds && <div className={styles.fieldError}>{errors.guestsPwds}</div>}
                 </div>
-                <div className={styles.formGroup}>
-                  <label className={styles.label} htmlFor="guestsTotal">Total Guests<span className={styles.requiredAsterisk}>*</span></label>
-                  <input
-                    id="guestsTotal"
-                    type="number"
-                    value={totalGuests}
-                    readOnly
-                    className={styles.input}
-                  />
-                  {errors.guestsTotal && <div className={styles.fieldError}>{errors.guestsTotal}</div>}
               </div>
+
+              <div className={styles.formGroup}>
+                <label className={styles.label} htmlFor="guestsTotal">Total Guests<span className={styles.requiredAsterisk}>*</span></label>
+                <input
+                  id="guestsTotal"
+                  type="number"
+                  value={totalGuests}
+                  readOnly
+                  className={styles.input}
+                />
+                {errors.guestsTotal && <div className={styles.fieldError}>{errors.guestsTotal}</div>}
               </div>
+            </div>
 
               <div className={styles.formGroup}>
                 <label className={styles.label} htmlFor="emergencyContactPerson">Person/s to be notified in case of emergency<span className={styles.requiredAsterisk}>*</span></label>

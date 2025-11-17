@@ -69,7 +69,8 @@ r.get('/admin/user/:userId/messages', asyncHandler(async (req, res) => {
     dbHelper,
     req.user,
     req.params.userId,
-    { limit: req.query.limit, before: req.query.before }
+    { limit: req.query.limit, before: req.query.before },
+    userSocketMap
   );
   res.status(response.status).json(response);
 }));

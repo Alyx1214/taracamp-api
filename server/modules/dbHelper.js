@@ -149,7 +149,7 @@ const dbHelper = {
                 discountedFacilityRate: { type: Number, required: false, },
                 status: { type: String, enum: Object.values(FacilityStatus), default: FacilityStatus.AVAILABLE, required: true, },
                 images: { type: [String], default: [] },
-                rooms: { type: [{ name: String, capacity: Number, status: String }], default: [] },
+                rooms: { type: [{ name: String, capacity: Number, status: String, assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: 'reservation', required: false }, assignedGuests: { type: Number, required: false, default: 0 } }], default: [] },
                 createdAt: { type: Date, default: Date.now, },
             });
 
@@ -157,6 +157,7 @@ const dbHelper = {
                 name: { type: String, required: true, },
                 price: { type: Number, required: true, },
                 unit: { type: String, required: false, },
+                serviceType: { type: String, required: false, },
                 createdAt: { type: Date, default: Date.now, },
             });
 
@@ -193,6 +194,9 @@ const dbHelper = {
                 status: { type: String, required: false, },
                 paymentMethodType: { type: String, required: false, },
                 referenceNumber: { type: String, required: false, },
+                ocrExtractedReferenceNumber: { type: String, required: false, },
+                referenceNumberMismatch: { type: Boolean, required: false, default: false, },
+                proofOfPaymentFileId: { type: mongoose.Schema.Types.ObjectId, ref: 'file', required: false, },
                 createdAt: { type: Date, default: Date.now, },
                 updatedAt: { type: Date, required: false, },
                 paidAt: { type: Date, required: false, },
