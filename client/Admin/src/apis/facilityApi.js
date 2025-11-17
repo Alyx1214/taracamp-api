@@ -36,10 +36,6 @@ export function getFacilityById(id) {
   return apiGet(`/facility/get-facility-by-id/${encodeURIComponent(id)}`);
 }
 
-export function getAvailableDatesByFacility(id) {
-  return apiGet(`/facility/get-available-dates-by-facility/${encodeURIComponent(id)}`);
-}
-
 export function createFacility(payload = {}) {
   const fd = new FormData();
   Object.entries(payload).forEach(([k, v]) => {

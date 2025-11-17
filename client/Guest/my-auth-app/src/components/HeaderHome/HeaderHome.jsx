@@ -344,7 +344,7 @@ function HeaderHome() {
   // WebSocket connection and message handling (following notification pattern)
   useEffect(() => {
     // Initialize WebSocket connection and start auto-reconnect
-    const API_ORIGIN = 'https://taracamp-api.azurewebsites.net';
+    const API_ORIGIN = 'http://localhost:3000';
     
     // Initialize WebSocket immediately
     initSocketFresh(API_ORIGIN).catch(() => {});

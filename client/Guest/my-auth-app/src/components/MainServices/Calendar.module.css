@@ -79,12 +79,29 @@
     background-color: #e0e0e0;
 }
 
+/* Reserved dates - make this very specific to override everything */
+.calendarDate.reservedDate,
 .reservedDate {
-    background-color: #f8d7da; 
-    color: #721c24; 
-    font-weight: normal;
-    cursor: not-allowed; 
-    opacity: 0.8;
+    background-color: #fee2e2 !important; 
+    color: #dc2626 !important; 
+    font-weight: 700 !important;
+    cursor: not-allowed !important; 
+    border: 2px solid #ef4444 !important;
+    box-shadow: 0 2px 6px rgba(239, 68, 68, 0.3) !important;
+}
+
+.reservedDate:hover {
+    background-color: #fecaca !important;
+    border-color: #dc2626 !important;
+    box-shadow: 0 4px 8px rgba(239, 68, 68, 0.4) !important;
+}
+
+/* Ensure reserved dates stay red even when they're today */
+.reservedDate.currentDay {
+    background-color: #fee2e2 !important;
+    color: #dc2626 !important;
+    border: 2px solid #ef4444 !important;
+    box-shadow: 0 2px 6px rgba(239, 68, 68, 0.3) !important;
 }
 
 .currentDay {
@@ -105,4 +122,13 @@
   background-color: #f1f5f9; 
   cursor: not-allowed;
   opacity: 0.6;
+}
+
+/* Ensure reserved dates stay red even when restricted */
+.reservedDate.restrictedDate {
+  background-color: #fee2e2 !important;
+  color: #dc2626 !important;
+  border: 2px solid #ef4444 !important;
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.3) !important;
+  opacity: 1 !important;
 }

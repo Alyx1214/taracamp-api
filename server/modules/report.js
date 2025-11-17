@@ -1,7 +1,8 @@
 import PDFDocument from 'pdfkit';
 import ExcelJS from 'exceljs';
 import dbHelper from './dbHelper.js';
-import { Category, ReservationStatus } from '../constants.js';
+import { Category, ReservationStatus, ServiceType, FacilityType } from '../constants.js';
+import { computeEstimate } from './payment.js';
 
 const reportModule = {
     /**
@@ -39,7 +40,7 @@ const reportModule = {
                 $match: {
                     dateOfArrival: { $lt: endDate },
                     dateOfDeparture: { $gte: startDate },
-                    // status: ReservationStatus.CHECKED_OUT  // Commented out - now includes all statuses
+                    status: ReservationStatus.CHECKED_OUT
                 }
             },
             // Normalize facility id to ObjectId for lookup (handles string ids)
@@ -78,6 +79,44 @@ const reportModule = {
                 }
             },
             { $unwind: { path: '$facility', preserveNullAndEmptyArrays: true } },
+            // Lookup user by email if checkedOutBy is an email
+            {
+                $addFields: {
+                    checkedOutByEmail: {
+                        $cond: [
+                            {
+                                $and: [
+                                    { $ne: ['$checkedOutBy', null] },
+                                    { $ne: ['$checkedOutBy', ''] },
+                                    { $regexMatch: { input: '$checkedOutBy', regex: '@' } }
+                                ]
+                            },
+                            { $toLower: { $trim: { input: '$checkedOutBy' } } },
+                            null
+                        ]
+                    }
+                }
+            },
+            {
+                $lookup: {
+                    from: 'users',
+                    let: { email: '$checkedOutByEmail' },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: {
+                                    $and: [
+                                        { $ne: ['$$email', null] },
+                                        { $eq: [{ $toLower: '$email' }, '$$email'] }
+                                    ]
+                                }
+                            }
+                        },
+                        { $project: { name: 1, _id: 0 } }
+                    ],
+                    as: 'checkOutUser'
+                }
+            },
             {
                 $project: {
                     _id: 1,
@@ -104,7 +143,13 @@ const reportModule = {
                     totalGuests: '$totalGuestsResolved',
                     facilityLabel: '$facility.label',
                     capacity: 1,
-                    checkedOutBy: 1,
+                    checkedOutBy: {
+                        $cond: [
+                            { $gt: [{ $size: '$checkOutUser' }, 0] },
+                            { $arrayElemAt: ['$checkOutUser.name', 0] },
+                            { $ifNull: ['$checkOutEmployee', { $ifNull: ['$checkedOutBy', { $ifNull: ['$coEmployee', ''] }] }] }
+                        ]
+                    },
                     checkOutEmployee: 1,
                     coEmployee: 1
                 }
@@ -268,7 +313,8 @@ const reportModule = {
             const isPrivate = r.category === Category.PRIVATE ? '1' : '';
             const nonDeped = (!deped && !isPrivate) ? '1' : '';
 
-            const employee = r.checkOutEmployee || r.checkedOutBy || r.coEmployee || '';
+            // checkedOutBy now contains the employee name (resolved from email if needed)
+            const employee = r.checkedOutBy || r.checkOutEmployee || r.coEmployee || '';
             const guestName = r.guestName || '';
             const contact = r.telephone || r.contactNo || r.contactNumber || r.mobile || r.phoneNumber || r.phone || '';
             const address = r.homeAddress || '';
@@ -327,7 +373,7 @@ const reportModule = {
                 $match: {
                     dateOfArrival: { $lt: endDate },
                     dateOfDeparture: { $gte: startDate },
-                    // status: ReservationStatus.CHECKED_OUT  // Commented out - now includes all statuses
+                    status: ReservationStatus.CHECKED_OUT
                 }
             },
             // Normalize facility id to ObjectId for lookup (handles string ids)
@@ -366,6 +412,44 @@ const reportModule = {
                 }
             },
             { $unwind: { path: '$facility', preserveNullAndEmptyArrays: true } },
+            // Lookup user by email if checkedOutBy is an email
+            {
+                $addFields: {
+                    checkedOutByEmail: {
+                        $cond: [
+                            {
+                                $and: [
+                                    { $ne: ['$checkedOutBy', null] },
+                                    { $ne: ['$checkedOutBy', ''] },
+                                    { $regexMatch: { input: '$checkedOutBy', regex: '@' } }
+                                ]
+                            },
+                            { $toLower: { $trim: { input: '$checkedOutBy' } } },
+                            null
+                        ]
+                    }
+                }
+            },
+            {
+                $lookup: {
+                    from: 'users',
+                    let: { email: '$checkedOutByEmail' },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: {
+                                    $and: [
+                                        { $ne: ['$$email', null] },
+                                        { $eq: [{ $toLower: '$email' }, '$$email'] }
+                                    ]
+                                }
+                            }
+                        },
+                        { $project: { name: 1, _id: 0 } }
+                    ],
+                    as: 'checkOutUser'
+                }
+            },
             {
                 $project: {
                     _id: 1,
@@ -392,7 +476,13 @@ const reportModule = {
                     totalGuests: '$totalGuestsResolved',
                     facilityLabel: '$facility.label',
                     capacity: 1,
-                    checkedOutBy: 1,
+                    checkedOutBy: {
+                        $cond: [
+                            { $gt: [{ $size: '$checkOutUser' }, 0] },
+                            { $arrayElemAt: ['$checkOutUser.name', 0] },
+                            { $ifNull: ['$checkOutEmployee', { $ifNull: ['$checkedOutBy', { $ifNull: ['$coEmployee', ''] }] }] }
+                        ]
+                    },
                     checkOutEmployee: 1,
                     coEmployee: 1
                 }
@@ -481,7 +571,8 @@ const reportModule = {
             const isPrivate = r.category === Category.PRIVATE ? '1' : '';
             const nonDeped = (!deped && !isPrivate) ? '1' : '';
 
-            const employee = r.checkOutEmployee || r.checkedOutBy || r.coEmployee || '';
+            // checkedOutBy now contains the employee name (resolved from email if needed)
+            const employee = r.checkedOutBy || r.checkOutEmployee || r.coEmployee || '';
             const guestName = r.guestName || '';
             const contact = r.telephone || r.contactNo || r.contactNumber || r.mobile || r.phoneNumber || r.phone || '';
             const address = r.homeAddress || '';
@@ -505,7 +596,7 @@ const reportModule = {
 
         // Set column widths
         worksheet.columns = [
-            { width: 12 },  // RF. no.
+            { width: 18 },  // RF. no. 
             { width: 18 },  // Facility Used
             { width: 20 },  // Check-in Date
             { width: 20 },  // Check-out Date
@@ -514,7 +605,7 @@ const reportModule = {
             { width: 8 },   // DepEd
             { width: 10 },  // Non-DepEd
             { width: 10 },  // Private
-            { width: 15 }, // C/O Employee
+            { width: 28 }, // C/O Employee 
             { width: 30 }, // Name of Guest/Group/Assoc.
             { width: 15 }, // Contact No.
             { width: 35 }  // Address
@@ -524,6 +615,291 @@ const reportModule = {
         if (res && typeof res.setHeader === 'function') {
             res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
             res.setHeader('Content-Disposition', `attachment; filename="accommodation-report-${y}-${String(m).padStart(2, '0')}.xlsx"`);
+            
+            // Write to response
+            await workbook.xlsx.write(res);
+            res.end();
+        } else {
+            throw new Error('No valid response object provided');
+        }
+    },
+
+    /**
+     * Generate Revenue Report Excel for a given month and year.
+     * Streams the Excel file to the provided writable stream (e.g., Express response).
+     * @param {Object} options { month: 1-12, year: 4-digit }
+     * @param {Object} res Express response to stream the Excel file
+     */
+    generateRevenueReportExcel: async (options = {}, res) => {
+        const { month, year } = options;
+
+        const m = Number(month);
+        const y = Number(year);
+        if (!Number.isInteger(m) || m < 1 || m > 12 || !Number.isInteger(y) || y < 1970) {
+            if (res && typeof res.status === 'function') {
+                res.status(400).json({ status: 400, error: 'Invalid month/year' });
+                return;
+            }
+            throw new Error('Invalid month/year');
+        }
+
+        const monthNames = [
+            'January','February','March','April','May','June','July','August','September','October','November','December'
+        ];
+        const title = `Revenue Report for the Month of ${monthNames[m - 1]} ${y}`;
+
+        // Calculate date range [start, end)
+        const startDate = new Date(Date.UTC(y, m - 1, 1, 0, 0, 0));
+        const endDate = new Date(Date.UTC(m === 12 ? y + 1 : y, m === 12 ? 0 : m, 1, 0, 0, 0));
+
+        // Fetch checked-out reservations overlapping the month window
+        const reservations = await dbHelper.aggregate('reservation', [
+            {
+                $match: {
+                    dateOfArrival: { $lt: endDate },
+                    dateOfDeparture: { $gte: startDate },
+                    status: ReservationStatus.CHECKED_OUT
+                }
+            },
+            {
+                $addFields: {
+                    facilityIdForLookup: {
+                        $cond: [
+                            { $eq: [{ $type: '$facility' }, 'string'] },
+                            { $toObjectId: '$facility' },
+                            '$facility'
+                        ]
+                    },
+                    checkedOutByEmail: {
+                        $cond: [
+                            {
+                                $and: [
+                                    { $ne: ['$checkedOutBy', null] },
+                                    { $ne: ['$checkedOutBy', ''] },
+                                    { $regexMatch: { input: '$checkedOutBy', regex: '@' } }
+                                ]
+                            },
+                            { $toLower: { $trim: { input: '$checkedOutBy' } } },
+                            null
+                        ]
+                    }
+                }
+            },
+            {
+                $lookup: {
+                    from: 'facilities',
+                    localField: 'facilityIdForLookup',
+                    foreignField: '_id',
+                    as: 'facility'
+                }
+            },
+            {
+                $lookup: {
+                    from: 'addons',
+                    localField: 'addOns',
+                    foreignField: '_id',
+                    as: 'addons'
+                }
+            },
+            {
+                $lookup: {
+                    from: 'users',
+                    let: { email: '$checkedOutByEmail' },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: {
+                                    $and: [
+                                        { $ne: ['$$email', null] },
+                                        { $eq: [{ $toLower: '$email' }, '$$email'] }
+                                    ]
+                                }
+                            }
+                        },
+                        { $project: { name: 1, _id: 0 } }
+                    ],
+                    as: 'checkOutUser'
+                }
+            },
+            { $unwind: { path: '$facility', preserveNullAndEmptyArrays: true } },
+            {
+                $project: {
+                    _id: 1,
+                    reservationCode: 1,
+                    dateOfArrival: 1,
+                    dateOfDeparture: 1,
+                    checkedInAt: 1,
+                    facilityName: '$facility.name',
+                    facilityLabel: '$facility.label',
+                    facilityDoc: '$facility',
+                    category: 1,
+                    numberOfGuests: 1,
+                    serviceType: 1,
+                    timeOfArrival: 1,
+                    addOns: 1,
+                    addons: 1,
+                    totalEstimatedAmount: 1,
+                    checkedOutBy: {
+                        $cond: [
+                            { $gt: [{ $size: '$checkOutUser' }, 0] },
+                            { $arrayElemAt: ['$checkOutUser.name', 0] },
+                            { $ifNull: ['$checkOutEmployee', { $ifNull: ['$checkedOutBy', { $ifNull: ['$coEmployee', ''] }] }] }
+                        ]
+                    }
+                }
+            }
+        ]);
+
+        // Create Excel workbook
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Revenue Report');
+
+        // Set title
+        worksheet.mergeCells('A1:M1');
+        worksheet.getCell('A1').value = title;
+        worksheet.getCell('A1').font = { size: 14, bold: true };
+        worksheet.getCell('A1').alignment = { horizontal: 'center', vertical: 'middle' };
+        worksheet.getRow(1).height = 25;
+
+        // Headers
+        const headers = [
+            'Ref. No.',
+            'C/I Date',
+            'C/O Date',
+            'Facility',
+            'Category',
+            'PWD',
+            'Senior Citizen',
+            'C/O Employee',
+            'Facility Rate',
+            'Discount',
+            'Service Fee',
+            'Add-ons',
+            'Total Amount'
+        ];
+        
+        worksheet.addRow(headers);
+        const headerRow = worksheet.getRow(2);
+        headerRow.font = { bold: true };
+        headerRow.alignment = { horizontal: 'center', vertical: 'middle' };
+        headerRow.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FFE0E0E0' }
+        };
+
+        // Helper for date formatting like "11/2/25"
+        const formatDateShort = (d) => {
+            try {
+                const dt = new Date(d);
+                const month = dt.getMonth() + 1;
+                const day = dt.getDate();
+                const year = dt.getFullYear().toString().slice(-2);
+                return `${month}/${day}/${year}`;
+            } catch {
+                return '';
+            }
+        };
+
+        // Process reservations and calculate totals
+        const seenReservationIds = new Set();
+        let totalSales = 0;
+
+        for (const r of reservations) {
+            const reservationId = r._id?.toString() || r._id;
+            if (reservationId && seenReservationIds.has(reservationId)) {
+                console.warn(`Duplicate reservation detected in report: ${reservationId} (Code: ${r.reservationCode})`);
+                continue;
+            }
+            if (reservationId) {
+                seenReservationIds.add(reservationId);
+            }
+
+            // Calculate estimate using the same logic as payment module
+            const adults = r.numberOfGuests?.adult || 0;
+            const children = r.numberOfGuests?.children || 0;
+            const pwds = r.numberOfGuests?.pwds || 0;
+            const seniorCitizens = r.numberOfGuests?.seniorCitizens || r.numberOfGuests?.seniorCitizen || 0;
+            
+            // Calculate addons total
+            const addonsTotal = (r.addons || []).reduce((sum, addon) => sum + (Number(addon.price) || 0), 0);
+
+            const estimateResult = computeEstimate({
+                facilityDoc: r.facilityDoc || {},
+                adults,
+                children,
+                pwds,
+                seniorCitizens,
+                serviceType: r.serviceType,
+                addonsTotal,
+                category: r.category,
+                dateOfArrival: r.dateOfArrival,
+                dateOfDeparture: r.dateOfDeparture,
+                timeOfArrival: r.timeOfArrival
+            });
+
+            const refNo = r.reservationCode || '';
+            const checkIn = r.checkedInAt ? formatDateShort(r.checkedInAt) : (r.dateOfArrival ? formatDateShort(r.dateOfArrival) : '');
+            const checkOut = r.dateOfDeparture ? formatDateShort(r.dateOfDeparture) : '';
+            const facility = r.facilityName || r.facilityLabel || '';
+            const category = r.category === Category.DEPED ? 'DepEd' : (r.category === Category.PRIVATE ? 'Private' : 'Non-DepEd');
+            const pwd = (pwds > 0) ? '1' : '0';
+            const seniorCitizen = (seniorCitizens > 0) ? '1' : '0';
+            const employee = r.checkedOutBy || '';
+            const facilityRate = Math.round(estimateResult.facilityFee * 100) / 100;
+            const discount = Math.round(estimateResult.discount * 100) / 100;
+            const serviceFee = Math.round(estimateResult.serviceFee * 100) / 100;
+            const addons = Math.round(addonsTotal * 100) / 100;
+            const totalAmount = Math.round(Number(r.totalEstimatedAmount || estimateResult.amount) * 100) / 100;
+
+            totalSales += totalAmount;
+
+            worksheet.addRow([
+                refNo,
+                checkIn,
+                checkOut,
+                facility,
+                category,
+                pwd,
+                seniorCitizen,
+                employee,
+                facilityRate,
+                discount,
+                serviceFee,
+                addons,
+                totalAmount
+            ]);
+        }
+
+        // Add total sales row
+        const totalRow = worksheet.addRow([]);
+        totalRow.getCell(12).value = 'Total Sales';
+        totalRow.getCell(12).font = { bold: true };
+        totalRow.getCell(12).alignment = { horizontal: 'right' };
+        totalRow.getCell(13).value = Math.round(totalSales * 100) / 100;
+        totalRow.getCell(13).font = { bold: true };
+
+        // Set column widths
+        worksheet.columns = [
+            { width: 18 },  // Ref. No.
+            { width: 12 },  // C/I Date
+            { width: 12 },  // C/O Date
+            { width: 18 },  // Facility
+            { width: 12 },  // Category
+            { width: 8 },   // PWD
+            { width: 15 },  // Senior Citizen
+            { width: 18 },  // C/O Employee
+            { width: 14 },  // Facility Rate
+            { width: 12 },  // Discount
+            { width: 12 },  // Service Fee
+            { width: 12 },  // Add-ons
+            { width: 14 }   // Total Amount
+        ];
+
+        // Set response headers
+        if (res && typeof res.setHeader === 'function') {
+            res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+            res.setHeader('Content-Disposition', `attachment; filename="revenue-report-${y}-${String(m).padStart(2, '0')}.xlsx"`);
             
             // Write to response
             await workbook.xlsx.write(res);
