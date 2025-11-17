@@ -17,4 +17,25 @@ export async function downloadAccommodationReportPDF({ year, month, filename }) 
   URL.revokeObjectURL(href);
 }
 
+export async function downloadSalesReportPDF({ year, month }) {
+  try {
+    const response = await apiGet('/report/sales-report-pdf', { year, month }, { responseType: 'blob' });
+    
+    const blob = new Blob([response], { type: 'application/pdf' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Sales_Report_${year}_${String(month).padStart(2, '0')}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+    
+    return response;
+  } catch (error) {
+    console.error('Error downloading sales report PDF:', error);
+    throw error;
+  }
+}
+
 

@@ -1,24 +1,30 @@
 import React, { useRef, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaCalendarAlt, FaDownload, FaChevronDown, FaArrowLeft } from "react-icons/fa";
+import { FaCalendarAlt, FaDownload, FaChevronDown, FaArrowLeft, FaFileAlt } from "react-icons/fa";
 import styles from "./GenerateReport.module.css";
-import { downloadAccommodationReportPDF } from "../../apis/reportApi";
+import { downloadAccommodationReportPDF, downloadSalesReportPDF } from "../../apis/reportApi";
 
 export default function GenerateReport() {
   const navigate = useNavigate();
+  const [reportType, setReportType] = useState("");
   const [startMonth, setStartMonth] = useState("");
   const [endMonth, setEndMonth] = useState("");
   const [error, setError] = useState(null);
   const [generating, setGenerating] = useState(false);
 
+  const [reportTypeDropdownOpen, setReportTypeDropdownOpen] = useState(false);
   const [startDropdownOpen, setStartDropdownOpen] = useState(false);
   const [endDropdownOpen, setEndDropdownOpen] = useState(false);
 
+  const reportTypeDropdownRef = useRef(null);
   const startDropdownRef = useRef(null);
   const endDropdownRef = useRef(null);
 
   useEffect(() => {
     const onDocClick = (e) => {
+      if (reportTypeDropdownRef.current && !reportTypeDropdownRef.current.contains(e.target)) {
+        setReportTypeDropdownOpen(false);
+      }
       if (startDropdownRef.current && !startDropdownRef.current.contains(e.target)) {
         setStartDropdownOpen(false);
       }
@@ -29,6 +35,11 @@ export default function GenerateReport() {
     document.addEventListener("mousedown", onDocClick);
     return () => document.removeEventListener("mousedown", onDocClick);
   }, []);
+
+  const reportTypes = [
+    { value: "accommodation", label: "Accommodation Report" },
+    { value: "sales", label: "Sales Report" }
+  ];
 
   const months = Array.from({ length: 60 }).map((_, i) => {
     const now = new Date();
@@ -48,7 +59,17 @@ export default function GenerateReport() {
     return d.toLocaleString(undefined, { month: "long", year: "numeric" });
   };
 
+  const formatReportTypeLabel = (val) => {
+    if (!val) return "Select report type";
+    const type = reportTypes.find(t => t.value === val);
+    return type ? type.label : "Select report type";
+  };
+
   const validateRange = () => {
+    if (!reportType) {
+      setError("Please select a report type.");
+      return false;
+    }
     if (!endMonth) {
       setError("Please select an end month.");
       return false;
@@ -61,8 +82,6 @@ export default function GenerateReport() {
     return true;
   };
 
-  // We now generate a single PDF for the selected End Date only
-
   const downloadPdf = async () => {
     if (!validateRange()) return;
     setGenerating(true);
@@ -70,7 +89,12 @@ export default function GenerateReport() {
       const [yearStr, monthStr] = endMonth.split('-');
       const year = Number(yearStr);
       const month = Number(monthStr);
-      await downloadAccommodationReportPDF({ year, month });
+
+      if (reportType === "accommodation") {
+        await downloadAccommodationReportPDF({ year, month });
+      } else if (reportType === "sales") {
+        await downloadSalesReportPDF({ year, month });
+      }
     } catch (e) {
       console.error(e);
       setError("Failed to generate PDF. Try again.");
@@ -83,19 +107,54 @@ export default function GenerateReport() {
     <div className={styles.page}>
       <div className={styles.header}>
         <span
-            className={styles["add-form-back"]}
-            onClick={() => navigate(-1)}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && navigate(-1)}
-            >
-            &larr;
+          className={styles["add-form-back"]}
+          onClick={() => navigate(-1)}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && navigate(-1)}
+        >
+          &larr;
         </span>
         <h1 className={styles.title}>Generate Report</h1>
       </div>
 
       <div className={styles.form}>
-        <label className={styles.label}>Start Date</label>
+        {/* Report Type Selection */}
+        <label className={styles.label}>Report Type</label>
+        <div ref={reportTypeDropdownRef} className={styles.monthDropdown} role="presentation">
+          <button
+            type="button"
+            className={`${styles.monthToggle} ${styles.reportTypeToggle}`}
+            onClick={() => setReportTypeDropdownOpen((s) => !s)}
+            aria-haspopup="listbox"
+            aria-expanded={reportTypeDropdownOpen}
+          >
+            <span className={styles.iconWrap}><FaFileAlt className={styles.icon} /></span>
+            <span className={styles.monthText}>{formatReportTypeLabel(reportType)}</span>
+            <FaChevronDown className={styles.caret} />
+          </button>
+
+          {reportTypeDropdownOpen && (
+            <ul className={styles.monthList} role="listbox" tabIndex={-1}>
+              {reportTypes.map((type) => (
+                <li
+                  key={type.value}
+                  role="option"
+                  aria-selected={type.value === reportType}
+                  className={`${styles.monthListItem} ${type.value === reportType ? styles.selectedItem : ""}`}
+                  onClick={() => { setReportType(type.value); setReportTypeDropdownOpen(false); }}
+                  onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (setReportType(type.value), setReportTypeDropdownOpen(false))}
+                  tabIndex={0}
+                >
+                  {type.label}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {/* Start Date */}
+        <label className={styles.label} style={{ marginTop: 16 }}>Start Date</label>
         <div className={styles.monthRow}>
           <div ref={startDropdownRef} className={styles.monthDropdown} role="presentation">
             <button
@@ -129,6 +188,7 @@ export default function GenerateReport() {
             )}
           </div>
 
+          {/* End Date */}
           <label className={styles.label} style={{ marginTop: 8 }}>End Date</label>
           <div ref={endDropdownRef} className={styles.monthDropdown} role="presentation" style={{ marginTop: 4 }}>
             <button
@@ -169,7 +229,7 @@ export default function GenerateReport() {
           type="button"
           className={styles.downloadBtn}
           onClick={downloadPdf}
-          disabled={generating}
+          disabled={generating || !reportType}
         >
           <FaDownload className={styles.downloadIcon} />
           {generating ? "Generating..." : "Download Report"}
