@@ -807,7 +807,10 @@ function MainServicesServiceDetail() {
                 <div className={styles.facilityInfo}>
                   <h2 className={styles.facilityName}>{facility.name}</h2>
                   <p className={styles.facilityRate}>
-                    {priceLabel}: ₱ {displayPrice > 0 ? displayPrice.toLocaleString() : 'N/A'}
+                    <strong>{priceLabel}:</strong> ₱ {displayPrice > 0 ? displayPrice.toLocaleString() : 'N/A'}
+                  </p>
+                  <p className={styles.facilityCapacity}>
+                    <strong>Capacity:</strong> {facility.capacity > 0 ? `${facility.capacity} ${facility.capacity === 1 ? 'person' : 'people'}` : 'N/A'}
                   </p>
                   {facilityType === 'Dormitory' && (
                     <p className={styles.packageNote}>
@@ -872,9 +875,10 @@ function MainServicesServiceDetail() {
                     backgroundColor: '#fff3cd', 
                     border: '1px solid #ffc107', 
                     borderRadius: '4px',
-                    color: '#856404'
+                    color: '#856404',
+                    fontSize: '10px'
                   }}>
-                    <strong>⚠️ Selected dates unavailable:</strong> The date range you selected is not available. Please choose different dates.
+                    <strong>Selected dates unavailable:</strong> The date range you selected is not available. Please choose different dates.
                   </div>
                 )}
                 <button 
