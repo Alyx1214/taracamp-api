@@ -390,17 +390,23 @@ export default function Manage() {
                   disabled={loadingReservations}
                 >
                   <option value="">-- Select Guest --</option>
-                  {reservations.map((reservation) => {
-                    const remaining = getRemainingUnassignedGuests(reservation._id);
-                    const totalGuests = reservation.numberOfGuests?.total || 0;
-                    return (
-                      <option key={reservation._id} value={reservation._id}>
-                        {reservation.guestName || "Unknown Guest"}
-                        {` - ${totalGuests} guests`}
-                        {remaining !== null && remaining < totalGuests ? ` (${remaining} remaining)` : ""}
-                      </option>
-                    );
-                  })}
+                  {reservations
+                    .filter((reservation) => {
+                      // Only show reservations that have remaining unassigned guests
+                      const remaining = getRemainingUnassignedGuests(reservation._id);
+                      return remaining > 0;
+                    })
+                    .map((reservation) => {
+                      const remaining = getRemainingUnassignedGuests(reservation._id);
+                      const totalGuests = reservation.numberOfGuests?.total || 0;
+                      return (
+                        <option key={reservation._id} value={reservation._id}>
+                          {reservation.guestName || "Unknown Guest"}
+                          {` - ${totalGuests} guests`}
+                          {remaining !== null && remaining < totalGuests ? ` (${remaining} remaining)` : ""}
+                        </option>
+                      );
+                    })}
                 </select>
               </label>
             </div>

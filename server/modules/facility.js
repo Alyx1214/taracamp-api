@@ -747,172 +747,109 @@ const facilityModule = {
             });
 
             const unavailableDatesSet = new Set();
-            
-            // Add all past dates as unavailable (only need dates from 6 months ago to today for practical purposes)
-            const startDate = new Date(today);
-            startDate.setUTCMonth(startDate.getUTCMonth() - 6);
-            for (let currentDate = new Date(startDate); currentDate < today; currentDate = addAppDays(currentDate, 1)) {
-                const dateString = toAppYMD(currentDate);
-                if (dateString) unavailableDatesSet.add(dateString);
-            }
+            const todayYmdStr = toAppYMD(today);
+            const endDateYmdStr = toAppYMD(endDate);
 
-            // For Dormitory facilities, check capacity-based availability
-            // Dormitories can have multiple rooms, and multiple reservations can overlap on the same date
-            // as long as the total reserved guests don't exceed the total capacity
+            // For Dormitory facilities, mark dates as unavailable if there are confirmed reservations
+            // Each confirmed reservation means a room is booked, so those dates are unavailable
             // For other facilities (Cottage, Conference), mark all reservation dates as unavailable
             if (facility.facilityType === FacilityType.DORMITORY) {
-                // Calculate total capacity from all available rooms (can be many rooms)
-                // Sum up capacities of all rooms with status === 'Available'
-                let totalCapacity = facility.capacity || 0;
-                if (Array.isArray(facility.rooms) && facility.rooms.length > 0) {
-                    const availableRoomsCapacity = facility.rooms.reduce((sum, room) => {
-                        if (room.status === 'Available') {
-                            const roomCapacity = Number(room.capacity) || 0;
-                            return sum + roomCapacity;
-                        }
-                        return sum;
-                    }, 0);
-                    if (availableRoomsCapacity > 0) {
-                        totalCapacity = availableRoomsCapacity;
-                    }
-                }
+                // Calculate total capacity of available rooms (rooms with status === 'Available' and not assigned)
+                // Filter out any null/undefined rooms and ensure we only count valid available rooms
+                const availableRooms = Array.isArray(facility.rooms) 
+                    ? facility.rooms.filter(room => 
+                        room && 
+                        room.status === 'Available' && 
+                        !room.assignedTo &&
+                        Number(room.capacity) > 0
+                      )
+                    : [];
+                const totalAvailableCapacity = availableRooms.reduce((sum, room) => {
+                    const roomCapacity = Number(room.capacity) || 0;
+                    return sum + roomCapacity;
+                }, 0);
                 
-                // If capacity is 0 or invalid, mark all dates with reservations as unavailable
-                if (totalCapacity <= 0) {
-                    // Fallback to marking all reservation dates as unavailable
-                    reservations.forEach((reservation) => {
-                        let arrivalYmd = null;
-                        let departureYmd = null;
-                        
-                        if (reservation.dateOfArrival) {
-                            const arrivalDate = reservation.dateOfArrival instanceof Date 
-                                ? reservation.dateOfArrival 
-                                : new Date(reservation.dateOfArrival);
-                            const arrivalStr = arrivalDate.toISOString();
-                            const arrivalMatch = arrivalStr.match(/^(\d{4}-\d{2}-\d{2})/);
-                            if (arrivalMatch) {
-                                arrivalYmd = arrivalMatch[1];
-                            } else {
-                                arrivalYmd = toAppYMD(reservation.dateOfArrival);
-                            }
-                        }
-                        
-                        if (reservation.dateOfDeparture) {
-                            const departureDate = reservation.dateOfDeparture instanceof Date 
-                                ? reservation.dateOfDeparture 
-                                : new Date(reservation.dateOfDeparture);
-                            const departureStr = departureDate.toISOString();
-                            const departureMatch = departureStr.match(/^(\d{4}-\d{2}-\d{2})/);
-                            if (departureMatch) {
-                                departureYmd = departureMatch[1];
-                            } else {
-                                departureYmd = toAppYMD(reservation.dateOfDeparture);
-                            }
-                        }
-                        
-                        if (!arrivalYmd || !departureYmd || arrivalYmd >= departureYmd) return;
-                        
-                        const [arrYear, arrMonth, arrDay] = arrivalYmd.split('-').map(Number);
-                        const [depYear, depMonth, depDay] = departureYmd.split('-').map(Number);
-                        if (!arrYear || !arrMonth || !arrDay || !depYear || !depMonth || !depDay) return;
-                        
-                        let currentYear = arrYear;
-                        let currentMonth = arrMonth;
-                        let currentDay = arrDay;
-                        
-                        while (true) {
-                            const currentYmd = `${currentYear}-${String(currentMonth).padStart(2, '0')}-${String(currentDay).padStart(2, '0')}`;
-                            unavailableDatesSet.add(currentYmd);
-                            if (currentYmd >= departureYmd) break;
-                            
-                            const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
-                            currentDay++;
-                            if (currentDay > daysInMonth) {
-                                currentDay = 1;
-                                currentMonth++;
-                                if (currentMonth > 12) {
-                                    currentMonth = 1;
-                                    currentYear++;
-                                }
-                            }
-                        }
-                    });
-                } else {
-                    // Track reserved guests per date
-                    const reservedGuestsByDate = new Map();
+                // Track total guests per date from all reservations
+                const totalGuestsByDate = new Map();
+                
+                reservations.forEach((reservation) => {
+                    const totalGuests = reservation.numberOfGuests?.total || 0;
+                    if (totalGuests <= 0) return;
                     
-                    reservations.forEach((reservation) => {
-                        const totalGuests = reservation.numberOfGuests?.total || 0;
-                        if (totalGuests <= 0) return;
-                        
-                        let arrivalYmd = null;
-                        let departureYmd = null;
-                        
-                        if (reservation.dateOfArrival) {
-                            const arrivalDate = reservation.dateOfArrival instanceof Date 
-                                ? reservation.dateOfArrival 
-                                : new Date(reservation.dateOfArrival);
-                            const arrivalStr = arrivalDate.toISOString();
-                            const arrivalMatch = arrivalStr.match(/^(\d{4}-\d{2}-\d{2})/);
-                            if (arrivalMatch) {
-                                arrivalYmd = arrivalMatch[1];
-                            } else {
-                                arrivalYmd = toAppYMD(reservation.dateOfArrival);
-                            }
-                        }
-                        
-                        if (reservation.dateOfDeparture) {
-                            const departureDate = reservation.dateOfDeparture instanceof Date 
-                                ? reservation.dateOfDeparture 
-                                : new Date(reservation.dateOfDeparture);
-                            const departureStr = departureDate.toISOString();
-                            const departureMatch = departureStr.match(/^(\d{4}-\d{2}-\d{2})/);
-                            if (departureMatch) {
-                                departureYmd = departureMatch[1];
-                            } else {
-                                departureYmd = toAppYMD(reservation.dateOfDeparture);
-                            }
-                        }
-                        
-                        if (!arrivalYmd || !departureYmd || arrivalYmd >= departureYmd) return;
-                        
-                        const [arrYear, arrMonth, arrDay] = arrivalYmd.split('-').map(Number);
-                        const [depYear, depMonth, depDay] = departureYmd.split('-').map(Number);
-                        if (!arrYear || !arrMonth || !arrDay || !depYear || !depMonth || !depDay) return;
-                        
-                        let currentYear = arrYear;
-                        let currentMonth = arrMonth;
-                        let currentDay = arrDay;
-                        
-                        while (true) {
-                            const currentYmd = `${currentYear}-${String(currentMonth).padStart(2, '0')}-${String(currentDay).padStart(2, '0')}`;
-                            
-                            // Add guests for this date
-                            const currentReserved = reservedGuestsByDate.get(currentYmd) || 0;
-                            reservedGuestsByDate.set(currentYmd, currentReserved + totalGuests);
-                            
-                            if (currentYmd >= departureYmd) break;
-                            
-                            const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
-                            currentDay++;
-                            if (currentDay > daysInMonth) {
-                                currentDay = 1;
-                                currentMonth++;
-                                if (currentMonth > 12) {
-                                    currentMonth = 1;
-                                    currentYear++;
-                                }
-                            }
-                        }
-                    });
+                    let arrivalYmd = null;
+                    let departureYmd = null;
                     
-                    // Mark dates as unavailable only if reserved guests >= total capacity
-                    reservedGuestsByDate.forEach((reservedGuests, dateYmd) => {
-                        if (reservedGuests >= totalCapacity) {
-                            unavailableDatesSet.add(dateYmd);
+                    if (reservation.dateOfArrival) {
+                        const arrivalDate = reservation.dateOfArrival instanceof Date 
+                            ? reservation.dateOfArrival 
+                            : new Date(reservation.dateOfArrival);
+                        const arrivalStr = arrivalDate.toISOString();
+                        const arrivalMatch = arrivalStr.match(/^(\d{4}-\d{2}-\d{2})/);
+                        if (arrivalMatch) {
+                            arrivalYmd = arrivalMatch[1];
+                        } else {
+                            arrivalYmd = toAppYMD(reservation.dateOfArrival);
                         }
-                    });
-                }
+                    }
+                    
+                    if (reservation.dateOfDeparture) {
+                        const departureDate = reservation.dateOfDeparture instanceof Date 
+                            ? reservation.dateOfDeparture 
+                            : new Date(reservation.dateOfDeparture);
+                        const departureStr = departureDate.toISOString();
+                        const departureMatch = departureStr.match(/^(\d{4}-\d{2}-\d{2})/);
+                        if (departureMatch) {
+                            departureYmd = departureMatch[1];
+                        } else {
+                            departureYmd = toAppYMD(reservation.dateOfDeparture);
+                        }
+                    }
+                    
+                    if (!arrivalYmd || !departureYmd || arrivalYmd >= departureYmd) return;
+                    
+                    const [arrYear, arrMonth, arrDay] = arrivalYmd.split('-').map(Number);
+                    const [depYear, depMonth, depDay] = departureYmd.split('-').map(Number);
+                    if (!arrYear || !arrMonth || !arrDay || !depYear || !depMonth || !depDay) return;
+                    
+                    let currentYear = arrYear;
+                    let currentMonth = arrMonth;
+                    let currentDay = arrDay;
+                    
+                    while (true) {
+                        const currentYmd = `${currentYear}-${String(currentMonth).padStart(2, '0')}-${String(currentDay).padStart(2, '0')}`;
+                        
+                        // Only track dates from today onwards and within 6-month window
+                        if (currentYmd >= todayYmdStr && currentYmd <= endDateYmdStr) {
+                            // Sum up total guests for this date
+                            const currentGuests = totalGuestsByDate.get(currentYmd) || 0;
+                            totalGuestsByDate.set(currentYmd, currentGuests + totalGuests);
+                        }
+                        
+                        if (currentYmd >= departureYmd) break;
+                        
+                        const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
+                        currentDay++;
+                        if (currentDay > daysInMonth) {
+                            currentDay = 1;
+                            currentMonth++;
+                            if (currentMonth > 12) {
+                                currentMonth = 1;
+                                currentYear++;
+                            }
+                        }
+                    }
+                });
+                
+                // Mark dates as unavailable only if total guests >= total available capacity
+                totalGuestsByDate.forEach((totalGuests, dateYmd) => {
+                    // Mark as unavailable if:
+                    // 1. There are available rooms but not enough capacity (totalGuests >= totalAvailableCapacity)
+                    // 2. There are no available rooms but there are reservations (totalAvailableCapacity === 0 && totalGuests > 0)
+                    if ((totalAvailableCapacity > 0 && totalGuests >= totalAvailableCapacity) || 
+                        (totalAvailableCapacity === 0 && totalGuests > 0)) {
+                        unavailableDatesSet.add(dateYmd);
+                    }
+                });
             } else {
                 // For non-dormitory facilities (Cottage, Conference), mark all reservation dates as unavailable
                 reservations.forEach((reservation) => {
@@ -957,7 +894,10 @@ const facilityModule = {
                     
                     while (true) {
                         const currentYmd = `${currentYear}-${String(currentMonth).padStart(2, '0')}-${String(currentDay).padStart(2, '0')}`;
-                        unavailableDatesSet.add(currentYmd);
+                        // Only include dates from today onwards and within 6-month window
+                        if (currentYmd >= todayYmdStr && currentYmd <= endDateYmdStr) {
+                            unavailableDatesSet.add(currentYmd);
+                        }
                         if (currentYmd >= departureYmd) break;
                         
                         const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
@@ -974,8 +914,10 @@ const facilityModule = {
                 });
             }
 
-            // Convert set to sorted array
-            const unavailableDates = Array.from(unavailableDatesSet).sort();
+            // Convert set to sorted array and filter to only include dates from today onwards within 6-month window
+            const unavailableDates = Array.from(unavailableDatesSet)
+                .filter(dateYmd => dateYmd >= todayYmdStr && dateYmd <= endDateYmdStr)
+                .sort();
 
             responseData.status = Status.OK;
             responseData.error = null;
