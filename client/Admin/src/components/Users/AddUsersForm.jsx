@@ -135,7 +135,7 @@ export default function AddUserForm({ onAddUser }) {
 
   const handleSuccessModalClose = () => {
     setSuccessModalOpen(false);
-    navigate("/users");
+    navigate("/user");
   };
 
   const getConfirmMessage = () => {
