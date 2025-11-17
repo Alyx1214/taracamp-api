@@ -25,8 +25,8 @@ r.get('/get-facilities-by-type/:id', asyncHandler(async (req, res) => {
   res.status(response.status).json(response);
 }));
 
-r.get('/get-available-dates-by-facility/:id', asyncHandler(async (req, res) => {
-  const response = await facilityModule.getAvailableDatesByFacility(dbHelper, req.params.id);
+r.get('/get-unavailable-dates-by-facility/:id', asyncHandler(async (req, res) => {
+  const response = await facilityModule.getUnavailableDatesByFacility(dbHelper, req.params.id);
   res.status(response.status).json(response);
 }));
 

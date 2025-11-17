@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from "react";
 import { FaCalendarAlt, FaDownload, FaChevronDown, FaTimes, FaFileAlt } from "react-icons/fa";
 import styles from "./GenerateReport.module.css";
-import { downloadAccommodationReportPDF, downloadSalesReportPDF } from "../../apis/reportApi";
+import { downloadAccommodationReportExcel, downloadRevenueReportExcel } from "../../apis/reportApi";
 
 export default function GenerateReport({ isOpen, onClose }) {
   const [reportType, setReportType] = useState("");
@@ -122,7 +122,7 @@ export default function GenerateReport({ isOpen, onClose }) {
     return true;
   };
 
-  const downloadPdf = async () => {
+  const downloadReport = async () => {
     if (!validateRange()) return;
     setGenerating(true);
     try {
@@ -131,9 +131,9 @@ export default function GenerateReport({ isOpen, onClose }) {
       const month = Number(monthStr);
 
       if (reportType === "accommodation") {
-        await downloadAccommodationReportPDF({ year, month });
+        await downloadAccommodationReportExcel({ year, month });
       } else if (reportType === "revenue") {
-        await downloadSalesReportPDF({ year, month });
+        await downloadRevenueReportExcel({ year, month });
       }
       
       // Close modal after successful generation
@@ -142,7 +142,7 @@ export default function GenerateReport({ isOpen, onClose }) {
       }, 500);
     } catch (e) {
       console.error(e);
-      setError("Failed to generate PDF. Try again.");
+      setError("Failed to generate report. Try again.");
     } finally {
       setGenerating(false);
     }
@@ -322,7 +322,7 @@ export default function GenerateReport({ isOpen, onClose }) {
               <button
                 type="button"
                 className={styles.downloadBtn}
-                onClick={downloadPdf}
+                onClick={downloadReport}
                 disabled={generating || !reportType || !startMonth || !endMonth}
               >
                 <FaDownload className={styles.downloadIcon} />
