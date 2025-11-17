@@ -1,7 +1,9 @@
 .transaction-details-container {
   padding: 2.5rem 3rem;
-  max-width: 900px;
   margin: 0 auto;
+  background-color: #f5f5f5;
+  min-height: 100vh;
+  font-family: "Montserrat", sans-serif;
 }
 
 .transaction-details-header {
@@ -9,7 +11,7 @@
   align-items: center;
   gap: 8px;
   justify-content: flex-start;
-  margin-bottom: 1.2rem;
+  margin-bottom: 1.5rem;
   position: relative;
   padding-left: 70px;
 }
@@ -27,85 +29,267 @@
   justify-content: center;
   font-size: 50px;
   cursor: pointer;
-  color: #233d29;
+  color: #1E3C24;
+  transition: all 0.3s ease;
+}
+
+.add-form-back:hover {
+  transform: translateY(-50%) scale(1.1);
+  color: #538E5E;
 }
 
 .transaction-details-title {
   font-size: 3.5rem;
   letter-spacing: 2px;
-  color: #5b3a0b;
+  color: #1E3C24;
   margin: 0;
   font-weight: 700;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+  font-family: "Montserrat", sans-serif;
 }
 
 .transaction-details-card {
-  background: #fff;
-  border: 1px solid #5b3a0b;
-  border-radius: 1rem;
+  background: #ffffff;
+  border: 2px solid #4F3718;
+  border-radius: 1.5rem;
   padding: 2.5rem 3rem;
-  max-width: 700px;
+  max-width: 900px;
   margin: 0 auto;
   box-sizing: border-box;
+  position: relative;
+  box-shadow: 0 10px 40px rgba(79, 55, 24, 0.15);
+  transition: all 0.3s ease;
+}
+
+.transaction-details-card:hover {
+  box-shadow: 0 15px 50px rgba(79, 55, 24, 0.25);
+  transform: translateY(-2px);
 }
 
 .transaction-details-table {
   width: 100%;
   border-collapse: collapse;
+  margin-bottom: 0.5rem;
+  font-family: "Montserrat", sans-serif;
 }
 
 .transaction-details-label {
   font-weight: 700;
-  font-size: 1.15rem;
-  color: #232323;
-  padding: 0.4rem 0.5rem 0.4rem 0;
+  font-size: 1rem;
+  color: #1E3C24;
+  padding: 0.3rem 0.5rem 0.3rem 0;
   letter-spacing: 0.5px;
-  width: 260px;
+  width: 200px;
 }
 
 .transaction-details-separator {
-  width: 20px;
+  width: 15px;
   text-align: center;
   font-weight: 700;
-  font-size: 1.2rem;
-  color: #232323;
+  font-size: 1.1rem;
+  color: #4F3718;
 }
 
 .transaction-details-table td {
-  font-size: 1.15rem;
-  color: #232323;
-  padding: 0.4rem 0.5rem;
+  font-size: 1rem;
+  color: #333;
+  padding: 0.3rem 0.5rem;
   vertical-align: top;
 }
 
+.transaction-details-divider {
+  border: none;
+  border-top: 2px solid #4F3718;
+  margin: 1.5rem 0;
+  background: linear-gradient(90deg, transparent, #4F3718, transparent);
+  height: 2px;
+}
+
+.transaction-details-section-title {
+  font-weight: 700;
+  font-size: 1.1rem;
+  margin-bottom: 0.8rem;
+  color: #1E3C24;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  border-left: 4px solid #4F3718;
+  padding-left: 12px;
+  font-family: "Montserrat", sans-serif;
+}
+
+.transaction-details-status-card {
+  margin-top: 2rem;
+  padding: 2rem 2.5rem;
+  background: #ffffff;
+  border-radius: 20px;
+  border: 3px solid #4F3718;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.transaction-details-status-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 6px;
+  background: linear-gradient(90deg, #1E3C24, #4F3718, #538E5E, #4F3718, #1E3C24);
+  background-size: 300% 100%;
+  animation: gradientShift 4s ease infinite;
+}
+
+.transaction-details-status-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(79, 55, 24, 0.3);
+}
+
+@keyframes gradientShift {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
 .transaction-details-status-row {
-  padding-top: 1.5rem;
-  font-size: 1.35rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2rem;
+  padding-top: 0.5rem;
+  font-size: 1.2rem;
   font-weight: 700;
   border: none;
 }
 
 .transaction-details-status-label {
-  color: #444;
+  color: #1E3C24;
   font-weight: 700;
-  font-size: 1.25rem;
+  font-size: 1.2rem;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: relative;
+}
+
+.transaction-details-status-label::before {
+  font-size: 28px;
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
 }
 
 .transaction-details-status-value {
-  color: #ff2222;
-  font-weight: 700;
-  font-size: 1.25rem;
-  margin-left: 0.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 10px 25px;
+  border-radius: 40px;
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  border: 3px solid;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  font-family: "Montserrat", sans-serif;
+  margin-left: 0;
+  white-space: nowrap;
+  min-width: 150px;
 }
 
+.transaction-details-status-value::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+}
+
+.transaction-details-status-value:hover::before {
+  width: 300px;
+  height: 300px;
+}
+
+/* Unpaid Status - Red */
+.transaction-details-status-value {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 50%, #c42838dc 100%);
+  color: #ffffff;
+  border-color: #c42838dc;
+  animation: statusGlow 3s ease-in-out infinite;
+}
+
+.transaction-details-status-value::after {
+  margin-left: 8px;
+  font-size: 18px;
+  animation: statusIcon 2s ease infinite;
+}
+
+@keyframes statusIcon {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.15);
+  }
+}
+
+/* Paid Status - Green */
 .transaction-details-status-paid {
-  color: #22aa22 !important;
+  background: linear-gradient(135deg, #51cf66 0%, #538E5E 50%, #1E3C24 100%) !important;
+  color: #ffffff !important;
+  border-color: #1E3C24 !important;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.transaction-details-status-paid::after {
+  content: '✅' !important;
+}
+
+.transaction-details-status-paid:hover {
+  transform: translateY(-3px) scale(1.03);
+  border-color: #51cf66 !important;
+}
+
+@keyframes statusGlow {
+  0%, 100% {
+    filter: brightness(1) drop-shadow(0 0 8px currentColor);
+  }
+  50% {
+    filter: brightness(1.1) drop-shadow(0 0 16px currentColor);
+  }
+}
+
+.transaction-details-status-value:hover {
+  transform: translateY(-3px) scale(1.03);
+  border-color: #ff6b6b;
 }
 
 /* Skeleton Loading Styles */
 .skeleton {
-  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background: linear-gradient(90deg, #e2e8f0 25%, #cbd5e0 50%, #e2e8f0 75%);
   background-size: 200% 100%;
   animation: loading 1.5s infinite;
+  border-radius: 8px;
 }
 
 @keyframes loading {
@@ -125,35 +309,91 @@
 }
 
 .skeleton-label {
-  width: 260px;
-  height: 1.1rem;
-  border-radius: 4px;
+  width: 200px;
+  height: 1rem;
+  border-radius: 8px;
   margin-right: 10px;
 }
 
 .skeleton-separator {
-  width: 20px;
-  height: 1.2rem;
-  border-radius: 4px;
+  width: 15px;
+  height: 1.1rem;
+  border-radius: 8px;
   margin-right: 10px;
 }
 
 .skeleton-value {
   flex: 1;
-  height: 1.1rem;
-  border-radius: 4px;
+  height: 1rem;
+  border-radius: 8px;
 }
 
-.transaction-details-divider {
-  border: none;
-  border-top: 1px solid #ddd;
-  margin: 2rem 0;
+.skeleton-status-label {
+  width: 180px;
+  height: 1.2rem;
+  border-radius: 8px;
 }
 
-.transaction-details-section-title {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: #5b3a0b;
-  margin-bottom: 1.5rem;
-  letter-spacing: 0.5px;
+.skeleton-status-value {
+  width: 120px;
+  height: 1.2rem;
+  border-radius: 8px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .transaction-details-container {
+    padding: 1.5rem 1rem;
+  }
+
+  .transaction-details-title {
+    font-size: 2.5rem;
+  }
+
+  .transaction-details-card {
+    padding: 1.5rem 1.2rem;
+  }
+
+  .transaction-details-label {
+    width: 150px;
+    font-size: 0.95rem;
+  }
+
+  .transaction-details-separator {
+    width: 12px;
+    font-size: 1rem;
+  }
+
+  .transaction-details-table td {
+    font-size: 0.95rem;
+  }
+
+  .transaction-details-status-card {
+    padding: 1.5rem;
+  }
+
+  .transaction-details-status-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .transaction-details-status-label {
+    font-size: 1rem;
+  }
+
+  .transaction-details-status-value {
+    align-self: flex-end;
+    padding: 10px 22px;
+    font-size: 12px;
+    min-width: 120px;
+  }
+
+  .transaction-details-status-value::after {
+    font-size: 16px;
+  }
+
+  .skeleton-label {
+    width: 150px;
+  }
 }
