@@ -196,6 +196,19 @@ export default function Pending({
               alert("Invalid reservation ID. Cannot view details.");
               return;
             }
+            try {
+              const existingState = (window.history && window.history.state) || {};
+              const newState = {
+                ...existingState,
+                activeTab: "Pending",
+                filters,
+                searchQuery,
+                currentPage,
+              };
+              window.history.replaceState(newState, document.title);
+            } catch (e) {
+              // ignore errors (e.g. Safari privacy restrictions)
+            }
             navigate(`/pendingRSV/${row.id}/details`, {
               state: {
                 activeTab: 'Pending',
@@ -226,6 +239,20 @@ export default function Pending({
           alert("Invalid reservation ID. Cannot view details.");
           return;
         }
+        try {
+          const existingState = (window.history && window.history.state) || {};
+          const newState = {
+            ...existingState,
+            activeTab: "Pending",
+            filters,
+            searchQuery,
+            currentPage,
+          };
+          window.history.replaceState(newState, document.title);
+        } catch (e) {
+          // ignore errors (e.g. Safari privacy restrictions)
+        }
+
         navigate(`/pendingRSV/${row.id}/details`, {
           state: {
             activeTab: 'Pending',

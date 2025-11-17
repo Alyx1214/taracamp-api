@@ -167,6 +167,20 @@ export default function Cancelled({
               alert("Invalid reservation ID. Cannot view details.");
               return;
             }
+            try {
+              const existingState = (window.history && window.history.state) || {};
+              const newState = {
+                ...existingState,
+                activeTab: "Cancelled",
+                filters,
+                searchQuery,
+                currentPage,
+              };
+              window.history.replaceState(newState, document.title);
+            } catch (e) {
+              // ignore errors (e.g. Safari privacy restrictions)
+            }
+
             navigate(`/cancelledRSV/${row.id}/details`, {
               state: {
                 activeTab: 'Cancelled',
@@ -196,6 +210,20 @@ export default function Cancelled({
           alert("Invalid reservation ID. Cannot view details.");
           return;
         }
+        try {
+          const existingState = (window.history && window.history.state) || {};
+          const newState = {
+            ...existingState,
+            activeTab: "Cancelled",
+            filters,
+            searchQuery,
+            currentPage,
+          };
+          window.history.replaceState(newState, document.title);
+        } catch (e) {
+          // ignore errors (e.g. Safari privacy restrictions)
+        }
+
         navigate(`/cancelledRSV/${row.id}/details`, {
           state: {
             activeTab: 'Cancelled',
