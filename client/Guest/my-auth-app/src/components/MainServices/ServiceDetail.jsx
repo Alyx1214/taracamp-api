@@ -51,7 +51,7 @@ function MainServicesServiceDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [availableDates, setAvailableDates] = useState([]);
-  const [reservations, setReservations] = useState([]); // Initialize as empty array to avoid uninitialized variable errors
+  const [reservations, setReservations] = useState([]);
   const [reviews, setReviews] = useState([]);
   const [reviewsLoading, setReviewsLoading] = useState(false);
   const [averageRatings, setAverageRatings] = useState({
@@ -75,12 +75,10 @@ function MainServicesServiceDetail() {
   const { isLoggedIn } = useAuth();
   const hasValidatedDatesRef = useRef(false);
   
-  // Use refs to store values for useMemo to avoid TDZ issues
   const availableDatesRef = useRef([]);
   const facilityRef = useRef(null);
   const reservationsRef = useRef([]);
   
-  // Update refs whenever values change
   useEffect(() => {
     availableDatesRef.current = availableDates;
   }, [availableDates]);
@@ -94,7 +92,6 @@ function MainServicesServiceDetail() {
   }, [reservations]);
 
   useEffect(() => {
-    // Reset validation ref when facility ID changes
     hasValidatedDatesRef.current = false;
 
     const fetchFacilityData = async () => {
@@ -145,7 +142,6 @@ function MainServicesServiceDetail() {
           setAvailableDates(availableDatesResponse.availableDates);
         }
 
-        // Filter reservations to only include confirmed and approved
         if (reservationsResponse.status === 200 && reservationsResponse.reservations) {
           const filteredReservations = reservationsResponse.reservations.filter(res => {
             const status = res.status?.toLowerCase();
@@ -165,7 +161,6 @@ function MainServicesServiceDetail() {
     fetchFacilityData();
   }, [id]);
 
-  // Prefill selected dates when coming back from Reservation Form
   useEffect(() => {
     const pre = location.state?.preselectedDates;
     if (pre) {
@@ -211,7 +206,6 @@ function MainServicesServiceDetail() {
     }
   }, [location.state]);
 
-  // Validate and correct dates from localStorage against available dates
   useEffect(() => {
     if (!availableDates || availableDates.length === 0 || location.state?.preselectedDates || hasValidatedDatesRef.current) {
       return;
@@ -334,23 +328,18 @@ function MainServicesServiceDetail() {
     fetchReviews();
   }, [id]);
 
-  // Helper: Get available capacity for a dormitory on a specific date
-  // Only counts approved and confirmed reservations
   const getDormAvailableCapacity = useCallback((dateStr) => {
     if (!facility || facility.facilityType !== 'Dormitory') {
       return facility?.capacity || 0;
     }
 
-    // Defensive check to prevent "uninitialized variable" errors
     const resList = (reservations !== undefined && reservations !== null && Array.isArray(reservations)) ? reservations : [];
     if (resList.length === 0) {
       return facility?.capacity || 0;
     }
 
-    // Filter to only approved and confirmed reservations, then check date overlap
     const reservedCapacity = resList
       .filter(res => {
-        // Only count approved and confirmed reservations
         const status = res.status?.toLowerCase();
         if (status !== 'confirmed' && status !== 'approved') {
           return false;
@@ -366,7 +355,6 @@ function MainServicesServiceDetail() {
             return false;
           }
 
-          // Check if the date falls within the reservation period
           return checkDate >= arrivalDate && checkDate < departureDate;
         } catch {
           return false;
@@ -374,31 +362,22 @@ function MainServicesServiceDetail() {
       })
       .reduce((total, res) => total + (res.totalPax || 1), 0);
 
-    // Return available capacity (total capacity minus reserved capacity)
     return Math.max(0, (facility.capacity || 0) - reservedCapacity);
   }, [facility, reservations]);
 
-  // Helper: Check if a date is unavailable based on reservations
-  // Using useMemo to ensure stable reference and avoid circular dependencies
   const isDateUnavailable = useMemo(() => {
     return (dateStr) => {
       if (!facility || !dateStr) return false;
       
-      // Ensure reservations is initialized and is an array
-      // Defensive check to prevent "uninitialized variable" errors
       const resList = (reservations !== undefined && reservations !== null && Array.isArray(reservations)) ? reservations : [];
 
       if (facility.facilityType === 'Dormitory') {
-        // For dormitory: mark unavailable only if available capacity is 0 or less
-        // Only counts approved and confirmed reservations
         if (resList.length === 0) {
           return false;
         }
 
-        // Filter to only approved and confirmed reservations, then check date overlap
         const reservedCapacity = resList
           .filter(res => {
-            // Only count approved and confirmed reservations
             const status = res.status?.toLowerCase();
             if (status !== 'confirmed' && status !== 'approved') {
               return false;
@@ -414,7 +393,6 @@ function MainServicesServiceDetail() {
                 return false;
               }
 
-              // Check if the date falls within the reservation period
               return checkDate >= arrivalDate && checkDate < departureDate;
             } catch {
               return false;
@@ -422,16 +400,13 @@ function MainServicesServiceDetail() {
           })
           .reduce((total, res) => total + (res.totalPax || 1), 0);
 
-        // Mark as unavailable if available capacity is 0 or less
         return Math.max(0, (facility.capacity || 0) - reservedCapacity) <= 0;
       } else {
-        // For other types: mark unavailable if any confirmed/approved reservation overlaps
         if (resList.length === 0) {
           return false;
         }
 
         return resList.some(res => {
-          // Only check approved and confirmed reservations
           const status = res.status?.toLowerCase();
           if (status !== 'confirmed' && status !== 'approved') {
             return false;
@@ -447,7 +422,6 @@ function MainServicesServiceDetail() {
               return false;
             }
 
-            // Check if the date falls within the reservation period
             return checkDate >= arrivalDate && checkDate < departureDate;
           } catch {
             return false;
@@ -457,7 +431,6 @@ function MainServicesServiceDetail() {
     };
   }, [facility, reservations]);
 
-  // Helper: Check if entire date range is available
   const isDateRangeAvailable = useMemo(() => {
     return (arrivalDateStr, departureDateStr) => {
       if (!arrivalDateStr || !departureDateStr) return false;
@@ -487,7 +460,6 @@ function MainServicesServiceDetail() {
     };
   }, [isDateUnavailable]);
 
-  // Helper function to compute reserved dates - defined outside useMemo to avoid TDZ issues
   const computeReservedDates = useCallback((availDates, fac, res) => {
     const safeReturn = { reservedDatesForCalendar: [], reservedDatesSet: new Set() };
     
@@ -502,29 +474,22 @@ function MainServicesServiceDetail() {
       const reservationsVal = Array.isArray(res) ? res : [];
       const resList = Array.isArray(reservationsVal) ? reservationsVal : [];
 
-      // Helper function to check if a date is unavailable (defined inside useMemo to avoid initialization issues)
       const checkDateUnavailable = (dateStr, fac, res) => {
         try {
           if (!fac || !dateStr) return false;
 
-          // Defensive check to prevent "uninitialized variable" errors
-          // Ensure all parameters are properly initialized
           if (fac === undefined || fac === null) return false;
           if (res === undefined || res === null) return false;
           
           const resList = Array.isArray(res) ? res : [];
 
           if (fac.facilityType === 'Dormitory') {
-            // For dormitory: mark unavailable only if available capacity is 0 or less
-            // Only counts approved and confirmed reservations
             if (resList.length === 0) {
               return false;
             }
 
-            // Filter to only approved and confirmed reservations, then check date overlap
             const reservedCapacity = resList
               .filter(reservation => {
-                // Only count approved and confirmed reservations
                 const status = reservation.status?.toLowerCase();
                 if (status !== 'confirmed' && status !== 'approved') {
                   return false;
@@ -540,7 +505,6 @@ function MainServicesServiceDetail() {
                     return false;
                   }
 
-                  // Check if the date falls within the reservation period
                   return checkDate >= arrivalDate && checkDate < departureDate;
                 } catch {
                   return false;
@@ -548,16 +512,13 @@ function MainServicesServiceDetail() {
               })
               .reduce((total, reservation) => total + (reservation.totalPax || 1), 0);
 
-            // Mark as unavailable if available capacity is 0 or less
             return Math.max(0, (fac.capacity || 0) - reservedCapacity) <= 0;
           } else {
-            // For other types: mark unavailable if any confirmed/approved reservation overlaps
             if (resList.length === 0) {
               return false;
             }
 
             return resList.some(reservation => {
-              // Only check approved and confirmed reservations
               const status = reservation.status?.toLowerCase();
               if (status !== 'confirmed' && status !== 'approved') {
                 return false;
@@ -573,7 +534,6 @@ function MainServicesServiceDetail() {
                   return false;
                 }
 
-                // Check if the date falls within the reservation period
                 return checkDate >= arrivalDate && checkDate < departureDate;
               } catch {
                 return false;
@@ -581,7 +541,6 @@ function MainServicesServiceDetail() {
             });
           }
         } catch (err) {
-          // If there's any error checking date availability, treat as available
           return false;
         }
       };
@@ -600,17 +559,14 @@ function MainServicesServiceDetail() {
       while (currentDate <= endDate) {
         const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
         
-        // Check if date is in the past
         if (currentDate < today) {
           reserved.push(dateStr);
           reservedSet.add(dateStr);
         }
-        // Check if date is not in available dates from API
         else if (!availableSet.has(dateStr)) {
           reserved.push(dateStr);
           reservedSet.add(dateStr);
         }
-        // Check if date is unavailable based on reservations (using inline function)
         else if (facilityVal && checkDateUnavailable(dateStr, facilityVal, resList)) {
           reserved.push(dateStr);
           reservedSet.add(dateStr);
@@ -621,24 +577,18 @@ function MainServicesServiceDetail() {
 
       return { reservedDatesForCalendar: reserved, reservedDatesSet };
     } catch (error) {
-      // If there's any error, return empty arrays to prevent crashes
       console.error('Error computing reserved dates:', error);
       return { reservedDatesForCalendar: [], reservedDatesSet: new Set() };
     }
-  }, []); // Empty deps - function doesn't depend on any external variables
+  }, []);
 
-  // Use useMemo to call the function with current values from refs
-  // Using refs ensures values are always accessible and avoids TDZ issues
   const { reservedDatesForCalendar, reservedDatesSet } = useMemo(() => {
-    // Access values from refs - these are always initialized and never in TDZ
     const availDates = availableDatesRef.current ?? [];
     const fac = facilityRef.current ?? null;
     const res = reservationsRef.current ?? [];
     
     return computeReservedDates(availDates, fac, res);
   }, [
-    // Use safe primitive values for dependency tracking
-    // Wrap in IIFE to safely access values and fallback to refs if TDZ
     (() => {
       try {
         return availableDates?.length ?? 0;
@@ -781,7 +731,6 @@ function MainServicesServiceDetail() {
       const dayNumber = idx + 1;
       const dateObj = new Date(dateStr);
       
-      // Mark as reserved if in the past or unavailable
       if (dateObj < today || isDateUnavailable(dateStr)) {
         reservedYMD.push(dateStr);
         reservedDaysNumbers.push(dayNumber);
@@ -820,12 +769,10 @@ function MainServicesServiceDetail() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Check if date is in the past
     if (dateObj < today) {
       return;
     }
 
-    // Check if date is unavailable
     if (isDateUnavailable(selectedDateStr)) {
       return;
     }
@@ -834,7 +781,6 @@ function MainServicesServiceDetail() {
     const dayName = dateObj.toLocaleString('default', { weekday: 'long' });
 
     if (isSelectingDeparture) {
-      // Validate departure date is after arrival date
       if (selectedArrivalDate) {
         const arrivalDateObj = new Date(selectedArrivalDate);
         if (dateObj <= arrivalDateObj) {
@@ -842,7 +788,6 @@ function MainServicesServiceDetail() {
           return;
         }
         
-        // Check if entire date range is available
         if (!isDateRangeAvailable(selectedArrivalDate, selectedDateStr)) {
           setDepartureDateError('Selected date range includes unavailable dates. Please select a different range.');
           return;
@@ -853,7 +798,6 @@ function MainServicesServiceDetail() {
       setDepartureDateError('');
       setIsSelectingDeparture(false);
     } else {
-      // If departure date is already selected, validate it's still valid
       if (selectedDepartureDate) {
         const departureDateObj = new Date(selectedDepartureDate);
         if (dateObj >= departureDateObj) {
@@ -873,7 +817,6 @@ function MainServicesServiceDetail() {
   };
 
   const onReserveNow = () => {
-    // Prevent reservation if facility is unavailable
     if (isFacilityUnavailable) {
       return;
     }
@@ -935,7 +878,6 @@ function MainServicesServiceDetail() {
         setDepartureDateError('Stay must be at least 1 day');
         hasError = true;
       } else {
-        // Check if entire date range is available
         if (!isDateRangeAvailable(selectedArrivalDate, selectedDepartureDate)) {
           setDepartureDateError('Selected date range includes unavailable dates. Please select a different range.');
           hasError = true;
@@ -1007,7 +949,6 @@ function MainServicesServiceDetail() {
     ? 'Price' 
     : 'Rates per Person';
 
-  // Check if facility is unavailable - also check if selected date range is available
   const isFacilityUnavailable = 
     facility?.status !== 'Available' || 
     (availableDates && availableDates.length === 0) ||
@@ -1027,7 +968,10 @@ function MainServicesServiceDetail() {
                 <div className={styles.facilityInfo}>
                   <h2 className={styles.facilityName}>{facility.name}</h2>
                   <p className={styles.facilityRate}>
-                    {priceLabel}: ₱ {displayPrice > 0 ? displayPrice.toLocaleString() : 'N/A'}
+                    <strong>{priceLabel}:</strong> ₱ {displayPrice > 0 ? displayPrice.toLocaleString() : 'N/A'}
+                  </p>
+                  <p className={styles.facilityCapacity}>
+                    <strong>Capacity:</strong> {facility.capacity > 0 ? `${facility.capacity} ${facility.capacity === 1 ? 'person' : 'people'}` : 'N/A'}
                   </p>
                   {facilityType === 'Dormitory' && (
                     <p className={styles.packageNote}>
@@ -1130,7 +1074,6 @@ function MainServicesServiceDetail() {
                   <Calendar
                     selectedDate={selectedArrivalDate || new Date()}
                     onDateSelect={({ date, ymd, formatted }) => {
-                      // Check if date is unavailable
                       if (isDateUnavailable(ymd)) {
                         if (isSelectingDeparture) {
                           setDepartureDateError('This date is not available. Please select another date.');
@@ -1146,7 +1089,6 @@ function MainServicesServiceDetail() {
                           return;
                         }
                         
-                        // Check if entire date range is available
                         if (selectedArrivalDate && !isDateRangeAvailable(selectedArrivalDate, ymd)) {
                           setDepartureDateError('Selected date range includes unavailable dates. Please select a different range.');
                           return;
