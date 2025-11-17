@@ -509,7 +509,7 @@ function ReservationForm() {
                 <label className={styles.label} htmlFor="emergencyContactPerson">Person/s to be notified in case of emergency<span className={styles.requiredAsterisk}>*</span></label>
                 <input
                   id="emergencyContactPerson"
-                  type="tel"
+                  type="text"
                   name="emergencyContactPerson"
                   value={formData.emergencyContactPerson}
                   onChange={handleInputChange}

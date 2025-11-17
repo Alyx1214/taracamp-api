@@ -121,7 +121,6 @@
   display: flex;
   gap: 20px;
   margin-bottom: 20px;
-  flex-wrap: wrap;
 }
 
 .formRow .formGroup {
@@ -172,6 +171,7 @@
     padding: 30px;
   }
   .formRow {
+    flex-wrap: wrap;
     flex-direction: column;
     gap: 0; 
   }
