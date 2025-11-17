@@ -1,11 +1,9 @@
 import React, { useRef, useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { FaCalendarAlt, FaDownload, FaChevronDown, FaArrowLeft, FaFileAlt } from "react-icons/fa";
+import { FaCalendarAlt, FaDownload, FaChevronDown, FaTimes, FaFileAlt } from "react-icons/fa";
 import styles from "./GenerateReport.module.css";
 import { downloadAccommodationReportPDF, downloadSalesReportPDF } from "../../apis/reportApi";
 
-export default function GenerateReport() {
-  const navigate = useNavigate();
+export default function GenerateReport({ isOpen, onClose }) {
   const [reportType, setReportType] = useState("");
   const [startMonth, setStartMonth] = useState("");
   const [endMonth, setEndMonth] = useState("");
@@ -19,6 +17,7 @@ export default function GenerateReport() {
   const reportTypeDropdownRef = useRef(null);
   const startDropdownRef = useRef(null);
   const endDropdownRef = useRef(null);
+  const modalRef = useRef(null);
 
   useEffect(() => {
     const onDocClick = (e) => {
@@ -35,6 +34,43 @@ export default function GenerateReport() {
     document.addEventListener("mousedown", onDocClick);
     return () => document.removeEventListener("mousedown", onDocClick);
   }, []);
+
+  // Close modal on Escape key
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
+      }
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [isOpen, onClose]);
+
+  // Reset form when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      setReportType("");
+      setStartMonth("");
+      setEndMonth("");
+      setError(null);
+      setGenerating(false);
+      setReportTypeDropdownOpen(false);
+      setStartDropdownOpen(false);
+      setEndDropdownOpen(false);
+    }
+  }, [isOpen]);
+
+  // Prevent body scroll when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen]);
 
   const reportTypes = [
     { value: "accommodation", label: "Accommodation Report" },
@@ -70,11 +106,15 @@ export default function GenerateReport() {
       setError("Please select a report type.");
       return false;
     }
+    if (!startMonth) {
+      setError("Please select a start month.");
+      return false;
+    }
     if (!endMonth) {
       setError("Please select an end month.");
       return false;
     }
-    if (startMonth && startMonth > endMonth) {
+    if (startMonth > endMonth) {
       setError("Start month must be before or equal to end month.");
       return false;
     }
@@ -95,6 +135,11 @@ export default function GenerateReport() {
       } else if (reportType === "revenue") {
         await downloadSalesReportPDF({ year, month });
       }
+      
+      // Close modal after successful generation
+      setTimeout(() => {
+        onClose();
+      }, 500);
     } catch (e) {
       console.error(e);
       setError("Failed to generate PDF. Try again.");
@@ -103,137 +148,189 @@ export default function GenerateReport() {
     }
   };
 
+  if (!isOpen) return null;
+
   return (
-    <div className={styles.page}>
-      <div className={styles.header}>
-        <span
-          className={styles["add-form-back"]}
-          onClick={() => navigate(-1)}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && navigate(-1)}
-        >
-          &larr;
-        </span>
-        <h1 className={styles.title}>Generate Report</h1>
-      </div>
-
-      <div className={styles.form}>
-        {/* Report Type Selection */}
-        <label className={styles.label}>Report Type</label>
-        <div ref={reportTypeDropdownRef} className={styles.monthDropdown} role="presentation">
-          <button
-            type="button"
-            className={`${styles.monthToggle} ${styles.reportTypeToggle}`}
-            onClick={() => setReportTypeDropdownOpen((s) => !s)}
-            aria-haspopup="listbox"
-            aria-expanded={reportTypeDropdownOpen}
+    <div className={styles.modalOverlay} onClick={onClose}>
+      <div 
+        ref={modalRef}
+        className={styles.modalContent} 
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className={styles.modalHeader}>
+          <div className={styles.modalHeaderContent}>
+            <div className={styles.modalIcon}>
+              <FaFileAlt />
+            </div>
+            <h2 className={styles.modalTitle}>Generate Report</h2>
+          </div>
+          <button 
+            className={styles.closeButton} 
+            onClick={onClose}
+            aria-label="Close modal"
           >
-            <span className={styles.iconWrap}><FaFileAlt className={styles.icon} /></span>
-            <span className={styles.monthText}>{formatReportTypeLabel(reportType)}</span>
-            <FaChevronDown className={styles.caret} />
+            <FaTimes />
           </button>
+        </div>
 
-          {reportTypeDropdownOpen && (
-            <ul className={styles.monthList} role="listbox" tabIndex={-1}>
-              {reportTypes.map((type) => (
-                <li
-                  key={type.value}
-                  role="option"
-                  aria-selected={type.value === reportType}
-                  className={`${styles.monthListItem} ${type.value === reportType ? styles.selectedItem : ""}`}
-                  onClick={() => { setReportType(type.value); setReportTypeDropdownOpen(false); }}
-                  onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (setReportType(type.value), setReportTypeDropdownOpen(false))}
-                  tabIndex={0}
+        <div className={styles.modalBody}>
+          <p className={styles.modalDescription}>
+            Select the report type and date range to generate your custom report.
+          </p>
+
+          <div className={styles.form}>
+            {/* Report Type Selection */}
+            <div className={styles.formGroup}>
+              <label className={styles.label}>
+                <span className={styles.labelIcon}>📊</span>
+                Report Type<span className={styles.required}>*</span>
+              </label>
+              <div ref={reportTypeDropdownRef} className={styles.monthDropdown} role="presentation">
+                <button
+                  type="button"
+                  className={`${styles.monthToggle} ${reportType ? styles.hasValue : ''}`}
+                  onClick={() => setReportTypeDropdownOpen((s) => !s)}
+                  aria-haspopup="listbox"
+                  aria-expanded={reportTypeDropdownOpen}
                 >
-                  {type.label}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+                  <span className={styles.iconWrap}><FaFileAlt className={styles.icon} /></span>
+                  <span className={styles.monthText}>{formatReportTypeLabel(reportType)}</span>
+                  <FaChevronDown className={`${styles.caret} ${reportTypeDropdownOpen ? styles.caretOpen : ''}`} />
+                </button>
 
-        {/* Start Date */}
-        <label className={styles.label} style={{ marginTop: 16 }}>Start Date</label>
-        <div className={styles.monthRow}>
-          <div ref={startDropdownRef} className={styles.monthDropdown} role="presentation">
-            <button
-              type="button"
-              className={`${styles.monthToggle} ${styles.monthToggleStart}`}
-              onClick={() => setStartDropdownOpen((s) => !s)}
-              aria-haspopup="listbox"
-              aria-expanded={startDropdownOpen}
-            >
-              <span className={styles.iconWrap}><FaCalendarAlt className={styles.icon} /></span>
-              <span className={styles.monthText}>{formatMonthLabel(startMonth)}</span>
-              <FaChevronDown className={styles.caret} />
-            </button>
+                {reportTypeDropdownOpen && (
+                  <ul className={styles.monthList} role="listbox" tabIndex={-1}>
+                    {reportTypes.map((type) => (
+                      <li
+                        key={type.value}
+                        role="option"
+                        aria-selected={type.value === reportType}
+                        className={`${styles.monthListItem} ${type.value === reportType ? styles.selectedItem : ""}`}
+                        onClick={() => { setReportType(type.value); setReportTypeDropdownOpen(false); }}
+                        onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (setReportType(type.value), setReportTypeDropdownOpen(false))}
+                        tabIndex={0}
+                      >
+                        <span className={styles.itemIcon}>📄</span>
+                        {type.label}
+                        {type.value === reportType && <span className={styles.checkmark}>✓</span>}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
 
-            {startDropdownOpen && (
-              <ul className={styles.monthList} role="listbox" tabIndex={-1}>
-                {months.map((m) => (
-                  <li
-                    key={m.value}
-                    role="option"
-                    aria-selected={m.value === startMonth}
-                    className={`${styles.monthListItem} ${m.value === startMonth ? styles.selectedItem : ""}`}
-                    onClick={() => { setStartMonth(m.value); setStartDropdownOpen(false); }}
-                    onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (setStartMonth(m.value), setStartDropdownOpen(false))}
-                    tabIndex={0}
-                  >
-                    {m.label}
-                  </li>
-                ))}
-              </ul>
+            {/* Start Date */}
+            <div className={styles.formGroup}>
+              <label className={styles.label}>
+                <span className={styles.labelIcon}>📅</span>
+                Start Date<span className={styles.required}>*</span>
+              </label>
+              <div ref={startDropdownRef} className={styles.monthDropdown} role="presentation">
+                <button
+                  type="button"
+                  className={`${styles.monthToggle} ${startMonth ? styles.hasValue : ''}`}
+                  onClick={() => setStartDropdownOpen((s) => !s)}
+                  aria-haspopup="listbox"
+                  aria-expanded={startDropdownOpen}
+                >
+                  <span className={styles.iconWrap}><FaCalendarAlt className={styles.icon} /></span>
+                  <span className={styles.monthText}>{formatMonthLabel(startMonth)}</span>
+                  <FaChevronDown className={`${styles.caret} ${startDropdownOpen ? styles.caretOpen : ''}`} />
+                </button>
+
+                {startDropdownOpen && (
+                  <ul className={styles.monthList} role="listbox" tabIndex={-1}>
+                    {months.map((m) => (
+                      <li
+                        key={m.value}
+                        role="option"
+                        aria-selected={m.value === startMonth}
+                        className={`${styles.monthListItem} ${m.value === startMonth ? styles.selectedItem : ""}`}
+                        onClick={() => { setStartMonth(m.value); setStartDropdownOpen(false); }}
+                        onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (setStartMonth(m.value), setStartDropdownOpen(false))}
+                        tabIndex={0}
+                      >
+                        <span className={styles.itemIcon}>📅</span>
+                        {m.label}
+                        {m.value === startMonth && <span className={styles.checkmark}>✓</span>}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+
+            {/* End Date */}
+            <div className={styles.formGroup}>
+              <label className={styles.label}>
+                <span className={styles.labelIcon}>📅</span>
+                End Date<span className={styles.required}>*</span>
+              </label>
+              <div ref={endDropdownRef} className={styles.monthDropdown} role="presentation">
+                <button
+                  type="button"
+                  className={`${styles.monthToggle} ${endMonth ? styles.hasValue : ''}`}
+                  onClick={() => setEndDropdownOpen((s) => !s)}
+                  aria-haspopup="listbox"
+                  aria-expanded={endDropdownOpen}
+                >
+                  <span className={styles.iconWrap}><FaCalendarAlt className={styles.icon} /></span>
+                  <span className={styles.monthText}>{formatMonthLabel(endMonth)}</span>
+                  <FaChevronDown className={`${styles.caret} ${endDropdownOpen ? styles.caretOpen : ''}`} />
+                </button>
+
+                {endDropdownOpen && (
+                  <ul className={styles.monthList} role="listbox" tabIndex={-1}>
+                    {months.map((m) => (
+                      <li
+                        key={m.value}
+                        role="option"
+                        aria-selected={m.value === endMonth}
+                        className={`${styles.monthListItem} ${m.value === endMonth ? styles.selectedItem : ""}`}
+                        onClick={() => { setEndMonth(m.value); setEndDropdownOpen(false); }}
+                        onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (setEndMonth(m.value), setEndDropdownOpen(false))}
+                        tabIndex={0}
+                      >
+                        <span className={styles.itemIcon}>📅</span>
+                        {m.label}
+                        {m.value === endMonth && <span className={styles.checkmark}>✓</span>}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+
+            {error && (
+              <div className={styles.errorContainer}>
+                <span className={styles.errorIcon}>⚠️</span>
+                <span className={styles.error}>{error}</span>
+              </div>
             )}
-          </div>
 
-          {/* End Date */}
-          <label className={styles.label} style={{ marginTop: 8 }}>End Date</label>
-          <div ref={endDropdownRef} className={styles.monthDropdown} role="presentation" style={{ marginTop: 4 }}>
-            <button
-              type="button"
-              className={styles.monthToggle}
-              onClick={() => setEndDropdownOpen((s) => !s)}
-              aria-haspopup="listbox"
-              aria-expanded={endDropdownOpen}
-            >
-              <span className={styles.iconWrap}><FaCalendarAlt className={styles.icon} /></span>
-              <span className={styles.monthText}>{formatMonthLabel(endMonth)}</span>
-              <FaChevronDown className={styles.caret} />
-            </button>
-
-            {endDropdownOpen && (
-              <ul className={styles.monthList} role="listbox" tabIndex={-1}>
-                {months.map((m) => (
-                  <li
-                    key={m.value}
-                    role="option"
-                    aria-selected={m.value === endMonth}
-                    className={`${styles.monthListItem} ${m.value === endMonth ? styles.selectedItem : ""}`}
-                    onClick={() => { setEndMonth(m.value); setEndDropdownOpen(false); }}
-                    onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (setEndMonth(m.value), setEndDropdownOpen(false))}
-                    tabIndex={0}
-                  >
-                    {m.label}
-                  </li>
-                ))}
-              </ul>
-            )}
+            <div className={styles.modalActions}>
+              <button
+                type="button"
+                className={styles.cancelBtn}
+                onClick={onClose}
+                disabled={generating}
+              >
+                <FaTimes className={styles.cancelIcon} />
+                Cancel
+              </button>
+              <button
+                type="button"
+                className={styles.downloadBtn}
+                onClick={downloadPdf}
+                disabled={generating || !reportType || !startMonth || !endMonth}
+              >
+                <FaDownload className={styles.downloadIcon} />
+                {generating ? "Generating..." : "Download Report"}
+              </button>
+            </div>
           </div>
         </div>
-
-        {error && <div className={styles.error}>{error}</div>}
-
-        <button
-          type="button"
-          className={styles.downloadBtn}
-          onClick={downloadPdf}
-          disabled={generating || !reportType}
-        >
-          <FaDownload className={styles.downloadIcon} />
-          {generating ? "Generating..." : "Download Report"}
-        </button>
       </div>
     </div>
   );
