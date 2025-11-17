@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { createWorker } from 'tesseract.js';
 import styles from './PaymentChannel.module.css';
+import PaymentConfirmation from './PaymentConfirmation';
 
 const PaymentChannel = ({ channel, onClose, onSubmit, reservationId, amount }) => {
   const [referenceNumber, setReferenceNumber] = useState('');
@@ -11,6 +12,8 @@ const PaymentChannel = ({ channel, onClose, onSubmit, reservationId, amount }) =
   const [extractedReferenceNumber, setExtractedReferenceNumber] = useState(null);
   const [isExtracting, setIsExtracting] = useState(false);
   const [mismatchWarning, setMismatchWarning] = useState(null);
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [submittedPaymentDetails, setSubmittedPaymentDetails] = useState(null);
   const fileInputRef = useRef(null);
 
   // Payment channel details
@@ -217,7 +220,7 @@ const PaymentChannel = ({ channel, onClose, onSubmit, reservationId, amount }) =
         }
       }
       
-      // Strategy 3: Try regex patterns for other formats
+      // Strategy 4: Try regex patterns for other formats
       if (!extractedRef) {
         const patterns = [
           // Reference number patterns with "Ref No." prefix (handle spaces)
@@ -386,13 +389,50 @@ const PaymentChannel = ({ channel, onClose, onSubmit, reservationId, amount }) =
         ocrExtractedReferenceNumber: extractedReferenceNumber || null,
       });
       
-      // Modal will be closed by parent on success
+      // Store payment details for confirmation display
+      const channelNames = {
+        gcash: 'GCash',
+        grab_pay: 'GrabPay',
+        dbp: 'Development Bank of the Philippines'
+      };
+      
+      setSubmittedPaymentDetails({
+        channel: channelNames[channel] || channel,
+        referenceNumber: referenceNumber.trim(),
+        amount: amount
+      });
+      
+      // Show confirmation overlay
+      setShowConfirmation(true);
     } catch (err) {
       setError(err?.message || 'Failed to submit payment. Please try again.');
     } finally {
       setSubmitting(false);
     }
   };
+
+  const handleConfirmationDone = () => {
+    setShowConfirmation(false);
+    onClose(); // Close the payment channel modal
+  };
+
+  const handleViewTransaction = () => {
+    setShowConfirmation(false);
+    onClose(); // Close the payment channel modal
+    // You can add navigation to transaction page here
+    // For example: navigate('/transactions');
+    window.location.href = '/transactions'; // Simple redirect
+  };
+
+  if (showConfirmation) {
+    return (
+      <PaymentConfirmation
+        onDone={handleConfirmationDone}
+        onViewTransaction={handleViewTransaction}
+        paymentDetails={submittedPaymentDetails}
+      />
+    );
+  }
 
   return (
     <div className={styles.modalOverlay} onClick={onClose}>

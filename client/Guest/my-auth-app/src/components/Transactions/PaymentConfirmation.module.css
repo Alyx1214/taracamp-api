@@ -1,0 +1,333 @@
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.container {
+  background: #ffffff;
+  border-radius: 24px;
+  padding: 3rem 2.5rem;
+  max-width: 550px;
+  width: 90%;
+  box-shadow: 0 25px 70px rgba(79, 55, 24, 0.4);
+  text-align: center;
+  position: relative;
+  border: 3px solid #4F3718;
+  animation: slideUp 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(50px) scale(0.9);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+.header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 8px;
+  background: linear-gradient(90deg, #1E3C24, #4F3718, #538E5E, #4F3718, #1E3C24);
+  background-size: 300% 100%;
+  animation: gradientShift 4s ease infinite;
+  border-radius: 24px 24px 0 0;
+}
+
+@keyframes gradientShift {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.checkmarkWrapper {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 2rem;
+  animation: bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55) 0.3s backwards;
+}
+
+@keyframes bounceIn {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.checkmarkCircle {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #1E3C24 0%, #538E5E 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 30px rgba(30, 60, 36, 0.4);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 10px 30px rgba(30, 60, 36, 0.4);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 15px 40px rgba(30, 60, 36, 0.6);
+  }
+}
+
+.checkmarkIcon {
+  width: 60px;
+  height: 60px;
+  color: #ffffff;
+  animation: drawCheck 0.5s ease 0.5s backwards;
+}
+
+@keyframes drawCheck {
+  0% {
+    stroke-dasharray: 0, 100;
+  }
+  100% {
+    stroke-dasharray: 100, 100;
+  }
+}
+
+.title {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #1E3C24;
+  margin-bottom: 1.2rem;
+  letter-spacing: 0.5px;
+  font-family: "Montserrat", sans-serif;
+  animation: fadeInUp 0.5s ease 0.4s backwards;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.desc {
+  font-size: 1.05rem;
+  color: #4F3718;
+  line-height: 1.7;
+  margin-bottom: 2rem;
+  font-weight: 500;
+  font-family: "Montserrat", sans-serif;
+  animation: fadeInUp 0.5s ease 0.5s backwards;
+}
+
+.paymentSummary {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border: 2px solid #4F3718;
+  border-radius: 16px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  animation: fadeInUp 0.5s ease 0.6s backwards;
+}
+
+.summaryRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.8rem 0;
+  border-bottom: 1px solid rgba(79, 55, 24, 0.2);
+}
+
+.summaryRow:last-child {
+  border-bottom: none;
+}
+
+.summaryLabel {
+  font-size: 0.95rem;
+  color: #4F3718;
+  font-weight: 600;
+  font-family: "Montserrat", sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.summaryValue {
+  font-size: 1rem;
+  color: #1E3C24;
+  font-weight: 700;
+  font-family: "Montserrat", sans-serif;
+}
+
+.buttonRow {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  animation: fadeInUp 0.5s ease 0.7s backwards;
+}
+
+.btnBase {
+  flex: 1;
+  padding: 14px 28px;
+  border-radius: 14px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  font-family: "Montserrat", sans-serif;
+  border: 3px solid;
+  position: relative;
+  overflow: hidden;
+}
+
+.btnBase::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  transition: left 0.6s;
+}
+
+.btnBase:hover::before {
+  left: 100%;
+}
+
+.doneBtn {
+  background: #ffffff;
+  color: #4F3718;
+  border-color: #4F3718;
+}
+
+.doneBtn:hover {
+  background: #f8f9fa;
+  transform: translateY(-3px);
+  box-shadow: 0 8px 25px rgba(79, 55, 24, 0.25);
+  border-color: #1E3C24;
+}
+
+.reviewBtn {
+  background: linear-gradient(135deg, #1E3C24 0%, #538E5E 100%);
+  color: #ffffff;
+  border-color: #1E3C24;
+  box-shadow: 0 10px 25px rgba(30, 60, 36, 0.35);
+}
+
+.reviewBtn:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 15px 35px rgba(30, 60, 36, 0.45);
+  border-color: #538E5E;
+}
+
+.btnBase:active {
+  transform: translateY(-1px);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .container {
+    padding: 2.5rem 1.8rem;
+    max-width: 95%;
+    border-radius: 20px;
+  }
+
+  .title {
+    font-size: 1.6rem;
+  }
+
+  .desc {
+    font-size: 0.95rem;
+  }
+
+  .checkmarkCircle {
+    width: 85px;
+    height: 85px;
+  }
+
+  .checkmarkIcon {
+    width: 50px;
+    height: 50px;
+  }
+
+  .buttonRow {
+    flex-direction: column;
+  }
+
+  .btnBase {
+    width: 100%;
+  }
+
+  .summaryLabel,
+  .summaryValue {
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .container {
+    padding: 2rem 1.5rem;
+  }
+
+  .title {
+    font-size: 1.4rem;
+  }
+
+  .desc {
+    font-size: 0.9rem;
+  }
+
+  .checkmarkCircle {
+    width: 75px;
+    height: 75px;
+  }
+
+  .checkmarkIcon {
+    width: 45px;
+    height: 45px;
+  }
+
+  .btnBase {
+    padding: 12px 24px;
+    font-size: 0.9rem;
+  }
+}

@@ -310,7 +310,7 @@ function Transactions() {
                     title={!reservationId ? 'Select a reservation first' : 'Pay with DBP'}
                   >
                     <img
-                      src="https://www.dbp.ph/wp-content/uploads/2021/08/DBP-Logo-2021.png"
+                      src="https://fameplus.com/uploads/_export_enablers/1661479316374_WeBuildPossibilitieslogo-ChristineRemando.jpg"
                       alt="DBP"
                       className={styles.channelLogo}
                     />
