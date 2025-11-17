@@ -350,12 +350,13 @@ export default function PaymentDetails() {
           <span className={styles["payment-details-total"]}>{payment.total}</span>
         </div>
 
-        {/* Invoice and Payment Status Section */}
+        {/* Enhanced Invoice and Payment Status Section */}
         <hr className={styles["payment-details-divider"]} />
-        <div className={styles["payment-details-section-title"]}>Invoice & Payment Information</div>
         
         {isEditing ? (
           <div className={styles["invoice-edit-section"]}>
+            <div className={styles["payment-details-section-title"]}>Edit Invoice & Payment Information</div>
+            
             {/* Invoice Number Input */}
             <div className={styles["form-group"]}>
               <label className={styles["form-label"]}>Invoice Number <span className={styles["required"]}>*</span></label>
@@ -376,8 +377,16 @@ export default function PaymentDetails() {
                 type="file"
                 accept="image/*"
                 onChange={handleFileChange}
-                className={styles["file-input"]}
+                style={{ display: 'none' }}
               />
+              <div 
+                className={styles["file-input"]}
+                onClick={() => fileInputRef.current?.click()}
+                role="button"
+                tabIndex={0}
+              >
+                {invoiceFile ? invoiceFile.name : 'Click to upload invoice image'}
+              </div>
               
               {invoicePreview && (
                 <div className={styles["image-preview-container"]}>
@@ -430,40 +439,53 @@ export default function PaymentDetails() {
             </div>
           </div>
         ) : (
-          <table className={styles["payment-details-table"]}>
-            <tbody>
-              <tr>
-                <td className={styles["payment-details-label"]}>Invoice Number</td>
-                <td className={styles["payment-details-separator"]}>:</td>
-                <td>{payment.invoiceNumber || "Not set"}</td>
-              </tr>
+          <>
+            <div className={styles["payment-details-section-title"]}>Invoice & Payment Information</div>
+            
+            {/* Invoice Information Card */}
+            <div className={styles["invoice-info-card"]}>
+              <div className={styles["invoice-info-item"]}>
+                <div className={styles["invoice-info-label"]}>
+                  <span className={styles["invoice-icon"]}>📄</span>
+                  Invoice Number
+                </div>
+                <div className={styles["invoice-info-value"]}>
+                  {payment.invoiceNumber || "Not set"}
+                </div>
+              </div>
+
               {payment.invoiceImageUrl && (
-                <tr>
-                  <td className={styles["payment-details-label"]}>Invoice Image</td>
-                  <td className={styles["payment-details-separator"]}>:</td>
-                  <td>
+                <div className={styles["invoice-info-item"]}>
+                  <div className={styles["invoice-info-label"]}>
+                    <span className={styles["invoice-icon"]}>🖼️</span>
+                    Invoice Image
+                  </div>
+                  <div className={styles["invoice-info-value"]}>
                     <a 
                       href={payment.invoiceImageUrl} 
                       target="_blank" 
                       rel="noopener noreferrer"
                       className={styles["invoice-link"]}
                     >
-                      View Invoice
+                      View Invoice Image
                     </a>
-                  </td>
-                </tr>
+                  </div>
+                </div>
               )}
-              <tr>
-                <td className={styles["payment-details-label"]}>Payment Status</td>
-                <td className={styles["payment-details-separator"]}>:</td>
-                <td>
-                  <span className={`${styles["status-badge"]} ${styles[`status-${payment.paymentStatus?.toLowerCase().replace(' ', '-')}`]}`}>
-                    {payment.paymentStatus || "Unpaid"}
-                  </span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+            </div>
+
+            {/* Payment Status Card */}
+            <div className={styles["payment-status-card"]}>
+              <div className={styles["payment-status-label"]}>
+                Payment Status
+              </div>
+              <div className={styles["payment-status-value"]}>
+                <span className={`${styles["status-badge"]} ${styles[`status-${payment.paymentStatus?.toLowerCase().replace(' ', '-')}`]}`}>
+                  {payment.paymentStatus || "Unpaid"}
+                </span>
+              </div>
+            </div>
+          </>
         )}
       </div>
     </div>
