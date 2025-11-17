@@ -240,7 +240,7 @@ export default function Approved({
       <ConfirmModal
         open={confirmCancelOpen}
         title="Cancel Reservation"
-        message={`Are you sure you want to cancel this reservation for ${selectedRow?.name || 'this guest'}? This will move it to the Cancelled tab and notify them.`}
+        message={`Are you sure you want to cancel this reservation from ${selectedRow?.name || 'this guest'}? The reservation will be moved to the Cancelled tab and the guest will be notified of the cancellation.`}
         confirmText="Confirm"
         cancelText="Cancel"
         confirming={cancelling}
