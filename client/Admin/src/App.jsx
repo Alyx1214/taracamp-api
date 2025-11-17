@@ -107,7 +107,7 @@ function App() {
             <Route path="transactions" element={<RoleGuard routeKey="transactions"><Transaction /></RoleGuard>} />
             <Route path="user" element={<RoleGuard routeKey="user"><User /></RoleGuard>} />
             <Route path="users/add" element={<RoleGuard routeKey="user"><AddUserForm /></RoleGuard>} />
-            <Route path="users/edit/:id" element={<RoleGuard routeKey="user"><AddUserForm /></RoleGuard>} />
+            <Route path="user/edit/:id" element={<RoleGuard routeKey="user"><AddUserForm /></RoleGuard>} />
             <Route path="checkin" element={<RoleGuard routeKey="checkin"><CheckInOut /></RoleGuard>} />
             <Route path="messages" element={<RoleGuard routeKey="messages"><Messages /></RoleGuard>} />
             <Route path="/reservations/add" element={<RoleGuard routeKey="reservations"><AddReservation /></RoleGuard>} />

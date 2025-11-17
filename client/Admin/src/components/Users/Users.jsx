@@ -181,7 +181,7 @@ export default function Users() {
   function handleEdit(row) {
     if (!row?.id) return;
     // Navigate to edit form with user data
-    navigate(`/users/edit/${row.id}`, {
+    navigate(`/user/edit/${row.id}`, {
       state: {
         user: {
           id: row.id,
