@@ -126,22 +126,19 @@ export default function Confirmed({
           alert("Invalid reservation ID. Cannot edit.");
           return;
         }
-        const saveCurrentState = useCallback(() => {
-          try {
-            const existingState = (window.history && window.history.state) || {};
-            const newState = {
-              ...existingState,
-              activeTab: "Confirmed",
-              filters,
-              searchQuery,
-              currentPage,
-            };
-            window.history.replaceState(newState, document.title);
-          } catch (e) {
-            // ignore errors (e.g. Safari privacy restrictions)
-          }
-          saveCurrentState();
-        }, [filters, searchQuery, currentPage]);
+        try {
+          const existingState = (window.history && window.history.state) || {};
+          const newState = {
+            ...existingState,
+            activeTab: "Confirmed",
+            filters,
+            searchQuery,
+            currentPage,
+          };
+          window.history.replaceState(newState, document.title);
+        } catch (e) {
+          // ignore errors (e.g. Safari privacy restrictions)
+        }
 
         navigate(`/reservations/${row.id}/edit`, {
           state: {
@@ -165,22 +162,19 @@ export default function Confirmed({
           alert("Invalid reservation ID. Cannot view details.");
           return;
         }
-        const saveCurrentState = useCallback(() => {
-          try {
-            const existingState = (window.history && window.history.state) || {};
-            const newState = {
-              ...existingState,
-              activeTab: "Confirmed",
-              filters,
-              searchQuery,
-              currentPage,
-            };
-            window.history.replaceState(newState, document.title);
-          } catch (e) {
-            // ignore errors (e.g. Safari privacy restrictions)
-          }
-          saveCurrentState();
-        }, [filters, searchQuery, currentPage]);
+        try {
+          const existingState = (window.history && window.history.state) || {};
+          const newState = {
+            ...existingState,
+            activeTab: "Confirmed",
+            filters,
+            searchQuery,
+            currentPage,
+          };
+          window.history.replaceState(newState, document.title);
+        } catch (e) {
+          // ignore errors (e.g. Safari privacy restrictions)
+        }
 
         row.guestType === "GROUP"
           ? navigate(`/confirmedGroup/${row.id}/details`, {
