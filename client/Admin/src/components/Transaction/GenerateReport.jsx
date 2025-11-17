@@ -38,7 +38,7 @@ export default function GenerateReport() {
 
   const reportTypes = [
     { value: "accommodation", label: "Accommodation Report" },
-    { value: "sales", label: "Sales Report" }
+    { value: "revenue", label: "Revenue Report" }
   ];
 
   const months = Array.from({ length: 60 }).map((_, i) => {
@@ -92,7 +92,7 @@ export default function GenerateReport() {
 
       if (reportType === "accommodation") {
         await downloadAccommodationReportPDF({ year, month });
-      } else if (reportType === "sales") {
+      } else if (reportType === "revenue") {
         await downloadSalesReportPDF({ year, month });
       }
     } catch (e) {
