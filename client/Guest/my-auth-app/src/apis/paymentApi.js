@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from './api';
+import { apiGet, apiPost, rawFetch } from './api';
 
 export function createPaymentIntent(reservationId, payload = {}) {
   if (!reservationId) throw new Error('reservationId is required');
@@ -34,4 +34,23 @@ export function reconcilePaymentIntent(id) {
 
 export function getPaymentSummary(id) {
   return apiGet(`/payment/get-payment-summary/${encodeURIComponent(id)}`);
+}
+
+export function submitManualPayment(reservationId, formData) {
+  if (!reservationId) throw new Error('reservationId is required');
+  
+  // Use rawFetch for FormData file upload (apiPost handles FormData but we need to ensure proper headers)
+  return rawFetch(`/payment/submit-manual-payment/${encodeURIComponent(reservationId)}`, {
+    method: 'POST',
+    body: formData,
+  }).then(async (res) => {
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const error = new Error(data.error || 'Failed to submit payment');
+      error.status = res.status;
+      error.data = data;
+      throw error;
+    }
+    return data;
+  });
 }

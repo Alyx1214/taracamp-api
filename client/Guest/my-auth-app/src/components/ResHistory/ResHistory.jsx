@@ -274,8 +274,18 @@ function ReservationHistory() {
     setOpenReservationId(openReservationId === id ? null : id);
   
   const handleConfirmNow = (reservationId, category) => {
-    setShowUploadForId(reservationId);
-    setSelectedFiles({});
+    // Check if this is a Private category (Pay Now button)
+    const isPrivate = String(category || '').trim().toUpperCase() === 'PRIVATE' || 
+                      String(category || '').trim().toUpperCase() === 'PERSONAL';
+    
+    if (isPrivate) {
+      // Redirect to transactions page for payment
+      navigate(`/transactions?reservationId=${reservationId}`);
+    } else {
+      // Show upload section for non-Private categories
+      setShowUploadForId(reservationId);
+      setSelectedFiles({});
+    }
   };
 
   const handleFileClick = (key) => {
@@ -420,7 +430,9 @@ function ReservationHistory() {
               {reservationsView.map((reservation) => {
                 const clientType = getClientType(reservation.category);
                 const fields = uploadFields[clientType] || uploadFields['deped'];
-                const isUploadVisible = showUploadForId === reservation._id;
+                // Don't show upload for Private category (Pay Now button)
+                const isPrivate = reservation.details.category === 'Private';
+                const isUploadVisible = !isPrivate && showUploadForId === reservation._id;
                 const isUploading = uploadingReservationId === reservation._id;
 
                 return (

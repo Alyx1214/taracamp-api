@@ -1,4 +1,4 @@
-const API_BASE = 'https://taracamp-api.azurewebsites.net'; 
+const API_BASE = 'http://localhost:3000'; 
 const API_V1_PREFIX = '/api/v1';
 const ACCESS_KEY = 'accessToken';
 const REFRESH_KEY = 'refreshToken';
@@ -17,7 +17,7 @@ function buildUrl(path) {
   return `${API_BASE}${API_V1_PREFIX}${path}`;                      
 }
 
-async function rawFetch(path, options = {}) {
+export async function rawFetch(path, options = {}) {
   const url = buildUrl(path);
   const headers = new Headers(options.headers || {});
   if (!headers.has('Content-Type') && options.body && !isFormData(options.body)) {

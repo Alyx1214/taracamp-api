@@ -1,14 +1,18 @@
 import fetch from 'node-fetch';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
-import { Status, ReservationStatus, UserRole, ServiceType, Category, FacilityType, GuestType, } from '../constants.js';
+import { Status, ReservationStatus, UserRole, ServiceType, Category, FacilityType, GuestType, FileKind, } from '../constants.js';
 import { safeRedisOperations } from './redisCircuitBreaker.js';
+import { Storage } from '@google-cloud/storage';
 
 dotenv.config();
 
 const PAYMONGO_BASE_URL = process.env.PAYMONGO_BASE_URL || 'https://api.paymongo.com/v1';
 const DOWNPAYMENT_PERCENT = 0.10;
 const DUE_IN_DAYS = 3;
+
+const storage = new Storage();
+const bucket = storage.bucket(process.env.BUCKET_NAME);
 
 const paymentModule = {
     /**
@@ -914,6 +918,7 @@ const paymentModule = {
             const firstPayment = payments && payments.length > 0 ? payments[payments.length - 1] : null;
             const dateIso = latest?.paidAt || firstPayment?.createdAt || reservation?.createdAt || null;
             const paymentMethod = latest?.paymentMethodType || null;
+            const referenceNumber = latest?.referenceNumber || null;
 
             // Calculate report details
             const facilityName = facility?.name || facility?.label || 'N/A';
@@ -953,12 +958,12 @@ const paymentModule = {
 
             const view = {
                 id: (reservation._id?.toString() || '').slice(-4) || 'N/A',
-                referenceNumber: latest ? String(latest._id) : 'N/A',
+                referenceNumber: referenceNumber || (latest ? String(latest._id) : 'N/A'),
                 name: reservationUser ? reservationUser.name : reservation.guestName || 'N/A',
                 confirmationFee: peso(summaryRaw?.downpaymentAmount ?? 0),
                 paymentDue: summaryRaw?.dueDate ? fmtDate(summaryRaw.dueDate) : 'N/A',
                 date: dateIso ? fmtDate(dateIso) : 'N/A',
-                paymentMethod: methodLabel(paymentMethod),
+                paymentMethod: paymentMethod ? methodLabel(paymentMethod) : 'N/A',
                 status: (() => {
                     const total = Number(reservation.totalEstimatedAmount) || 0;
                     const totalPaid = Number(summaryRaw?.totalPaid || 0);
@@ -1189,6 +1194,202 @@ const paymentModule = {
             console.error('Error getting payment details view:', err);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
             responseData.error = 'Error getting payment details view';
+            return responseData;
+        }
+    },
+
+    /**
+     * Submits a manual payment with reference number and proof of payment file.
+     * @param {Object} dbHelper - The database helper for database operations.
+     * @param {string} reservationId - The ID of the reservation.
+     * @param {Object} data - The payment data.
+     * @param {number} data.amount - The payment amount.
+     * @param {string} data.referenceNumber - The transaction reference number.
+     * @param {string} data.paymentMethodType - The payment method type (e.g., 'gcash', 'grab_pay', 'dbp').
+     * @param {Object} proofOfPaymentFile - The proof of payment file (multer file object).
+     * @param {Object} user - The user object containing the user ID and role.
+     * @returns {Object} Response data with status, error, and payment on success.
+     */
+    submitManualPayment: async (dbHelper, reservationId, data, proofOfPaymentFile, user) => {
+        const responseData = {
+            status: Status.INTERNAL_SERVER_ERROR,
+            error: 'Error submitting manual payment',
+        };
+
+        try {
+            if (!reservationId) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Reservation ID is required';
+                return responseData;
+            }
+
+            if (!user || !user.userId) {
+                responseData.status = Status.UNAUTHORIZED;
+                responseData.error = 'User not logged in';
+                return responseData;
+            }
+
+            const { amount, referenceNumber, paymentMethodType, ocrExtractedReferenceNumber } = data || {};
+
+            if (!amount || !Number.isFinite(Number(amount)) || Number(amount) <= 0) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Valid positive amount is required';
+                return responseData;
+            }
+
+            if (!referenceNumber || !String(referenceNumber).trim()) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Reference number is required';
+                return responseData;
+            }
+
+            if (!proofOfPaymentFile) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Proof of payment file is required';
+                return responseData;
+            }
+
+            // Validate reservation
+            const reservation = await dbHelper.findOne('reservation', { _id: reservationId });
+            if (!reservation) {
+                responseData.status = Status.NOT_FOUND;
+                responseData.error = 'Reservation not found';
+                return responseData;
+            }
+
+            // Allow payment submission for any reservation status
+            // Only check that user owns the reservation or is admin
+            const requesterUserId = user.userId;
+            if (String(reservation.userId) !== String(requesterUserId) && 
+                user.role !== UserRole.SUPERINTENDENT && 
+                user.role !== UserRole.ACCOUNTING) {
+                responseData.status = Status.FORBIDDEN;
+                responseData.error = 'Not allowed to submit payment for this reservation';
+                return responseData;
+            }
+
+            // Validate amount doesn't exceed total
+            const maxAmount = Number(reservation.totalEstimatedAmount) || 0;
+            const paymentAmount = Number(amount);
+            if (paymentAmount > maxAmount) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Amount exceeds reservation total';
+                return responseData;
+            }
+
+            // Upload proof of payment file
+            let proofOfPaymentFileDoc = null;
+            try {
+                const filename = `proof_of_payment/${Date.now()}_${proofOfPaymentFile.originalname.replace(/\s/g, '_')}`;
+                const blob = bucket.file(filename);
+                await new Promise((resolve, reject) => {
+                    const stream = blob.createWriteStream({
+                        resumable: false,
+                        contentType: proofOfPaymentFile.mimetype,
+                    });
+                    stream.on('error', reject);
+                    stream.on('finish', resolve);
+                    stream.end(proofOfPaymentFile.buffer);
+                });
+
+                proofOfPaymentFileDoc = await dbHelper.create('file', {
+                    path: filename,
+                    mimetype: proofOfPaymentFile.mimetype,
+                    size: proofOfPaymentFile.size,
+                    kind: FileKind.PROOF_OF_PAYMENT,
+                    userId: user.userId,
+                    reservationId: reservationId,
+                    createdAt: new Date(),
+                });
+            } catch (err) {
+                console.error('Error uploading proof of payment file:', err);
+                responseData.status = Status.INTERNAL_SERVER_ERROR;
+                responseData.error = 'Proof of payment upload failed: ' + err.message;
+                return responseData;
+            }
+
+            // Check for reference number mismatch if OCR extracted reference number is provided
+            let referenceNumberMismatch = false;
+            if (ocrExtractedReferenceNumber && referenceNumber) {
+                const normalize = (str) => String(str || '').trim().toUpperCase().replace(/[\s-]/g, '');
+                const normalizedEntered = normalize(referenceNumber);
+                const normalizedExtracted = normalize(ocrExtractedReferenceNumber);
+                referenceNumberMismatch = normalizedEntered !== normalizedExtracted;
+            }
+
+            // Create payment record with status 'paid' (manual payment submitted)
+            const amountCentavos = toCentavos(paymentAmount);
+            const now = new Date();
+            const paymentDoc = await dbHelper.create('payment', {
+                reservationId: reservationId,
+                userId: user.userId,
+                amountCentavos: amountCentavos,
+                currency: 'PHP',
+                description: `Manual payment for reservation ${reservationId}`,
+                status: 'paid', // Manual payment submitted
+                paymentMethodType: paymentMethodType || 'manual',
+                referenceNumber: String(referenceNumber).trim(),
+                ocrExtractedReferenceNumber: ocrExtractedReferenceNumber ? String(ocrExtractedReferenceNumber).trim() : undefined,
+                referenceNumberMismatch: referenceNumberMismatch,
+                proofOfPaymentFileId: proofOfPaymentFileDoc._id,
+                createdAt: now,
+                updatedAt: now,
+                paidAt: now,
+            });
+
+            // Calculate total paid and confirm reservation if payment > 0
+            // No status check - confirm immediately when payment is submitted
+            let updatedReservation = null;
+            try {
+                const successfulStatuses = ['paid', 'succeeded',];
+                const paidRows = await dbHelper.findMany('payment', { reservationId, status: { $in: successfulStatuses, }, }, { sort: { createdAt: 1, }, });
+                const totalPaid = (paidRows || []).reduce((acc, p) => acc + (Number(p.amountCentavos || 0) / 100), 0);
+                
+                // Confirm reservation immediately when payment is submitted (no status or date restrictions)
+                if (totalPaid > 0 && reservation.status !== ReservationStatus.CONFIRMED) {
+                    updatedReservation = await dbHelper.findOneAndUpdate('reservation', { _id: reservationId, }, { status: ReservationStatus.CONFIRMED, });
+                }
+            } catch (confirmErr) {
+                console.error('Failed to confirm reservation after payment submission:', confirmErr);
+                // Don't fail the payment submission if confirmation fails
+            }
+
+            // Invalidate payment details cache
+            try {
+                const cachePattern = `payment_details:${reservationId}:*`;
+                const keys = await safeRedisOperations.keys(cachePattern);
+                if (keys && keys.length > 0) {
+                    await safeRedisOperations.del(...keys);
+                }
+            } catch (cacheError) {
+                console.warn('Failed to invalidate payment details cache:', cacheError);
+            }
+
+            responseData.status = Status.CREATED;
+            responseData.error = null;
+            responseData.payment = {
+                _id: paymentDoc._id,
+                reservationId: String(paymentDoc.reservationId),
+                amountCentavos: paymentDoc.amountCentavos,
+                currency: paymentDoc.currency,
+                status: paymentDoc.status,
+                paymentMethodType: paymentDoc.paymentMethodType,
+                referenceNumber: paymentDoc.referenceNumber,
+                createdAt: paymentDoc.createdAt,
+            };
+            
+            if (updatedReservation) {
+                responseData.updatedReservation = {
+                    _id: updatedReservation._id,
+                    status: updatedReservation.status,
+                };
+            }
+
+            return responseData;
+        } catch (error) {
+            console.error('Error submitting manual payment:', error);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Error submitting manual payment';
             return responseData;
         }
     },
@@ -1443,14 +1644,14 @@ function calculateConfirmationFee(category, totalAmount) {
 function isAtLeastOneMonthAway(arrivalDate) {
     if (!arrivalDate) return false;
     
-    // Normalize the arrival date
+    // Normalize the arrival date to UTC midnight to match how dates are stored in the database
     let normalizedArrival;
     if (arrivalDate instanceof Date) {
         normalizedArrival = new Date(arrivalDate);
-        normalizedArrival.setHours(0, 0, 0, 0);
+        normalizedArrival.setUTCHours(0, 0, 0, 0);
     } else if (typeof arrivalDate === 'string') {
         const ymd = arrivalDate.split('T')[0].split(' ')[0];
-        normalizedArrival = new Date(`${ymd}T00:00:00+08:00`);
+        normalizedArrival = new Date(`${ymd}T00:00:00Z`);
     } else {
         return false;
     }

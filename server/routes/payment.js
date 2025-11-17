@@ -5,6 +5,7 @@ import dbHelper from '../modules/dbHelper.js';
 import paymentModule from '../modules/payment.js';
 import notificationModule from '../modules/notification.js';
 import { Status } from '../constants.js';
+import { uploadProofOfPayment } from '../middleware/uploads.js';
 
 export default function buildPaymentRouter(userSocketMap) {
   const r = Router();
@@ -112,6 +113,22 @@ export default function buildPaymentRouter(userSocketMap) {
 
   r.post('/create-payment-method', asyncHandler(async (req, res) => {
     const response = await paymentModule.createPaymentMethod(dbHelper, req.body);
+    res.status(response.status).json(response);
+  }));
+
+  r.post('/submit-manual-payment/:id', authenticateJWT, uploadProofOfPayment, asyncHandler(async (req, res) => {
+    const reservationId = req.params.id;
+    const proofOfPaymentFile = req.file;
+    const { amount, referenceNumber, paymentMethodType, ocrExtractedReferenceNumber } = req.body;
+    
+    const response = await paymentModule.submitManualPayment(
+      dbHelper,
+      reservationId,
+      { amount, referenceNumber, paymentMethodType, ocrExtractedReferenceNumber },
+      proofOfPaymentFile,
+      req.user
+    );
+    
     res.status(response.status).json(response);
   }));
 

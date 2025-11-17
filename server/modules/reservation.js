@@ -558,9 +558,37 @@ const reservationModule = {
             const reservationCode = `TC${shortTimestamp}${random}`;
 
             // Validate capacity and dormitory requirements before transaction
-            if (total > facilityDoc.capacity) {
+            // For dormitories, only count available rooms (status === "Available")
+            let facilityCapacity = facilityDoc.capacity;
+            if (facilityDoc.facilityType === FacilityType.DORMITORY && 
+                Array.isArray(facilityDoc.rooms) && facilityDoc.rooms.length > 0) {
+                // Calculate capacity from only available rooms
+                // A room is available if status === "Available"
+                const availableRoomsCapacity = facilityDoc.rooms.reduce((sum, room) => {
+                    // Check if room is marked as available
+                    if (room.status === 'Available') {
+                        const roomCapacity = Number(room.capacity) || 0;
+                        return sum + roomCapacity;
+                    }
+                    return sum;
+                }, 0);
+                
+                // Use available rooms capacity if it's greater than 0, otherwise fall back to facility capacity
+                if (availableRoomsCapacity > 0) {
+                    facilityCapacity = availableRoomsCapacity;
+                }
+            }
+            
+            // Validate capacity - ensure it's a valid number
+            if (facilityCapacity == null || facilityCapacity === undefined || isNaN(facilityCapacity) || facilityCapacity <= 0) {
                 responseData.status = Status.BAD_REQUEST;
-                responseData.error = `Number of guests (${total}) exceeds the facility capacity (${facilityDoc.capacity}).`;
+                responseData.error = 'Facility capacity is not set or invalid. Please configure the facility capacity.';
+                return responseData;
+            }
+            
+            if (total > facilityCapacity) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = `Number of guests (${total}) exceeds the available facility capacity (${facilityCapacity}).`;
                 return responseData;
             }
 
@@ -1907,9 +1935,10 @@ const reservationModule = {
 
             // Date range filtering - support dateOfArrival, dateOfDeparture, or createdAt
             // Support filtering with just startDate, just endDate, or both
+            // Use UTC midnight to match how dates are stored in the database
             if (isPresent(dateStart) && isValidDate(dateStart)) {
                 const sYMD = String(dateStart).split('T')[0].split(' ')[0];
-                const startDate = new Date(sYMD + 'T00:00:00' + APP_TZ_OFFSET);
+                const startDate = new Date(sYMD + 'T00:00:00Z');
                 const dateFieldKey = dateFieldToUse;
                 filter[dateFieldKey] = filter[dateFieldKey] || {};
                 filter[dateFieldKey].$gte = startDate;
@@ -1918,9 +1947,9 @@ const reservationModule = {
             if (isPresent(dateEnd) && isValidDate(dateEnd)) {
                 const eYMD = String(dateEnd).split('T')[0].split(' ')[0];
                 // Add 1 day and subtract 1 millisecond to include the entire end date
-                const endDate = new Date(eYMD + 'T00:00:00' + APP_TZ_OFFSET);
-                endDate.setDate(endDate.getDate() + 1);
-                endDate.setMilliseconds(endDate.getMilliseconds() - 1);
+                const endDate = new Date(eYMD + 'T00:00:00Z');
+                endDate.setUTCDate(endDate.getUTCDate() + 1);
+                endDate.setUTCMilliseconds(endDate.getUTCMilliseconds() - 1);
                 const dateFieldKey = dateFieldToUse;
                 filter[dateFieldKey] = filter[dateFieldKey] || {};
                 filter[dateFieldKey].$lte = endDate;
@@ -3041,9 +3070,37 @@ const reservationModule = {
             }
 
             // Validate capacity
-            if (total > facilityDoc.capacity) {
+            // For dormitories, only count available rooms (status === "Available")
+            let facilityCapacity = facilityDoc.capacity;
+            if (facilityDoc.facilityType === FacilityType.DORMITORY && 
+                Array.isArray(facilityDoc.rooms) && facilityDoc.rooms.length > 0) {
+                // Calculate capacity from only available rooms
+                // A room is available if status === "Available"
+                const availableRoomsCapacity = facilityDoc.rooms.reduce((sum, room) => {
+                    // Check if room is marked as available
+                    if (room.status === 'Available') {
+                        const roomCapacity = Number(room.capacity) || 0;
+                        return sum + roomCapacity;
+                    }
+                    return sum;
+                }, 0);
+                
+                // Use available rooms capacity if it's greater than 0, otherwise fall back to facility capacity
+                if (availableRoomsCapacity > 0) {
+                    facilityCapacity = availableRoomsCapacity;
+                }
+            }
+            
+            // Validate capacity - ensure it's a valid number
+            if (facilityCapacity == null || facilityCapacity === undefined || isNaN(facilityCapacity) || facilityCapacity <= 0) {
                 responseData.status = Status.BAD_REQUEST;
-                responseData.error = `Number of guests (${total}) exceeds the facility capacity (${facilityDoc.capacity}).`;
+                responseData.error = 'Facility capacity is not set or invalid. Please configure the facility capacity.';
+                return responseData;
+            }
+            
+            if (total > facilityCapacity) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = `Number of guests (${total}) exceeds the available facility capacity (${facilityCapacity}).`;
                 return responseData;
             }
 
@@ -3642,18 +3699,20 @@ function isValidDateRange(dateOfArrival, dateOfDeparture, user = null) {
 function normalizeDateOnly(dateStr) {
     if (!dateStr || typeof dateStr !== 'string') return null;
     const ymd = dateStr.split('T')[0].split(' ')[0];
-    const d = new Date(`${ymd}T00:00:00${APP_TZ_OFFSET}`);
+    // Create date at midnight UTC to avoid timezone conversion issues
+    // This ensures the date stored in MongoDB matches the date selected by the user
+    const d = new Date(`${ymd}T00:00:00Z`);
     return isNaN(d.getTime()) ? null : d;
 }
 
 /**
- * Normalizes a Date object to date-only (midnight in app timezone)
+ * Normalizes a Date object to date-only (midnight UTC)
  * Works with both Date objects and date strings
- * Since dates in DB are already normalized, this ensures consistent comparison
+ * Since dates in DB are stored as UTC midnight, this ensures consistent comparison
  */
 function normalizeDateToDateOnly(date) {
     if (!date) return null;
-    // If it's already a Date object, extract the date part and normalize to app timezone
+    // If it's already a Date object, extract the date part and normalize to UTC
     if (date instanceof Date) {
         // Use the date's UTC methods to get year, month, day (avoids timezone issues)
         // Since dates in DB are stored normalized, we can safely extract the date components
@@ -3661,8 +3720,8 @@ function normalizeDateToDateOnly(date) {
         const month = String(date.getUTCMonth() + 1).padStart(2, '0');
         const day = String(date.getUTCDate()).padStart(2, '0');
         const ymd = `${year}-${month}-${day}`;
-        // Create a new date at midnight in the app timezone
-        const d = new Date(`${ymd}T00:00:00${APP_TZ_OFFSET}`);
+        // Create a new date at midnight UTC to match how dates are stored in the database
+        const d = new Date(`${ymd}T00:00:00Z`);
         return isNaN(d.getTime()) ? null : d;
     }
     // If it's a string, use the existing normalizeDateOnly function
