@@ -18,13 +18,14 @@ function ResDetails({ onClose }) {
   const [breakdown, setBreakdown] = useState(null);
   const [allAddons, setAllAddons] = useState([]);
   const [reservationId, setReservationId] = useState(null);
-  const { step1 = {}, step2 = {}, file, seniorCitizenIdFiles, seniorCitizenIdFile, pwdIdFiles, pwdIdFile, governmentIdFiles, governmentIdFile, reservationId: editReservationId, isEdit, originalType, typeChangedToGroup } = location.state || {};
+  const { step1 = {}, step2 = {}, file, seniorCitizenIdFiles, seniorCitizenIdFile, pwdIdFiles, pwdIdFile, governmentIdFiles, governmentIdFile, depedIdFiles, depedIdFile, reservationId: editReservationId, isEdit, originalType, typeChangedToGroup } = location.state || {};
   const selectedAddons = step2?.selectedAddons || [];
   const isGroup = step1?.type?.groups || false;
   const isIndividual = step1?.type?.individual || false;
   const numberOfSeniors = parseInt(step1?.guests?.senior || 0, 10) || 0;
   const numberOfPwds = parseInt(step1?.guests?.pwds || 0, 10) || 0;
-  const isGovernmentCategory = step1?.category?.government === true || step1?.category?.deped === true;
+  const isGovernmentCategory = step1?.category?.government === true;
+  const isDepEdCategory = step1?.category?.deped === true;
   const isPwdCategory = step1?.category?.pwds === true || step1?.category?.PWDs === true;
   const isPrivateCategory = step1?.category?.private === true || step1?.category?.Private === true;
   
@@ -32,6 +33,7 @@ function ResDetails({ onClose }) {
   const seniorCitizenFiles = seniorCitizenIdFiles || (seniorCitizenIdFile ? [seniorCitizenIdFile] : []);
   const pwdFiles = pwdIdFiles || (pwdIdFile ? [pwdIdFile] : []);
   const governmentFiles = governmentIdFiles || (governmentIdFile ? [governmentIdFile] : []);
+  const depedFiles = depedIdFiles || (depedIdFile ? [depedIdFile] : []);
 
   // Helper function to render add-ons with label and indented items
   const renderAddOns = () => {
@@ -215,13 +217,15 @@ function ResDetails({ onClose }) {
       const isPrivateAndIndividualWithSeniors = isPrivateAndIndividual && numberOfSeniors > 0;
       const hasPwds = (payload.numberOfPwds || 0) > 0;
       // Require Senior Citizen ID if there are seniors, EXCEPT for:
-      // - gov/deped groups or individuals (only gov ID needed)
+      // - gov/deped groups or individuals (only gov/deped ID needed)
       // - PWD groups or individuals (only PWD ID needed)
       // - private groups (only Letter of Intent needed)
       // - private+individual WITHOUT seniors (no ID needed)
       // - ANY reservation with PWDs present (PWD ID takes priority over Senior Citizen ID)
       const shouldSkipSeniorCitizenId = (isGroup && isGovernmentCategory) || 
                                        (isIndividual && isGovernmentCategory) || 
+                                       (isGroup && isDepEdCategory) || 
+                                       (isIndividual && isDepEdCategory) || 
                                        (isGroup && isPwdCategory) || 
                                        (isIndividual && isPwdCategory) ||
                                        (isGroup && isPrivateCategory) ||
@@ -230,13 +234,16 @@ function ResDetails({ onClose }) {
       if (numberOfSeniors > 0 && seniorCitizenFiles.length === 0 && !shouldSkipSeniorCitizenId) {
         throw new Error('At least one Senior Citizen ID file is required when there are senior citizens.');
       }
-      // Skip PWD ID requirement for government/deped groups, government individuals, private groups, and private+individual (without seniors) - only government ID is needed for gov't, and PWD ID is not required for private groups or private+individual
-      if (numberOfPwds > 0 && pwdFiles.length === 0 && !(isGroup && isGovernmentCategory) && !(isIndividual && isGovernmentCategory) && !(isGroup && isPrivateCategory) && !isPrivateAndIndividual) {
+      // Skip PWD ID requirement for government/deped groups, government/deped individuals, private groups, and private+individual (without seniors) - only government/deped ID is needed for gov't/deped, and PWD ID is not required for private groups or private+individual
+      if (numberOfPwds > 0 && pwdFiles.length === 0 && !(isGroup && isGovernmentCategory) && !(isIndividual && isGovernmentCategory) && !(isGroup && isDepEdCategory) && !(isIndividual && isDepEdCategory) && !(isGroup && isPrivateCategory) && !isPrivateAndIndividual) {
         throw new Error('At least one PWD ID file is required when there are PWD guests.');
       }
       // Skip government ID requirement for private groups and private+individual - no ID needed for private groups (only Letter of Intent), and for private+individual only Senior Citizen ID if seniors present
       if ((isGroup || isIndividual) && isGovernmentCategory && governmentFiles.length === 0 && !isPrivateAndIndividual && !(isGroup && isPrivateCategory)) {
-        throw new Error('At least one Government ID file is required for government/DepEd reservations.');
+        throw new Error('At least one Government ID file is required for government reservations.');
+      }
+      if ((isGroup || isIndividual) && isDepEdCategory && depedFiles.length === 0 && !isPrivateAndIndividual && !(isGroup && isPrivateCategory)) {
+        throw new Error('At least one DepEd ID file is required for DepEd reservations.');
       }
 
       const facilityForPost = typeof step2?.facilityIdFromList === 'string' ? step2.facilityIdFromList : '';
@@ -250,13 +257,14 @@ function ResDetails({ onClose }) {
       }
 
       let response;
+      // For DepEd category, pass depedFiles; for Government category, pass governmentFiles
       if (isEdit && editReservationId) {
         // Update existing reservation
-        response = await apiUpdateReservation(editReservationId, apiPayload, file, seniorCitizenFiles, pwdFiles, governmentFiles);
+        response = await apiUpdateReservation(editReservationId, apiPayload, file, seniorCitizenFiles, pwdFiles, isDepEdCategory ? [] : governmentFiles);
         setReservationId(editReservationId);
       } else {
         // Create new reservation
-        response = await apiCreateReservation(apiPayload, file, seniorCitizenFiles, pwdFiles, governmentFiles);
+        response = await apiCreateReservation(apiPayload, file, seniorCitizenFiles, pwdFiles, isDepEdCategory ? [] : governmentFiles, isDepEdCategory ? depedFiles : []);
         if (response?.reservationId) {
           setReservationId(response.reservationId);
         }

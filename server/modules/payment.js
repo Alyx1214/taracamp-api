@@ -1107,9 +1107,12 @@ const paymentModule = {
 
             // Use remaining balance calculation to account for floating-point precision issues
             const remainingBalance = Math.max(0, Math.round((totalEstimated - totalPaid) * 100) / 100);
+            // If total is 0 or less, consider it fully paid (no payment needed)
+            // Otherwise, check payment status based on remaining balance
             const status =
-            totalPaid <= 0 ? 'Not Paid' :
-            remainingBalance <= 0 ? 'Fully Paid' : 'Partially Paid';
+            totalEstimated <= 0 ? 'Fully Paid' :
+            remainingBalance <= 0 ? 'Fully Paid' :
+            totalPaid <= 0 ? 'Not Paid' : 'Partially Paid';
 
             const latestSuccessful = successful[0] || null;
             const latestAny = (payments && payments[0]) || null;

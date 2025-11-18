@@ -62,6 +62,22 @@ function ReservationForm() {
     }
   }, [prevStep2Ref.current?.typeFacilities, formData.type.groups]);
 
+  // Auto-select PWD category when there are PWD guests
+  useEffect(() => {
+    const numberOfPwds = parseInt(formData.guests.pwds || '0', 10) || 0;
+    const hasPwdGuests = numberOfPwds > 0;
+    
+    if (hasPwdGuests && !formData.category.pwds) {
+      setFormData(prev => ({
+        ...prev,
+        category: { deped: false, government: false, pwds: true, private: false }
+      }));
+      // Clear category error if it exists
+      setErrors(prev => ({ ...prev, category: undefined }));
+    }
+  }, [formData.guests.pwds, formData.category.pwds]);
+
+
   const hasCategory = useMemo(() => Object.values(formData.category || {}).some(Boolean), [formData.category]);
   const hasType = useMemo(() => Object.values(formData.type || {}).some(Boolean), [formData.type]);
 

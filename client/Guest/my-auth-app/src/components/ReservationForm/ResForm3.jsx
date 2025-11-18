@@ -88,11 +88,14 @@ function ReservationFormStep3() {
     const categoryObj = step1?.category || {};
     const isGovernmentCategory = categoryObj.government === true || 
                                   categoryObj.Government === true ||
-                                  categoryObj.deped === true ||
-                                  categoryObj.DepEd === true ||
                                   (typeof categoryObj === 'object' && Object.keys(categoryObj).some(key => 
-                                    (key.toLowerCase() === 'government' || key.toLowerCase() === 'deped') && categoryObj[key] === true
+                                    key.toLowerCase() === 'government' && categoryObj[key] === true
                                   ));
+    const isDepEdCategory = categoryObj.deped === true ||
+                            categoryObj.DepEd === true ||
+                            (typeof categoryObj === 'object' && Object.keys(categoryObj).some(key => 
+                              key.toLowerCase() === 'deped' && categoryObj[key] === true
+                            ));
     const isPwdCategory = categoryObj.pwds === true || 
                           categoryObj.PWDs === true ||
                           (typeof categoryObj === 'object' && Object.keys(categoryObj).some(key => 
@@ -110,12 +113,22 @@ function ReservationFormStep3() {
     const seniorCitizenIdFiles = location.state?.seniorCitizenIdFiles || [];
     const pwdIdFiles = location.state?.pwdIdFiles || [];
     const governmentIdFiles = location.state?.governmentIdFiles || [];
+    const depedIdFiles = location.state?.depedIdFiles || [];
     
-    // For gov't/deped groups: route to government ID upload (even if seniors present)
-    // Senior citizen ID will be skipped - only gov't/deped ID is needed
+    // For DepEd groups: route to DepEd ID upload (even if seniors present)
+    // Senior citizen ID will be skipped - only DepEd ID is needed
+    if (isGroup && isDepEdCategory) {
+      navigate(`/reservation-step3-deped/${type}/${facilityName}/${id}`, { 
+        state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles, depedIdFiles }
+      });
+      return;
+    }
+    
+    // For government groups: route to government ID upload (even if seniors present)
+    // Senior citizen ID will be skipped - only government ID is needed
     if (isGroup && isGovernmentCategory) {
       navigate(`/reservation-step3-government/${type}/${facilityName}/${id}`, { 
-        state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles }
+        state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles, depedIdFiles }
       });
       return;
     }

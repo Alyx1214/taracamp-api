@@ -36,11 +36,12 @@ const reservationModule = {
      * @param {Object} seniorCitizenIdFile - The Senior Citizen ID file.
      * @param {Array} pwdIdFiles - Array of PWD ID files (optional).
      * @param {Array} governmentIdFiles - Array of Government ID files (optional).
+     * @param {Array} depedIdFiles - Array of DepEd ID files (optional).
      * @param {Object} user - The logged-in user.
      * @param {Object} userSocketMap - The map of user sockets.
      * @return {Promise<Object>} A promise that resolves to an object with the status, error, message, reservationId, and reservation properties.
      */
-    addReservation: async (dbHelper, data, letterOfIntentFile, seniorCitizenIdFile, pwdIdFiles, governmentIdFiles, user) => {
+    addReservation: async (dbHelper, data, letterOfIntentFile, seniorCitizenIdFile, pwdIdFiles, governmentIdFiles, depedIdFiles, user) => {
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
             error: 'Error on booking reservation',
@@ -426,16 +427,37 @@ const reservationModule = {
             }
 
             // Reuse isGovCategory, isGroupReservation, isIndividualReservation, and isPrivateAndIndividual from earlier declaration
-            // Skip government ID requirement for private+individual - no ID needed
-            if (isGovCategory && (isGroupReservation || isIndividualReservation) && (!governmentIdFiles || !Array.isArray(governmentIdFiles) || governmentIdFiles.length === 0) && !isPrivateAndIndividual) {
+            // Check if it's DepEd or Government category
+            const isDepEdCategory = category === Category.DEPED || String(category).trim() === 'DepEd';
+            const isGovernmentCategoryOnly = category === Category.GOVERNMENT || String(category).trim() === 'Government';
+            
+            // Normalize depedIdFiles - ensure it's an array
+            const depedIdFilesArray = Array.isArray(depedIdFiles) ? depedIdFiles : (depedIdFiles ? [depedIdFiles] : []);
+            const governmentIdFilesArray = Array.isArray(governmentIdFiles) ? governmentIdFiles : (governmentIdFiles ? [governmentIdFiles] : []);
+            
+            // Skip government/deped ID requirement for private+individual - no ID needed
+            if (isDepEdCategory && (isGroupReservation || isIndividualReservation) && depedIdFilesArray.length === 0 && !isPrivateAndIndividual) {
                 responseData.status = Status.BAD_REQUEST;
-                responseData.error = 'Government ID file(s) are required for government/DepEd reservations';
+                responseData.error = 'DepEd ID file(s) are required for DepEd reservations';
                 return responseData;
             }
             
-            if (governmentIdFiles && Array.isArray(governmentIdFiles) && governmentIdFiles.length > 0 && !(isGovCategory && (isGroupReservation || isIndividualReservation))) {
+            if (isGovernmentCategoryOnly && (isGroupReservation || isIndividualReservation) && governmentIdFilesArray.length === 0 && !isPrivateAndIndividual) {
                 responseData.status = Status.BAD_REQUEST;
-                responseData.error = 'Government ID file(s) should only be uploaded for government/DepEd reservations';
+                responseData.error = 'Government ID file(s) are required for government reservations';
+                return responseData;
+            }
+            
+            // Validate that files are only uploaded for correct category
+            if (depedIdFilesArray.length > 0 && !isDepEdCategory) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'DepEd ID file(s) should only be uploaded for DepEd reservations';
+                return responseData;
+            }
+            
+            if (governmentIdFilesArray.length > 0 && !isGovernmentCategoryOnly) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Government ID file(s) should only be uploaded for government reservations';
                 return responseData;
             }
             const pwdIdFileDocs = [];
@@ -474,9 +496,11 @@ const reservationModule = {
             }
 
             const governmentIdFileDocs = [];
-            // Reuse isGovCategory from earlier declaration
-            if (isGovCategory && governmentIdFiles && Array.isArray(governmentIdFiles) && governmentIdFiles.length > 0) {
-                for (const file of governmentIdFiles) {
+            const depedIdFileDocs = [];
+            
+            // Handle Government ID files
+            if (isGovernmentCategoryOnly && governmentIdFilesArray.length > 0) {
+                for (const file of governmentIdFilesArray) {
                     if (!file) continue;
                     try {
                         const filename = `government_id/${Date.now()}_${file.originalname.replace(/\s/g, '_')}`;
@@ -499,11 +523,48 @@ const reservationModule = {
                             userId: user.userId,
                             createdAt: new Date(),
                         });
+                        
                         governmentIdFileDocs.push(fileDoc);
                     } catch (err) {
                         console.error('Error uploading Government ID file:', err);
                         responseData.status = Status.INTERNAL_SERVER_ERROR;
                         responseData.error = 'Government ID file upload failed: ' + err.message;
+                        return responseData;
+                    }
+                }
+            }
+            
+            // Handle DepEd ID files
+            if (isDepEdCategory && depedIdFilesArray.length > 0) {
+                for (const file of depedIdFilesArray) {
+                    if (!file) continue;
+                    try {
+                        const filename = `deped_id/${Date.now()}_${file.originalname.replace(/\s/g, '_')}`;
+                        const blob = bucket.file(filename);
+                        await new Promise((resolve, reject) => {
+                            const stream = blob.createWriteStream({
+                                resumable: false,
+                                contentType: file.mimetype,
+                            });
+                            stream.on('error', reject);
+                            stream.on('finish', resolve);
+                            stream.end(file.buffer);
+                        });
+
+                        const fileDoc = await dbHelper.create('file', {
+                            path: filename,
+                            mimetype: file.mimetype,
+                            size: file.size,
+                            kind: FileKind.DEPED_ID,
+                            userId: user.userId,
+                            createdAt: new Date(),
+                        });
+                        
+                        depedIdFileDocs.push(fileDoc);
+                    } catch (err) {
+                        console.error('Error uploading DepEd ID file:', err);
+                        responseData.status = Status.INTERNAL_SERVER_ERROR;
+                        responseData.error = 'DepEd ID file upload failed: ' + err.message;
                         return responseData;
                     }
                 }
@@ -617,8 +678,6 @@ const reservationModule = {
                 serviceType,
                 addOns: addonIds,
                 otherRequests,
-                letterOfIntentFileId: loiFileDoc?._id ?? undefined,
-                seniorCitizenIdFileId: seniorCitizenIdFileDoc?._id ?? undefined,
                 status: initialStatus,
                 totalEstimatedAmount,
                 reservationCode,
@@ -769,6 +828,18 @@ const reservationModule = {
                 }
             }
 
+            if (depedIdFileDocs && depedIdFileDocs.length > 0) {
+                for (const fileDoc of depedIdFileDocs) {
+                    if (fileDoc?._id) {
+                        try {
+                            await dbHelper.findOneAndUpdate('file', { _id: fileDoc._id, }, { reservationId: reservation._id, });
+                        } catch (e) {
+                            console.error('Failed to backfill reservationId on DepEd ID file:', e?.message);
+                        }
+                    }
+                }
+            }
+
             const reservationObject = reservation.toObject();
             delete reservationObject.letterOfIntentUrl;
             delete reservationObject.__v;
@@ -842,13 +913,8 @@ const reservationModule = {
             let url = null;
             try {
             let loiPath = null;
-            if (reservation.letterOfIntentFileId) {
-                const f = await dbHelper.findOne('file', { _id: reservation.letterOfIntentFileId });
-                loiPath = f?.path ?? null;
-            } else {
-                const f = await dbHelper.findOne('file', { reservationId, kind: FileKind.LETTER_OF_INTENT });
-                loiPath = f?.path ?? null;
-            }
+            const f = await dbHelper.findOne('file', { reservationId, kind: FileKind.LETTER_OF_INTENT });
+            loiPath = f?.path ?? null;
             if (loiPath) {
                 try {
                     [url] = await bucket.file(loiPath).getSignedUrl({
@@ -948,7 +1014,7 @@ const reservationModule = {
             let governmentIdFile = null;
             let depedIdFile = null;
             try {
-                // Try to find files by reservationId and kind
+                // Fetch Government ID files
                 let govFiles = await dbHelper.find('file', { 
                     reservationId, 
                     kind: FileKind.GOVERNMENT_ID 
@@ -1001,31 +1067,85 @@ const reservationModule = {
                     });
                     governmentIdFiles = (await Promise.all(govPromises)).filter(Boolean);
                     
-                    // Set the first file as governmentIdFile and/or depedIdFile based on category
-                    // Both Government and DepEd categories use GOVERNMENT_ID file kind
-                    // For DepEd, set both depedIdFile and governmentIdFile (they're the same file)
+                    // Set the first file as governmentIdFile
                     if (governmentIdFiles.length > 0) {
                         const firstFile = governmentIdFiles[0];
-                        // Extract URL - handle both object with url property and direct string URL
                         let fileUrl = null;
                         if (typeof firstFile === 'string') {
                             fileUrl = firstFile;
                         } else if (firstFile && typeof firstFile === 'object') {
                             fileUrl = firstFile.url || null;
                         }
-                        
                         if (fileUrl) {
-                            const category = reservation.category;
-                            // Use strict comparison with Category constants
-                            // Category.DEPED = 'DepEd', Category.GOVERNMENT = 'Government'
-                            if (category === Category.DEPED || String(category).trim() === 'DepEd') {
-                                // DepEd uses the same file as Government ID, so set both
-                                depedIdFile = fileUrl;
-                                governmentIdFile = fileUrl;
-                            } else {
-                                // For Government category or any other category with government ID files, set governmentIdFile
-                                governmentIdFile = fileUrl;
-                            }
+                            governmentIdFile = fileUrl;
+                        }
+                    }
+                }
+                
+                // Fetch DepEd ID files separately
+                let depedFiles = await dbHelper.find('file', { 
+                    reservationId, 
+                    kind: FileKind.DEPED_ID 
+                });
+                
+                // If no files found, try alternative queries
+                if (!depedFiles || depedFiles.length === 0) {
+                    // Try finding all files for this reservation and filter by path
+                    const allReservationFiles = await dbHelper.find('file', { reservationId });
+                    if (allReservationFiles && allReservationFiles.length > 0) {
+                        // Filter for DepEd ID files by checking path (files are stored in 'deped_id/' folder)
+                        depedFiles = allReservationFiles.filter(file => 
+                            file.kind === FileKind.DEPED_ID || 
+                            (file.path && (file.path.includes('deped_id/') || file.path.startsWith('deped_id/')))
+                        );
+                    }
+                    
+                    // If still no files, try finding by userId and kind (for older reservations where reservationId might not be set)
+                    if ((!depedFiles || depedFiles.length === 0) && reservation.userId) {
+                        const userIdFiles = await dbHelper.find('file', { 
+                            userId: reservation.userId,
+                            kind: FileKind.DEPED_ID 
+                        });
+                        if (userIdFiles && userIdFiles.length > 0) {
+                            // Filter by path to ensure they're DepEd ID files
+                            depedFiles = userIdFiles.filter(file => 
+                                file.path && (file.path.includes('deped_id/') || file.path.startsWith('deped_id/'))
+                            );
+                        }
+                    }
+                }
+                
+                if (depedFiles && depedFiles.length > 0) {
+                    const depedPromises = depedFiles.map(async (file) => {
+                        try {
+                            const [signedUrl] = await bucket.file(file.path).getSignedUrl({
+                                version: 'v4',
+                                expires: Date.now() + 1000 * 60 * 60,
+                                action: 'read',
+                            });
+                            return {
+                                url: signedUrl,
+                                name: file.originalname || file.name || 'DepEd ID',
+                                path: file.path,
+                            };
+                        } catch (err) {
+                            console.warn('Error generating signed URL for DepEd ID file:', err);
+                            return null;
+                        }
+                    });
+                    const depedIdFilesArray = (await Promise.all(depedPromises)).filter(Boolean);
+                    
+                    // Set the first file as depedIdFile
+                    if (depedIdFilesArray.length > 0) {
+                        const firstFile = depedIdFilesArray[0];
+                        let fileUrl = null;
+                        if (typeof firstFile === 'string') {
+                            fileUrl = firstFile;
+                        } else if (firstFile && typeof firstFile === 'object') {
+                            fileUrl = firstFile.url || null;
+                        }
+                        if (fileUrl) {
+                            depedIdFile = fileUrl;
                         }
                     }
                 }
@@ -1083,13 +1203,8 @@ const reservationModule = {
             let hasNonAvailabilityCert = false;
             try {
             let apprPath = null;
-            if (reservation.nonAvailabilityCertFileId) {
-                const f = await dbHelper.findOne('file', { _id: reservation.nonAvailabilityCertFileId });
-                apprPath = f?.path ?? null;
-            } else {
-                const f = await dbHelper.findOne('file', { reservationId, kind: FileKind.NONAVAILABILITY_CERTIFICATE });
-                apprPath = f?.path ?? null;
-            }
+            const f = await dbHelper.findOne('file', { reservationId, kind: FileKind.NONAVAILABILITY_CERTIFICATE });
+            apprPath = f?.path ?? null;
             hasNonAvailabilityCert = !!apprPath;
             if (apprPath) {
                 [nonAvailabilityUrl] = await bucket.file(apprPath).getSignedUrl({
@@ -1126,10 +1241,32 @@ const reservationModule = {
 
             reservationObject.letterOfIntentFile = url;
             reservationObject.nonAvailabilityCertFile = nonAvailabilityUrl;
-            reservationObject.hasNonAvailabilityCert = hasNonAvailabilityCert || !!reservation.nonAvailabilityCertFileId;
+            reservationObject.hasNonAvailabilityCert = hasNonAvailabilityCert;
             // Ensure arrays are always returned, even if empty
             reservationObject.seniorCitizenIdFiles = Array.isArray(seniorCitizenIdFiles) ? seniorCitizenIdFiles : [];
+            // Set singular scIdFile to first file URL (for backward compatibility with frontend)
+            let scIdFile = null;
+            if (seniorCitizenIdFiles && seniorCitizenIdFiles.length > 0) {
+                const firstFile = seniorCitizenIdFiles[0];
+                if (typeof firstFile === 'string') {
+                    scIdFile = firstFile;
+                } else if (firstFile && typeof firstFile === 'object') {
+                    scIdFile = firstFile.url || null;
+                }
+            }
+            reservationObject.scIdFile = scIdFile;
             reservationObject.pwdIdFiles = Array.isArray(pwdIdFiles) ? pwdIdFiles : [];
+            // Set singular pwdIdFile to first file URL (for backward compatibility with frontend)
+            let pwdIdFile = null;
+            if (pwdIdFiles && pwdIdFiles.length > 0) {
+                const firstFile = pwdIdFiles[0];
+                if (typeof firstFile === 'string') {
+                    pwdIdFile = firstFile;
+                } else if (firstFile && typeof firstFile === 'object') {
+                    pwdIdFile = firstFile.url || null;
+                }
+            }
+            reservationObject.pwdIdFile = pwdIdFile;
             reservationObject.governmentIdFiles = Array.isArray(governmentIdFiles) ? governmentIdFiles : [];
             reservationObject.governmentIdFile = governmentIdFile;
             reservationObject.depedIdFile = depedIdFile;
@@ -1695,6 +1832,7 @@ const reservationModule = {
                 endDate,
                 dateField,
                 paymentMethod,
+                isFullyPaid,
                 limit,
                 skip,
                 sort,
@@ -1996,10 +2134,83 @@ const reservationModule = {
                 facilityType: r.facility ? facilityTypeById.get(String(r.facility)) ?? null : null,
             }));
 
+            // Filter by fully paid status if requested
+            let filteredList = withEmails;
+            let finalTotalCount = totalCount;
+            if (isFullyPaid === true || isFullyPaid === 'true') {
+                // Get all reservations matching the filter (for total count calculation)
+                const allMatchingReservations = await dbHelper.findMany(
+                    'reservation',
+                    filter,
+                    {
+                        projection: { _id: 1, totalEstimatedAmount: 1 },
+                    }
+                );
+                const allReservationIds = (allMatchingReservations || []).map(r => String(r._id));
+                
+                if (allReservationIds.length > 0) {
+                    try {
+                        // Get all successful payments for all matching reservations
+                        const successfulStatuses = ['paid', 'succeeded'];
+                        const paidRows = await dbHelper.findMany(
+                            'payment',
+                            {
+                                reservationId: { $in: allReservationIds },
+                                status: { $in: successfulStatuses },
+                            },
+                            { projection: { reservationId: 1, amountCentavos: 1 } }
+                        );
+
+                        // Calculate total paid per reservation
+                        const totalPaidByReservation = new Map();
+                        (paidRows || []).forEach(p => {
+                            const resId = String(p.reservationId);
+                            const amount = Number(p.amountCentavos || 0) / 100;
+                            const current = totalPaidByReservation.get(resId) || 0;
+                            totalPaidByReservation.set(resId, current + amount);
+                        });
+
+                        // Calculate total count of fully paid reservations
+                        // A reservation is fully paid if:
+                        // 1. Total is 0 or less (no payment needed), OR
+                        // 2. Remaining balance is 0 or less (fully paid)
+                        const fullyPaidCount = allMatchingReservations.filter(r => {
+                            const total = Number(r.totalEstimatedAmount) || 0;
+                            const totalPaid = totalPaidByReservation.get(String(r._id)) || 0;
+                            // If total is 0 or less, it's fully paid (no payment needed)
+                            if (total <= 0) return true;
+                            const remainingBalance = Math.max(0, Math.round((total - totalPaid) * 100) / 100);
+                            return remainingBalance <= 0;
+                        }).length;
+                        finalTotalCount = fullyPaidCount;
+
+                        // Filter current page results to only fully paid
+                        // Use the same logic as above
+                        filteredList = withEmails.filter(r => {
+                            const total = Number(r.totalEstimatedAmount) || 0;
+                            const totalPaid = totalPaidByReservation.get(String(r._id)) || 0;
+                            // If total is 0 or less, it's fully paid (no payment needed)
+                            if (total <= 0) return true;
+                            const remainingBalance = Math.max(0, Math.round((total - totalPaid) * 100) / 100);
+                            return remainingBalance <= 0;
+                        });
+                    } catch (paymentFilterError) {
+                        console.error('Error filtering by payment status:', paymentFilterError);
+                        // If payment filtering fails, return empty results (fail closed)
+                        // This prevents showing unpaid transactions when filtering is requested
+                        finalTotalCount = 0;
+                        filteredList = [];
+                    }
+                } else {
+                    finalTotalCount = 0;
+                    filteredList = [];
+                }
+            }
+
             responseData.status = Status.OK;
             responseData.error = null;
-            responseData.reservations = withEmails;
-            responseData.totalCount = totalCount;
+            responseData.reservations = filteredList;
+            responseData.totalCount = finalTotalCount;
             return responseData;
         } catch (error) {
             console.error('Error searching reservations:', error);
@@ -2054,7 +2265,12 @@ const reservationModule = {
                 return responseData;
             }
 
-            if (status === ReservationStatus.APPROVED && reservation.nonAvailabilityCertFileId) {
+            // Check if non-availability certificate exists
+            const nonAvailCertFile = await dbHelper.findOne('file', { 
+                reservationId: reservation._id, 
+                kind: FileKind.NONAVAILABILITY_CERTIFICATE 
+            });
+            if (status === ReservationStatus.APPROVED && nonAvailCertFile) {
                 responseData.status = Status.BAD_REQUEST;
                 responseData.error = 'Cannot approve reservation: Non-Availability Certificate on file';
                 return responseData;
@@ -2280,6 +2496,30 @@ const reservationModule = {
                     responseData.error = 'Only checked-in reservations can be checked out';
                     return responseData;
                 }
+
+                // Check if reservation is fully paid before allowing checkout
+                const total = Number(reservation.totalEstimatedAmount) || 0;
+                let totalPaid = 0;
+                try {
+                    const successfulStatuses = ['paid', 'succeeded',];
+                    const paidRows = await dbHelper.findMany(
+                        'payment',
+                        { reservationId, status: { $in: successfulStatuses, }, },
+                        { sort: { createdAt: 1, }, }
+                    );
+                    totalPaid = (paidRows || []).reduce((acc, p) => acc + (Number(p.amountCentavos || 0) / 100), 0);
+                } catch (error) {
+                    console.error('Error calculating total paid amount:', error);
+                }
+
+                const remainingBalance = Math.max(0, Math.round((total - totalPaid) * 100) / 100);
+                const isFullyPaid = remainingBalance <= 0;
+
+                if (!isFullyPaid) {
+                    responseData.status = Status.BAD_REQUEST;
+                    responseData.error = 'Reservation must be fully paid before checkout';
+                    return responseData;
+                }
             }
 
             const update = { status };
@@ -2486,8 +2726,14 @@ const reservationModule = {
             });
 
             let fileDoc = null;
-            if (reservation.nonAvailabilityCertFileId) {
-                fileDoc = await dbHelper.findOneAndUpdate('file', { _id: reservation.nonAvailabilityCertFileId, }, {
+            // Check if non-availability certificate file already exists for this reservation
+            const existingFile = await dbHelper.findOne('file', { 
+                reservationId: reservation._id, 
+                kind: FileKind.NONAVAILABILITY_CERTIFICATE 
+            });
+            
+            if (existingFile) {
+                fileDoc = await dbHelper.findOneAndUpdate('file', { _id: existingFile._id, }, {
                     path: filename,
                     mimetype: file.mimetype,
                     size: file.size,
@@ -2503,7 +2749,6 @@ const reservationModule = {
                     userId: user.userId,
                     createdAt: new Date(),
                 });
-                await dbHelper.findOneAndUpdate('reservation', { _id: reservationId, }, { nonAvailabilityCertFileId: fileDoc._id, nonAvailabilityCertFileUploadedAt: new Date(), });
             }
 
             const updated = await dbHelper.findOne('reservation', { _id: reservationId, });
@@ -2895,11 +3140,10 @@ const reservationModule = {
                     }
                 } else if (!letterOfIntentFile) {
                     // If no new file is being uploaded, check if existing reservation has one
-                    const hasExistingLOI = existingReservation.letterOfIntentFileId || 
-                        await dbHelper.findOne('file', { 
-                            reservationId: reservationId, 
-                            kind: FileKind.LETTER_OF_INTENT 
-                        });
+                    const hasExistingLOI = await dbHelper.findOne('file', { 
+                        reservationId: reservationId, 
+                        kind: FileKind.LETTER_OF_INTENT 
+                    });
                     if (!hasExistingLOI) {
                         responseData.status = Status.BAD_REQUEST;
                         responseData.error = 'Letter of Intent file is required for group reservations';
@@ -3393,10 +3637,6 @@ const reservationModule = {
             };
 
             updateData.totalEstimatedAmount = totalEstimatedAmount;
-
-            if (loiFileDoc) {
-                updateData.letterOfIntentFileId = loiFileDoc._id;
-            }
 
             // Check for overlapping reservations (excluding current reservation)
             if (dateOfArrival !== undefined || dateOfDeparture !== undefined || facility !== undefined) {

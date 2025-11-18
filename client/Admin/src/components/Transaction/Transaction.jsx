@@ -89,7 +89,8 @@ export default function Transaction() {
       if (filters.sortBy) options.sortBy = filters.sortBy;
 
       const searchParams = {
-        status: 'Checked-out',
+        status: 'Confirmed,Checked-out', // Include both Confirmed and Checked-out fully paid reservations
+        isFullyPaid: true, // Only fetch fully paid reservations
         ...options
       };
       

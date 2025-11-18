@@ -79,7 +79,8 @@ function ReservationFormStep3() {
     const hasPwds = numberOfPwds > 0;
     
     // Check category
-    const isGovernmentCategory = step1?.category?.government === true || step1?.category?.deped === true;
+    const isGovernmentCategory = step1?.category?.government === true;
+    const isDepEdCategory = step1?.category?.deped === true;
     const isPwdCategory = step1?.category?.pwds === true || step1?.category?.PWDs === true;
     const isPrivateCategory = step1?.category?.private === true || step1?.category?.Private === true;
     
@@ -87,12 +88,22 @@ function ReservationFormStep3() {
     const seniorCitizenIdFiles = location.state?.seniorCitizenIdFiles || [];
     const pwdIdFiles = location.state?.pwdIdFiles || [];
     const governmentIdFiles = location.state?.governmentIdFiles || [];
+    const depedIdFiles = location.state?.depedIdFiles || [];
     
-    // For gov't/deped groups: route to government ID upload (even if seniors present)
-    // Senior citizen ID will be skipped - only gov't/deped ID is needed
+    // For DepEd groups: route to DepEd ID upload (even if seniors present)
+    // Senior citizen ID will be skipped - only DepEd ID is needed
+    if (isGroup && isDepEdCategory) {
+      navigate(`/reservation-step3-deped`, { 
+        state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles, depedIdFiles, reservationId, isEdit, userEmail, originalType, typeChangedToGroup }
+      });
+      return;
+    }
+    
+    // For government groups: route to government ID upload (even if seniors present)
+    // Senior citizen ID will be skipped - only government ID is needed
     if (isGroup && isGovernmentCategory) {
       navigate(`/reservation-step3-government`, { 
-        state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles, reservationId, isEdit, userEmail, originalType, typeChangedToGroup }
+        state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles, depedIdFiles, reservationId, isEdit, userEmail, originalType, typeChangedToGroup }
       });
       return;
     }

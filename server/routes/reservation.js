@@ -20,6 +20,7 @@ export default function buildReservationRouter(userSocketMap) {
         { name: 'seniorCitizenIdFiles', maxCount: 10 },
         { name: 'pwdIdFiles', maxCount: 10 },
         { name: 'governmentIdFiles', maxCount: 10 },
+        { name: 'depedIdFiles', maxCount: 10 },
         { name: 'serviceContractFile', maxCount: 1 },
         { name: 'moaFile', maxCount: 1 },
         { name: 'fundsFile', maxCount: 1 }
@@ -111,7 +112,16 @@ export default function buildReservationRouter(userSocketMap) {
     const governmentIdFiles = req.files?.governmentIdFiles || [];
     const governmentIdFilesArray = Array.isArray(governmentIdFiles) ? governmentIdFiles : [];
     
-    const response = await reservationModule.addReservation(dbHelper, data, letterOfIntentFile, seniorCitizenIdFile, pwdIdFilesArray, governmentIdFilesArray, req.user);
+    const depedIdFiles = req.files?.depedIdFiles || [];
+    const depedIdFilesArray = Array.isArray(depedIdFiles) ? depedIdFiles : [];
+    
+    // For backward compatibility: if depedIdFiles is empty but governmentIdFiles is provided and category is DepEd, use governmentIdFiles as depedIdFiles
+    const category = data.category || '';
+    const isDepEdCategory = category === 'DepEd' || String(category).trim() === 'DepEd';
+    const finalDepedIdFiles = depedIdFilesArray.length > 0 ? depedIdFilesArray : (isDepEdCategory && governmentIdFilesArray.length > 0 ? governmentIdFilesArray : []);
+    const finalGovernmentIdFiles = isDepEdCategory ? [] : governmentIdFilesArray;
+    
+    const response = await reservationModule.addReservation(dbHelper, data, letterOfIntentFile, seniorCitizenIdFile, pwdIdFilesArray, finalGovernmentIdFiles, finalDepedIdFiles, req.user);
 
     res.status(response.status).json(response);
 

@@ -26,6 +26,7 @@ export const FileKind = {
     NONAVAILABILITY_CERTIFICATE: 'Non-availability Certificate',
     SENIOR_CITIZEN_ID: 'Senior Citizen ID',
     GOVERNMENT_ID: 'Government ID',
+    DEPED_ID: 'DepEd ID',
     MEMORANDUM_OF_AGREEMENT: 'Memorandum of Agreement',
     SERVICE_CONTRACT: 'Service Contract',
     CERTIFICATE_OF_AVAILABILITY_OF_FUNDS: 'Certificate of Availability of Funds',
