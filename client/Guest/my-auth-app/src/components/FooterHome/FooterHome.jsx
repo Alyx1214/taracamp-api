@@ -115,7 +115,7 @@ function Footer({ onReserveNow }) {
       </div>
 
       <div className={styles.copyrightBar}>
-        <p>Copyright @2025 By Baguio Teachers Camp | All Rights Reserved.</p>
+        <p>Copyright @2025 Saint Louis University - Team CodeX | All Rights Reserved.</p>
       </div>
     </footer>
   );
