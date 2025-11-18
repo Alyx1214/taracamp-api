@@ -3,7 +3,7 @@ import { FaEllipsisV } from "react-icons/fa";
 import styles from "./UnivTable.module.css";
 import SkeletonLoader from "../Shared/SkeletonLoader";
 
-export default function UnivTable({ columns, data, renderActions, renderMenu, loading = false }) {
+export default function UnivTable({ columns, data, renderActions, renderMenu, renderCell, loading = false }) {
   const [openMenuIndex, setOpenMenuIndex] = useState(null);
   const menuRefs = useRef({});
 
@@ -125,7 +125,9 @@ export default function UnivTable({ columns, data, renderActions, renderMenu, lo
                       </div>
                     </td>
                   ) : (
-                    <td key={colIndex}>{row[getColumnKey(col)] || "-"}</td>
+                    <td key={colIndex}>
+                      {renderCell ? renderCell(col, row) : (row[getColumnKey(col)] || "-")}
+                    </td>
                   )
                 )}
               </tr>

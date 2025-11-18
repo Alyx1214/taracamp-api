@@ -1,13 +1,14 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import UnivTable from "../UnivTable/UnivTable.jsx";
-import styles from "../UnivTable/UnivTable.module.css"; 
+import styles from "../UnivTable/UnivTable.module.css";
 
 export default function TransactionTable({ data = [], loading = false }) {
   const navigate = useNavigate();
 
   const columns = ["Name", "Email", "Service Type", "Date", "Actions"];
 
+  // Backend already filters to only fully paid transactions, so no need for client-side filtering
   const formattedData = data.map(item => ({
     id: item._id,
     name: item.guestName || 'N/A',

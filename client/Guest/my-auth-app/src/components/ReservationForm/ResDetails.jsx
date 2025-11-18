@@ -20,11 +20,12 @@ function ResDetails({ onClose }) {
   const [breakdown, setBreakdown] = useState(null);
   const [allAddons, setAllAddons] = useState([]);
   const { type, facilityName, id } = useParams();
-  const { step1 = {}, step2 = {}, file, seniorCitizenIdFiles, seniorCitizenIdFile, pwdIdFiles, pwdIdFile, governmentIdFiles, governmentIdFile } = location.state || {};
+  const { step1 = {}, step2 = {}, file, seniorCitizenIdFiles, seniorCitizenIdFile, pwdIdFiles, pwdIdFile, governmentIdFiles, governmentIdFile, depedIdFiles, depedIdFile } = location.state || {};
   const selectedAddons = step2.selectedAddons || [];
   const numberOfSeniors = parseInt(step1?.guests?.senior || 0, 10) || 0;
   const numberOfPwds = parseInt(step1?.guests?.pwds || 0, 10) || 0;
-  const isGovernmentCategory = step1?.category?.government === true || step1?.category?.deped === true;
+  const isGovernmentCategory = step1?.category?.government === true;
+  const isDepEdCategory = step1?.category?.deped === true;
   const isPwdCategory = step1?.category?.pwds === true || step1?.category?.PWDs === true;
   const isPrivateCategory = step1?.category?.private === true || step1?.category?.Private === true;
   const routeType = String(type || '').toLowerCase();
@@ -34,6 +35,7 @@ function ResDetails({ onClose }) {
   const seniorCitizenFiles = seniorCitizenIdFiles || (seniorCitizenIdFile ? [seniorCitizenIdFile] : []);
   const pwdFiles = pwdIdFiles || (pwdIdFile ? [pwdIdFile] : []);
   const governmentFiles = governmentIdFiles || (governmentIdFile ? [governmentIdFile] : []);
+  const depedFiles = depedIdFiles || (depedIdFile ? [depedIdFile] : []);
 
   const handlePrevious = () => {
     const numberOfSeniors = parseInt(step1?.guests?.senior || 0, 10) || 0;
@@ -62,11 +64,22 @@ function ResDetails({ onClose }) {
       return;
     }
 
-    // For gov't/deped groups or individuals: route back to government ID upload (even if seniors/PWDs present)
-    // Only gov't/deped ID is needed, not senior citizen ID
+    // For DepEd groups or individuals: route back to DepEd ID upload (even if seniors/PWDs present)
+    // Only DepEd ID is needed, not senior citizen ID
+    if ((isGroup || isIndividual) && isDepEdCategory) {
+      const depedIdFiles = location.state?.depedIdFiles || [];
+      navigate(`/reservation-step3-deped/${type}/${facilityName}/${id}`, {
+        state: { step1, step2, file, seniorCitizenIdFiles: seniorCitizenFiles, pwdIdFiles: pwdFiles, governmentIdFiles: governmentFiles, depedIdFiles }
+      });
+      return;
+    }
+    
+    // For government groups or individuals: route back to government ID upload (even if seniors/PWDs present)
+    // Only government ID is needed, not senior citizen ID
     if ((isGroup || isIndividual) && isGovernmentCategory) {
+      const depedIdFiles = location.state?.depedIdFiles || [];
       navigate(`/reservation-step3-government/${type}/${facilityName}/${id}`, {
-        state: { step1, step2, file, seniorCitizenIdFiles: seniorCitizenFiles, pwdIdFiles: pwdFiles, governmentIdFiles: governmentFiles }
+        state: { step1, step2, file, seniorCitizenIdFiles: seniorCitizenFiles, pwdIdFiles: pwdFiles, governmentIdFiles: governmentFiles, depedIdFiles }
       });
       return;
     }
@@ -305,13 +318,15 @@ function ResDetails({ onClose }) {
       const isPrivateAndIndividualWithSeniors = isPrivateAndIndividual && numberOfSeniors > 0;
       const hasPwds = (payload.numberOfPwds || 0) > 0;
       // Require Senior Citizen ID if there are seniors, EXCEPT for:
-      // - gov/deped groups or individuals (only gov ID needed)
+      // - gov/deped groups or individuals (only gov/deped ID needed)
       // - PWD groups or individuals (only PWD ID needed)
       // - private groups (Senior Citizen ID is optional, PWD ID takes priority if both present)
       // - private+individual WITHOUT seniors (no ID needed)
       // - ANY reservation with PWDs present (PWD ID takes priority over Senior Citizen ID)
       const shouldSkipSeniorCitizenId = (isGroup && isGovernmentCategory) || 
                                        (isIndividual && isGovernmentCategory) || 
+                                       (isGroup && isDepEdCategory) || 
+                                       (isIndividual && isDepEdCategory) || 
                                        (isGroup && isPwdCategory) || 
                                        (isIndividual && isPwdCategory) ||
                                        (isGroup && isPrivateCategory) ||
@@ -320,14 +335,17 @@ function ResDetails({ onClose }) {
       if (numberOfSeniors > 0 && seniorCitizenFiles.length === 0 && !shouldSkipSeniorCitizenId) {
         throw new Error('At least one Senior Citizen ID file is required when there are senior citizens.');
       }
-      // Skip PWD ID requirement for government/deped groups, government individuals, and private+individual (without seniors) - only government ID is needed for gov't
+      // Skip PWD ID requirement for government/deped groups, government/deped individuals, and private+individual (without seniors) - only government/deped ID is needed for gov't/deped
       // Note: PWD ID is required for private groups when PWDs are present
-      if (numberOfPwds > 0 && pwdFiles.length === 0 && !(isGroup && isGovernmentCategory) && !(isIndividual && isGovernmentCategory) && !isPrivateAndIndividual) {
+      if (numberOfPwds > 0 && pwdFiles.length === 0 && !(isGroup && isGovernmentCategory) && !(isIndividual && isGovernmentCategory) && !(isGroup && isDepEdCategory) && !(isIndividual && isDepEdCategory) && !isPrivateAndIndividual) {
         throw new Error('At least one PWD ID file is required when there are PWD guests.');
       }
       // Skip government ID requirement for private groups and private+individual - no ID needed for private groups (only Letter of Intent), and for private+individual only Senior Citizen ID if seniors present
       if ((isGroup || isIndividual) && isGovernmentCategory && governmentFiles.length === 0 && !isPrivateAndIndividual && !(isGroup && isPrivateCategory)) {
-        throw new Error('At least one Government ID file is required for government/DepEd reservations.');
+        throw new Error('At least one Government ID file is required for government reservations.');
+      }
+      if ((isGroup || isIndividual) && isDepEdCategory && depedFiles.length === 0 && !isPrivateAndIndividual && !(isGroup && isPrivateCategory)) {
+        throw new Error('At least one DepEd ID file is required for DepEd reservations.');
       }
 
       const facilityForPost = typeof step2?.facilityIdFromList === 'string' ? step2.facilityIdFromList : id;
@@ -340,7 +358,8 @@ function ResDetails({ onClose }) {
         apiPayload.addOns = addonIds;
       }
 
-      await apiCreateReservation(apiPayload, file, seniorCitizenFiles, pwdFiles, governmentFiles);
+      // For DepEd category, pass depedFiles; for Government category, pass governmentFiles
+      await apiCreateReservation(apiPayload, file, seniorCitizenFiles, pwdFiles, isDepEdCategory ? [] : governmentFiles, isDepEdCategory ? depedFiles : []);
       setShowOverlay(true); 
     } catch (e) {
       const server = {
@@ -349,6 +368,62 @@ function ResDetails({ onClose }) {
         status: e?.status,
       };
       setErr(server);
+      const errorMessage = (server.message || '').toLowerCase();
+      
+      // Helper function to check if a message is ID-related
+      const checkIfIdRelated = (msg) => {
+        if (!msg) return false;
+        const lowerMsg = String(msg).toLowerCase();
+        // Check for various ID-related error patterns
+        // Match patterns like: "pwd id", "pwd id file", "pwd id is required", etc.
+        const hasPwd = lowerMsg.includes('pwd');
+        const hasSenior = lowerMsg.includes('senior citizen') || lowerMsg.includes('senior');
+        const hasGovernment = lowerMsg.includes('government') || lowerMsg.includes('gov');
+        const hasDeped = lowerMsg.includes('deped');
+        const hasId = lowerMsg.includes('id') || lowerMsg.includes('identification');
+        const hasFile = lowerMsg.includes('file');
+        const hasRequired = lowerMsg.includes('required');
+        const hasLetterOfIntent = lowerMsg.includes('letter of intent') || lowerMsg.includes('letter of intent file');
+        
+        return hasLetterOfIntent ||
+               (hasPwd && (hasId || hasFile || hasRequired)) ||
+               (hasSenior && (hasId || hasFile || hasRequired)) ||
+               (hasGovernment && (hasId || hasFile || hasRequired)) ||
+               (hasDeped && (hasId || hasFile || hasRequired)) ||
+               (hasId && hasFile && hasRequired);
+      };
+      
+      // Check if error is related to ID files (PWD, Senior Citizen, Government, DepEd) or Letter of Intent
+      // These errors should stay on ResDetails page, not navigate to step1 or step2
+      let isIdRelatedError = checkIfIdRelated(server.message);
+      
+      // Helper function to check if error is facility availability related
+      const checkIfFacilityAvailabilityError = (msg) => {
+        if (!msg) return false;
+        const lowerMsg = String(msg).toLowerCase();
+        return lowerMsg.includes('facility is not available') || 
+               lowerMsg.includes('not available for the selected dates') ||
+               lowerMsg.includes('not available for booking') ||
+               lowerMsg.includes('facility is not available for booking');
+      };
+      
+      // Also check for facility availability errors - these should also stay on ResDetails
+      let isFacilityAvailabilityError = checkIfFacilityAvailabilityError(server.message);
+      
+      // Also check details array for ID-related errors and facility availability errors
+      if (server.details?.length) {
+        for (const d of server.details) {
+          const detailMsg = (d.message || d.code || '').toLowerCase();
+          if (!isIdRelatedError && checkIfIdRelated(detailMsg)) {
+            isIdRelatedError = true;
+          }
+          if (!isFacilityAvailabilityError && checkIfFacilityAvailabilityError(detailMsg)) {
+            isFacilityAvailabilityError = true;
+          }
+          if (isIdRelatedError && isFacilityAvailabilityError) break;
+        }
+      }
+      
       let mapped = { errorsStep1: {}, errorsStep2: {} };
       if (server.details?.length) {
         const step1Map = {
@@ -375,6 +450,16 @@ function ResDetails({ onClose }) {
         const e1 = {};
         const e2 = {};
         for (const d of server.details) {
+          // Skip mapping if this detail is ID-related or facility availability related
+          const detailMsg = (d.message || d.code || '').toLowerCase();
+          if (checkIfIdRelated(detailMsg)) {
+            isIdRelatedError = true;
+            continue;
+          }
+          if (checkIfFacilityAvailabilityError(detailMsg)) {
+            isFacilityAvailabilityError = true;
+            continue;
+          }
           const ui1 = step1Map[d.field];
           const ui2 = step2Map[d.field];
           const msg = d.message || d.code || 'Invalid';
@@ -383,17 +468,16 @@ function ResDetails({ onClose }) {
         }
         mapped = { errorsStep1: e1, errorsStep2: e2 };
       } else {
-        const m = (server.message || '').toLowerCase();
         const e1 = {};
         const e2 = {};
-        if (m.includes('invalid phone')) e1.phoneNo = 'Enter a valid PH mobile number.';
-        if (m.includes('emergency')) e1.emergencyContact = 'Enter a valid PH mobile number.';
-        if (m.includes('at least one guest')) e1.guestsAdult = 'Enter at least one guest.';
-        if (m.includes('invalid date range')) {
+        if (errorMessage.includes('invalid phone')) e1.phoneNo = 'Enter a valid PH mobile number.';
+        if (errorMessage.includes('emergency')) e1.emergencyContact = 'Enter a valid PH mobile number.';
+        if (errorMessage.includes('at least one guest')) e1.guestsAdult = 'Enter at least one guest.';
+        if (errorMessage.includes('invalid date range')) {
           e2.dateArrival = 'Arrival must be tomorrow or later.';
           e2.dateDeparture = 'Departure must be after arrival.';
         }
-        if (m.includes('facility is not available')) {
+        if (errorMessage.includes('facility is not available')) {
           e2.dateArrival = 'Facility is not available for the selected dates.';
           e2.dateDeparture = 'Choose different dates.';
           e2.facilityName = 'Select another facility or change the date range.';
@@ -401,11 +485,16 @@ function ResDetails({ onClose }) {
         mapped = { errorsStep1: e1, errorsStep2: e2 };
       }
 
-      if (Object.keys(mapped.errorsStep1).length) {
-        navigate(`/reservation-form/${type}/${facilityName}/${id}`, { state: { step1, errorsStep1: mapped.errorsStep1, serverError: server, file } });
-      } else if (Object.keys(mapped.errorsStep2).length) {
-        navigate(`/reservation-step2/${type}/${facilityName}/${id}`, { state: { step1, step2, errorsStep2: mapped.errorsStep2, serverError: server, file } });
+      // Only navigate to step1 or step2 if there are mapped errors AND it's not an ID-related error AND it's not a facility availability error
+      // ID-related errors and facility availability errors should stay on ResDetails page
+      if (!isIdRelatedError && !isFacilityAvailabilityError) {
+        if (Object.keys(mapped.errorsStep1).length) {
+          navigate(`/reservation-form/${type}/${facilityName}/${id}`, { state: { step1, errorsStep1: mapped.errorsStep1, serverError: server, file } });
+        } else if (Object.keys(mapped.errorsStep2).length) {
+          navigate(`/reservation-step2/${type}/${facilityName}/${id}`, { state: { step1, step2, errorsStep2: mapped.errorsStep2, serverError: server, file } });
+        }
       }
+      // If it's an ID-related error or facility availability error, stay on ResDetails (error is already shown via setErr)
     } finally {
       setSubmitting(false);
       inFlight.current = false;

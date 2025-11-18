@@ -95,16 +95,20 @@ export default function CancelledRSVDetails() {
     const has = (k) => cat.includes(k);
 
     const hasSenior = has("senior");
-    const showDepEdId = has("deped");
     const showPwdId = has("pwd");
+    const isGovernmentCategory = has("government");
+    const isDepEdCategory = has("deped");
 
     // Show MOA and CAF only if files exist in reservation
     const showMoa = !!(reservation.moaFile);
     const showCaf = !!(reservation.cafFile);
     const showLetterOfIntent = isGroup;
     
-    // Show Government ID only if file exists (not all Government category reservations have files)
-    const showGovId = !!(reservation.governmentIdFile);
+    // Show Government ID only if category is Government and file exists
+    const showGovId = isGovernmentCategory && !!(reservation.governmentIdFile);
+    
+    // Show DepEd ID only if category is DepEd and file exists
+    const showDepEdId = isDepEdCategory && !!(reservation.depedIdFile);
 
     // If Senior + (Gov/DepEd/PWD), prefer that ID and show a note
     const hasDiscountId = showGovId || showDepEdId || showPwdId;

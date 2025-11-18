@@ -26,10 +26,12 @@ export const FileKind = {
     NONAVAILABILITY_CERTIFICATE: 'Non-availability Certificate',
     SENIOR_CITIZEN_ID: 'Senior Citizen ID',
     GOVERNMENT_ID: 'Government ID',
+    DEPED_ID: 'DepEd ID',
     MEMORANDUM_OF_AGREEMENT: 'Memorandum of Agreement',
     SERVICE_CONTRACT: 'Service Contract',
     CERTIFICATE_OF_AVAILABILITY_OF_FUNDS: 'Certificate of Availability of Funds',
     PROOF_OF_PAYMENT: 'Proof of Payment',
+    INVOICE: 'Invoice',
 }
 
 export const Category = {
@@ -81,4 +83,45 @@ export const UnitType = {
     PC: 'pc',
     MINS: 'mins',
     CERT: 'cert',
+}
+
+/**
+ * Returns reservation statuses that block facility availability for new reservations.
+ * Only CONFIRMED and CHECKED_IN reservations block availability.
+ * PENDING and APPROVED reservations are allowed to overlap.
+ * @returns {string[]} Array of blocking reservation statuses
+ */
+export function getAvailabilityBlockingStatuses() {
+    return [
+        ReservationStatus.APPROVED,
+        ReservationStatus.CONFIRMED,
+        ReservationStatus.CHECKED_IN,
+    ];
+}
+
+/**
+ * Returns reservation statuses that block facility availability when updating reservation dates.
+ * APPROVED, CONFIRMED, and CHECKED_IN reservations block date updates.
+ * @returns {string[]} Array of blocking reservation statuses
+ */
+export function getUpdateBlockingStatuses() {
+    return [
+        ReservationStatus.APPROVED,
+        ReservationStatus.CONFIRMED,
+        ReservationStatus.CHECKED_IN,
+    ];
+}
+
+/**
+ * Returns reservation statuses that block facility availability when approving a reservation.
+ * PENDING, APPROVED, CONFIRMED, and CHECKED_IN reservations block approval.
+ * @returns {string[]} Array of blocking reservation statuses
+ */
+export function getApprovalBlockingStatuses() {
+    return [
+        ReservationStatus.PENDING,
+        ReservationStatus.APPROVED,
+        ReservationStatus.CONFIRMED,
+        ReservationStatus.CHECKED_IN,
+    ];
 }

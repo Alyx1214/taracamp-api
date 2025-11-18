@@ -36,7 +36,9 @@ export default function EditForm() {
     quantity: "",
     status: "Available",
     unit: "",
-    serviceType: "", // NEW: for add-ons service type
+    serviceType: "",
+    ratePerExcessWithBeddings: "", // NEW
+    ratePerExcessWithoutBeddings: "", // NEW
     images: Array(MAX_IMAGES).fill(null),
     previewUrls: Array(MAX_IMAGES).fill(null),
     extraRows: [],
@@ -56,6 +58,7 @@ export default function EditForm() {
   }, [category]);
 
   const isSpecialService = category === "Add-ons";
+  const isCottage = facilityType === "Cottage";
 
   useEffect(() => {
     let cancelled = false;
@@ -89,7 +92,6 @@ export default function EditForm() {
           previews[0] = data.images;
         }
 
-        // NEW: Extract service type from add-on data
         let serviceTypeValue = "";
         if (isSpecialService || categoryFromState === "Add-ons") {
           if (Array.isArray(data.serviceTypes) && data.serviceTypes.length > 0) {
@@ -109,7 +111,9 @@ export default function EditForm() {
           quantity: data.quantity || "",
           status: data.status || "Available",
           unit: data.unit || "",
-          serviceType: serviceTypeValue, // NEW
+          serviceType: serviceTypeValue,
+          ratePerExcessWithBeddings: data.ratePerExcessWithBeddings || "", // NEW
+          ratePerExcessWithoutBeddings: data.ratePerExcessWithoutBeddings || "", // NEW
           images: Array(MAX_IMAGES).fill(null),
           previewUrls: previews,
           extraRows: data.extraRows || [],
@@ -202,7 +206,6 @@ export default function EditForm() {
 
     try {
       if (isSpecialService) {
-        // NEW: Validate service type
         if (!formData.serviceType) {
           setError("Service Type is required");
           setSubmitting(false);
@@ -213,8 +216,8 @@ export default function EditForm() {
           name: formData.name,
           price: formData.rate,
           unit: formData.unit,
-          serviceTypes: [formData.serviceType], // NEW: send as array
-          serviceType: formData.serviceType, // NEW: also send as string for backward compatibility
+          serviceTypes: [formData.serviceType],
+          serviceType: formData.serviceType,
         });
       } else {
         const payload = {
@@ -235,6 +238,12 @@ export default function EditForm() {
           payload.baseRate = formData.baseRate;
           payload.rate = formData.rate;
           payload.discountRate = formData.discountRate;
+          
+          // NEW: Add cottage-specific excess rates
+          if (isCottage) {
+            payload.ratePerExcessWithBeddings = formData.ratePerExcessWithBeddings;
+            payload.ratePerExcessWithoutBeddings = formData.ratePerExcessWithoutBeddings;
+          }
         } else if (facilityType === "Dormitory") {
           payload.capacity = formData.capacity;
           payload.ratePerPerson = formData.ratePerPerson;
@@ -414,7 +423,36 @@ export default function EditForm() {
                   />
                 </label>
               </div>
-            )}      
+            )}
+
+            {/* NEW: Cottage-specific excess rates */}
+            {isCottage && !isSpecialService && (
+              <div className={styles.formRow}>
+                <label>
+                  Rate per Excess with Beddings:
+                  <input
+                    type="number"
+                    name="ratePerExcessWithBeddings"
+                    value={formData.ratePerExcessWithBeddings}
+                    onChange={handleChange}
+                    placeholder="Enter rate for excess with beddings"
+                    required
+                  />
+                </label>
+
+                <label>
+                  Rate per Excess w/o Beddings:
+                  <input
+                    type="number"
+                    name="ratePerExcessWithoutBeddings"
+                    value={formData.ratePerExcessWithoutBeddings}
+                    onChange={handleChange}
+                    placeholder="Enter rate for excess without beddings"
+                    required
+                  />
+                </label>
+              </div>
+            )}
 
             <div className={styles.formRow}>
               {isSpecialService ? (
@@ -436,7 +474,6 @@ export default function EditForm() {
                     </select>
                   </label>
 
-                  {/* NEW: Service Type dropdown for Add-ons */}
                   <label>
                     Service Type:
                     <select

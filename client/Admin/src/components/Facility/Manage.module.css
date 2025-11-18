@@ -1,122 +1,76 @@
 .manageContainer {
-  padding: 2.5rem 3rem;
-  max-width: 1200px;
+  padding: 2rem;
+  max-width: 1400px;
   margin: 0 auto;
-  background-color: #f5f5f5;
   min-height: 100vh;
-  font-family: "Montserrat", sans-serif;
+  background: linear-gradient(135deg, #f0f4f1 0%, #e8ede9 100%);
 }
 
 .header {
   display: flex;
   align-items: center;
-  gap: 8px;
-  justify-content: flex-start;
+  gap: 1rem;
   margin-bottom: 2rem;
-  position: relative;
-  padding-left: 70px;
+  background: white;
+  padding: 1.5rem;
+  border-radius: 1rem;
+  box-shadow: 0 4px 6px -1px rgba(30, 60, 36, 0.1), 0 2px 4px -1px rgba(30, 60, 36, 0.06);
 }
 
 .manage-back {
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  background: transparent;
-  border: none;
-  padding: 8px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 50px;
+  font-size: 1.5rem;
   cursor: pointer;
   color: #1E3C24;
   transition: all 0.3s ease;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
 }
 
 .manage-back:hover {
-  transform: translateY(-50%) scale(1.1);
-  color: #538E5E;
-}
-
-.manage-back:active {
-  transform: translateY(-50%) scale(1.05);
+  color: #2d5a38;
+  background: #f0f4f1;
+  transform: translateX(-5px);
 }
 
 .title {
-  font-size: 3.5rem;
-  letter-spacing: 2px;
+  font-size: 1.875rem;
+  font-weight: 700;
   color: #1E3C24;
   margin: 0;
-  font-weight: 700;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
-  font-family: "Montserrat", sans-serif;
+  letter-spacing: 0.5px;
 }
 
 .section {
-  margin-bottom: 2rem;
+  background: white;
+  border-radius: 1rem;
+  box-shadow: 0 10px 15px -3px rgba(30, 60, 36, 0.1), 0 4px 6px -2px rgba(30, 60, 36, 0.05);
   padding: 2rem;
-  background: #ffffff;
-  border-radius: 18px;
-  border: 2px solid #4F3718;
-  box-shadow: 0 8px 30px rgba(79, 55, 24, 0.15);
-  transition: all 0.3s ease;
-}
-
-.section:hover {
-  box-shadow: 0 12px 40px rgba(79, 55, 24, 0.25);
-  transform: translateY(-2px);
 }
 
 .sectionTitle {
-  font-size: 1.8rem;
+  font-size: 1.5rem;
+  font-weight: 700;
   color: #1E3C24;
   margin-bottom: 1.5rem;
-  font-weight: 700;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  border-left: 5px solid #4F3718;
-  padding-left: 15px;
-  font-family: "Montserrat", sans-serif;
+  padding-bottom: 1rem;
+  border-bottom: 3px solid #1E3C24;
 }
 
+/* Room Card Styles */
 .roomCard {
-  background: #ffffff;
-  border: 2px solid #4F3718;
-  border-radius: 16px;
-  padding: 1.8rem;
+  background: linear-gradient(135deg, #f9fafb 0%, #ffffff 100%);
+  border: 2px solid #d1d5db;
+  border-radius: 1rem;
+  padding: 1.5rem;
   margin-bottom: 1.5rem;
-  box-shadow: 0 6px 20px rgba(79, 55, 24, 0.12);
   transition: all 0.3s ease;
-  position: relative;
-  overflow: hidden;
-}
-
-.roomCard::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background: linear-gradient(90deg, #1E3C24, #4F3718, #538E5E, #4F3718, #1E3C24);
-  background-size: 300% 100%;
-  animation: gradientShift 4s ease infinite;
-}
-
-@keyframes gradientShift {
-  0%, 100% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
+  box-shadow: 0 4px 6px -1px rgba(30, 60, 36, 0.05);
 }
 
 .roomCard:hover {
-  box-shadow: 0 10px 30px rgba(79, 55, 24, 0.2);
-  transform: translateY(-3px);
-  border-color: #538E5E;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 15px -3px rgba(30, 60, 36, 0.15), 0 4px 6px -2px rgba(30, 60, 36, 0.1);
+  border-color: #2d5a38;
 }
 
 .roomCardHeader {
@@ -124,417 +78,376 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1.5rem;
-  padding-bottom: 1.2rem;
-  border-bottom: 2px solid #4F3718;
-  background: linear-gradient(90deg, transparent, rgba(79, 55, 24, 0.05), transparent);
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #e5e7eb;
 }
 
 .roomCardTitle {
-  font-size: 1.4rem;
+  font-size: 1.25rem;
   font-weight: 700;
   color: #1E3C24;
   margin: 0;
-  letter-spacing: 0.8px;
-  text-transform: uppercase;
   display: flex;
   align-items: center;
-  gap: 10px;
-  font-family: "Montserrat", sans-serif;
+  gap: 0.5rem;
 }
 
 .roomCardTitle::before {
-  content: '🏠';
-  font-size: 1.6rem;
-  animation: float 3s ease-in-out infinite;
-}
-
-@keyframes float {
-  0%, 100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-5px);
-  }
+  content: "🏠";
+  font-size: 1.5rem;
 }
 
 .formRow {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 1.2rem;
-  align-items: end;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
   margin-bottom: 1rem;
 }
 
-.assignmentSummary {
-  margin-top: 1.5rem;
-  padding: 1.5rem;
-  background: linear-gradient(135deg, #e9f5ec 0%, #d4edda 100%);
-  border-radius: 12px;
-  border: 2px solid #538E5E;
-  box-shadow: 0 4px 15px rgba(83, 142, 94, 0.15);
-  transition: all 0.3s ease;
+.formRow label {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #1E3C24;
+  gap: 0.5rem;
 }
 
-.assignmentSummary:hover {
-  box-shadow: 0 6px 20px rgba(83, 142, 94, 0.25);
-  transform: translateY(-2px);
+.formRow input,
+.formRow select {
+  padding: 0.625rem 1rem;
+  border: 2px solid #d1d5db;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  transition: all 0.3s ease;
+  background: white;
+}
+
+.formRow input:focus,
+.formRow select:focus {
+  outline: none;
+  border-color: #1E3C24;
+  box-shadow: 0 0 0 3px rgba(30, 60, 36, 0.1);
+  transform: translateY(-1px);
+}
+
+.formRow input:hover,
+.formRow select:hover {
+  border-color: #2d5a38;
+}
+
+.formRow input:disabled,
+.formRow select:disabled {
+  background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* Assignments Section */
+.assignmentsSection {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 2px dashed #d1d5db;
+}
+
+.assignmentsSectionTitle {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #1E3C24;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.assignmentsSectionTitle::before {
+  content: "📋";
+  font-size: 1.25rem;
+}
+
+.assignmentCard {
+  background: white;
+  border: 2px solid #d1d5db;
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(30, 60, 36, 0.05);
+}
+
+.assignmentCard:hover {
+  border-color: #2d5a38;
+  box-shadow: 0 4px 6px -1px rgba(30, 60, 36, 0.15);
 }
 
 .assignmentHeader {
-  margin-bottom: 1rem;
-  padding-bottom: 0.8rem;
-  border-bottom: 2px solid rgba(30, 60, 36, 0.2);
-}
-
-.assignmentTitle {
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: #1E3C24;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 8px;
-  font-family: "Montserrat", sans-serif;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #e5e7eb;
 }
 
-.assignmentTitle::before {
-  content: '📋';
-  font-size: 1.3rem;
+.assignmentNumber {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #2d5a38;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
-.assignmentContent {
+.assignmentFormRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.assignmentFormRow:last-child {
+  margin-bottom: 0;
+}
+
+.assignmentFormRow label {
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #1E3C24;
+  gap: 0.5rem;
+}
+
+.assignmentFormRow input,
+.assignmentFormRow select {
+  padding: 0.625rem 1rem;
+  border: 2px solid #d1d5db;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  transition: all 0.3s ease;
+  background: white;
+}
+
+.assignmentFormRow input:focus,
+.assignmentFormRow select:focus {
+  outline: none;
+  border-color: #1E3C24;
+  box-shadow: 0 0 0 3px rgba(30, 60, 36, 0.1);
+}
+
+.assignmentFormRow input:hover,
+.assignmentFormRow select:hover {
+  border-color: #2d5a38;
+}
+
+.assignmentFormRow input:disabled,
+.assignmentFormRow select:disabled {
+  background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* Assignment Summary */
+.assignmentSummary {
+  background: linear-gradient(135deg, #f0f9f4 0%, #e8f5ed 100%);
+  border: 2px solid #a7d3b5;
+  border-radius: 0.75rem;
+  padding: 1rem;
+  margin-top: 1rem;
+  box-shadow: inset 0 2px 4px rgba(30, 60, 36, 0.05);
 }
 
 .assignmentRow {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 0.95rem;
-  padding: 0.5rem 0.8rem;
-  background: rgba(255, 255, 255, 0.6);
-  border-radius: 8px;
-  transition: all 0.2s ease;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #a7d3b5;
 }
 
-.assignmentRow:hover {
-  background: rgba(255, 255, 255, 0.9);
-  transform: translateX(5px);
+.assignmentRow:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
 }
 
 .assignmentLabel {
+  font-size: 0.875rem;
   color: #1E3C24;
   font-weight: 600;
-  letter-spacing: 0.3px;
 }
 
 .assignmentValue {
-  color: #4F3718;
+  font-size: 0.875rem;
+  color: #1E3C24;
   font-weight: 700;
-  font-size: 1rem;
+  text-align: right;
 }
 
-.assignmentNote {
-  margin-top: 0.8rem;
-  padding: 0.8rem 1rem;
-  background: linear-gradient(135deg, rgba(83, 142, 94, 0.15) 0%, rgba(30, 60, 36, 0.1) 100%);
-  border-radius: 8px;
-  border-left: 4px solid #538E5E;
-  font-size: 0.9rem;
-  color: #1E3C24;
-  font-style: italic;
+/* Button Styles */
+.removeBtn,
+.removeAssignmentBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 1rem;
+  background: linear-gradient(135deg, #cb4f4f 0%, #cf2323 100%);
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
   font-weight: 600;
-  box-shadow: 0 2px 8px rgba(83, 142, 94, 0.1);
-}
-
-.formRow label {
-  display: flex;
-  flex-direction: column;
-  font-weight: 700;
-  color: #1E3C24;
-  font-size: 0.9rem;
-  letter-spacing: 0.5px;
-  line-height: 1.2;
-  text-transform: uppercase;
-  font-family: "Montserrat", sans-serif;
-}
-
-.formRow input,
-.formRow select {
-  width: 100%;
-  margin-top: 0.5rem;
-  padding: 12px 16px;
-  border: 2px solid #4F3718;
-  border-radius: 12px;
-  background: #fff;
-  outline: none;
-  font-size: 0.95rem;
-  color: #333;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 2px 8px rgba(79, 55, 24, 0.1);
-  font-family: "Montserrat", sans-serif;
-}
-
-.formRow select {
   cursor: pointer;
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14'%3E%3Cpath fill='%234F3718' d='M7 10L2 5h10z'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 16px center;
-  padding-right: 3rem;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(203, 79, 79, 0.3);
 }
 
-.formRow input:hover,
-.formRow select:hover {
-  border-color: #538E5E;
-  box-shadow: 0 4px 12px rgba(83, 142, 94, 0.15);
-}
-
-.formRow input:focus,
-.formRow select:focus {
-  border-color: #1E3C24;
-  box-shadow: 0 0 0 4px rgba(30, 60, 36, 0.15), 0 4px 12px rgba(30, 60, 36, 0.2);
+.removeBtn:hover,
+.removeAssignmentBtn:hover {
+  background: linear-gradient(135deg, #cf2323 0%, #b91c1c 100%);
   transform: translateY(-2px);
+  box-shadow: 0 4px 6px rgba(203, 79, 79, 0.4);
 }
 
-.formRow input::placeholder {
-  color: #999;
-  opacity: 1;
-  font-style: italic;
-}
-
-.buttonRow {
-  display: flex;
-  justify-content: center;
-  gap: 1.5rem;
-  margin: 2rem 0;
-  padding: 1.5rem 0;
-}
-
-.buttonContainer {
-  display: flex;
-  gap: 1.5rem;
-  justify-content: center;
-  margin: 2rem auto 0 auto;
-  padding-top: 1.5rem;
-  border-top: 3px solid #4F3718;
-  background: linear-gradient(90deg, transparent, rgba(79, 55, 24, 0.05), transparent);
-}
-
-.saveBtn {
-  background: linear-gradient(135deg, #1E3C24 0%, #538E5E 100%);
-  color: #ffffff;
-  border: 2px solid #1E3C24;
-  border-radius: 14px;
-  padding: 16px 48px;
-  font-size: 1.05rem;
-  font-weight: 700;
-  cursor: pointer;
-  box-shadow: 0 8px 20px rgba(30, 60, 36, 0.3);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  letter-spacing: 1.2px;
-  text-transform: uppercase;
-  font-family: "Montserrat", sans-serif;
-  position: relative;
-  overflow: hidden;
-}
-
-.saveBtn::before {
-  content: '✓';
-  margin-right: 10px;
-  font-size: 20px;
-}
-
-.saveBtn::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-  transition: left 0.5s;
-}
-
-.saveBtn:hover:not(:disabled) {
-  background: linear-gradient(135deg, #538E5E 0%, #218838 100%);
-  transform: translateY(-3px);
-  box-shadow: 0 12px 30px rgba(83, 142, 94, 0.4);
-  border-color: #538E5E;
-}
-
-.saveBtn:hover:not(:disabled)::after {
-  left: 100%;
-}
-
-.saveBtn:active:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 15px rgba(83, 142, 94, 0.3);
-}
-
-.saveBtn:disabled {
-  background: linear-gradient(135deg, #999 0%, #777 100%);
-  cursor: not-allowed;
-  box-shadow: none;
-  opacity: 0.6;
+.removeAssignmentBtn {
+  padding: 0.375rem 0.75rem;
+  font-size: 0.75rem;
 }
 
 .addBtn,
-.removeBtn {
+.addAssignmentBtn {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 10px;
-  padding: 12px 32px;
-  border-radius: 14px;
-  color: #ffffff;
-  font-weight: 700;
-  font-size: 0.95rem;
-  border: 2px solid;
+  gap: 0.5rem;
+  padding: 0.625rem 1.25rem;
+  background: linear-gradient(135deg, #1E3C24 0%, #2d5a38 100%);
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  outline: none;
-  box-sizing: border-box;
-  min-width: 150px;
-  min-height: 44px;
-  letter-spacing: 0.8px;
-  text-transform: uppercase;
-  font-family: "Montserrat", sans-serif;
-  position: relative;
-  overflow: hidden;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(30, 60, 36, 0.3);
 }
 
-.addBtn {
-  background: linear-gradient(135deg, #1E3C24 0%, #538E5E 100%);
-  border-color: #1E3C24;
+.addBtn:hover,
+.addAssignmentBtn:hover {
+  background: linear-gradient(135deg, #2d5a38 0%, #3d7a4a 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px rgba(30, 60, 36, 0.4);
 }
 
-.removeBtn {
-  background: linear-gradient(135deg, #c42838dc 0%, #9b2c2c 100%);
-  border-color: #c42838dc;
-  min-width: auto;
-  padding: 10px 24px;
-  font-size: 0.9rem;
-}
-
-.addBtn::after,
-.removeBtn::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-  transition: left 0.5s;
-}
-
-.addBtn:hover:not(:disabled) {
-  transform: translateY(-3px);
-  box-shadow: 0 12px 30px rgba(30, 60, 36, 0.4);
-  background: linear-gradient(135deg, #538E5E 0%, #218838 100%);
-  border-color: #538E5E;
-}
-
-.removeBtn:hover:not(:disabled) {
-  transform: translateY(-3px);
-  box-shadow: 0 12px 30px rgba(196, 40, 56, 0.4);
-  background: linear-gradient(135deg, #9b2c2c 0%, #742a2a 100%);
-  border-color: #fc8181;
-}
-
-.addBtn:hover:not(:disabled)::after,
-.removeBtn:hover:not(:disabled)::after {
-  left: 100%;
-}
-
-.addBtn:active:not(:disabled),
-.removeBtn:active:not(:disabled) {
-  transform: translateY(-1px);
+.addAssignmentBtn {
+  margin-top: 0.75rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.813rem;
 }
 
 .btnIcon {
-  font-size: 18px;
+  font-size: 1.25rem;
+  line-height: 1;
+  font-weight: bold;
   transition: transform 0.3s ease;
 }
 
-.addBtn:hover:not(:disabled) .btnIcon {
-  transform: rotate(90deg) scale(1.15);
+.addBtn:hover .btnIcon,
+.addAssignmentBtn:hover .btnIcon {
+  transform: rotate(90deg) scale(1.1);
 }
 
-.removeBtn:hover:not(:disabled) .btnIcon {
-  transform: rotate(-90deg) scale(1.15);
+.removeBtn:hover .btnIcon,
+.removeAssignmentBtn:hover .btnIcon {
+  transform: rotate(-90deg) scale(1.1);
 }
 
-/* Loading State */
-.addBtn:disabled,
-.removeBtn:disabled {
-  opacity: 0.5;
+.buttonContainer {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 2px solid #e5e7eb;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.saveBtn {
+  padding: 0.75rem 2rem;
+  background: linear-gradient(135deg, #4ca16b 0%, #3d8a5a 100%);
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 6px rgba(76, 161, 107, 0.3);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.saveBtn:hover {
+  background: linear-gradient(135deg, #3d8a5a 0%, #2d6844 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 8px rgba(76, 161, 107, 0.4);
+}
+
+.saveBtn:disabled {
+  background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%);
   cursor: not-allowed;
   transform: none;
+  box-shadow: none;
 }
 
 /* Responsive Design */
-@media (max-width: 1100px) {
+@media (max-width: 768px) {
   .manageContainer {
-    padding: 1.5rem 1rem;
+    padding: 1rem;
+  }
+
+  .header {
+    padding: 1rem;
   }
 
   .title {
-    font-size: 2.5rem;
+    font-size: 1.5rem;
   }
 
-  .formRow {
-    grid-template-columns: 1fr 1fr;
-    gap: 1rem;
+  .section {
+    padding: 1.5rem;
+  }
+
+  .formRow,
+  .assignmentFormRow {
+    grid-template-columns: 1fr;
   }
 
   .roomCardHeader {
     flex-direction: column;
     align-items: flex-start;
-    gap: 1rem;
+    gap: 0.75rem;
   }
 
-  .removeBtn {
-    width: 100%;
-  }
-
-  .buttonContainer {
+  .assignmentRow {
     flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
   }
 
-  .saveBtn,
-  .addBtn {
-    width: 100%;
+  .assignmentValue {
+    text-align: left;
   }
 }
 
-@media (max-width: 768px) {
-  .header {
-    padding-left: 60px;
+/* Animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
   }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 
-  .manage-back {
-    font-size: 40px;
-  }
-
-  .title {
-    font-size: 2rem;
-  }
-
-  .formRow {
-    grid-template-columns: 1fr;
-  }
-
-  .sectionTitle {
-    font-size: 1.4rem;
-  }
-
-  .roomCardTitle {
-    font-size: 1.2rem;
-  }
+.roomCard,
+.assignmentCard {
+  animation: fadeIn 0.3s ease-out;
 }

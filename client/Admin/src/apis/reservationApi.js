@@ -65,7 +65,7 @@ export function checkAvailability(params) {
   return apiGet('/reservation/check-availability', params);
 }
 
-export function createReservation(payload = {}, letterOfIntentFile, seniorCitizenIdFiles = [], pwdIdFiles = [], governmentIdFiles = []) {
+export function createReservation(payload = {}, letterOfIntentFile, seniorCitizenIdFiles = [], pwdIdFiles = [], governmentIdFiles = [], depedIdFiles = []) {
   const fd = new FormData();
 
   // Avoid leaking internal IDs and force primitives to strings
@@ -131,6 +131,16 @@ export function createReservation(payload = {}, letterOfIntentFile, seniorCitize
   } else if (governmentIdFiles) {
     // Backward compatibility: single file
     fd.append('governmentIdFiles', governmentIdFiles);
+  }
+  
+  // Handle DepEd ID files (multiple files)
+  if (Array.isArray(depedIdFiles)) {
+    depedIdFiles.forEach((file) => {
+      if (file) fd.append('depedIdFiles', file);
+    });
+  } else if (depedIdFiles) {
+    // Backward compatibility: single file
+    fd.append('depedIdFiles', depedIdFiles);
   }
   
   return apiPost('/reservation/create-reservation', fd);
