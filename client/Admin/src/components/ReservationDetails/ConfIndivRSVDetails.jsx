@@ -155,14 +155,16 @@ export default function ConfIndivRSVDetails() {
     const has = (k) => cat.includes(k);
 
     const hasSenior = has("senior");
-    const showGovId = has("government");
     const showDepEdId = has("deped");
     const showPwdId = has("pwd");
 
-    // Groups: MOA, CAF, Letter of Intent
-    const showMoa = isGroup;
-    const showCaf = isGroup;
+    // Show MOA and CAF only if files exist in reservation
+    const showMoa = !!(reservation.moaFile);
+    const showCaf = !!(reservation.cafFile);
     const showLetterOfIntent = isGroup;
+    
+    // Show Government ID only if file exists (not all Government category reservations have files)
+    const showGovId = !!(reservation.governmentIdFile);
 
     // If Senior + another discounted category, show only that category's ID and a note.
     const hasDiscountId = showGovId || showDepEdId || showPwdId;
@@ -278,6 +280,24 @@ export default function ConfIndivRSVDetails() {
                   ) : (
                     <span className={styles["rsv-details-placeholder"]}>Not uploaded</span>
                   )}
+                </td>
+              </tr>
+            )}
+
+            {/* Service Contract - show if file exists */}
+            {reservation.serviceContractFile && (
+              <tr>
+                <td className={styles["rsv-details-label"]}>Service Contract</td>
+                <td className={styles["rsv-details-separator"]}>:</td>
+                <td>
+                  <a
+                    href={reservation.serviceContractFile}
+                    className={styles["rsv-details-link"]}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Click to open
+                  </a>
                 </td>
               </tr>
             )}

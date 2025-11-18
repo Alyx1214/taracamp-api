@@ -738,7 +738,7 @@ const facilityModule = {
             const endDate = new Date(today);
             endDate.setUTCMonth(endDate.getUTCMonth() + 6);
 
-            // Get only CONFIRMED reservations
+            // Get only CONFIRMED reservations - facilities are only unavailable if reservation is confirmed
             const reservations = await dbHelper.find('reservation', {
                 facility: facilityId,
                 status: ReservationStatus.CONFIRMED,

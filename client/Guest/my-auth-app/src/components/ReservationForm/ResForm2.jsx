@@ -576,15 +576,20 @@ function ReservationFormStep2() {
     const isPrivateCategory = step1?.category?.private === true || step1?.category?.Private === true;
 
     if (isIndividual) {
-      // If category is private and guest type is individual, check for seniors
+      // If category is private and guest type is individual, check for PWDs first (prioritize PWD over senior)
       if (isPrivateCategory) {
-        // If private+individual with seniors, require Senior Citizen ID
-        if (hasSeniors) {
+        // If private+individual with PWDs, require PWD ID (prioritize PWD over senior)
+        if (hasPwds) {
+          navigate(`/reservation-step3-pwd/${type}/${facilityName}/${id}`, {
+            state: { step1, step2, file: null, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles },
+          });
+        } else if (hasSeniors) {
+          // If private+individual with seniors (and no PWDs), require Senior Citizen ID
           navigate(`/reservation-step3-senior/${type}/${facilityName}/${id}`, {
             state: { step1, step2, file: null, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles },
           });
         } else {
-          // If no seniors, no ID needed - go directly to step 4
+          // If no seniors or PWDs, no ID needed - go directly to step 4
           navigate(`/reservation-step4/${type}/${facilityName}/${id}`, {
             state: { step1, step2, file: null, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles },
           });

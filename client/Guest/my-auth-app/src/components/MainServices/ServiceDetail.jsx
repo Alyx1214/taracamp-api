@@ -6,6 +6,7 @@ import Calendar from './Calendar';
 import Reviews from './Reviews';
 import { getFacilityById, getUnavailableDatesByFacility } from '../../apis/facilityApi';
 import { getReviewsByFacilityId } from '../../apis/reviewsApi';
+import { checkAvailability as apiCheckAvailability } from '../../apis/reservationApi';
 
 function isTokenExpired(token) {
   try {
@@ -72,6 +73,8 @@ function MainServicesServiceDetail() {
   const [departureDateError, setDepartureDateError] = useState('');
   const [isReviewsOpen, setIsReviewsOpen] = useState(false);
   const [unavailableDatesVersion, setUnavailableDatesVersion] = useState(0); // Version counter for useMemo dependency
+  const [dateRangeCheck, setDateRangeCheck] = useState(false);
+  const [checkingDateRange, setCheckingDateRange] = useState(false);
   const navigate = useNavigate();
   const { isLoggedIn } = useAuth();
   const hasValidatedDatesRef = useRef(false);
@@ -339,6 +342,42 @@ function MainServicesServiceDetail() {
     fetchReviews();
   }, [id]);
 
+  // Helper: Check if entire date range is available using the same API as ResForm2
+  const isDateRangeAvailable = useCallback(async (arrivalDateStr, departureDateStr) => {
+    if (!arrivalDateStr || !departureDateStr || !facility?.id) return false;
+
+    try {
+      // Use the same checkAvailability API that ResForm2 uses
+      const json = await apiCheckAvailability({
+        facility: facility.id,
+        start: arrivalDateStr,
+        end: departureDateStr,
+      });
+
+      return Boolean(json?.available);
+    } catch {
+      return false;
+    }
+  }, [facility?.id]);
+
+  // Check date range availability using the same API as ResForm2
+  useEffect(() => {
+    if (selectedArrivalDate && selectedDepartureDate && facility?.id) {
+      setCheckingDateRange(true);
+      isDateRangeAvailable(selectedArrivalDate, selectedDepartureDate)
+        .then(available => {
+          setDateRangeCheck(!available);
+          setCheckingDateRange(false);
+        })
+        .catch(() => {
+          setDateRangeCheck(true);
+          setCheckingDateRange(false);
+        });
+    } else {
+      setDateRangeCheck(false);
+    }
+  }, [selectedArrivalDate, selectedDepartureDate, facility?.id, isDateRangeAvailable]);
+
   // Helper: Check if a date is unavailable based on unavailable dates from API
   // Note: Server handles dormitory capacity logic and returns unavailable dates accordingly
   // Using useMemo to ensure stable reference and avoid circular dependencies
@@ -355,35 +394,20 @@ function MainServicesServiceDetail() {
     };
   }, [unavailableDates]);
 
-  // Helper: Check if entire date range is available
-  const isDateRangeAvailable = useMemo(() => {
-    return (arrivalDateStr, departureDateStr) => {
-      if (!arrivalDateStr || !departureDateStr) return false;
-
-      try {
-        const arrivalDate = new Date(arrivalDateStr);
-        const departureDate = new Date(departureDateStr);
-
-        if (isNaN(arrivalDate.getTime()) || isNaN(departureDate.getTime())) {
-          return false;
-        }
-
-        for (let d = new Date(arrivalDate); d < departureDate; d.setDate(d.getDate() + 1)) {
-          const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-          
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          
-          if (d < today) return false;
-          if (isDateUnavailable(dateStr)) return false;
-        }
-
-        return true;
-      } catch {
-        return false;
-      }
-    };
-  }, [isDateUnavailable]);
+  // Helper: Normalize date string to Date object (matching server's normalizeDateOnly)
+  const normalizeDateFromString = (dateStr) => {
+    if (!dateStr || typeof dateStr !== 'string') return null;
+    // Extract YYYY-MM-DD part (handle both "2026-01-21" and "2026-01-21T00:00:00Z" formats)
+    const ymd = dateStr.split('T')[0].split(' ')[0];
+    // Create date at local midnight to match server's UTC midnight behavior for comparison
+    const parts = ymd.split('-');
+    if (parts.length !== 3) return null;
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed
+    const day = parseInt(parts[2], 10);
+    const date = new Date(year, month, day);
+    return isNaN(date.getTime()) ? null : date;
+  };
 
   // Use unavailable dates directly from API for calendar
   // Server already handles dormitory capacity logic and returns unavailable dates
@@ -589,7 +613,7 @@ function MainServicesServiceDetail() {
     setCurrentDate((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
   };
 
-  const handleDateClick = (day) => {
+  const handleDateClick = async (day) => {
     if (!day) return;
 
     const year = currentDate.getFullYear();
@@ -622,10 +646,13 @@ function MainServicesServiceDetail() {
           return;
         }
         
-        // Check if entire date range is available
-        if (!isDateRangeAvailable(selectedArrivalDate, selectedDateStr)) {
-          setDepartureDateError('Selected date range includes unavailable dates. Please select a different range.');
-          return;
+        // Check if entire date range is available using the same API as ResForm2
+        if (facility?.id) {
+          const rangeAvailable = await isDateRangeAvailable(selectedArrivalDate, selectedDateStr);
+          if (!rangeAvailable) {
+            setDepartureDateError('Selected date range includes unavailable dates. Please select a different range.');
+            return;
+          }
         }
       }
       setSelectedDepartureDateDisplay(`${formattedDate} - ${dayName}`);
@@ -639,7 +666,8 @@ function MainServicesServiceDetail() {
         if (dateObj >= departureDateObj) {
           setSelectedDepartureDate('');
           setSelectedDepartureDateDisplay(null);
-          setArrivalDateError('Arrival date must be before departure date. Please reselect departure date.');
+          // Clear any error messages
+          setArrivalDateError('');
         } else {
           setArrivalDateError('');
         }
@@ -652,7 +680,7 @@ function MainServicesServiceDetail() {
     setShowCalendar(false);
   };
 
-  const onReserveNow = () => {
+  const onReserveNow = async () => {
     // Prevent reservation if facility is unavailable
     if (isFacilityUnavailable) {
       return;
@@ -662,22 +690,41 @@ function MainServicesServiceDetail() {
     setDepartureDateError('');
 
     let hasError = false;
+    // Normalize today to midnight for consistent comparison
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const todayNormalized = new Date(today.getFullYear(), today.getMonth(), today.getDate());
 
     if (!selectedArrivalDate) {
       setArrivalDateError('Please select an arrival date');
       hasError = true;
     } else {
-      const arrivalDateObj = new Date(selectedArrivalDate);
-      if (arrivalDateObj < today) {
-        setArrivalDateError('Arrival date cannot be in the past');
+      // Use normalized date parsing
+      const arrivalDate = normalizeDateFromString(selectedArrivalDate);
+      if (!arrivalDate) {
+        setArrivalDateError('Invalid arrival date format');
         hasError = true;
-      }
+      } else {
+        const arrivalNormalized = new Date(arrivalDate.getFullYear(), arrivalDate.getMonth(), arrivalDate.getDate());
+        
+        if (arrivalNormalized < todayNormalized) {
+          setArrivalDateError('Arrival date cannot be in the past');
+          hasError = true;
+        }
 
-      if (isDateUnavailable(selectedArrivalDate)) {
-        setArrivalDateError('Selected arrival date is not available');
-        hasError = true;
+        // Check 2-month advance booking requirement
+        const minAdvanceDate = new Date(todayNormalized);
+        minAdvanceDate.setMonth(minAdvanceDate.getMonth() + 2);
+        if (arrivalNormalized < minAdvanceDate) {
+          const minDateStr = minAdvanceDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+          setArrivalDateError(`Arrival date must be at least 2 months from today (earliest: ${minDateStr})`);
+          hasError = true;
+        }
+
+        if (isDateUnavailable(selectedArrivalDate)) {
+          setArrivalDateError('Selected arrival date is not available');
+          hasError = true;
+        }
       }
     }
 
@@ -685,40 +732,60 @@ function MainServicesServiceDetail() {
       setDepartureDateError('Please select a departure date');
       hasError = true;
     } else {
-      const departureDateObj = new Date(selectedDepartureDate);
-      if (departureDateObj < today) {
-        setDepartureDateError('Departure date cannot be in the past');
+      // Use normalized date parsing
+      const departureDate = normalizeDateFromString(selectedDepartureDate);
+      if (!departureDate) {
+        setDepartureDateError('Invalid departure date format');
         hasError = true;
-      }
-
-      if (isDateUnavailable(selectedDepartureDate)) {
-        setDepartureDateError('Selected departure date is not available');
-        hasError = true;
-      }
-
-      if (selectedArrivalDate) {
-        const arrivalDateObj = new Date(selectedArrivalDate);
-        if (departureDateObj <= arrivalDateObj) {
-          setDepartureDateError('Departure date must be after arrival date');
+      } else {
+        const departureNormalized = new Date(departureDate.getFullYear(), departureDate.getMonth(), departureDate.getDate());
+        
+        if (departureNormalized < todayNormalized) {
+          setDepartureDateError('Departure date cannot be in the past');
           hasError = true;
+        }
+
+        if (isDateUnavailable(selectedDepartureDate)) {
+          setDepartureDateError('Selected departure date is not available');
+          hasError = true;
+        }
+
+        if (selectedArrivalDate) {
+          const arrivalDate = normalizeDateFromString(selectedArrivalDate);
+          if (arrivalDate) {
+            const arrivalNormalized = new Date(arrivalDate.getFullYear(), arrivalDate.getMonth(), arrivalDate.getDate());
+            if (departureNormalized <= arrivalNormalized) {
+              setDepartureDateError('Departure date must be after arrival date');
+              hasError = true;
+            }
+          }
         }
       }
     }
 
     if (selectedArrivalDate && selectedDepartureDate && !hasError) {
-      const arrivalDateObj = new Date(selectedArrivalDate);
-      const departureDateObj = new Date(selectedDepartureDate);
-      const diffTime = departureDateObj - arrivalDateObj;
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-      if (diffDays < 1) {
-        setDepartureDateError('Stay must be at least 1 day');
+      const arrivalDate = normalizeDateFromString(selectedArrivalDate);
+      const departureDate = normalizeDateFromString(selectedDepartureDate);
+      
+      if (!arrivalDate || !departureDate) {
+        setDepartureDateError('Invalid date format');
         hasError = true;
       } else {
-        // Check if entire date range is available
-        if (!isDateRangeAvailable(selectedArrivalDate, selectedDepartureDate)) {
-          setDepartureDateError('Selected date range includes unavailable dates. Please select a different range.');
+        const diffTime = departureDate - arrivalDate;
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        if (diffDays < 1) {
+          setDepartureDateError('Stay must be at least 1 day');
           hasError = true;
+        } else {
+          // Check if entire date range is available using the same API as ResForm2
+          if (facility?.id) {
+            const rangeAvailable = await isDateRangeAvailable(selectedArrivalDate, selectedDepartureDate);
+            if (!rangeAvailable) {
+              setDepartureDateError('Selected date range includes unavailable dates. Please select a different range.');
+              hasError = true;
+            }
+          }
         }
       }
     }
@@ -788,10 +855,10 @@ function MainServicesServiceDetail() {
     : 'Rates per Person';
 
   // Check if facility is unavailable - also check if selected date range is available
-  const isFacilityUnavailable = 
-    facility?.status !== 'Available' || 
-    (availableDates && availableDates.length === 0) ||
-    (selectedArrivalDate && selectedDepartureDate && !isDateRangeAvailable(selectedArrivalDate, selectedDepartureDate));
+  const statusCheck = facility?.status !== 'Available';
+  
+  // Only check facility status and date range availability
+  const isFacilityUnavailable = statusCheck || dateRangeCheck;
 
   return (
     <section className={styles.serviceDetailSection}>
@@ -913,7 +980,7 @@ function MainServicesServiceDetail() {
 
                   <Calendar
                     selectedDate={selectedArrivalDate || new Date()}
-                    onDateSelect={({ date, ymd, formatted }) => {
+                    onDateSelect={async ({ date, ymd, formatted }) => {
                       // Check if date is unavailable
                       if (isDateUnavailable(ymd)) {
                         if (isSelectingDeparture) {
@@ -930,10 +997,13 @@ function MainServicesServiceDetail() {
                           return;
                         }
                         
-                        // Check if entire date range is available
-                        if (selectedArrivalDate && !isDateRangeAvailable(selectedArrivalDate, ymd)) {
-                          setDepartureDateError('Selected date range includes unavailable dates. Please select a different range.');
-                          return;
+                        // Check if entire date range is available using the same API as ResForm2
+                        if (facility?.id) {
+                          const rangeAvailable = await isDateRangeAvailable(selectedArrivalDate, ymd);
+                          if (!rangeAvailable) {
+                            setDepartureDateError('Selected date range includes unavailable dates. Please select a different range.');
+                            return;
+                          }
                         }
                         
                         setSelectedDepartureDate(ymd);
@@ -944,7 +1014,8 @@ function MainServicesServiceDetail() {
                         if (selectedDepartureDate && new Date(ymd) >= new Date(selectedDepartureDate)) {
                           setSelectedDepartureDate('');
                           setSelectedDepartureDateDisplay(null);
-                          setArrivalDateError('Arrival date must be before departure date. Please reselect departure date.');
+                          // Clear any error messages
+                          setArrivalDateError('');
                         } else {
                           setArrivalDateError('');
                         }

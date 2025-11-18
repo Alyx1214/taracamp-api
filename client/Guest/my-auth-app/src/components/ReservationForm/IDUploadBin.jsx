@@ -85,6 +85,8 @@ function IDUploadForm({ idType = 'pwd' }) {
     : 0;
   const numberOfSeniors = parseInt(step1?.guests?.senior || 0, 10) || 0;
   const hasSeniors = numberOfSeniors > 0;
+  const numberOfPwds = parseInt(step1?.guests?.pwds || 0, 10) || 0;
+  const hasPwds = numberOfPwds > 0;
   const isGovernmentCategory = step1?.category?.government === true || step1?.category?.deped === true;
   const isGovernmentCategoryForThisIdType = idType === 'government' && isGovernmentCategory;
   const isPwdCategory = step1?.category?.pwds === true || step1?.category?.PWDs === true;
@@ -93,17 +95,20 @@ function IDUploadForm({ idType = 'pwd' }) {
   const routeType = String(type || '').toLowerCase();
   const isGroup = routeType === 'group' || !!step1?.type?.groups || !!step1?.type?.group;
   const isIndividual = step1?.type?.individual === true;
-  // For private category with individual type: no ID required unless there are senior citizens (then SC ID is required)
+  // For private category with individual type: PWD ID takes priority over senior citizen ID if both are present
   // For PWD category with individual type: only PWD ID is required
   // For deped/government category with individual type: only government ID is required
   const isPrivateAndIndividual = isPrivateCategory && isIndividual;
   const isPrivateAndIndividualWithSeniors = isPrivateAndIndividual && hasSeniors;
+  const isPrivateAndIndividualWithPwds = isPrivateAndIndividual && hasPwds;
   const isRequired = (isGroup && isPrivateCategory)
     ? (numberOfGuests > 0) // IDs are required for private groups when guests of that type are present
-    : isPrivateAndIndividualWithSeniors && idType === 'senior'
-    ? true // Senior Citizen ID required for private+individual with seniors
+    : isPrivateAndIndividualWithPwds && idType === 'pwd'
+    ? true // PWD ID required for private+individual with PWDs (prioritize PWD over senior)
+    : isPrivateAndIndividualWithSeniors && !hasPwds && idType === 'senior'
+    ? true // Senior Citizen ID required for private+individual with seniors (only if no PWDs)
     : isPrivateAndIndividual
-    ? false // No ID required for private + individual (unless seniors, handled above)
+    ? false // No ID required for private + individual (unless PWDs or seniors, handled above)
     : idType === 'government' 
     ? (isGovernmentCategoryForThisIdType && (isGroup || isIndividual)) // Required for gov/deped category with group OR individual
     : idType === 'pwd'
@@ -216,7 +221,7 @@ function IDUploadForm({ idType = 'pwd' }) {
     }
   }, [idType, isPwdCategory, isIndividual, step1, step2, type, facilityName, id, navigate, location.state]);
   
-  // Redirect private+individual away from ID upload pages (except senior citizen ID if seniors present)
+  // Redirect private+individual away from ID upload pages (prioritize PWD ID over senior citizen ID)
   useEffect(() => {
     if (isPrivateAndIndividual && step1 && Object.keys(step1).length > 0) {
       const letterOfIntentFile = location.state?.file || null;
@@ -224,20 +229,26 @@ function IDUploadForm({ idType = 'pwd' }) {
       const pwdIdFiles = location.state?.pwdIdFiles || [];
       const governmentIdFiles = location.state?.governmentIdFiles || [];
       
-      // If private+individual with seniors and on government or PWD ID upload page, redirect to senior citizen ID upload
-      if (hasSeniors && (idType === 'government' || idType === 'pwd')) {
+      // If private+individual with PWDs and on government or senior citizen ID upload page, redirect to PWD ID upload (prioritize PWD)
+      if (hasPwds && (idType === 'government' || idType === 'senior')) {
+        navigate(`/reservation-step3-pwd/${type}/${facilityName}/${id}`, {
+          state: { step1, step2, file: letterOfIntentFile, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles }
+        });
+      } else if (hasSeniors && !hasPwds && (idType === 'government' || idType === 'pwd')) {
+        // If private+individual with seniors (but no PWDs) and on government or PWD ID upload page, redirect to senior citizen ID upload
         navigate(`/reservation-step3-senior/${type}/${facilityName}/${id}`, {
           state: { step1, step2, file: letterOfIntentFile, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles }
         });
-      } else if (!hasSeniors) {
-        // If no seniors, redirect directly to step 4 (review) - no ID needed for private+individual
+      } else if (!hasSeniors && !hasPwds) {
+        // If no seniors or PWDs, redirect directly to step 4 (review) - no ID needed for private+individual
         navigate(`/reservation-step4/${type}/${facilityName}/${id}`, {
           state: { step1, step2, file: letterOfIntentFile, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles }
         });
       }
-      // If has seniors and on senior citizen ID upload page, stay on that page (don't redirect)
+      // If has PWDs and on PWD ID upload page, stay on that page (don't redirect)
+      // If has seniors (but no PWDs) and on senior citizen ID upload page, stay on that page (don't redirect)
     }
-  }, [isPrivateAndIndividual, hasSeniors, idType, step1, step2, type, facilityName, id, navigate, location.state]);
+  }, [isPrivateAndIndividual, hasSeniors, hasPwds, idType, step1, step2, type, facilityName, id, navigate, location.state]);
 
   const cacheKey = config.stateKey;
   
@@ -778,6 +789,17 @@ function IDUploadForm({ idType = 'pwd' }) {
             [config.stateKey]: currentFiles,
             seniorCitizenIdFiles,
             governmentIdFiles
+          } 
+        });
+      } else if (isPrivateAndIndividualWithPwds) {
+        // For private+individual with PWDs: only PWD ID is needed (prioritize PWD over senior) - route directly to step 4
+        navigate(`/reservation-step4/${type}/${facilityName}/${id}`, { 
+          state: { 
+            step1, 
+            step2, 
+            file: letterOfIntentFile,
+            seniorCitizenIdFiles: location.state?.seniorCitizenIdFiles || [],
+            [config.stateKey]: currentFiles
           } 
         });
       } else if (isGroup && isPrivateCategory && hasSeniors) {

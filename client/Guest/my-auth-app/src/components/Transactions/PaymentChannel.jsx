@@ -10,7 +10,6 @@ const PaymentChannel = ({ channel, onClose, onSubmit, reservationId, amount }) =
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [extractedReferenceNumber, setExtractedReferenceNumber] = useState(null);
-  const [extractedAmount, setExtractedAmount] = useState(null);
   const [extractedPaymentCount, setExtractedPaymentCount] = useState(null);
   const [isExtracting, setIsExtracting] = useState(false);
   const [mismatchWarning, setMismatchWarning] = useState(null);
@@ -307,55 +306,6 @@ const PaymentChannel = ({ channel, onClose, onSubmit, reservationId, amount }) =
     }
   };
 
-  // Extract payment amount from image using OCR
-  const extractAmountFromImage = (text) => {
-    try {
-      const normalizedText = text.toUpperCase();
-      
-      // Patterns to find payment amounts
-      // Look for currency symbols followed by numbers, or "AMOUNT", "TOTAL", "PAID", etc.
-      const amountPatterns = [
-        // Currency symbol patterns: ₱1,234.56, PHP 1,234.56, $1,234.56
-        /[₱$]?\s*PHP\s*:?\s*([\d,]+\.?\d*)/i,
-        /[₱$]\s*([\d,]+\.?\d*)/,
-        /(?:AMOUNT|TOTAL|PAID|PAYMENT)\s*(?:AMOUNT|AMT)?\s*:?\s*[₱$]?\s*PHP\s*:?\s*([\d,]+\.?\d*)/i,
-        /(?:AMOUNT|TOTAL|PAID|PAYMENT)\s*(?:AMOUNT|AMT)?\s*:?\s*[₱$]\s*([\d,]+\.?\d*)/i,
-        // Number with comma/period separators (likely currency)
-        /\b([\d]{1,3}(?:[,\s][\d]{3})*(?:\.[\d]{2})?)\b/,
-      ];
-
-      let extractedAmount = null;
-      const amounts = [];
-
-      for (const pattern of amountPatterns) {
-        const matches = normalizedText.matchAll(new RegExp(pattern.source, 'gi'));
-        for (const match of matches) {
-          if (match[1]) {
-            // Clean the amount: remove commas and spaces, keep decimal
-            const cleaned = match[1].replace(/[,\s]/g, '');
-            const numValue = parseFloat(cleaned);
-            
-            // Validate: reasonable payment amount (between 1 and 1,000,000)
-            if (!isNaN(numValue) && numValue >= 1 && numValue <= 1000000) {
-              amounts.push(numValue);
-            }
-          }
-        }
-      }
-
-      // If multiple amounts found, prefer the largest one (usually the total)
-      if (amounts.length > 0) {
-        // Sort descending and take the largest
-        amounts.sort((a, b) => b - a);
-        extractedAmount = amounts[0];
-      }
-
-      return extractedAmount;
-    } catch (err) {
-      console.warn('Amount extraction failed:', err);
-      return null;
-    }
-  };
 
   // Count how many payment items/transactions are in the receipt
   const countPaymentsFromImage = (text) => {
@@ -422,22 +372,17 @@ const PaymentChannel = ({ channel, onClose, onSubmit, reservationId, amount }) =
       // Extract reference number from text
       const extractedRef = extractReferenceNumberFromText(text);
       
-      // Extract amount
-      const extractedAmt = extractAmountFromImage(text);
-      
       // Count payments
       const paymentCount = countPaymentsFromImage(text);
       
       return {
         referenceNumber: extractedRef,
-        amount: extractedAmt,
         paymentCount: paymentCount,
       };
     } catch (err) {
       console.warn('OCR extraction failed:', err);
       return {
         referenceNumber: null,
-        amount: null,
         paymentCount: null,
       };
     } finally {
@@ -464,7 +409,6 @@ const PaymentChannel = ({ channel, onClose, onSubmit, reservationId, amount }) =
       setError('');
       setMismatchWarning(null);
       setExtractedReferenceNumber(null);
-      setExtractedAmount(null);
       setExtractedPaymentCount(null);
       
       // Clear reference number when new image is uploaded
@@ -477,16 +421,13 @@ const PaymentChannel = ({ channel, onClose, onSubmit, reservationId, amount }) =
       };
       reader.readAsDataURL(file);
 
-      // Extract payment info from image using OCR (reference number, amount, payment count)
+      // Extract payment info from image using OCR (reference number, payment count)
       const extractedInfo = await extractPaymentInfoFromImage(file);
       if (extractedInfo) {
         if (extractedInfo.referenceNumber) {
           setExtractedReferenceNumber(extractedInfo.referenceNumber);
           // Auto-fill the reference number field with extracted value
           setReferenceNumber(extractedInfo.referenceNumber);
-        }
-        if (extractedInfo.amount) {
-          setExtractedAmount(extractedInfo.amount);
         }
         if (extractedInfo.paymentCount) {
           setExtractedPaymentCount(extractedInfo.paymentCount);
@@ -649,11 +590,6 @@ const PaymentChannel = ({ channel, onClose, onSubmit, reservationId, amount }) =
               {extractedReferenceNumber && !mismatchWarning && (
                 <p className={styles.extractedText}>
                   ✓ Found reference number in image: <strong>{extractedReferenceNumber}</strong>
-                </p>
-              )}
-              {extractedAmount && (
-                <p className={styles.extractedText}>
-                  💰 Detected amount: <strong>₱{extractedAmount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</strong>
                 </p>
               )}
               {extractedPaymentCount && extractedPaymentCount > 1 && (
