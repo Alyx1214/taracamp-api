@@ -965,6 +965,11 @@ const paymentModule = {
                 date: dateIso ? fmtDate(dateIso) : 'N/A',
                 paymentMethod: paymentMethod ? methodLabel(paymentMethod) : 'N/A',
                 status: (() => {
+                    // First check if admin has set payment status to "Fully Paid"
+                    if (reservation.paymentStatus === 'Fully Paid') {
+                        return 'Fully Paid';
+                    }
+                    
                     const total = Number(reservation.totalEstimatedAmount) || 0;
                     const totalPaid = Number(summaryRaw?.totalPaid || 0);
                     if (totalPaid <= 0) return 'Not Paid';
@@ -1123,6 +1128,68 @@ const paymentModule = {
                 reservation.reservationCode ||
                 'N/A';
 
+            // Fetch client's payment proof (reference number and proof of payment file)
+            let clientReferenceNumber = null;
+            let clientProofOfPaymentUrl = null;
+            
+            // Find the latest payment with proof of payment (prefer successful payments)
+            const paymentWithProof = 
+                (successful || []).find(p => p.proofOfPaymentFileId) || 
+                (payments || []).find(p => p.proofOfPaymentFileId) || 
+                null;
+            
+            if (paymentWithProof) {
+                // Get reference number from the payment
+                clientReferenceNumber = paymentWithProof.referenceNumber || null;
+                
+                // Fetch the proof of payment file and generate signed URL
+                try {
+                    const proofFile = await dbHelper.findOne('file', { 
+                        _id: paymentWithProof.proofOfPaymentFileId 
+                    });
+                    
+                    if (proofFile?.path) {
+                        try {
+                            const [signedUrl] = await bucket.file(proofFile.path).getSignedUrl({
+                                version: 'v4',
+                                expires: Date.now() + 1000 * 60 * 60, // 1 hour expiry
+                                action: 'read',
+                            });
+                            clientProofOfPaymentUrl = signedUrl;
+                        } catch (urlError) {
+                            console.warn('Error generating signed URL for proof of payment:', urlError);
+                        }
+                    }
+                } catch (fileError) {
+                    console.warn('Error fetching proof of payment file:', fileError);
+                }
+            }
+
+            // Fetch invoice file and generate signed URL
+            let invoiceImageUrl = null;
+            if (reservation.invoiceFileId) {
+                try {
+                    const invoiceFile = await dbHelper.findOne('file', { 
+                        _id: reservation.invoiceFileId 
+                    });
+                    
+                    if (invoiceFile?.path) {
+                        try {
+                            const [signedUrl] = await bucket.file(invoiceFile.path).getSignedUrl({
+                                version: 'v4',
+                                expires: Date.now() + 1000 * 60 * 60, // 1 hour expiry
+                                action: 'read',
+                            });
+                            invoiceImageUrl = signedUrl;
+                        } catch (urlError) {
+                            console.warn('Error generating signed URL for invoice:', urlError);
+                        }
+                    }
+                } catch (fileError) {
+                    console.warn('Error fetching invoice file:', fileError);
+                }
+            }
+
             // Calculate discount and service fee information using shared computeEstimate logic
             let discountInfo = {
                 label: 'None',
@@ -1171,6 +1238,34 @@ const paymentModule = {
                 }
             }
 
+            // Get excess data from reservation or facility
+            const isEventReservation = reservation.serviceType === ServiceType.EVENT || reservation.serviceType === ServiceType.EVENT_AND_LODGING;
+            const isCottage = facility?.facilityType === FacilityType.COTTAGE;
+            let excessCapacity = null;
+            let excessWithBeddings = null;
+            let excessWithoutBeddings = null;
+
+            if (isEventReservation) {
+                // Event/Conference - use excessCapacity
+                const count = reservation.excessCapacity?.count || 0;
+                const rate = reservation.excessCapacity?.rate || (facility?.ratePerExcessCapacity || 0);
+                excessCapacity = { count, rate };
+            } else if (isCottage) {
+                // Cottage - use excessWithBeddings and excessWithoutBeddings
+                const withBeddingsCount = reservation.excessWithBeddings?.count || 0;
+                const withBeddingsRate = reservation.excessWithBeddings?.rate || (facility?.ratePerExcessWithBeddings || 0);
+                excessWithBeddings = { count: withBeddingsCount, rate: withBeddingsRate };
+
+                const withoutBeddingsCount = reservation.excessWithoutBeddings?.count || 0;
+                const withoutBeddingsRate = reservation.excessWithoutBeddings?.rate || (facility?.ratePerExcessWithoutBeddings || 0);
+                excessWithoutBeddings = { count: withoutBeddingsCount, rate: withoutBeddingsRate };
+            } else {
+                // Other facilities (Conference with Lodging, Dormitory) - use excessCapacity
+                const count = reservation.excessCapacity?.count || 0;
+                const rate = reservation.excessCapacity?.rate || (facility?.ratePerExcessCapacity || 0);
+                excessCapacity = { count, rate };
+            }
+
             const view = {
                 id: (reservation._id?.toString()),
                 referenceNumber,
@@ -1186,6 +1281,16 @@ const paymentModule = {
                 discountPercentage: discountInfo.percentage,
                 total: peso(totalEstimated, true),                  
                 status,
+                clientReferenceNumber: clientReferenceNumber || null,
+                clientProofOfPaymentUrl: clientProofOfPaymentUrl || null,
+                invoiceNumber: reservation.invoiceNumber || null,
+                invoiceImageUrl: invoiceImageUrl || null,
+                paymentStatus: reservation.paymentStatus || status,
+                excessCapacity,
+                excessWithBeddings,
+                excessWithoutBeddings,
+                serviceType: reservation.serviceType,
+                facilityType: facility?.facilityType || null,
             };
 
             responseData.status = Status.OK;
@@ -1393,6 +1498,374 @@ const paymentModule = {
             console.error('Error submitting manual payment:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
             responseData.error = 'Error submitting manual payment';
+            return responseData;
+        }
+    },
+
+    /**
+     * Updates payment status and invoice information for a reservation.
+     * @param {Object} dbHelper - The database helper for database operations.
+     * @param {string} reservationId - The ID of the reservation.
+     * @param {Object} data - The payment data.
+     * @param {string} data.invoiceNumber - The invoice number.
+     * @param {string} data.paymentStatus - The payment status (Unpaid, Partially Paid, Fully Paid).
+     * @param {string} [data.invoiceFileId] - The invoice file ID (optional).
+     * @param {Object} user - The user object containing the user ID and role.
+     * @returns {Object} Response data with status, error, and updated reservation on success.
+     */
+    updatePaymentStatus: async (dbHelper, reservationId, data, user) => {
+        const responseData = {
+            status: Status.INTERNAL_SERVER_ERROR,
+            error: 'Error updating payment status',
+        };
+
+        try {
+            if (!reservationId) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Reservation ID is required';
+                return responseData;
+            }
+
+            if (!user || !user.userId) {
+                responseData.status = Status.UNAUTHORIZED;
+                responseData.error = 'User not logged in';
+                return responseData;
+            }
+
+            // Only allow ACCOUNTING role to update payment status
+            if (user.role !== UserRole.ACCOUNTING) {
+                responseData.status = Status.FORBIDDEN;
+                responseData.error = 'Not authorized to update payment status';
+                return responseData;
+            }
+
+            const { 
+                invoiceNumber, 
+                paymentStatus, 
+                invoiceFileId,
+                excessCapacityCount,
+                excessWithBeddingsCount,
+                excessWithoutBeddingsCount,
+            } = data || {};
+
+            if (!invoiceNumber || !String(invoiceNumber).trim()) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Invoice number is required';
+                return responseData;
+            }
+
+            if (!paymentStatus || !String(paymentStatus).trim()) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Payment status is required';
+                return responseData;
+            }
+
+            // Validate payment status
+            const validStatuses = ['Unpaid', 'Partially Paid', 'Fully Paid'];
+            if (!validStatuses.includes(paymentStatus)) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Invalid payment status. Must be one of: Unpaid, Partially Paid, Fully Paid';
+                return responseData;
+            }
+
+            // Validate reservation exists
+            const reservation = await dbHelper.findOne('reservation', { _id: reservationId });
+            if (!reservation) {
+                responseData.status = Status.NOT_FOUND;
+                responseData.error = 'Reservation not found';
+                return responseData;
+            }
+
+            // Get facility for excess rate defaults and recalculation
+            const facility = reservation.facility 
+                ? await dbHelper.findOne('facility', { _id: reservation.facility })
+                : null;
+
+            // Update reservation with invoice information and excess data
+            const updateData = {
+                invoiceNumber: String(invoiceNumber).trim(),
+                paymentStatus: String(paymentStatus).trim(),
+            };
+
+            if (invoiceFileId) {
+                updateData.invoiceFileId = invoiceFileId;
+            }
+
+            // Handle excess data based on facility type and service type
+            const isEventReservation = reservation.serviceType === ServiceType.EVENT || reservation.serviceType === ServiceType.EVENT_AND_LODGING;
+            const isCottage = facility?.facilityType === FacilityType.COTTAGE;
+            
+            if (isEventReservation || !isCottage) {
+                // Event/Conference or non-Cottage facilities - handle excessCapacity (only count, rate comes from facility)
+                if (excessCapacityCount !== undefined) {
+                    updateData['excessCapacity.count'] = Math.max(0, parseInt(excessCapacityCount) || 0);
+                }
+            } else if (isCottage) {
+                // Cottage - handle excessWithBeddings and excessWithoutBeddings (only counts, rates come from facility)
+                if (excessWithBeddingsCount !== undefined) {
+                    updateData['excessWithBeddings.count'] = Math.max(0, parseInt(excessWithBeddingsCount) || 0);
+                }
+
+                if (excessWithoutBeddingsCount !== undefined) {
+                    updateData['excessWithoutBeddings.count'] = Math.max(0, parseInt(excessWithoutBeddingsCount) || 0);
+                }
+            }
+
+            // Recalculate totalEstimatedAmount if excess data changed
+            let newTotalEstimatedAmount = reservation.totalEstimatedAmount;
+            if (facility && (
+                excessCapacityCount !== undefined ||
+                excessWithBeddingsCount !== undefined ||
+                excessWithoutBeddingsCount !== undefined
+            )) {
+                // Get current excess values (after update) - rates always come from facility
+                const isCottage = facility.facilityType === FacilityType.COTTAGE;
+                
+                let finalExcessCapacityCount = 0;
+                let finalExcessCapacityRate = 0;
+                let finalExcessWithBeddingsCount = 0;
+                let finalExcessWithBeddingsRate = 0;
+                let finalExcessWithoutBeddingsCount = 0;
+                let finalExcessWithoutBeddingsRate = 0;
+
+                if (isEventReservation || !isCottage) {
+                    // Event/Conference or non-Cottage facilities
+                    finalExcessCapacityCount = excessCapacityCount !== undefined 
+                        ? Math.max(0, parseInt(excessCapacityCount) || 0)
+                        : (reservation.excessCapacity?.count || 0);
+                    finalExcessCapacityRate = facility.ratePerExcessCapacity || 0;
+                } else if (isCottage) {
+                    // Cottage facilities
+                    finalExcessWithBeddingsCount = excessWithBeddingsCount !== undefined
+                        ? Math.max(0, parseInt(excessWithBeddingsCount) || 0)
+                        : (reservation.excessWithBeddings?.count || 0);
+                    finalExcessWithBeddingsRate = facility.ratePerExcessWithBeddings || 0;
+
+                    finalExcessWithoutBeddingsCount = excessWithoutBeddingsCount !== undefined
+                        ? Math.max(0, parseInt(excessWithoutBeddingsCount) || 0)
+                        : (reservation.excessWithoutBeddings?.count || 0);
+                    finalExcessWithoutBeddingsRate = facility.ratePerExcessWithoutBeddings || 0;
+                }
+
+                // Calculate base estimate (without excess)
+                const estimateResult = computeEstimate({
+                    facilityDoc: facility,
+                    adults: reservation.numberOfGuests?.adult || 0,
+                    children: reservation.numberOfGuests?.children || 0,
+                    pwds: reservation.numberOfGuests?.pwds || 0,
+                    seniorCitizens: reservation.numberOfGuests?.seniorCitizens || 0,
+                    serviceType: reservation.serviceType,
+                    addonsTotal: 0, // Will add addons separately
+                    category: reservation.category,
+                    dateOfArrival: reservation.dateOfArrival,
+                    dateOfDeparture: reservation.dateOfDeparture,
+                    timeOfArrival: reservation.timeOfArrival,
+                });
+
+                // Calculate addons total
+                let addonsTotal = 0;
+                const serviceIds = (reservation.addOns || []).filter(Boolean);
+                if (serviceIds.length) {
+                    const services = await dbHelper.findMany(
+                        'addon',
+                        { _id: { $in: serviceIds.map(String) } },
+                        { projection: { price: 1 } }
+                    );
+                    addonsTotal = services.reduce((sum, s) => sum + (Number(s.price) || 0), 0);
+                }
+
+                // Calculate excess charges
+                let excessCharges = 0;
+                if (isEventReservation || !isCottage) {
+                    excessCharges = finalExcessCapacityCount * finalExcessCapacityRate;
+                } else if (isCottage) {
+                    excessCharges = (finalExcessWithBeddingsCount * finalExcessWithBeddingsRate) +
+                                   (finalExcessWithoutBeddingsCount * finalExcessWithoutBeddingsRate);
+                }
+
+                // Recalculate total: base amount + addons + excess charges
+                const baseAmount = estimateResult.baseAmount;
+                const totalWithAddons = baseAmount + addonsTotal;
+                
+                // Apply service fee and discount to base + addons (excess charges are added after)
+                const normalizedCategory = reservation.category ? String(reservation.category).trim() : '';
+                const hasServiceFee = normalizedCategory === Category.PRIVATE || 
+                                    normalizedCategory === Category.GOVERNMENT || 
+                                    normalizedCategory === Category.DEPED || 
+                                    normalizedCategory === Category.PWDS;
+                
+                let amountAfterServiceFee = totalWithAddons;
+                if (hasServiceFee) {
+                    amountAfterServiceFee = totalWithAddons * 1.10;
+                }
+
+                // Apply discount
+                let finalAmount = amountAfterServiceFee;
+                if (estimateResult.discount > 0) {
+                    finalAmount = amountAfterServiceFee * 0.80;
+                }
+
+                // Add excess charges (excess is not subject to service fee or discount)
+                newTotalEstimatedAmount = finalAmount + excessCharges;
+            }
+
+            if (newTotalEstimatedAmount !== reservation.totalEstimatedAmount) {
+                updateData.totalEstimatedAmount = newTotalEstimatedAmount;
+            }
+
+            const updatedReservation = await dbHelper.findOneAndUpdate(
+                'reservation',
+                { _id: reservationId },
+                { $set: updateData }
+            );
+
+            // Invalidate payment details cache
+            try {
+                const cachePattern = `payment_details:${reservationId}:*`;
+                const keys = await safeRedisOperations.keys(cachePattern);
+                if (keys && keys.length > 0) {
+                    await safeRedisOperations.del(...keys);
+                }
+            } catch (cacheError) {
+                console.warn('Failed to invalidate payment details cache:', cacheError);
+            }
+
+            responseData.status = Status.OK;
+            responseData.error = null;
+            responseData.data = {
+                reservationId: String(updatedReservation._id),
+                invoiceNumber: updatedReservation.invoiceNumber,
+                paymentStatus: updatedReservation.paymentStatus,
+                invoiceFileId: updatedReservation.invoiceFileId,
+            };
+
+            return responseData;
+        } catch (error) {
+            console.error('Error updating payment status:', error);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Error updating payment status';
+            return responseData;
+        }
+    },
+
+    /**
+     * Uploads an invoice image for a reservation.
+     * @param {Object} dbHelper - The database helper for database operations.
+     * @param {string} reservationId - The ID of the reservation.
+     * @param {Object} invoiceFile - The invoice file (multer file object).
+     * @param {Object} user - The user object containing the user ID and role.
+     * @returns {Object} Response data with status, error, and invoiceImageUrl on success.
+     */
+    uploadInvoice: async (dbHelper, reservationId, invoiceFile, user) => {
+        const responseData = {
+            status: Status.INTERNAL_SERVER_ERROR,
+            error: 'Error uploading invoice',
+        };
+
+        try {
+            if (!reservationId) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Reservation ID is required';
+                return responseData;
+            }
+
+            if (!user || !user.userId) {
+                responseData.status = Status.UNAUTHORIZED;
+                responseData.error = 'User not logged in';
+                return responseData;
+            }
+
+            // Only allow ACCOUNTING role to upload invoices
+            if (user.role !== UserRole.ACCOUNTING) {
+                responseData.status = Status.FORBIDDEN;
+                responseData.error = 'Not authorized to upload invoices';
+                return responseData;
+            }
+
+            if (!invoiceFile) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Invoice file is required';
+                return responseData;
+            }
+
+            // Validate file type (should be an image)
+            if (!invoiceFile.mimetype || !invoiceFile.mimetype.startsWith('image/')) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'File must be an image';
+                return responseData;
+            }
+
+            // Validate reservation exists
+            const reservation = await dbHelper.findOne('reservation', { _id: reservationId });
+            if (!reservation) {
+                responseData.status = Status.NOT_FOUND;
+                responseData.error = 'Reservation not found';
+                return responseData;
+            }
+
+            // Upload invoice image to Google Cloud Storage
+            const filename = `invoices/${Date.now()}_${invoiceFile.originalname.replace(/\s/g, '_')}`;
+            const blob = bucket.file(filename);
+            
+            await new Promise((resolve, reject) => {
+                const stream = blob.createWriteStream({
+                    resumable: false,
+                    contentType: invoiceFile.mimetype,
+                });
+                stream.on('error', reject);
+                stream.on('finish', resolve);
+                stream.end(invoiceFile.buffer);
+            });
+
+            // Create file record in database
+            const invoiceFileDoc = await dbHelper.create('file', {
+                path: filename,
+                mimetype: invoiceFile.mimetype,
+                size: invoiceFile.size,
+                kind: FileKind.INVOICE,
+                userId: user.userId,
+                reservationId: reservationId,
+                createdAt: new Date(),
+            });
+
+            // Update reservation with invoice file ID
+            const updatedReservation = await dbHelper.findOneAndUpdate(
+                'reservation',
+                { _id: reservationId },
+                { $set: { invoiceFileId: invoiceFileDoc._id } }
+            );
+
+            // Generate signed URL for the uploaded file
+            // Note: Google Cloud Storage has a maximum expiration of 7 days (604800 seconds)
+            const [signedUrl] = await blob.getSignedUrl({
+                version: 'v4',
+                expires: Date.now() + 1000 * 60 * 60 * 24 * 7, // 7 days expiry (maximum allowed)
+                action: 'read',
+            });
+
+            // Invalidate payment details cache
+            try {
+                const cachePattern = `payment_details:${reservationId}:*`;
+                const keys = await safeRedisOperations.keys(cachePattern);
+                if (keys && keys.length > 0) {
+                    await safeRedisOperations.del(...keys);
+                }
+            } catch (cacheError) {
+                console.warn('Failed to invalidate payment details cache:', cacheError);
+            }
+
+            responseData.status = Status.OK;
+            responseData.error = null;
+            responseData.data = {
+                invoiceFileId: String(invoiceFileDoc._id),
+                invoiceImageUrl: signedUrl, // Return URL for immediate use
+            };
+
+            return responseData;
+        } catch (error) {
+            console.error('Error uploading invoice:', error);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Error uploading invoice';
             return responseData;
         }
     },

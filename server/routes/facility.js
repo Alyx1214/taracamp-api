@@ -73,4 +73,9 @@ r.post('/update-rooms/:id', asyncHandler(async (req, res) => {
   res.status(response.status).json(response);
 }));
 
+r.get('/get-room-availability-by-facility/:id', asyncHandler(async (req, res) => {
+  const response = await facilityModule.getRoomAvailabilityByFacility(dbHelper, req.params.id);
+  res.status(response.status).json(response);
+}));
+
 export default r;

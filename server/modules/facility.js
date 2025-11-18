@@ -1,5 +1,5 @@
 import { Storage, } from '@google-cloud/storage';
-import { Status, FacilityType, FacilityStatus, UserRole, ReservationStatus, } from '../constants.js';
+import { Status, FacilityType, FacilityStatus, UserRole, ReservationStatus, getAvailabilityBlockingStatuses, } from '../constants.js';
 import { safeRedisOperations } from './redisCircuitBreaker.js';
 import dotenv from 'dotenv';
 dotenv.config();
@@ -34,7 +34,7 @@ const facilityModule = {
         };
 
         try {
-            const { name, facilityType, capacity, ratePerPerson, price, status, baseRate, rate, discountRate, ratePerExcessCapacity, discountedFacilityRate } = data;
+            const { name, facilityType, capacity, ratePerPerson, price, status, baseRate, rate, discountRate, ratePerExcessCapacity, discountedFacilityRate, ratePerExcessWithBeddings, ratePerExcessWithoutBeddings } = data;
 
             const validationResult = validateFacilityInput(data, user);
             if (validationResult.error) {
@@ -103,6 +103,18 @@ const facilityModule = {
                 facilityData.discountedFacilityRate = discountRateValue !== null && discountRateValue !== undefined
                     ? (Number(String(discountRateValue).replace(/,/g, '')) || 0)
                     : 0;
+                
+                // Rate per Excess with Beddings - only for Cottage, default to 0 if not provided
+                if (facilityType === FacilityType.COTTAGE) {
+                    facilityData.ratePerExcessWithBeddings = isPresent(ratePerExcessWithBeddings)
+                        ? (Number(String(ratePerExcessWithBeddings).replace(/,/g, '')) || 0)
+                        : 0;
+                    
+                    // Rate per Excess without Beddings - only for Cottage, default to 0 if not provided
+                    facilityData.ratePerExcessWithoutBeddings = isPresent(ratePerExcessWithoutBeddings)
+                        ? (Number(String(ratePerExcessWithoutBeddings).replace(/,/g, '')) || 0)
+                        : 0;
+                }
             }
             if (facilityType === FacilityType.DORMITORY) {
                 facilityData.ratePerPerson = Number(String(ratePerPerson).replace(/,/g, '')) || 0;
@@ -447,6 +459,30 @@ const facilityModule = {
                     updateData.discountedFacilityRate = discountNum;
                 }
                 
+                // Handle Rate per Excess with Beddings (Cottage only)
+                if (facility.facilityType === FacilityType.COTTAGE || data.facilityType === FacilityType.COTTAGE) {
+                    if (isPresent(data.ratePerExcessWithBeddings)) {
+                        const rateNum = Number(String(data.ratePerExcessWithBeddings).replace(/,/g, ''));
+                        if (!isValidRate(rateNum)) {
+                            responseData.status = Status.BAD_REQUEST;
+                            responseData.error = 'Invalid rate per excess with beddings';
+                            return responseData;
+                        }
+                        updateData.ratePerExcessWithBeddings = rateNum;
+                    }
+                    
+                    // Handle Rate per Excess without Beddings (Cottage only)
+                    if (isPresent(data.ratePerExcessWithoutBeddings)) {
+                        const rateNum = Number(String(data.ratePerExcessWithoutBeddings).replace(/,/g, ''));
+                        if (!isValidRate(rateNum)) {
+                            responseData.status = Status.BAD_REQUEST;
+                            responseData.error = 'Invalid rate per excess without beddings';
+                            return responseData;
+                        }
+                        updateData.ratePerExcessWithoutBeddings = rateNum;
+                    }
+                }
+                
                 updateData.ratePerPerson = undefined;
             }
 
@@ -738,36 +774,23 @@ const facilityModule = {
             const endDate = new Date(today);
             endDate.setUTCMonth(endDate.getUTCMonth() + 6);
 
-            // Get only CONFIRMED reservations - facilities are only unavailable if reservation is confirmed
+            // Get blocking reservations - facilities are unavailable if reservation is CONFIRMED or CHECKED_IN
             const reservations = await dbHelper.find('reservation', {
                 facility: facilityId,
-                status: ReservationStatus.CONFIRMED,
-                dateOfArrival: { $lt: endDate, },
-                dateOfDeparture: { $gt: today, },
+                status: { $in: getAvailabilityBlockingStatuses() },
+                dateOfArrival: { $lte: endDate, },
+                dateOfDeparture: { $gte: today, },
             });
 
             const unavailableDatesSet = new Set();
             const todayYmdStr = toAppYMD(today);
             const endDateYmdStr = toAppYMD(endDate);
 
-            // For Dormitory facilities, mark dates as unavailable if there are confirmed reservations
-            // Each confirmed reservation means a room is booked, so those dates are unavailable
+            // For Dormitory facilities, mark dates as unavailable based on room assignments
             // For other facilities (Cottage, Conference), mark all reservation dates as unavailable
             if (facility.facilityType === FacilityType.DORMITORY) {
-                // Calculate total capacity of available rooms (rooms with status === 'Available' and not assigned)
-                // Filter out any null/undefined rooms and ensure we only count valid available rooms
-                const availableRooms = Array.isArray(facility.rooms) 
-                    ? facility.rooms.filter(room => 
-                        room && 
-                        room.status === 'Available' && 
-                        !room.assignedTo &&
-                        Number(room.capacity) > 0
-                      )
-                    : [];
-                const totalAvailableCapacity = availableRooms.reduce((sum, room) => {
-                    const roomCapacity = Number(room.capacity) || 0;
-                    return sum + roomCapacity;
-                }, 0);
+                // Get all rooms with their assignments
+                const rooms = Array.isArray(facility.rooms) ? facility.rooms : [];
                 
                 // Track total guests per date from all reservations
                 const totalGuestsByDate = new Map();
@@ -840,13 +863,64 @@ const facilityModule = {
                     }
                 });
                 
-                // Mark dates as unavailable only if total guests >= total available capacity
+                // For each date, calculate available capacity based on room assignments
+                // Mark dates as unavailable if total guests >= available capacity
                 totalGuestsByDate.forEach((totalGuests, dateYmd) => {
+                    // Convert date string to Date object for comparison
+                    const [year, month, day] = dateYmd.split('-').map(Number);
+                    if (!year || !month || !day) return;
+                    const currentDate = new Date(Date.UTC(year, month - 1, day));
+                    
+                    // Calculate available capacity for this date
+                    let availableCapacity = 0;
+                    rooms.forEach(room => {
+                        if (!room || Number(room.capacity) <= 0) return;
+                        if (room.status !== 'Available') return;
+
+                        // Check if room has any assignment that overlaps with this date
+                        const hasOverlappingAssignment = Array.isArray(room.assignments) && 
+                            room.assignments.some(assignment => {
+                                if (!assignment.reservationId || !assignment.startDate || !assignment.endDate) {
+                                    return false;
+                                }
+
+                                // Parse assignment dates - they should be in YYYY-MM-DD format
+                                let assignmentStart, assignmentEnd;
+                                if (typeof assignment.startDate === 'string') {
+                                    assignmentStart = fromAppYMD(assignment.startDate) || new Date(assignment.startDate + 'T00:00:00Z');
+                                } else {
+                                    assignmentStart = assignment.startDate instanceof Date ? assignment.startDate : new Date(assignment.startDate);
+                                }
+                                
+                                if (typeof assignment.endDate === 'string') {
+                                    assignmentEnd = fromAppYMD(assignment.endDate) || new Date(assignment.endDate + 'T00:00:00Z');
+                                } else {
+                                    assignmentEnd = assignment.endDate instanceof Date ? assignment.endDate : new Date(assignment.endDate);
+                                }
+
+                                if (isNaN(assignmentStart.getTime()) || isNaN(assignmentEnd.getTime())) return false;
+
+                                // Normalize dates to UTC midnight for comparison
+                                assignmentStart.setUTCHours(0, 0, 0, 0);
+                                assignmentEnd.setUTCHours(0, 0, 0, 0);
+                                currentDate.setUTCHours(0, 0, 0, 0);
+
+                                // Check if current date falls within assignment date range
+                                // Note: endDate is exclusive (check-in date), so we use < instead of <=
+                                return currentDate >= assignmentStart && currentDate < assignmentEnd;
+                            });
+
+                        // Room is available if no overlapping assignment
+                        if (!hasOverlappingAssignment) {
+                            availableCapacity += Number(room.capacity) || 0;
+                        }
+                    });
+                    
                     // Mark as unavailable if:
-                    // 1. There are available rooms but not enough capacity (totalGuests >= totalAvailableCapacity)
-                    // 2. There are no available rooms but there are reservations (totalAvailableCapacity === 0 && totalGuests > 0)
-                    if ((totalAvailableCapacity > 0 && totalGuests >= totalAvailableCapacity) || 
-                        (totalAvailableCapacity === 0 && totalGuests > 0)) {
+                    // 1. There are available rooms but not enough capacity (totalGuests >= availableCapacity)
+                    // 2. There are no available rooms but there are reservations (availableCapacity === 0 && totalGuests > 0)
+                    if ((availableCapacity > 0 && totalGuests >= availableCapacity) || 
+                        (availableCapacity === 0 && totalGuests > 0)) {
                         unavailableDatesSet.add(dateYmd);
                     }
                 });
@@ -1073,76 +1147,124 @@ const facilityModule = {
                 return responseData;
             }
 
-            const { capacity, name, status, assignedTo, assignedGuests, extraRows } = data;
-
-            // Build rooms array from main name/capacity/status and extraRows
-            const rooms = [];
+            // Check if data contains rooms array (new format) or individual room fields (old format)
+            let rooms = [];
             
-            // Add main room configuration if provided
-            if (isPresent(name) && isPresent(capacity)) {
-                const cap = parseInt(String(capacity).replace(/,/g, ''), 10);
-                if (cap > 0) {
-                    const mainRoom = { 
-                        name: String(name).trim(),
-                        capacity: cap
+            if (Array.isArray(data.rooms)) {
+                // New format: rooms array with assignments
+                rooms = data.rooms.map(room => {
+                    const roomData = {
+                        name: String(room.name || '').trim(),
+                        capacity: parseInt(String(room.capacity || 0).replace(/,/g, ''), 10),
                     };
-                    // Add status if provided and validate it
-                    if (isPresent(status)) {
-                        const statusValue = String(status).trim();
+                    
+                    // Add status if provided
+                    if (isPresent(room.status)) {
+                        const statusValue = String(room.status).trim();
                         if (!isValidFacilityStatus(statusValue)) {
-                            responseData.status = Status.BAD_REQUEST;
-                            responseData.error = `Invalid status value: ${statusValue}. Status must be either "Available" or "Unavailable".`;
-                            return responseData;
+                            throw new Error(`Invalid status value: ${statusValue}. Status must be either "Available" or "Unavailable".`);
                         }
-                        mainRoom.status = statusValue;
+                        roomData.status = statusValue;
+                    } else {
+                        roomData.status = 'Available'; // Default status
                     }
-                    // Add assignedTo if provided (reservation ID)
-                    if (isPresent(assignedTo)) {
-                        mainRoom.assignedTo = assignedTo;
+                    
+                    // Add assignments array if provided (new structure)
+                    if (Array.isArray(room.assignments) && room.assignments.length > 0) {
+                        roomData.assignments = room.assignments
+                            .filter(assignment => assignment.reservationId && assignment.startDate && assignment.endDate)
+                            .map(assignment => ({
+                                reservationId: assignment.reservationId,
+                                guestsAssigned: parseInt(assignment.guestsAssigned || 0),
+                                startDate: assignment.startDate,
+                                endDate: assignment.endDate,
+                            }));
                     }
-                    // Add assignedGuests if provided (number of guests assigned to this room)
-                    if (assignedGuests !== undefined && assignedGuests !== null) {
-                        const guests = parseInt(String(assignedGuests).replace(/,/g, ''), 10);
+                    
+                    // Legacy support: Add assignedTo if provided (old structure)
+                    if (isPresent(room.assignedTo)) {
+                        roomData.assignedTo = room.assignedTo;
+                    }
+                    // Legacy support: Add assignedGuests if provided (old structure)
+                    if (room.assignedGuests !== undefined && room.assignedGuests !== null) {
+                        const guests = parseInt(String(room.assignedGuests).replace(/,/g, ''), 10);
                         if (!Number.isNaN(guests) && guests >= 0) {
-                            mainRoom.assignedGuests = guests;
+                            roomData.assignedGuests = guests;
                         }
                     }
-                    rooms.push(mainRoom);
+                    
+                    return roomData;
+                }).filter(room => room.name && room.capacity > 0);
+            } else {
+                // Old format: individual room fields
+                const { capacity, name, status, assignedTo, assignedGuests, extraRows } = data;
+                
+                // Add main room configuration if provided
+                if (isPresent(name) && isPresent(capacity)) {
+                    const cap = parseInt(String(capacity).replace(/,/g, ''), 10);
+                    if (cap > 0) {
+                        const mainRoom = { 
+                            name: String(name).trim(),
+                            capacity: cap
+                        };
+                        // Add status if provided and validate it
+                        if (isPresent(status)) {
+                            const statusValue = String(status).trim();
+                            if (!isValidFacilityStatus(statusValue)) {
+                                responseData.status = Status.BAD_REQUEST;
+                                responseData.error = `Invalid status value: ${statusValue}. Status must be either "Available" or "Unavailable".`;
+                                return responseData;
+                            }
+                            mainRoom.status = statusValue;
+                        }
+                        // Add assignedTo if provided (reservation ID)
+                        if (isPresent(assignedTo)) {
+                            mainRoom.assignedTo = assignedTo;
+                        }
+                        // Add assignedGuests if provided (number of guests assigned to this room)
+                        if (assignedGuests !== undefined && assignedGuests !== null) {
+                            const guests = parseInt(String(assignedGuests).replace(/,/g, ''), 10);
+                            if (!Number.isNaN(guests) && guests >= 0) {
+                                mainRoom.assignedGuests = guests;
+                            }
+                        }
+                        rooms.push(mainRoom);
+                    }
                 }
-            }
 
-            // Add extra room configurations
-            if (Array.isArray(extraRows)) {
-                for (const row of extraRows) {
-                    if (row && isPresent(row.name) && isPresent(row.capacity)) {
-                        const cap = parseInt(String(row.capacity).replace(/,/g, ''), 10);
-                        if (cap > 0) {
-                            const extraRoom = { 
-                                name: String(row.name).trim(),
-                                capacity: cap
-                            };
-                            // Add status if provided and validate it
-                            if (isPresent(row.status)) {
-                                const statusValue = String(row.status).trim();
-                                if (!isValidFacilityStatus(statusValue)) {
-                                    responseData.status = Status.BAD_REQUEST;
-                                    responseData.error = `Invalid status value: ${statusValue}. Status must be either "Available" or "Unavailable".`;
-                                    return responseData;
+                // Add extra room configurations
+                if (Array.isArray(extraRows)) {
+                    for (const row of extraRows) {
+                        if (row && isPresent(row.name) && isPresent(row.capacity)) {
+                            const cap = parseInt(String(row.capacity).replace(/,/g, ''), 10);
+                            if (cap > 0) {
+                                const extraRoom = { 
+                                    name: String(row.name).trim(),
+                                    capacity: cap
+                                };
+                                // Add status if provided and validate it
+                                if (isPresent(row.status)) {
+                                    const statusValue = String(row.status).trim();
+                                    if (!isValidFacilityStatus(statusValue)) {
+                                        responseData.status = Status.BAD_REQUEST;
+                                        responseData.error = `Invalid status value: ${statusValue}. Status must be either "Available" or "Unavailable".`;
+                                        return responseData;
+                                    }
+                                    extraRoom.status = statusValue;
                                 }
-                                extraRoom.status = statusValue;
-                            }
-                            // Add assignedTo if provided (reservation ID)
-                            if (isPresent(row.assignedTo)) {
-                                extraRoom.assignedTo = row.assignedTo;
-                            }
-                            // Add assignedGuests if provided (number of guests assigned to this room)
-                            if (row.assignedGuests !== undefined && row.assignedGuests !== null) {
-                                const guests = parseInt(String(row.assignedGuests).replace(/,/g, ''), 10);
-                                if (!Number.isNaN(guests) && guests >= 0) {
-                                    extraRoom.assignedGuests = guests;
+                                // Add assignedTo if provided (reservation ID)
+                                if (isPresent(row.assignedTo)) {
+                                    extraRoom.assignedTo = row.assignedTo;
                                 }
+                                // Add assignedGuests if provided (number of guests assigned to this room)
+                                if (row.assignedGuests !== undefined && row.assignedGuests !== null) {
+                                    const guests = parseInt(String(row.assignedGuests).replace(/,/g, ''), 10);
+                                    if (!Number.isNaN(guests) && guests >= 0) {
+                                        extraRoom.assignedGuests = guests;
+                                    }
+                                }
+                                rooms.push(extraRoom);
                             }
-                            rooms.push(extraRoom);
                         }
                     }
                 }
@@ -1164,6 +1286,224 @@ const facilityModule = {
             console.error('Error updating rooms:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
             responseData.error = 'Error updating rooms';
+        }
+
+        return responseData;
+    },
+
+    /**
+     * Gets room-level availability information for a facility.
+     * Returns per-room availability dates and assignment information.
+     * @param {Object} dbHelper - Database helper.
+     * @param {string} facilityId - The facility ID.
+     * @returns {Object} Response data with status, error, and rooms availability data.
+     */
+    getRoomAvailabilityByFacility: async (dbHelper, facilityId) => {
+        const responseData = {
+            status: Status.INTERNAL_SERVER_ERROR,
+            error: 'Error fetching room availability',
+            rooms: [],
+        };
+
+        try {
+            if (!facilityId) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Missing facility ID';
+                return responseData;
+            }
+
+            const facility = await dbHelper.findOne('facility', { _id: facilityId, });
+            if (!facility) {
+                responseData.status = Status.NOT_FOUND;
+                responseData.error = 'Facility not found';
+                return responseData;
+            }
+
+            // Only process dormitory facilities
+            if (facility.facilityType !== FacilityType.DORMITORY) {
+                responseData.status = Status.BAD_REQUEST;
+                responseData.error = 'Room availability is only available for dormitory facilities';
+                return responseData;
+            }
+
+            if (!Array.isArray(facility.rooms) || facility.rooms.length === 0) {
+                responseData.status = Status.OK;
+                responseData.error = null;
+                responseData.rooms = [];
+                return responseData;
+            }
+
+            // Get all room assignments to check reservation statuses
+            const assignedRoomIds = [];
+            facility.rooms.forEach(room => {
+                if (room && room.assignedTo) {
+                    assignedRoomIds.push(room.assignedTo);
+                }
+            });
+
+            // Fetch all assigned reservations with their details
+            const assignedReservationsMap = new Map();
+            if (assignedRoomIds.length > 0) {
+                const assignedReservations = await dbHelper.find('reservation', {
+                    _id: { $in: assignedRoomIds }
+                });
+                assignedReservations.forEach(res => {
+                    const resId = res._id?.toString?.() || String(res._id || '');
+                    assignedReservationsMap.set(resId, res);
+                });
+            }
+
+            // Get all CONFIRMED reservations for this facility to calculate unavailable dates
+            const todayYmd = toAppYMD(new Date());
+            const today = fromAppYMD(todayYmd) || new Date();
+            const endDate = new Date(today);
+            endDate.setUTCMonth(endDate.getUTCMonth() + 6);
+
+            const allReservations = await dbHelper.find('reservation', {
+                facility: facilityId,
+                status: ReservationStatus.CONFIRMED,
+                dateOfArrival: { $lt: endDate, },
+                dateOfDeparture: { $gt: today, },
+            });
+
+            // Helper function to convert Date to YYYY-MM-DD string
+            const toYMDString = (date) => {
+                if (!date) return null;
+                const d = date instanceof Date ? date : new Date(date);
+                if (isNaN(d.getTime())) return null;
+                const year = d.getUTCFullYear();
+                const month = String(d.getUTCMonth() + 1).padStart(2, '0');
+                const day = String(d.getUTCDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            };
+
+            // Build reservation date ranges map (reservation ID -> date range)
+            const reservationDateRanges = new Map();
+            allReservations.forEach(reservation => {
+                const resId = reservation._id?.toString?.() || String(reservation._id || '');
+                const arrivalYmd = toYMDString(reservation.dateOfArrival);
+                const departureYmd = toYMDString(reservation.dateOfDeparture);
+                if (arrivalYmd && departureYmd && arrivalYmd < departureYmd) {
+                    reservationDateRanges.set(resId, {
+                        arrival: arrivalYmd,
+                        departure: departureYmd,
+                        totalGuests: reservation.numberOfGuests?.total || 0
+                    });
+                }
+            });
+
+            // Process each room
+            const roomsAvailability = [];
+            const todayYmdStr = toAppYMD(today);
+            const endDateYmdStr = toAppYMD(endDate);
+
+            for (const room of facility.rooms) {
+                if (!room || Number(room.capacity) <= 0) continue;
+
+                const roomId = room._id?.toString?.() || `room-${roomsAvailability.length}`;
+                const assignedReservationId = room.assignedTo?.toString?.() || String(room.assignedTo || '');
+                const assignedReservation = assignedReservationId ? assignedReservationsMap.get(assignedReservationId) : null;
+                
+                // Determine if room is available (not assigned or assigned to inactive reservation)
+                const isAssignedToActiveReservation = assignedReservation && 
+                    (assignedReservation.status === ReservationStatus.CONFIRMED || 
+                     assignedReservation.status === ReservationStatus.CHECKED_IN);
+
+                // Get unavailable dates for this room
+                const unavailableDatesSet = new Set();
+                let becomesAvailableAfter = null;
+                let assignedToInfo = null;
+
+                if (isAssignedToActiveReservation) {
+                    // Room is assigned to an active reservation - get its date range
+                    const assignedArrivalYmd = toYMDString(assignedReservation.dateOfArrival);
+                    const assignedDepartureYmd = toYMDString(assignedReservation.dateOfDeparture);
+                    
+                    if (assignedArrivalYmd && assignedDepartureYmd) {
+                        // Mark all dates in the reservation range as unavailable
+                        let currentYmd = assignedArrivalYmd;
+                        while (currentYmd && currentYmd < assignedDepartureYmd) {
+                            if (currentYmd >= todayYmdStr && currentYmd <= endDateYmdStr) {
+                                unavailableDatesSet.add(currentYmd);
+                            }
+                            
+                            // Move to next day
+                            const [year, month, day] = currentYmd.split('-').map(Number);
+                            if (!year || !month || !day) break;
+                            const nextDate = new Date(Date.UTC(year, month - 1, day + 1));
+                            currentYmd = toYMDString(nextDate);
+                            if (!currentYmd) break;
+                        }
+                        
+                        becomesAvailableAfter = assignedDepartureYmd;
+                    }
+
+                    assignedToInfo = {
+                        reservationId: assignedReservationId,
+                        guestName: assignedReservation.guestName || 'Unknown Guest',
+                        arrivalDate: assignedArrivalYmd,
+                        departureDate: assignedDepartureYmd,
+                        status: assignedReservation.status,
+                        totalGuests: assignedReservation.numberOfGuests?.total || 0
+                    };
+                } else if (assignedReservation) {
+                    // Room is assigned to an inactive reservation (CHECKED_OUT, CANCELLED, etc.)
+                    // Room is available, but show the assignment info
+                    const assignedArrivalYmd = toYMDString(assignedReservation.dateOfArrival);
+                    const assignedDepartureYmd = toYMDString(assignedReservation.dateOfDeparture);
+                    
+                    assignedToInfo = {
+                        reservationId: assignedReservationId,
+                        guestName: assignedReservation.guestName || 'Unknown Guest',
+                        arrivalDate: assignedArrivalYmd,
+                        departureDate: assignedDepartureYmd,
+                        status: assignedReservation.status,
+                        totalGuests: assignedReservation.numberOfGuests?.total || 0,
+                        note: 'Room is available (reservation is ' + assignedReservation.status + ')'
+                    };
+                }
+
+                // Also check other CONFIRMED reservations that might overlap
+                // (for capacity-based availability, not room-specific)
+                // This is already handled by the facility-level unavailable dates
+
+                // Generate available dates (all dates in range minus unavailable dates)
+                const availableDates = [];
+                let currentYmd = todayYmdStr;
+                while (currentYmd && currentYmd <= endDateYmdStr) {
+                    if (!unavailableDatesSet.has(currentYmd)) {
+                        availableDates.push(currentYmd);
+                    }
+                    
+                    // Move to next day
+                    const [year, month, day] = currentYmd.split('-').map(Number);
+                    if (!year || !month || !day) break;
+                    const nextDate = new Date(Date.UTC(year, month - 1, day + 1));
+                    currentYmd = toYMDString(nextDate);
+                    if (!currentYmd) break;
+                }
+
+                roomsAvailability.push({
+                    roomId: roomId,
+                    name: room.name || 'Unnamed Room',
+                    capacity: Number(room.capacity) || 0,
+                    status: room.status || 'Available',
+                    availableDates: availableDates,
+                    unavailableDates: Array.from(unavailableDatesSet).sort(),
+                    assignedTo: assignedToInfo,
+                    becomesAvailableAfter: becomesAvailableAfter,
+                    isAvailable: !isAssignedToActiveReservation && (room.status === 'Available' || !room.assignedTo)
+                });
+            }
+
+            responseData.status = Status.OK;
+            responseData.error = null;
+            responseData.rooms = roomsAvailability;
+
+        } catch (error) {
+            console.error('Error fetching room availability:', error);
+            responseData.status = Status.INTERNAL_SERVER_ERROR;
+            responseData.error = 'Error fetching room availability';
         }
 
         return responseData;

@@ -1,4 +1,4 @@
-import { Category, GuestType, Status, UserRole, FacilityStatus, ServiceType, ReservationStatus, FileKind, FacilityType, } from '../constants.js';
+import { Category, GuestType, Status, UserRole, FacilityStatus, ServiceType, ReservationStatus, FileKind, FacilityType, getAvailabilityBlockingStatuses, getUpdateBlockingStatuses, getApprovalBlockingStatuses, } from '../constants.js';
 import { Storage, } from '@google-cloud/storage';
 import { safeRedisOperations } from './redisCircuitBreaker.js';
 import { computeEstimate } from './payment.js';
@@ -696,14 +696,18 @@ const reservationModule = {
                         throw new Error('Facility is not available for booking.');
                     }
 
+                    // Use normalized dates from reservationData for consistent comparison
+                    const normalizedArrival = reservationData.dateOfArrival;
+                    const normalizedDeparture = reservationData.dateOfDeparture;
+
                     // Check for user overlapping reservations within transaction
                     const userOverlapping = await dbHelper.findOneWithTransaction('reservation', creatingForGuest ? {
                         guestEmail: guestEmail.trim(),
                         facility: facility,
                         $or: [
                             {
-                                dateOfArrival: { $lte: new Date(dateOfDeparture), },
-                                dateOfDeparture: { $gte: new Date(dateOfArrival), },
+                                dateOfArrival: { $lte: normalizedDeparture, },
+                                dateOfDeparture: { $gte: normalizedArrival, },
                             },
                         ],
                     } : {
@@ -711,8 +715,8 @@ const reservationModule = {
                         facility: facility,
                         $or: [
                             {
-                                dateOfArrival: { $lte: new Date(dateOfDeparture), },
-                                dateOfDeparture: { $gte: new Date(dateOfArrival), },
+                                dateOfArrival: { $lte: normalizedDeparture, },
+                                dateOfDeparture: { $gte: normalizedArrival, },
                             },
                         ],
                     }, {}, session);
@@ -721,21 +725,17 @@ const reservationModule = {
                         throw new Error('You already have a reservation for this facility that overlaps with these dates.');
                     }
 
-                    // Only block if there are APPROVED, CONFIRMED, or CHECKED_IN reservations
-                    // PENDING reservations are allowed to overlap - they'll be auto-declined when one is approved
-                    const blockingStatuses = [
-                        ReservationStatus.APPROVED,
-                        ReservationStatus.CONFIRMED,
-                        ReservationStatus.CHECKED_IN,
-                    ];
+                    // Only block if there are CONFIRMED or CHECKED_IN reservations
+                    // PENDING and APPROVED reservations are allowed to overlap - they'll be auto-declined when one is confirmed
+                    const blockingStatuses = getAvailabilityBlockingStatuses();
 
                     const overlapping = await dbHelper.findOneWithTransaction('reservation', {
                         facility: facility,
                         status: { $in: blockingStatuses, },
                         $or: [
                             {
-                                dateOfArrival: { $lte: new Date(dateOfDeparture), },
-                                dateOfDeparture: { $gte: new Date(dateOfArrival), },
+                                dateOfArrival: { $lte: normalizedDeparture, },
+                                dateOfDeparture: { $gte: normalizedArrival, },
                             },
                         ],
                     }, {}, session);
@@ -2143,7 +2143,7 @@ const reservationModule = {
                     'reservation',
                     filter,
                     {
-                        projection: { _id: 1, totalEstimatedAmount: 1 },
+                        projection: { _id: 1, totalEstimatedAmount: 1, paymentStatus: 1 },
                     }
                 );
                 const allReservationIds = (allMatchingReservations || []).map(r => String(r._id));
@@ -2172,9 +2172,13 @@ const reservationModule = {
 
                         // Calculate total count of fully paid reservations
                         // A reservation is fully paid if:
-                        // 1. Total is 0 or less (no payment needed), OR
-                        // 2. Remaining balance is 0 or less (fully paid)
+                        // 1. Admin has set paymentStatus to "Fully Paid", OR
+                        // 2. Total is 0 or less (no payment needed), OR
+                        // 3. Remaining balance is 0 or less (fully paid)
                         const fullyPaidCount = allMatchingReservations.filter(r => {
+                            // Check if admin has marked as fully paid
+                            if (r.paymentStatus === 'Fully Paid') return true;
+                            
                             const total = Number(r.totalEstimatedAmount) || 0;
                             const totalPaid = totalPaidByReservation.get(String(r._id)) || 0;
                             // If total is 0 or less, it's fully paid (no payment needed)
@@ -2186,9 +2190,31 @@ const reservationModule = {
 
                         // Filter current page results to only fully paid
                         // Use the same logic as above
+                        // Get payment totals for current page reservations
+                        const currentPageReservationIds = withEmails.map(r => String(r._id));
+                        const currentPagePaidRows = await dbHelper.findMany(
+                            'payment',
+                            {
+                                reservationId: { $in: currentPageReservationIds },
+                                status: { $in: successfulStatuses },
+                            },
+                            { projection: { reservationId: 1, amountCentavos: 1 } }
+                        );
+                        
+                        const totalPaidByCurrentPageReservation = new Map();
+                        (currentPagePaidRows || []).forEach(p => {
+                            const resId = String(p.reservationId);
+                            const amount = Number(p.amountCentavos || 0) / 100;
+                            const current = totalPaidByCurrentPageReservation.get(resId) || 0;
+                            totalPaidByCurrentPageReservation.set(resId, current + amount);
+                        });
+                        
                         filteredList = withEmails.filter(r => {
+                            // Check if admin has marked as fully paid
+                            if (r.paymentStatus === 'Fully Paid') return true;
+                            
                             const total = Number(r.totalEstimatedAmount) || 0;
-                            const totalPaid = totalPaidByReservation.get(String(r._id)) || 0;
+                            const totalPaid = totalPaidByCurrentPageReservation.get(String(r._id)) || 0;
                             // If total is 0 or less, it's fully paid (no payment needed)
                             if (total <= 0) return true;
                             const remainingBalance = Math.max(0, Math.round((total - totalPaid) * 100) / 100);
@@ -2297,12 +2323,7 @@ const reservationModule = {
                         throw new Error(`Reservation must be pending before it can be approved. Current status: ${reservationInTransaction.status}`);
                     }
 
-                    const blockingStatuses = [
-                        ReservationStatus.PENDING,
-                        ReservationStatus.APPROVED,
-                        ReservationStatus.CONFIRMED,
-                        ReservationStatus.CHECKED_IN,
-                    ];
+                    const blockingStatuses = getApprovalBlockingStatuses();
 
                     // Check for overlapping reservations with blocking statuses within transaction
                     // Exclude the current reservation being approved
@@ -2338,8 +2359,7 @@ const reservationModule = {
 
                     if (approvedOrConfirmedOverlapping.length > 0) {
                         const conflictingStatus = approvedOrConfirmedOverlapping[0].status || 'unknown';
-                        const conflictingId = approvedOrConfirmedOverlapping[0]._id?.toString() || 'unknown';
-                        throw new Error(`Cannot approve reservation: Facility is already booked for the selected dates by another reservation (ID: ${conflictingId}, Status: ${conflictingStatus}).`);
+                        throw new Error(`Cannot approve reservation: Facility is already booked for the selected dates by another reservation`);
                     }
 
                     // Also check for CHECKED_IN status (facility is currently in use)
@@ -2348,8 +2368,7 @@ const reservationModule = {
                     );
 
                     if (checkedInOverlapping.length > 0) {
-                        const conflictingId = checkedInOverlapping[0]._id?.toString() || 'unknown';
-                        throw new Error(`Cannot approve reservation: Facility is currently checked in by another reservation (ID: ${conflictingId}).`);
+                        throw new Error(`Cannot approve reservation: Facility is currently checked in by another reservation.`);
                     }
 
                     // Auto-decline all conflicting pending reservations
@@ -2498,22 +2517,31 @@ const reservationModule = {
                 }
 
                 // Check if reservation is fully paid before allowing checkout
-                const total = Number(reservation.totalEstimatedAmount) || 0;
-                let totalPaid = 0;
-                try {
-                    const successfulStatuses = ['paid', 'succeeded',];
-                    const paidRows = await dbHelper.findMany(
-                        'payment',
-                        { reservationId, status: { $in: successfulStatuses, }, },
-                        { sort: { createdAt: 1, }, }
-                    );
-                    totalPaid = (paidRows || []).reduce((acc, p) => acc + (Number(p.amountCentavos || 0) / 100), 0);
-                } catch (error) {
-                    console.error('Error calculating total paid amount:', error);
-                }
+                // First, check if admin has set payment status to "Fully Paid"
+                const adminPaymentStatus = reservation.paymentStatus;
+                const isAdminMarkedFullyPaid = adminPaymentStatus === 'Fully Paid';
 
-                const remainingBalance = Math.max(0, Math.round((total - totalPaid) * 100) / 100);
-                const isFullyPaid = remainingBalance <= 0;
+                let isFullyPaid = isAdminMarkedFullyPaid;
+
+                // If not marked as fully paid by admin, check payment records
+                if (!isFullyPaid) {
+                    const total = Number(reservation.totalEstimatedAmount) || 0;
+                    let totalPaid = 0;
+                    try {
+                        const successfulStatuses = ['paid', 'succeeded',];
+                        const paidRows = await dbHelper.findMany(
+                            'payment',
+                            { reservationId, status: { $in: successfulStatuses, }, },
+                            { sort: { createdAt: 1, }, }
+                        );
+                        totalPaid = (paidRows || []).reduce((acc, p) => acc + (Number(p.amountCentavos || 0) / 100), 0);
+                    } catch (error) {
+                        console.error('Error calculating total paid amount:', error);
+                    }
+
+                    const remainingBalance = Math.max(0, Math.round((total - totalPaid) * 100) / 100);
+                    isFullyPaid = remainingBalance <= 0;
+                }
 
                 if (!isFullyPaid) {
                     responseData.status = Status.BAD_REQUEST;
@@ -2928,33 +2956,251 @@ const reservationModule = {
                 return responseData;
             }
 
-            // Only check for CONFIRMED reservations - facilities are only unavailable if reservation is confirmed
-            const query = {
-                facility: facilityDoc._id,
-                status: ReservationStatus.CONFIRMED,
-                dateOfArrival: { $lt: endDate, },
-                dateOfDeparture: { $gt: startDate, },
-            };
+            // For Dormitory facilities, check available rooms capacity using new assignments structure
+            if (facilityDoc.facilityType === FacilityType.DORMITORY) {
+                // Helper function to convert Date to YYYY-MM-DD string
+                const toYMDString = (date) => {
+                    if (!date) return null;
+                    const d = date instanceof Date ? date : new Date(date);
+                    if (isNaN(d.getTime())) return null;
+                    const year = d.getUTCFullYear();
+                    const month = String(d.getUTCMonth() + 1).padStart(2, '0');
+                    const day = String(d.getUTCDate()).padStart(2, '0');
+                    return `${year}-${month}-${day}`;
+                };
 
-            // Exclude current reservation when editing
-            if (params.excludeReservationId) {
-                query._id = { $ne: params.excludeReservationId };
-            }
+                // Get all rooms with their assignments
+                const rooms = Array.isArray(facilityDoc.rooms) ? facilityDoc.rooms : [];
+                
+                // Check if any room has assignments at all
+                const hasAnyAssignments = rooms.some(room => 
+                    Array.isArray(room.assignments) && room.assignments.length > 0
+                );
 
-            const overlapping = await dbHelper.findOne('reservation', query);
+                // Get all blocking reservations overlapping with the date range
+                const query = {
+                    facility: facilityDoc._id,
+                    status: { $in: getAvailabilityBlockingStatuses() },
+                    dateOfArrival: { $lte: endDate, },
+                    dateOfDeparture: { $gte: startDate, },
+                };
 
-            if (overlapping) {
+                // Exclude current reservation when editing
+                if (params.excludeReservationId) {
+                    query._id = { $ne: params.excludeReservationId };
+                }
+
+                const overlappingReservations = await dbHelper.find('reservation', query);
+                
+                // If no rooms have assignments and no overlapping reservations, facility is available
+                if (!hasAnyAssignments && overlappingReservations.length === 0) {
+                    responseData.status = Status.OK;
+                    responseData.error = null;
+                    responseData.available = true;
+                    return responseData;
+                }
+
+                // Convert start and end dates to YYYY-MM-DD strings for comparison
+                const startYmd = toYMDString(startDate);
+                const endYmd = toYMDString(endDate);
+
+                if (!startYmd || !endYmd) {
+                    responseData.status = Status.BAD_REQUEST;
+                    responseData.error = 'Unable to interpret provided dates';
+                    return responseData;
+                }
+
+                // For each date in the requested range, calculate available capacity
+                // A room is available on a date if it has NO assignment that overlaps with that date
+                let currentYmd = startYmd;
+                while (currentYmd && currentYmd <= endYmd) {
+                    const currentDate = normalizeDateOnly(currentYmd);
+                    if (!currentDate) {
+                        // Move to next day
+                        const [year, month, day] = currentYmd.split('-').map(Number);
+                        if (!year || !month || !day) break;
+                        const nextDate = new Date(Date.UTC(year, month - 1, day + 1));
+                        currentYmd = toYMDString(nextDate);
+                        if (!currentYmd) break;
+                        continue;
+                    }
+
+                    // Calculate available capacity for this date
+                    let availableCapacity = 0;
+                    
+                    // If no rooms configured, facility has no capacity
+                    if (rooms.length === 0) {
+                        responseData.status = Status.OK;
+                        responseData.error = null;
+                        responseData.available = false;
+                        responseData.reason = 'No rooms configured for this facility.';
+                        return responseData;
+                    }
+                    
+                    rooms.forEach(room => {
+                        if (!room || Number(room.capacity) <= 0) return;
+                        if (room.status !== 'Available') return;
+
+                        // Check if room has any assignment that overlaps with this date
+                        const hasOverlappingAssignment = Array.isArray(room.assignments) && room.assignments.length > 0 &&
+                            room.assignments.some(assignment => {
+                                if (!assignment || !assignment.reservationId || !assignment.startDate || !assignment.endDate) {
+                                    return false;
+                                }
+
+                                const assignmentStart = normalizeDateOnly(assignment.startDate);
+                                const assignmentEnd = normalizeDateOnly(assignment.endDate);
+
+                                if (!assignmentStart || !assignmentEnd) return false;
+
+                                // Check if current date falls within assignment date range
+                                // Note: endDate is exclusive (check-in date), so we use < instead of <=
+                                return currentDate >= assignmentStart && currentDate < assignmentEnd;
+                            });
+
+                        // Room is available if no overlapping assignment
+                        if (!hasOverlappingAssignment) {
+                            availableCapacity += Number(room.capacity) || 0;
+                        }
+                    });
+
+                    // Calculate total guests from reservations that are NOT yet assigned to rooms
+                    // Reservations that are already assigned to rooms are accounted for in availableCapacity calculation above
+                    let totalUnassignedGuestsForDate = 0;
+                    const reservationIdStr = params.excludeReservationId?.toString?.() || String(params.excludeReservationId || '');
+                    
+                    overlappingReservations.forEach(reservation => {
+                        // Skip the reservation being checked (if editing)
+                        const currentReservationId = reservation._id?.toString() || String(reservation._id || '');
+                        if (currentReservationId === reservationIdStr) return;
+                        
+                        const resArrival = normalizeDateOnly(reservation.dateOfArrival);
+                        const resDeparture = normalizeDateOnly(reservation.dateOfDeparture);
+
+                        if (!resArrival || !resDeparture) return;
+
+                        // Check if current date falls within reservation date range
+                        if (currentDate >= resArrival && currentDate < resDeparture) {
+                            // Check if this reservation is already assigned to any room for this date
+                            let isAssigned = false;
+                            
+                            // Check if any room has an assignment for this reservation that overlaps with current date
+                            for (const room of rooms) {
+                                if (!room || !Array.isArray(room.assignments) || room.assignments.length === 0) continue;
+                                
+                                const hasAssignmentForThisReservation = room.assignments.some(assignment => {
+                                    if (!assignment || !assignment.reservationId) return false;
+                                    
+                                    // Compare reservation IDs (handle both ObjectId and string formats)
+                                    const assignmentReservationId = assignment.reservationId?.toString?.() || String(assignment.reservationId || '');
+                                    if (assignmentReservationId !== currentReservationId) return false;
+                                    if (!assignment.startDate || !assignment.endDate) return false;
+                                    
+                                    const assignmentStart = normalizeDateOnly(assignment.startDate);
+                                    const assignmentEnd = normalizeDateOnly(assignment.endDate);
+                                    
+                                    if (!assignmentStart || !assignmentEnd) return false;
+                                    
+                                    // Check if current date falls within this assignment's date range
+                                    return currentDate >= assignmentStart && currentDate < assignmentEnd;
+                                });
+                                
+                                if (hasAssignmentForThisReservation) {
+                                    isAssigned = true;
+                                    break;
+                                }
+                            }
+                            
+                            // Only count guests from reservations that are NOT yet assigned to rooms
+                            if (!isAssigned) {
+                                const totalGuests = reservation.numberOfGuests?.total || 0;
+                                if (totalGuests > 0) {
+                                    totalUnassignedGuestsForDate += totalGuests;
+                                }
+                            }
+                        }
+                    });
+
+                    // Debug logging (can be removed in production)
+                    // console.log(`Date: ${currentYmd}, Available Capacity: ${availableCapacity}, Unassigned Guests: ${totalUnassignedGuestsForDate}`);
+                    
+                    // Check if there's enough capacity for unassigned guests
+                    // If unassigned guests >= available capacity, facility is unavailable
+                    // Note: We use >= instead of > to be conservative - if exactly at capacity, it's unavailable
+                    // However, if availableCapacity is 0 but there are also no unassigned guests, we should still allow
+                    // (this handles the case where all rooms are assigned but there are no pending reservations)
+                    if (availableCapacity === 0 && totalUnassignedGuestsForDate === 0) {
+                        // All rooms are assigned, but no unassigned reservations - this means all capacity is used
+                        // We should still allow new reservations to be created (they'll need to be assigned later)
+                        // Actually, wait - if all capacity is assigned, we can't accommodate new reservations
+                        // So this should be unavailable
+                        responseData.status = Status.OK;
+                        responseData.error = null;
+                        responseData.available = false;
+                        responseData.reason = 'No available rooms for the selected dates. All rooms are currently assigned.';
+                        return responseData;
+                    }
+                    
+                    if (availableCapacity > 0 && totalUnassignedGuestsForDate >= availableCapacity) {
+                        responseData.status = Status.OK;
+                        responseData.error = null;
+                        responseData.available = false;
+                        responseData.reason = `No available rooms for the selected dates. Available capacity: ${availableCapacity}, Unassigned guests: ${totalUnassignedGuestsForDate}`;
+                        return responseData;
+                    }
+                    
+                    // If no available capacity and there are unassigned guests, it's unavailable
+                    if (availableCapacity === 0 && totalUnassignedGuestsForDate > 0) {
+                        responseData.status = Status.OK;
+                        responseData.error = null;
+                        responseData.available = false;
+                        responseData.reason = 'No available rooms for the selected dates.';
+                        return responseData;
+                    }
+
+                    // Move to next day
+                    const [year, month, day] = currentYmd.split('-').map(Number);
+                    if (!year || !month || !day) break;
+                    const nextDate = new Date(Date.UTC(year, month - 1, day + 1));
+                    currentYmd = toYMDString(nextDate);
+                    if (!currentYmd) break;
+                }
+
+                // If we get here, there are available rooms for the date range
                 responseData.status = Status.OK;
                 responseData.error = null;
-                responseData.available = false;
-                responseData.reason = 'Facility is not available for the selected dates.';
+                responseData.available = true;
+                return responseData;
+            } else {
+                // For non-dormitory facilities (Cottage, Conference), check for any overlapping blocking reservation
+                // Two date ranges overlap if: arrival1 <= departure2 AND departure1 >= arrival2
+                const query = {
+                    facility: facilityDoc._id,
+                    status: { $in: getAvailabilityBlockingStatuses() },
+                    dateOfArrival: { $lte: endDate, },
+                    dateOfDeparture: { $gte: startDate, },
+                };
+
+                // Exclude current reservation when editing
+                if (params.excludeReservationId) {
+                    query._id = { $ne: params.excludeReservationId };
+                }
+
+                const overlapping = await dbHelper.findOne('reservation', query);
+
+                if (overlapping) {
+                    responseData.status = Status.OK;
+                    responseData.error = null;
+                    responseData.available = false;
+                    responseData.reason = 'Facility is not available for the selected dates.';
+                    return responseData;
+                }
+
+                responseData.status = Status.OK;
+                responseData.error = null;
+                responseData.available = true;
                 return responseData;
             }
-
-            responseData.status = Status.OK;
-            responseData.error = null;
-            responseData.available = true;
-            return responseData;
         } catch (err) {
             console.error('Error checking availability:', err);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
@@ -3646,11 +3892,7 @@ const reservationModule = {
 
                 // Only block if there are APPROVED, CONFIRMED, or CHECKED_IN reservations
                 // PENDING reservations are allowed to overlap - they'll be auto-declined when one is approved
-                const blockingStatuses = [
-                    ReservationStatus.APPROVED,
-                    ReservationStatus.CONFIRMED,
-                    ReservationStatus.CHECKED_IN,
-                ];
+                const blockingStatuses = getUpdateBlockingStatuses();
 
                 const overlapping = await dbHelper.findOne('reservation', {
                     _id: { $ne: reservationId },
@@ -3969,3 +4211,4 @@ function clampSkip(value, def = 0) {
     if (!Number.isFinite(n)) return def;
     return Math.max(0, Math.trunc(n));
 }
+

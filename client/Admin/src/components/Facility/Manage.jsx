@@ -162,9 +162,9 @@ export default function Manage() {
       const rooms = Array.from(prev.rooms);
       const updatedRoom = { ...rooms[roomIndex], [field]: value };
       
-      // Update status based on assignments
+      // Update status based on assignments and their dates
       if (field === "capacity" || field === "assignments") {
-        const hasActiveAssignments = updatedRoom.assignments.some(a => a.reservationId);
+        const hasActiveAssignments = updatedRoom.assignments.some(a => isAssignmentActive(a));
         updatedRoom.status = hasActiveAssignments ? "Unavailable" : "Available";
       }
       
@@ -221,8 +221,8 @@ export default function Manage() {
       assignments[assignmentIndex] = assignment;
       room.assignments = assignments;
       
-      // Update room status
-      const hasActiveAssignments = assignments.some(a => a.reservationId);
+      // Update room status based on active assignments (checking dates)
+      const hasActiveAssignments = assignments.some(a => isAssignmentActive(a));
       room.status = hasActiveAssignments ? "Unavailable" : "Available";
       
       rooms[roomIndex] = room;
@@ -251,8 +251,8 @@ export default function Manage() {
         room.assignments = [{ reservationId: "", guestsAssigned: "0", startDate: "", endDate: "" }];
       }
       
-      // Update room status
-      const hasActiveAssignments = room.assignments.some(a => a.reservationId);
+      // Update room status based on active assignments (checking dates)
+      const hasActiveAssignments = room.assignments.some(a => isAssignmentActive(a));
       room.status = hasActiveAssignments ? "Unavailable" : "Available";
       
       rooms[roomIndex] = room;
@@ -263,6 +263,85 @@ export default function Manage() {
   // Helper function to get reservation by ID
   const getReservationById = (reservationId) => {
     return reservations.find(r => r._id === reservationId);
+  };
+
+  // Helper function to check if an assignment is currently active (overlaps with today)
+  const isAssignmentActive = (assignment) => {
+    if (!assignment.reservationId || !assignment.startDate || !assignment.endDate) {
+      return false;
+    }
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const startDate = new Date(assignment.startDate);
+    startDate.setHours(0, 0, 0, 0);
+    
+    const endDate = new Date(assignment.endDate);
+    endDate.setHours(0, 0, 0, 0);
+    
+    // Assignment is active if today is between start and end date (inclusive)
+    return today >= startDate && today <= endDate;
+  };
+
+  // Helper function to check if an assignment is in the future
+  const isAssignmentFuture = (assignment) => {
+    if (!assignment.reservationId || !assignment.startDate) {
+      return false;
+    }
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const startDate = new Date(assignment.startDate);
+    startDate.setHours(0, 0, 0, 0);
+    
+    return startDate > today;
+  };
+
+  // Helper function to check if an assignment is in the past
+  const isAssignmentPast = (assignment) => {
+    if (!assignment.reservationId || !assignment.endDate) {
+      return false;
+    }
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const endDate = new Date(assignment.endDate);
+    endDate.setHours(0, 0, 0, 0);
+    
+    return endDate < today;
+  };
+
+  // Helper function to get the next available date for a room
+  const getNextAvailableDate = (room) => {
+    if (!room.assignments || room.assignments.length === 0) {
+      return null;
+    }
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // Get all future assignments sorted by end date
+    const futureAssignments = room.assignments
+      .filter(a => a.reservationId && a.endDate && !isAssignmentPast(a))
+      .map(a => ({
+        ...a,
+        endDateObj: new Date(a.endDate)
+      }))
+      .sort((a, b) => a.endDateObj - b.endDateObj);
+    
+    if (futureAssignments.length === 0) {
+      return null;
+    }
+    
+    // Return the latest end date + 1 day
+    const latestEndDate = futureAssignments[futureAssignments.length - 1].endDateObj;
+    const nextAvailable = new Date(latestEndDate);
+    nextAvailable.setDate(nextAvailable.getDate() + 1);
+    
+    return nextAvailable.toISOString().split('T')[0];
   };
 
   // Helper function to calculate remaining unassigned guests for a reservation
@@ -311,6 +390,53 @@ export default function Manage() {
 
       // Validate assignments
       for (const room of formData.rooms) {
+        // Check for duplicate reservations in the same room
+        const reservationIdsInRoom = room.assignments
+          .filter(a => a.reservationId)
+          .map(a => a.reservationId);
+        const duplicateReservations = reservationIdsInRoom.filter((id, index) => 
+          reservationIdsInRoom.indexOf(id) !== index
+        );
+        
+        if (duplicateReservations.length > 0) {
+          const duplicateId = duplicateReservations[0];
+          const reservation = getReservationById(duplicateId);
+          alert(`Room "${room.name || 'Unnamed'}" has duplicate assignments for the same guest (${reservation?.guestName || 'Unknown Guest'}). Each room can only be assigned to a guest once.`);
+          setLoading(false);
+          return;
+        }
+        
+        // Check for overlapping date ranges between different assignments in the same room
+        const validAssignments = room.assignments.filter(a => a.reservationId && a.startDate && a.endDate);
+        for (let i = 0; i < validAssignments.length; i++) {
+          for (let j = i + 1; j < validAssignments.length; j++) {
+            const assignment1 = validAssignments[i];
+            const assignment2 = validAssignments[j];
+            
+            // Skip if same reservation (already checked above)
+            if (assignment1.reservationId === assignment2.reservationId) continue;
+            
+            const start1 = new Date(assignment1.startDate);
+            const end1 = new Date(assignment1.endDate);
+            const start2 = new Date(assignment2.startDate);
+            const end2 = new Date(assignment2.endDate);
+            
+            // Check if date ranges overlap: start1 <= end2 && end1 >= start2
+            if (start1 <= end2 && end1 >= start2) {
+              const reservation1 = getReservationById(assignment1.reservationId);
+              const reservation2 = getReservationById(assignment2.reservationId);
+              alert(
+                `Room "${room.name || 'Unnamed'}" has overlapping assignments:\n` +
+                `- ${reservation1?.guestName || 'Unknown Guest'} (${assignment1.startDate} to ${assignment1.endDate})\n` +
+                `- ${reservation2?.guestName || 'Unknown Guest'} (${assignment2.startDate} to ${assignment2.endDate})\n` +
+                `A room cannot have two different reservations with overlapping dates.`
+              );
+              setLoading(false);
+              return;
+            }
+          }
+        }
+        
         for (const assignment of room.assignments) {
           if (assignment.reservationId) {
             // Validate guests assigned
@@ -447,14 +573,70 @@ export default function Manage() {
                   onChange={(e) =>
                     handleRoomChange(roomIdx, "status", e.target.value)
                   }
-                  disabled={room.assignments.some(a => a.reservationId)}
-                  title={room.assignments.some(a => a.reservationId) ? "Status is automatically set based on assignments" : ""}
+                  disabled={room.assignments.some(a => isAssignmentActive(a))}
+                  title={room.assignments.some(a => isAssignmentActive(a)) ? "Status is automatically set based on active assignments" : ""}
                 >
                   <option value="Available">Available</option>
                   <option value="Unavailable">Unavailable</option>
                 </select>
               </label>
             </div>
+
+            {/* Availability Information */}
+            {(() => {
+              const activeAssignments = room.assignments.filter(a => isAssignmentActive(a));
+              const futureAssignments = room.assignments.filter(a => isAssignmentFuture(a));
+              const pastAssignments = room.assignments.filter(a => isAssignmentPast(a));
+              const nextAvailableDate = getNextAvailableDate(room);
+              
+              return (
+                <div style={{ 
+                  marginTop: "1rem", 
+                  padding: "0.75rem", 
+                  backgroundColor: "#f5f5f5", 
+                  borderRadius: "4px",
+                  fontSize: "0.9rem"
+                }}>
+                  <div style={{ marginBottom: "0.5rem", fontWeight: "600" }}>Availability Information:</div>
+                  
+                  {activeAssignments.length > 0 && (
+                    <div style={{ color: "#dc2626", marginBottom: "0.25rem" }}>
+                      ⚠️ Currently unavailable - {activeAssignments.length} active assignment(s)
+                    </div>
+                  )}
+                  
+                  {futureAssignments.length > 0 && (
+                    <div style={{ color: "#d97706", marginBottom: "0.25rem" }}>
+                      📅 {futureAssignments.length} upcoming assignment(s) scheduled
+                    </div>
+                  )}
+                  
+                  {pastAssignments.length > 0 && (
+                    <div style={{ color: "#059669", marginBottom: "0.25rem" }}>
+                      ✓ {pastAssignments.length} completed assignment(s)
+                    </div>
+                  )}
+                  
+                  {activeAssignments.length === 0 && futureAssignments.length > 0 && nextAvailableDate && (
+                    <div style={{ color: "#2563eb", marginBottom: "0.25rem" }}>
+                      Available now until {futureAssignments[0].startDate}
+                    </div>
+                  )}
+                  
+                  {activeAssignments.length > 0 && nextAvailableDate && (
+                    <div style={{ color: "#2563eb", marginBottom: "0.25rem" }}>
+                      Next available: {nextAvailableDate}
+                    </div>
+                  )}
+                  
+                  {activeAssignments.length === 0 && futureAssignments.length === 0 && pastAssignments.length === 0 && (
+                    <div style={{ color: "#059669" }}>
+                      ✓ Room is currently available with no assignments
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Assignments Section */}
             <div className={styles.assignmentsSection}>
@@ -488,6 +670,17 @@ export default function Manage() {
                         <option value="">-- Select Guest --</option>
                         {reservations
                           .filter((reservation) => {
+                            // Check if this reservation is already assigned to another assignment in the same room
+                            const isAlreadyAssignedInThisRoom = room.assignments.some((a, idx) => 
+                              idx !== assignmentIdx && a.reservationId === reservation._id
+                            );
+                            
+                            // If it's already assigned in this room (and not to the current assignment), exclude it
+                            if (isAlreadyAssignedInThisRoom && assignment.reservationId !== reservation._id) {
+                              return false;
+                            }
+                            
+                            // Otherwise, check if there are remaining guests to assign
                             const remaining = getRemainingUnassignedGuests(reservation._id, roomIdx, assignmentIdx);
                             const isCurrentlyAssigned = assignment.reservationId === reservation._id;
                             return remaining > 0 || isCurrentlyAssigned;
@@ -554,7 +747,23 @@ export default function Manage() {
                     const roomCapacity = parseInt(room.capacity) || 0;
                     const assignedGuests = parseInt(assignment.guestsAssigned) || 0;
                     const totalGuests = reservation?.numberOfGuests?.total || 0;
-                    const remainingUnassigned = getRemainingUnassignedGuests(assignment.reservationId, roomIdx, assignmentIdx);
+                    // Calculate remaining unassigned INCLUDING the current assignment
+                    // This shows how many guests are still unassigned after this assignment
+                    const remainingUnassigned = getRemainingUnassignedGuests(assignment.reservationId);
+                    
+                    // Calculate total assigned across all rooms for this reservation (for debugging)
+                    const totalAssignedAcrossAllRooms = formData.rooms.reduce((total, r) => {
+                      return total + r.assignments.reduce((sum, a) => {
+                        if (a.reservationId === assignment.reservationId) {
+                          return sum + (parseInt(a.guestsAssigned) || 0);
+                        }
+                        return sum;
+                      }, 0);
+                    }, 0);
+                    
+                    const isActive = isAssignmentActive(assignment);
+                    const isFuture = isAssignmentFuture(assignment);
+                    const isPast = isAssignmentPast(assignment);
                     
                     return (
                       <div className={styles.assignmentSummary}>
@@ -575,11 +784,39 @@ export default function Manage() {
                           <span className={styles.assignmentValue}><strong>{totalGuests}</strong></span>
                         </div>
                         <div className={styles.assignmentRow}>
-                          <span className={styles.assignmentLabel}>Remaining unassigned:</span>
+                          <span className={styles.assignmentLabel}>Remaining unassigned (across all rooms):</span>
                           <span className={styles.assignmentValue} style={{ color: remainingUnassigned > 0 ? "#d97706" : "#059669" }}>
                             <strong>{remainingUnassigned !== null ? remainingUnassigned : totalGuests}</strong>
+                            {remainingUnassigned === 0 && totalAssignedAcrossAllRooms === totalGuests && (
+                              <span style={{ marginLeft: "0.5rem", fontSize: "0.85em", color: "#059669" }}>
+                                (All guests assigned)
+                              </span>
+                            )}
                           </span>
                         </div>
+                        {assignment.startDate && assignment.endDate && (
+                          <div className={styles.assignmentRow}>
+                            <span className={styles.assignmentLabel}>Assignment Period:</span>
+                            <span className={styles.assignmentValue}>
+                              <strong>{assignment.startDate}</strong> to <strong>{assignment.endDate}</strong>
+                              {isActive && (
+                                <span style={{ color: "#dc2626", marginLeft: "0.5rem", fontWeight: "600" }}>
+                                  (ACTIVE)
+                                </span>
+                              )}
+                              {isFuture && (
+                                <span style={{ color: "#d97706", marginLeft: "0.5rem", fontWeight: "600" }}>
+                                  (UPCOMING)
+                                </span>
+                              )}
+                              {isPast && (
+                                <span style={{ color: "#059669", marginLeft: "0.5rem", fontWeight: "600" }}>
+                                  (COMPLETED)
+                                </span>
+                              )}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     );
                   })()}

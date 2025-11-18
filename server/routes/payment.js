@@ -5,7 +5,7 @@ import dbHelper from '../modules/dbHelper.js';
 import paymentModule from '../modules/payment.js';
 import notificationModule from '../modules/notification.js';
 import { Status } from '../constants.js';
-import { uploadProofOfPayment } from '../middleware/uploads.js';
+import { uploadProofOfPayment, uploadInvoice } from '../middleware/uploads.js';
 
 export default function buildPaymentRouter(userSocketMap) {
   const r = Router();
@@ -126,6 +126,34 @@ export default function buildPaymentRouter(userSocketMap) {
       reservationId,
       { amount, referenceNumber, paymentMethodType, ocrExtractedReferenceNumber },
       proofOfPaymentFile,
+      req.user
+    );
+    
+    res.status(response.status).json(response);
+  }));
+
+  r.post('/update-payment-status/:id', authenticateJWT, asyncHandler(async (req, res) => {
+    const reservationId = req.params.id;
+    const { invoiceNumber, paymentStatus, invoiceFileId } = req.body;
+    
+    const response = await paymentModule.updatePaymentStatus(
+      dbHelper,
+      reservationId,
+      { invoiceNumber, paymentStatus, invoiceFileId },
+      req.user
+    );
+    
+    res.status(response.status).json(response);
+  }));
+
+  r.post('/upload-invoice/:id', authenticateJWT, uploadInvoice, asyncHandler(async (req, res) => {
+    const reservationId = req.params.id;
+    const invoiceFile = req.file;
+    
+    const response = await paymentModule.uploadInvoice(
+      dbHelper,
+      reservationId,
+      invoiceFile,
       req.user
     );
     

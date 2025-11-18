@@ -118,6 +118,21 @@ const dbHelper = {
                 checkedOutBy: { type: String, required: false },
                 checkedOutAt: { type: Date, required: false },
                 willAvailMeals: { type: Boolean, required: false },
+                invoiceNumber: { type: String, required: false, },
+                invoiceFileId: { type: mongoose.Schema.Types.ObjectId, ref: 'file', required: false, },
+                paymentStatus: { type: String, required: false, },
+                excessCapacity: {
+                    count: { type: Number, required: false, default: 0 },
+                    rate: { type: Number, required: false, default: 0 },
+                },
+                excessWithBeddings: {
+                    count: { type: Number, required: false, default: 0 },
+                    rate: { type: Number, required: false, default: 0 },
+                },
+                excessWithoutBeddings: {
+                    count: { type: Number, required: false, default: 0 },
+                    rate: { type: Number, required: false, default: 0 },
+                },
             });
 
             ReservationSchema.index({ status: 1, dateOfArrival: 1 });
@@ -143,6 +158,8 @@ const dbHelper = {
                 price: { type: Number, required: false, },
                 ratePerExcessCapacity: { type: Number, required: false, },
                 discountedFacilityRate: { type: Number, required: false, },
+                ratePerExcessWithBeddings: { type: Number, required: false, },
+                ratePerExcessWithoutBeddings: { type: Number, required: false, },
                 status: { type: String, enum: Object.values(FacilityStatus), default: FacilityStatus.AVAILABLE, required: true, },
                 images: { type: [String], default: [] },
                 rooms: { type: [{ name: String, capacity: Number, status: String, assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: 'reservation', required: false }, assignedGuests: { type: Number, required: false, default: 0 } }], default: [] },

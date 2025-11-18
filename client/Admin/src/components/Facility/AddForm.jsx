@@ -27,6 +27,8 @@ const AddForm = () => {
     serviceType: "", // NEW
     capacity: "",
     status: "Available",
+    ratePerExcessWithBeddings: "",
+    ratePerExcessWithoutBeddings: "",
     images: Array(MAX_IMAGES).fill(null),
   });
   const [submitting, setSubmitting] = useState(false);
@@ -110,6 +112,12 @@ const AddForm = () => {
           payload.baseRate = formData.baseRate;
           payload.rate = formData.rate; // Rate per Excess Capacity
           payload.discountRate = formData.discountRate;
+          
+          // Add cottage-specific excess rates
+          if (facilityType === "Cottage") {
+            payload.ratePerExcessWithBeddings = formData.ratePerExcessWithBeddings;
+            payload.ratePerExcessWithoutBeddings = formData.ratePerExcessWithoutBeddings;
+          }
         } else if (facilityType === "Dormitory") {
           payload.ratePerPerson = formData.ratePerPerson;
         }
@@ -362,6 +370,35 @@ const AddForm = () => {
                 name="discountRate"
                 value={formData.discountRate}
                 onChange={handleChange}
+                required
+              />
+            </label>
+          </div>
+        )}
+
+        {/* Cottage-specific excess rates */}
+        {!isSpecialService && facilityType === "Cottage" && (
+          <div className={styles.formRow}>
+            <label>
+              Rate per Excess with Beddings:
+              <input
+                type="number"
+                name="ratePerExcessWithBeddings"
+                value={formData.ratePerExcessWithBeddings}
+                onChange={handleChange}
+                placeholder="Enter rate for excess with beddings"
+                required
+              />
+            </label>
+
+            <label>
+              Rate per Excess w/o Beddings:
+              <input
+                type="number"
+                name="ratePerExcessWithoutBeddings"
+                value={formData.ratePerExcessWithoutBeddings}
+                onChange={handleChange}
+                placeholder="Enter rate for excess without beddings"
                 required
               />
             </label>
