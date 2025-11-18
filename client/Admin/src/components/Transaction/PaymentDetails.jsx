@@ -21,7 +21,16 @@ export default function PaymentDetails() {
   const [updateError, setUpdateError] = React.useState("");
   const [updateSuccess, setUpdateSuccess] = React.useState("");
 
+  // Excess charges states - only counts, rates come from database
+  const [excessWithBeddings, setExcessWithBeddings] = React.useState(0);
+  const [excessWithoutBeddings, setExcessWithoutBeddings] = React.useState(0);
+  const [excessCapacity, setExcessCapacity] = React.useState(0); // For event/conference reservations
+
   const fileInputRef = React.useRef(null);
+
+  // Check if the reservation is for event or event and lodging (uses conference halls)
+  const isEventReservation = payment?.serviceType === "Event" || 
+                            payment?.serviceType === "Event and Lodging";
 
   React.useEffect(() => {
     let cancelled = false;
@@ -44,6 +53,11 @@ export default function PaymentDetails() {
           setInvoiceNumber(data.invoiceNumber || "");
           setPaymentStatus(data.paymentStatus || "Unpaid");
           setInvoicePreview(data.invoiceImageUrl || null);
+          
+          // Load excess counts if available
+          setExcessWithBeddings(data.excessWithBeddings?.count || 0);
+          setExcessWithoutBeddings(data.excessWithoutBeddings?.count || 0);
+          setExcessCapacity(data.excessCapacity?.count || 0);
         }
       } catch (e) {
         if (!cancelled) setError(e?.message || "Something went wrong");
@@ -106,6 +120,19 @@ export default function PaymentDetails() {
       return;
     }
 
+    // Validate excess charges
+    if (isEventReservation) {
+      if (excessCapacity < 0) {
+        setUpdateError("Excess capacity count cannot be negative");
+        return;
+      }
+    } else {
+      if (excessWithBeddings < 0 || excessWithoutBeddings < 0) {
+        setUpdateError("Excess count cannot be negative");
+        return;
+      }
+    }
+
     setSaving(true);
     
     try {
@@ -118,24 +145,51 @@ export default function PaymentDetails() {
         }
       }
 
-      // Update payment details
-      const updateRes = await updatePaymentStatus(reservationId, {
+      // Prepare update payload based on service type
+      const updatePayload = {
         invoiceNumber: invoiceNumber.trim(),
         paymentStatus,
-        invoiceImageUrl
-      });
+        invoiceImageUrl,
+      };
+
+      if (isEventReservation) {
+        updatePayload.excessCapacityCount = parseInt(excessCapacity) || 0;
+      } else {
+        updatePayload.excessWithBeddingsCount = parseInt(excessWithBeddings) || 0;
+        updatePayload.excessWithoutBeddingsCount = parseInt(excessWithoutBeddings) || 0;
+      }
+
+      // Update payment details
+      const updateRes = await updatePaymentStatus(reservationId, updatePayload);
 
       if (updateRes?.status === 200 || updateRes?.success) {
         setUpdateSuccess("Payment details updated successfully");
         
         // Update local state with new payment info
-        setPayment(prev => ({
-          ...prev,
+        const updatedPayment = {
+          ...payment,
           invoiceNumber: invoiceNumber.trim(),
           paymentStatus,
-          invoiceImageUrl
-        }));
-        
+          invoiceImageUrl,
+        };
+
+        if (isEventReservation) {
+          updatedPayment.excessCapacity = {
+            count: parseInt(excessCapacity) || 0,
+            rate: payment.excessCapacity?.rate || 0
+          };
+        } else {
+          updatedPayment.excessWithBeddings = {
+            count: parseInt(excessWithBeddings) || 0,
+            rate: payment.excessWithBeddings?.rate || 0
+          };
+          updatedPayment.excessWithoutBeddings = {
+            count: parseInt(excessWithoutBeddings) || 0,
+            rate: payment.excessWithoutBeddings?.rate || 0
+          };
+        }
+
+        setPayment(updatedPayment);
         setIsEditing(false);
         
         // Clear success message after 3 seconds
@@ -157,10 +211,24 @@ export default function PaymentDetails() {
     setPaymentStatus(payment?.paymentStatus || "Unpaid");
     setInvoiceFile(null);
     setInvoicePreview(payment?.invoiceImageUrl || null);
+    setExcessWithBeddings(payment?.excessWithBeddings?.count || 0);
+    setExcessWithoutBeddings(payment?.excessWithoutBeddings?.count || 0);
+    setExcessCapacity(payment?.excessCapacity?.count || 0);
     setUpdateError("");
     setUpdateSuccess("");
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
+    }
+  };
+
+  // Calculate excess charges total using rates from database
+  const calculateExcessTotal = () => {
+    if (isEventReservation) {
+      return (payment?.excessCapacity?.count || 0) * (payment?.excessCapacity?.rate || 0);
+    } else {
+      const withBeddingsTotal = (payment?.excessWithBeddings?.count || 0) * (payment?.excessWithBeddings?.rate || 0);
+      const withoutBeddingsTotal = (payment?.excessWithoutBeddings?.count || 0) * (payment?.excessWithoutBeddings?.rate || 0);
+      return withBeddingsTotal + withoutBeddingsTotal;
     }
   };
 
@@ -351,6 +419,161 @@ export default function PaymentDetails() {
             </table>
           </>
         )}
+
+        {/* Excess Charges Section */}
+        <hr className={styles["payment-details-divider"]} />
+        <div className={styles["payment-details-section-title"]}>
+          {isEventReservation ? "Rate per Excess Capacity" : "Rate per Excess"}
+        </div>
+        
+        {isEditing ? (
+          <div className={styles["excess-charges-edit"]}>
+            {isEventReservation ? (
+              // Event/Conference - Excess Capacity
+              <div className={styles["excess-charge-group"]}>
+                <h4 className={styles["excess-charge-title"]}>Excess Capacity</h4>
+                <div className={styles["excess-charge-inputs"]}>
+                  <div className={styles["form-group"]}>
+                    <label className={styles["form-label"]}>Number of Excess Attendees</label>
+                    <input
+                      type="number"
+                      className={styles["form-input"]}
+                      value={excessCapacity}
+                      onChange={(e) => setExcessCapacity(e.target.value)}
+                      placeholder="0"
+                      min="0"
+                    />
+                  </div>
+                  <div className={styles["excess-total"]}>
+                    <span className={styles["excess-total-label"]}>Total:</span>
+                    <span className={styles["excess-total-value"]}>
+                      ₱{((excessCapacity || 0) * (payment?.excessCapacity?.rate || 0)).toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              // Lodging - With/Without Beddings
+              <>
+                {/* With Beddings */}
+                <div className={styles["excess-charge-group"]}>
+                  <h4 className={styles["excess-charge-title"]}>Complete Beddings and Toiletries</h4>
+                  <div className={styles["excess-charge-inputs"]}>
+                    <div className={styles["form-group"]}>
+                      <label className={styles["form-label"]}>Number of Excess</label>
+                      <input
+                        type="number"
+                        className={styles["form-input"]}
+                        value={excessWithBeddings}
+                        onChange={(e) => setExcessWithBeddings(e.target.value)}
+                        placeholder="0"
+                        min="0"
+                      />
+                    </div>
+                    <div className={styles["excess-total"]}>
+                      <span className={styles["excess-total-label"]}>Subtotal:</span>
+                      <span className={styles["excess-total-value"]}>
+                        ₱{((excessWithBeddings || 0) * (payment?.excessWithBeddings?.rate || 0)).toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Without Beddings */}
+                <div className={styles["excess-charge-group"]}>
+                  <h4 className={styles["excess-charge-title"]}>No Provision of Beddings/Toiletries</h4>
+                  <div className={styles["excess-charge-inputs"]}>
+                    <div className={styles["form-group"]}>
+                      <label className={styles["form-label"]}>Number of Excess</label>
+                      <input
+                        type="number"
+                        className={styles["form-input"]}
+                        value={excessWithoutBeddings}
+                        onChange={(e) => setExcessWithoutBeddings(e.target.value)}
+                        placeholder="0"
+                        min="0"
+                      />
+                    </div>
+                    <div className={styles["excess-total"]}>
+                      <span className={styles["excess-total-label"]}>Subtotal:</span>
+                      <span className={styles["excess-total-value"]}>
+                        ₱{((excessWithoutBeddings || 0) * (payment?.excessWithoutBeddings?.rate || 0)).toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Total Excess Charges */}
+                <div className={styles["excess-grand-total"]}>
+                  <span className={styles["excess-grand-total-label"]}>Total Excess Charges:</span>
+                  <span className={styles["excess-grand-total-value"]}>
+                    ₱{((excessWithBeddings || 0) * (payment?.excessWithBeddings?.rate || 0) + 
+                       (excessWithoutBeddings || 0) * (payment?.excessWithoutBeddings?.rate || 0)).toFixed(2)}
+                  </span>
+                </div>
+              </>
+            )}
+          </div>
+        ) : (
+          <table className={styles["payment-details-table"]}>
+            <tbody>
+              {isEventReservation ? (
+                // Event/Conference Display
+                payment.excessCapacity?.count > 0 ? (
+                  <tr>
+                    <td className={styles["payment-details-label"]}>Excess Capacity</td>
+                    <td className={styles["payment-details-separator"]}>:</td>
+                    <td>
+                      {payment.excessCapacity.count} × ₱{payment.excessCapacity.rate.toFixed(2)} = 
+                      ₱{(payment.excessCapacity.count * payment.excessCapacity.rate).toFixed(2)}
+                    </td>
+                  </tr>
+                ) : (
+                  <tr>
+                    <td colSpan="3" className={styles["placeholder-text"]}>No excess capacity charges</td>
+                  </tr>
+                )
+              ) : (
+                // Lodging Display
+                (payment.excessWithBeddings?.count > 0 || payment.excessWithoutBeddings?.count > 0) ? (
+                  <>
+                    {payment.excessWithBeddings?.count > 0 && (
+                      <tr>
+                        <td className={styles["payment-details-label"]}>With Beddings</td>
+                        <td className={styles["payment-details-separator"]}>:</td>
+                        <td>
+                          {payment.excessWithBeddings.count} × ₱{payment.excessWithBeddings.rate.toFixed(2)} = 
+                          ₱{(payment.excessWithBeddings.count * payment.excessWithBeddings.rate).toFixed(2)}
+                        </td>
+                      </tr>
+                    )}
+                    {payment.excessWithoutBeddings?.count > 0 && (
+                      <tr>
+                        <td className={styles["payment-details-label"]}>W/O Beddings</td>
+                        <td className={styles["payment-details-separator"]}>:</td>
+                        <td>
+                          {payment.excessWithoutBeddings.count} × ₱{payment.excessWithoutBeddings.rate.toFixed(2)} = 
+                          ₱{(payment.excessWithoutBeddings.count * payment.excessWithoutBeddings.rate).toFixed(2)}
+                        </td>
+                      </tr>
+                    )}
+                    <tr>
+                      <td className={styles["payment-details-label"]} style={{ fontWeight: 'bold' }}>Total Excess Charges</td>
+                      <td className={styles["payment-details-separator"]}>:</td>
+                      <td style={{ fontWeight: 'bold' }}>
+                        ₱{calculateExcessTotal().toFixed(2)}
+                      </td>
+                    </tr>
+                  </>
+                ) : (
+                  <tr>
+                    <td colSpan="3" className={styles["placeholder-text"]}>No excess charges</td>
+                  </tr>
+                )
+              )}
+            </tbody>
+          </table>
+        )}
         
         {/* Service Fee */}
         <hr className={styles["payment-details-divider"]} />
@@ -476,50 +699,45 @@ export default function PaymentDetails() {
         ) : (
           <>
             <div className={styles["payment-details-section-title"]}>Invoice & Payment Information</div>
-            
-            {/* Invoice Information Card */}
-            <div className={styles["invoice-info-card"]}>
-              <div className={styles["invoice-info-item"]}>
-                <div className={styles["invoice-info-label"]}>
-                  <span className={styles["invoice-icon"]}>📄</span>
-                  Invoice Number
-                </div>
-                <div className={styles["invoice-info-value"]}>
-                  {payment.invoiceNumber || "Not set"}
-                </div>
-              </div>
-
-              {payment.invoiceImageUrl && (
-                <div className={styles["invoice-info-item"]}>
-                  <div className={styles["invoice-info-label"]}>
-                    <span className={styles["invoice-icon"]}>🖼️</span>
-                    Invoice Image
-                  </div>
-                  <div className={styles["invoice-info-value"]}>
-                    <a 
-                      href={payment.invoiceImageUrl} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className={styles["invoice-link"]}
-                    >
-                      View Invoice Image
-                    </a>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Payment Status Card */}
-            <div className={styles["payment-status-card"]}>
-              <div className={styles["payment-status-label"]}>
-                Payment Status
-              </div>
-              <div className={styles["payment-status-value"]}>
-                <span className={`${styles["status-badge"]} ${styles[`status-${payment.paymentStatus?.toLowerCase().replace(' ', '-')}`]}`}>
-                  {payment.paymentStatus || "Unpaid"}
-                </span>
-              </div>
-            </div>
+            <table className={styles["payment-details-table"]}>
+              <tbody>
+                <tr>
+                  <td className={styles["payment-details-label"]}>Invoice Number</td>
+                  <td className={styles["payment-details-separator"]}>:</td>
+                  <td>
+                    {payment.invoiceNumber || (
+                      <span className={styles["placeholder-text"]}>Not set</span>
+                    )}
+                  </td>
+                </tr>
+                <tr>
+                  <td className={styles["payment-details-label"]}>Invoice Image</td>
+                  <td className={styles["payment-details-separator"]}>:</td>
+                  <td>
+                    {payment.invoiceImageUrl ? (
+                      <a 
+                        href={payment.invoiceImageUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className={styles["payment-details-link"]}
+                      >
+                        Click to open
+                      </a>
+                    ) : (
+                      <span className={styles["placeholder-text"]}>Not uploaded</span>
+                    )}
+                  </td>
+                </tr>
+                <tr>
+                  <td colSpan={3} className={styles["payment-details-status-row"]}>
+                    <span className={styles["payment-details-status-label"]}>Payment Status:</span>{" "}
+                    <span className={`${styles["payment-details-status-value"]} ${payment.paymentStatus === "Fully Paid" ? styles["payment-details-status-paid"] : ""}`}>
+                      {payment.paymentStatus || "Unpaid"}
+                    </span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </>
         )}
       </div>
