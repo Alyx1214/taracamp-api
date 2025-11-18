@@ -17,10 +17,44 @@ function ReservationFormStep2() {
   const file = location.state?.file || null;
   const seniorCitizenIdFiles = location.state?.seniorCitizenIdFiles || [];
   const pwdIdFiles = location.state?.pwdIdFiles || [];
+  const governmentIdFiles = location.state?.governmentIdFiles || [];
+  const depedIdFiles = location.state?.depedIdFiles || [];
+  const seniorCitizenIdFilesRef = useRef(seniorCitizenIdFiles);
+  const pwdIdFilesRef = useRef(pwdIdFiles);
+  const governmentIdFilesRef = useRef(governmentIdFiles);
+  const depedIdFilesRef = useRef(depedIdFiles);
+
+  useEffect(() => {
+    if (location.state?.seniorCitizenIdFiles !== undefined) {
+      seniorCitizenIdFilesRef.current = location.state?.seniorCitizenIdFiles || [];
+    }
+  }, [location.state?.seniorCitizenIdFiles]);
+
+  useEffect(() => {
+    if (location.state?.pwdIdFiles !== undefined) {
+      pwdIdFilesRef.current = location.state?.pwdIdFiles || [];
+    }
+  }, [location.state?.pwdIdFiles]);
+
+  useEffect(() => {
+    if (location.state?.governmentIdFiles !== undefined) {
+      governmentIdFilesRef.current = location.state?.governmentIdFiles || [];
+    }
+  }, [location.state?.governmentIdFiles]);
+
+  useEffect(() => {
+    if (location.state?.depedIdFiles !== undefined) {
+      depedIdFilesRef.current = location.state?.depedIdFiles || [];
+    }
+  }, [location.state?.depedIdFiles]);
   const reservationId = location.state?.reservationId || null;
   const isEdit = location.state?.isEdit || false;
   const userEmail = location.state?.userEmail || null;
   const originalType = location.state?.originalType || null; // Original type from edit mode
+  const originalStatus = location.state?.originalStatus || null;
+  const fromCheckInOut = location.state?.fromCheckInOut || false;
+  const activeTab = location.state?.activeTab || null;
+  const filters = location.state?.filters || null;
 
   const routeFacilityType = useMemo(() => {
     const t = String(type || '').toLowerCase();
@@ -323,7 +357,7 @@ function ReservationFormStep2() {
   }, [userRole]);
 
   const handleGoBack = () => {
-    navigate(`/reservation-form`, { state: { step1, step2: formData, file, seniorCitizenIdFiles, pwdIdFiles, reservationId, isEdit, userEmail } });
+    navigate(`/reservation-form`, { state: { step1, step2: formData, file, seniorCitizenIdFiles: seniorCitizenIdFilesRef.current, pwdIdFiles: pwdIdFilesRef.current, governmentIdFiles: governmentIdFilesRef.current, depedIdFiles: depedIdFilesRef.current, reservationId, isEdit, userEmail, originalType, originalStatus, fromCheckInOut, activeTab, filters } });
   };
 
   useEffect(() => {
@@ -690,7 +724,7 @@ function ReservationFormStep2() {
   }, [isIndividual, isDormitory, formData.typeService]);
 
   const handlePrevious = () => {
-    navigate(`/reservation-form`, { state: { step1, step2: formData, file, seniorCitizenIdFiles, pwdIdFiles, reservationId, isEdit, userEmail } });
+    navigate(`/reservation-form`, { state: { step1, step2: formData, file, seniorCitizenIdFiles: seniorCitizenIdFilesRef.current, pwdIdFiles: pwdIdFilesRef.current, governmentIdFiles: governmentIdFilesRef.current, depedIdFiles: depedIdFilesRef.current, reservationId, isEdit, userEmail, originalType, originalStatus, fromCheckInOut, activeTab, filters } });
   };
 
   const handleNext = () => {
@@ -774,7 +808,6 @@ function ReservationFormStep2() {
     const isGovernmentCategory = step1?.category?.government === true || step1?.category?.deped === true;
     const isPwdCategory = step1?.category?.pwds === true || step1?.category?.PWDs === true;
     const isPrivateCategory = step1?.category?.private === true || step1?.category?.Private === true;
-    const governmentIdFiles = location.state?.governmentIdFiles || [];
     
     let nextStep;
     if (isGroup) {
@@ -821,14 +854,19 @@ function ReservationFormStep2() {
         step1, 
         step2, 
         file: currentFile, 
-        seniorCitizenIdFiles, 
-        pwdIdFiles, 
-        governmentIdFiles, 
+        seniorCitizenIdFiles: seniorCitizenIdFilesRef.current, 
+        pwdIdFiles: pwdIdFilesRef.current, 
+        governmentIdFiles: governmentIdFilesRef.current,
+        depedIdFiles: depedIdFilesRef.current,
         reservationId, 
         isEdit, 
         userEmail,
         originalType: originalType, // Pass original type to next step
         typeChangedToGroup: typeChangedToGroup, // Flag indicating type changed to group
+        originalStatus: originalStatus, // Pass original status to preserve it
+        fromCheckInOut: fromCheckInOut, // Pass check-in/out context
+        activeTab: activeTab, // Pass active tab
+        filters: filters // Pass filters
       },
     });
   };

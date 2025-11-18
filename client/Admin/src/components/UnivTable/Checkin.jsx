@@ -46,9 +46,10 @@ export default function Checkin({
   // Check if user can checkout (only Superintendent)
   const role = (typeof window !== 'undefined' && localStorage.getItem('userRole')) || '';
   const canCheckout = role === 'SUPERINTENDENT';
+  const isCRMSTeam = role === 'CRMS TEAM' || role === 'CRMS Team';
 
   const itemsPerPage = 15;
-  const columns = useMemo(() => ["Name", "Email", "Service Type", "Facility Name", "Departure Date", "Actions"], []);
+  const columns = useMemo(() => ["Name", "Email", "Service Type", "Facility Name", "Departure Date", "Checked In By", "Actions"], []);
   
   const fetchCheckinData = useCallback(async (page = currentPage, query = searchQuery, appliedFilters = filters, showLoading = true) => {
     try {
@@ -82,6 +83,7 @@ export default function Checkin({
         serviceType: prettifyServiceType(r.serviceType) || "N/A",
         facilityName: r.facilityName || "N/A",
         departureDate: formatDateYMDToLong(r.dateOfDeparture),
+        checkedInBy: r.checkedInBy || "N/A",
         _raw: r,
       }));
       
@@ -153,6 +155,32 @@ export default function Checkin({
   };
 
   const renderActions = (row) => {
+    // CRMS Team can only see details
+    if (isCRMSTeam) {
+      return (
+        <>
+          <button 
+            className={styles["univ-approve-btn"]} 
+            onClick={() => {
+              if (!row.id || row.id === "N/A") {
+                alert("Invalid reservation ID. Cannot view details.");
+                return;
+              }
+              navigate(`/checkin/${row.id}/details`, {
+                state: {
+                  activeTab: 'Checkin',
+                  filters,
+                  searchQuery,
+                  currentPage
+                }
+              });
+            }}
+          >
+            See Detail
+          </button>
+        </>
+      );
+    }
     if (!canCheckout) {
       return (
         <>
@@ -189,6 +217,7 @@ export default function Checkin({
             }
             navigate(`/reservations/${row.id}/edit`, {
               state: {
+                fromCheckInOut: true,
                 activeTab: 'Checkin',
                 filters,
                 searchQuery,
@@ -210,7 +239,7 @@ export default function Checkin({
     );
   };
 
-  const renderMenu = canCheckout ? (row) => [
+  const renderMenu = (canCheckout || isCRMSTeam) ? (row) => [
     {
       label: "See Details",
       onClick: () => {

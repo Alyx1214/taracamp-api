@@ -141,7 +141,7 @@ function IDUploadForm({ idType = 'pwd' }) {
   const initializeFiles = () => {
     const stateFiles = getStateFiles();
     const validStateFiles = Array.isArray(stateFiles) && stateFiles.length > 0 
-      ? stateFiles.filter(f => f && (f instanceof File || f.name))
+      ? stateFiles.filter(f => f && (f instanceof File || f.name || f.url))
       : [];
     
     if (validStateFiles.length > 0) {
@@ -165,12 +165,10 @@ function IDUploadForm({ idType = 'pwd' }) {
   const fileInputRef = useRef();
   const mountedRef = useRef(false);
 
-  // Update filesRef when files change
+  // Always update filesRef when files change (including when files are deleted)
   useEffect(() => {
-    if (files.length > 0) {
-      filesRef.current = files;
-      fileCache[cacheKey] = files;
-    }
+    filesRef.current = files;
+    fileCache[cacheKey] = files;
   }, [files, cacheKey]);
 
   // Initialize files on mount and update when location.state changes
@@ -178,9 +176,10 @@ function IDUploadForm({ idType = 'pwd' }) {
     if (!mountedRef.current) {
       const stateFiles = getStateFiles();
       const validStateFiles = Array.isArray(stateFiles) && stateFiles.length > 0 
-        ? stateFiles.filter(f => f && (f instanceof File || f.name))
+        ? stateFiles.filter(f => f && (f instanceof File || f.name || f.url))
         : [];
       
+      // On initial mount, always set files from state if they exist (like letter of intent)
       if (validStateFiles.length > 0) {
         setFiles(validStateFiles);
         filesRef.current = validStateFiles;
@@ -196,21 +195,43 @@ function IDUploadForm({ idType = 'pwd' }) {
 
     const stateFiles = getStateFiles();
     const validStateFiles = Array.isArray(stateFiles) && stateFiles.length > 0 
-      ? stateFiles.filter(f => f && (f instanceof File || f.name))
+      ? stateFiles.filter(f => f && (f instanceof File || f.name || f.url))
       : [];
     
     if (validStateFiles.length > 0) {
-      const currentFiles = filesRef.current.length > 0 ? filesRef.current : files;
-      const currentFileNames = currentFiles.map(f => f?.name || '').filter(Boolean).sort().join(',');
-      const stateFileNames = validStateFiles.map(f => f?.name || '').filter(Boolean).sort().join(',');
+      // Only update if state files are different from current files
+      // This prevents restoring deleted files when navigating back
+      const currentFiles = files.length > 0 ? files : (filesRef.current.length > 0 ? filesRef.current : []);
+      // Compare files by both name and URL to handle files with URL but no name
+      const currentFileKeys = currentFiles.map(f => {
+        if (f instanceof File) return f.name;
+        return f?.name || f?.url || '';
+      }).filter(Boolean).sort().join(',');
+      const stateFileKeys = validStateFiles.map(f => {
+        if (f instanceof File) return f.name;
+        return f?.name || f?.url || '';
+      }).filter(Boolean).sort().join(',');
       
-      if (currentFileNames !== stateFileNames) {
+      // Only restore from state if files are different AND we don't have current files
+      // This ensures deleted files don't come back
+      if (currentFileKeys !== stateFileKeys && currentFiles.length === 0) {
+        setFiles(validStateFiles);
+        filesRef.current = validStateFiles;
+        fileCache[cacheKey] = validStateFiles;
+      } else if (currentFileKeys !== stateFileKeys && currentFiles.length > 0) {
+        // If we have current files, prefer them over state files (preserve deletions)
+        // Update cache with current files instead
+        fileCache[cacheKey] = currentFiles;
+        filesRef.current = currentFiles;
+      } else if (currentFileKeys === stateFileKeys && currentFiles.length === 0 && validStateFiles.length > 0) {
+        // If files match but we don't have current files, set them (handles initial load)
         setFiles(validStateFiles);
         filesRef.current = validStateFiles;
         fileCache[cacheKey] = validStateFiles;
       }
     } else if (files.length === 0 && fileCache[cacheKey] && fileCache[cacheKey].length > 0) {
-      // Use cache if files are empty
+      // Only use cache if we don't have any current files
+      // This prevents restoring deleted files
       setFiles(fileCache[cacheKey]);
       filesRef.current = fileCache[cacheKey];
     }
@@ -361,14 +382,58 @@ function IDUploadForm({ idType = 'pwd' }) {
     }
   }, [isPrivateAndIndividual, hasSeniors, idType, step1, step2, navigate, location.state, reservationId, isEdit, userEmail, originalType, typeChangedToGroup]);
 
+  const getCurrentStepFiles = () => {
+    if (files.length > 0) return files;
+    if (filesRef.current && filesRef.current.length > 0) return filesRef.current;
+    return [];
+  };
+
   const handleGoBack = () => {
-    const currentFiles = filesRef.current.length > 0 ? filesRef.current : files;
+    // Preserve all files when going back (letter of intent, ID files, etc.)
+    const letterOfIntentFile = location.state?.file || null;
+    const seniorCitizenIdFiles = location.state?.seniorCitizenIdFiles || [];
+    const pwdIdFiles = location.state?.pwdIdFiles || [];
+    const governmentIdFiles = location.state?.governmentIdFiles || [];
+    const depedIdFiles = location.state?.depedIdFiles || [];
+    const originalStatus = location.state?.originalStatus || null;
+    const fromCheckInOut = location.state?.fromCheckInOut || false;
+    const activeTab = location.state?.activeTab || null;
+    const filters = location.state?.filters || null;
+    
+    // Get current step's files
+    const currentStepFiles = getCurrentStepFiles();
+    
+    // Build state object, preserving all files including current step's files
+    const preservedState = {
+      step1, 
+      step2, 
+      file: letterOfIntentFile,
+      seniorCitizenIdFiles,
+      pwdIdFiles,
+      governmentIdFiles,
+      depedIdFiles,
+      reservationId, 
+      isEdit, 
+      userEmail, 
+      originalType, 
+      typeChangedToGroup,
+      originalStatus,
+      fromCheckInOut,
+      activeTab,
+      filters
+    };
+    
+    // Preserve current step's files so they remain when returning to this step later
+    preservedState[config.stateKey] = currentStepFiles;
+    
+    // Navigate back to ResForm2 with all files preserved
     navigate(`/reservation-step2`, { 
-      state: { step1, step2, [config.stateKey]: currentFiles, reservationId, isEdit, userEmail, originalType, typeChangedToGroup } 
+      state: preservedState
     });
   };
 
   const handlePrevious = () => {
+    // Clear current step's files when going back
     const isGroup = !!step1?.type?.groups || !!step1?.type?.group;
     const isPrivateCategory = step1?.category?.private === true || step1?.category?.Private === true;
     const isPwdCategory = step1?.category?.pwds === true || step1?.category?.PWDs === true;
@@ -377,27 +442,58 @@ function IDUploadForm({ idType = 'pwd' }) {
     const numberOfPwds = parseInt(step1?.guests?.pwds || 0, 10) || 0;
     const hasPwds = numberOfPwds > 0;
     
-    if (idType === 'pwd') {
-      const currentFiles = filesRef.current.length > 0 ? filesRef.current : files;
+    // Helper to get preserved files state
+    const getPreservedFilesState = (clearCurrentFiles = true) => {
+      const letterOfIntentFile = location.state?.file || null;
+      const seniorCitizenIdFiles = location.state?.seniorCitizenIdFiles || [];
+      const pwdIdFiles = location.state?.pwdIdFiles || [];
+      const governmentIdFiles = location.state?.governmentIdFiles || [];
+      const depedIdFiles = location.state?.depedIdFiles || [];
+      const originalStatus = location.state?.originalStatus || null;
+      const fromCheckInOut = location.state?.fromCheckInOut || false;
+      const activeTab = location.state?.activeTab || null;
+      const filters = location.state?.filters || null;
       
+      // Build state object with all files first
+      const preservedState = {
+        step1,
+        step2,
+        file: letterOfIntentFile,
+        seniorCitizenIdFiles,
+        pwdIdFiles,
+        governmentIdFiles,
+        depedIdFiles,
+        reservationId,
+        isEdit,
+        userEmail,
+        originalType,
+        typeChangedToGroup,
+        originalStatus,
+        fromCheckInOut,
+        activeTab,
+        filters
+      };
+      
+      // Only clear the current step's files after setting all other files
+      // This ensures we don't overwrite a file array that was set above
+      const currentStepFiles = getCurrentStepFiles();
+
+      if (clearCurrentFiles) {
+        preservedState[config.stateKey] = [];
+      } else {
+        preservedState[config.stateKey] = currentStepFiles;
+      }
+      
+      return preservedState;
+    };
+    
+    if (idType === 'pwd') {
       // For private groups: always go back to Letter of Intent (step 3)
       // Even if seniors are present, we prioritize PWD ID, so we don't show senior citizen ID page
       // This applies to private groups regardless of whether they have PWD category or not
       if (isGroup && isPrivateCategory) {
         navigate(`/reservation-step3`, { 
-          state: { 
-            step1, 
-            step2, 
-            file: location.state?.file, 
-            seniorCitizenIdFiles: location.state?.seniorCitizenIdFiles || [],
-            governmentIdFiles: location.state?.governmentIdFiles || [],
-            [config.stateKey]: currentFiles,
-            reservationId,
-            isEdit,
-            userEmail,
-            originalType,
-            typeChangedToGroup
-          } 
+          state: getPreservedFilesState(false)
         });
         return;
       }
@@ -406,19 +502,7 @@ function IDUploadForm({ idType = 'pwd' }) {
       // PWD category groups only need PWD ID, not Senior Citizen ID
       if (isGroup && isPwdCategory) {
         navigate(`/reservation-step3`, { 
-          state: { 
-            step1, 
-            step2, 
-            file: location.state?.file, 
-            seniorCitizenIdFiles: location.state?.seniorCitizenIdFiles || [],
-            governmentIdFiles: location.state?.governmentIdFiles || [],
-            [config.stateKey]: currentFiles,
-            reservationId,
-            isEdit,
-            userEmail,
-            originalType,
-            typeChangedToGroup
-          } 
+          state: getPreservedFilesState(false)
         });
         return;
       }
@@ -428,18 +512,7 @@ function IDUploadForm({ idType = 'pwd' }) {
       if (hasSeniors) {
         // Go back to senior citizen ID step (for both group and individual)
         navigate(`/reservation-step3-senior`, { 
-          state: { 
-            step1, 
-            step2, 
-            file: location.state?.file, // Preserve Letter of Intent if group
-            seniorCitizenIdFiles: location.state?.seniorCitizenIdFiles || [],
-            [config.stateKey]: currentFiles,
-            reservationId,
-            isEdit,
-            userEmail,
-            originalType,
-            typeChangedToGroup
-          } 
+          state: getPreservedFilesState(false)
         });
         return;
       }
@@ -448,18 +521,7 @@ function IDUploadForm({ idType = 'pwd' }) {
       if (isGroup) {
         // For group reservations without seniors, go back to Letter of Intent upload step
         navigate(`/reservation-step3`, { 
-          state: { 
-            step1, 
-            step2, 
-            file: location.state?.file, 
-            seniorCitizenIdFiles: location.state?.seniorCitizenIdFiles || [],
-            [config.stateKey]: currentFiles,
-            reservationId,
-            isEdit,
-            userEmail,
-            originalType,
-            typeChangedToGroup
-          } 
+          state: getPreservedFilesState(false)
         });
         return;
       }
@@ -467,42 +529,33 @@ function IDUploadForm({ idType = 'pwd' }) {
       // Senior: Only check for group to go back to Letter of Intent
       if (isGroup) {
         // For group reservations, go back to Letter of Intent upload step
-        // Preserve PWD files from location.state if they exist
-        const pwdIdFiles = location.state?.pwdIdFiles || [];
-        const currentFiles = filesRef.current.length > 0 ? filesRef.current : files;
         navigate(`/reservation-step3`, { 
-          state: { 
-            step1, 
-            step2, 
-            file: location.state?.file, 
-            [config.stateKey]: currentFiles, // Senior Citizen ID files
-            pwdIdFiles, // Preserve PWD files
-            reservationId,
-            isEdit,
-            userEmail,
-            originalType,
-            typeChangedToGroup
-          } 
+          state: getPreservedFilesState(false)
         });
         return;
       }
     }
     
     // Otherwise return to step 2
-    const currentFiles = filesRef.current.length > 0 ? filesRef.current : files;
+    // Preserve files when going back to ResForm2 (parameter false = preserve, not clear)
     navigate(`/reservation-step2`, { 
-      state: { step1, step2, [config.stateKey]: currentFiles, reservationId, isEdit, userEmail, originalType, typeChangedToGroup } 
+      state: getPreservedFilesState(false)
     });
   };
 
   const handleNext = () => {
-    const currentFiles = filesRef.current.length > 0 ? filesRef.current : files;
+    // Always use current files state to ensure deletions are preserved
+    const currentFiles = files.length > 0 ? files : (filesRef.current.length > 0 ? filesRef.current : []);
     
     if (isRequired && currentFiles.length === 0) {
       setFileError(config.errorMessage);
       return;
     }
     setFileError('');
+    
+    // Update cache with current files before navigating
+    fileCache[cacheKey] = currentFiles;
+    filesRef.current = currentFiles;
     
     const letterOfIntentFile = location.state?.file || null;
     const seniorCitizenIdFiles = location.state?.seniorCitizenIdFiles || [];

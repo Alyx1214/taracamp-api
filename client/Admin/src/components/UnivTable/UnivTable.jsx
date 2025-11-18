@@ -35,6 +35,8 @@ export default function UnivTable({ columns, data, renderActions, renderMenu, re
       "Facility Name": "facilityName",
       "Arrival Date": "arrivalDate",
       "Departure Date": "departureDate",
+      "Checked In By": "checkedInBy",
+      "Checked Out By": "checkedOutBy",
       Date: "date",
     };
     // If not in mapping, convert to camelCase: "Facility Type" -> "facilityType"

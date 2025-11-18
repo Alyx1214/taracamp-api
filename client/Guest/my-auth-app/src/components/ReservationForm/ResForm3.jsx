@@ -62,20 +62,20 @@ function ReservationFormStep3() {
     }, [file]);
 
   const handleGoBack = () => {
-    // Preserve files from location.state if they exist
+    // Clear current step's file when going back
     const seniorCitizenIdFiles = location.state?.seniorCitizenIdFiles || [];
     const pwdIdFiles = location.state?.pwdIdFiles || [];
     navigate(`/reservation-step2/${type}/${facilityName}/${id}`, { 
-      state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles } 
+      state: { step1, step2, file: null, seniorCitizenIdFiles, pwdIdFiles } 
     });
   };
 
   const handlePrevious = () => {
-    // Preserve files from location.state if they exist
+    // Clear current step's file when going back
     const seniorCitizenIdFiles = location.state?.seniorCitizenIdFiles || [];
     const pwdIdFiles = location.state?.pwdIdFiles || [];
     navigate(`/reservation-step2/${type}/${facilityName}/${id}`, { 
-      state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles } 
+      state: { step1, step2, file: null, seniorCitizenIdFiles, pwdIdFiles } 
     });
   };
 

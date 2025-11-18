@@ -18,7 +18,7 @@ function ResDetails({ onClose }) {
   const [breakdown, setBreakdown] = useState(null);
   const [allAddons, setAllAddons] = useState([]);
   const [reservationId, setReservationId] = useState(null);
-  const { step1 = {}, step2 = {}, file, seniorCitizenIdFiles, seniorCitizenIdFile, pwdIdFiles, pwdIdFile, governmentIdFiles, governmentIdFile, depedIdFiles, depedIdFile, reservationId: editReservationId, isEdit, originalType, typeChangedToGroup } = location.state || {};
+  const { step1 = {}, step2 = {}, file, seniorCitizenIdFiles, seniorCitizenIdFile, pwdIdFiles, pwdIdFile, governmentIdFiles, governmentIdFile, depedIdFiles, depedIdFile, reservationId: editReservationId, isEdit, originalType, typeChangedToGroup, originalStatus, fromCheckInOut, activeTab, filters } = location.state || {};
   const selectedAddons = step2?.selectedAddons || [];
   const isGroup = step1?.type?.groups || false;
   const isIndividual = step1?.type?.individual || false;
@@ -256,6 +256,15 @@ function ResDetails({ onClose }) {
         apiPayload.addOns = addonIds;
       }
 
+      // Preserve original status when editing, especially for Checked-in or Checked-out reservations
+      // This ensures the reservation stays in its current status instead of reverting to "Confirmed"
+      if (isEdit && editReservationId && originalStatus) {
+        // Always preserve Checked-in or Checked-out status when editing
+        if (originalStatus === 'Checked-in' || originalStatus === 'Checked-out') {
+          apiPayload.status = originalStatus;
+        }
+      }
+
       let response;
       // For DepEd category, pass depedFiles; for Government category, pass governmentFiles
       if (isEdit && editReservationId) {
@@ -344,22 +353,44 @@ function ResDetails({ onClose }) {
   }
 
   if (showOverlay) {
+    // Determine which route and tab to return to after editing
+    // If editing from check-in/check-out, navigate to /checkin with the correct tab
+    // Otherwise, navigate to /reservations with Approved tab
+    let returnRoute = '/reservations';
+    let returnTab = 'Approved';
+    
+    if (fromCheckInOut && activeTab) {
+      // Map 'Checkin' to 'Check-in' and 'Checkout' to 'Check-out'
+      if (activeTab === 'Checkin') {
+        returnTab = 'Check-in';
+        returnRoute = '/checkin';
+      } else if (activeTab === 'Checkout') {
+        returnTab = 'Check-out';
+        returnRoute = '/checkin';
+      } else if (activeTab === 'Check-in' || activeTab === 'Check-out') {
+        returnTab = activeTab;
+        returnRoute = '/checkin';
+      }
+    }
+    
     return (
       <ConfirmationOverlay
-        onDone={() => navigate('/reservations', { 
+        onDone={() => navigate(returnRoute, { 
           state: { 
-            activeTab: isEdit ? 'Approved' : 'Approved', 
-            refreshTab: isEdit ? 'Approved' : 'Approved' 
+            activeTab: returnTab, 
+            refreshTab: returnTab,
+            filters: filters || null
           } 
         })}
         onReview={() => {
           if (reservationId) {
             navigate(`/reservation/${reservationId}/details`);
           } else {
-            navigate('/reservations', { 
+            navigate(returnRoute, { 
               state: { 
-                activeTab: 'Approved', 
-                refreshTab: 'Approved' 
+                activeTab: returnTab, 
+                refreshTab: returnTab,
+                filters: filters || null
               } 
             });
           }

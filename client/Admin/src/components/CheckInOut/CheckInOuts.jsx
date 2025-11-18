@@ -25,8 +25,11 @@ export default function CheckInOuts() {
 
   // Dynamic columns based on active tab
   const getColumns = () => {
-    if (activeTab === "Check-in" || activeTab === "Check-out") {
-      return ["Name", "Email", "Service Type", "Facility Type", "Departure Date", "Actions"];
+    if (activeTab === "Check-in") {
+      return ["Name", "Email", "Service Type", "Facility Type", "Departure Date", "Checked In By", "Actions"];
+    }
+    if (activeTab === "Check-out") {
+      return ["Name", "Email", "Service Type", "Facility Type", "Departure Date", "Checked Out By", "Actions"];
     }
     return ["Name", "Email", "Service Type", "Facility Type", "Arrival Date", "Actions"];
   };
@@ -35,6 +38,10 @@ export default function CheckInOuts() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState(null);
   const cancelledRef = useRef(false);
+
+  // Check user role
+  const role = (typeof window !== 'undefined' && localStorage.getItem('userRole')) || '';
+  const isCRMSTeam = role === 'CRMS TEAM' || role === 'CRMS Team';
 
   const statusForTab = (tab) => {
     if (tab === "Confirmed") return "Confirmed"; 
@@ -144,17 +151,24 @@ export default function CheckInOuts() {
           };
 
           // Use departure date for Check-in and Check-out tabs, arrival date for Confirmed
-          if (activeTab === "Check-in" || activeTab === "Check-out") {
+          if (activeTab === "Check-in") {
             return {
               ...baseData,
               departureDate: formatDateYMDToLong(r.dateOfDeparture),
-            };
-          } else {
-            return {
-              ...baseData,
-              arrivalDate: formatDateYMDToLong(r.dateOfArrival),
+              checkedInBy: r.checkedInBy || "N/A",
             };
           }
+          if (activeTab === "Check-out") {
+            return {
+              ...baseData,
+              departureDate: formatDateYMDToLong(r.dateOfDeparture),
+              checkedOutBy: r.checkedOutBy || "N/A",
+            };
+          }
+          return {
+            ...baseData,
+            arrivalDate: formatDateYMDToLong(r.dateOfArrival),
+          };
         });
         
         // Apply client-side sorting if needed
@@ -327,17 +341,24 @@ export default function CheckInOuts() {
           _raw: r,
         };
 
-        if (activeTab === "Check-in" || activeTab === "Check-out") {
+        if (activeTab === "Check-in") {
           return {
             ...baseData,
             departureDate: formatDateYMDToLong(r.dateOfDeparture),
-          };
-        } else {
-          return {
-            ...baseData,
-            arrivalDate: formatDateYMDToLong(r.dateOfArrival),
+            checkedInBy: r.checkedInBy || "N/A",
           };
         }
+        if (activeTab === "Check-out") {
+          return {
+            ...baseData,
+            departureDate: formatDateYMDToLong(r.dateOfDeparture),
+            checkedOutBy: r.checkedOutBy || "N/A",
+          };
+        }
+        return {
+          ...baseData,
+          arrivalDate: formatDateYMDToLong(r.dateOfArrival),
+        };
       });
       
       if (filters.sortBy) {
@@ -352,71 +373,154 @@ export default function CheckInOuts() {
     }
   };
 
-  const renderApprovedActions = (row) => (
-    <>
-      <button
-        className={`${styles.pillBtn} ${styles.editBtn}`}
-        onClick={() => {
-          if (!row.id || row.id === "N/A") {
-            alert("Invalid reservation ID. Cannot edit.");
-            return;
-          }
-          navigate(`/reservations/${row.id}/edit`, {
-            state: {
-              fromCheckInOut: true,
-              activeTab: activeTab,
-              filters,
+  const renderApprovedActions = (row) => {
+    // CRMS Team can only see details
+    if (isCRMSTeam) {
+      return (
+        <button
+          className={`${styles.pillBtn} ${styles.editBtn}`}
+          onClick={() => {
+            if (!row.id || row.id === "N/A") {
+              alert("Invalid reservation ID. Cannot view details.");
+              return;
             }
-          });
-        }}
-      >
-        Edit
-      </button>
-      <button
-        className={`${styles.pillBtn} ${styles.checkInBtn}`}
-        disabled={actionId === row.id || checkingIn}
-        onClick={() => promptCheckIn(row)}
-        style={{ marginLeft: 8 }}
-      >
-        {actionId === row.id && checkingIn ? 'Checking In...' : 'Check-In'}
-      </button>
-    </>
-  );
-
-  const renderCheckInActions = (row) => (
-    <>
-      <button
-        className={`${styles.pillBtn} ${styles.editBtn}`}
-        onClick={() => {
-          if (!row.id || row.id === "N/A") {
-            alert("Invalid reservation ID. Cannot edit.");
-            return;
-          }
-          navigate(`/reservations/${row.id}/edit`, {
-            state: {
-              fromCheckInOut: true,
-              activeTab: activeTab,
-              filters,
+            row.guestType === "GROUP"
+              ? navigate(`/confirmedGroup/${row.id}/details`, {
+                  state: {
+                    fromCheckInOut: true,
+                    activeTab: activeTab,
+                    filters,
+                    searchQuery,
+                  }
+                })
+              : navigate(`/confirmedIndiv/${row.id}/details`, {
+                  state: {
+                    fromCheckInOut: true,
+                    activeTab: activeTab,
+                    filters,
+                    searchQuery,
+                  }
+                });
+          }}
+        >
+          See Details
+        </button>
+      );
+    }
+    return (
+      <>
+        <button
+          className={`${styles.pillBtn} ${styles.editBtn}`}
+          onClick={() => {
+            if (!row.id || row.id === "N/A") {
+              alert("Invalid reservation ID. Cannot edit.");
+              return;
             }
-          });
-        }}
-      >
-        Edit
-      </button>
-      <button
-        className={`${styles.pillBtn} ${styles.checkOutBtn}`}
-        disabled={actionId === row.id || checkingOut}
-        onClick={() => promptCheckOut(row)}
-        style={{ marginLeft: 8 }}
-      >
-        {actionId === row.id && checkingOut ? 'Checking Out...' : 'Check-Out'}
-      </button>
-    </>
-  );
+            navigate(`/reservations/${row.id}/edit`, {
+              state: {
+                fromCheckInOut: true,
+                activeTab: activeTab,
+                filters,
+              }
+            });
+          }}
+        >
+          Edit
+        </button>
+        <button
+          className={`${styles.pillBtn} ${styles.checkInBtn}`}
+          disabled={actionId === row.id || checkingIn}
+          onClick={() => promptCheckIn(row)}
+          style={{ marginLeft: 8 }}
+        >
+          {actionId === row.id && checkingIn ? 'Checking In...' : 'Check-In'}
+        </button>
+      </>
+    );
+  };
 
-  const renderCheckOutActions = (row) => (
-    <DeleteButton row={row} />
-  );
+  const renderCheckInActions = (row) => {
+    // CRMS Team can only see details
+    if (isCRMSTeam) {
+      return (
+        <button
+          className={`${styles.pillBtn} ${styles.editBtn}`}
+          onClick={() => {
+            if (!row.id || row.id === "N/A") {
+              alert("Invalid reservation ID. Cannot view details.");
+              return;
+            }
+            navigate(`/checkin/${row.id}/details`, {
+              state: {
+                activeTab: activeTab,
+                filters,
+                searchQuery,
+              }
+            });
+          }}
+        >
+          See Details
+        </button>
+      );
+    }
+    return (
+      <>
+        <button
+          className={`${styles.pillBtn} ${styles.editBtn}`}
+          onClick={() => {
+            if (!row.id || row.id === "N/A") {
+              alert("Invalid reservation ID. Cannot edit.");
+              return;
+            }
+            navigate(`/reservations/${row.id}/edit`, {
+              state: {
+                fromCheckInOut: true,
+                activeTab: activeTab,
+                filters,
+              }
+            });
+          }}
+        >
+          Edit
+        </button>
+        <button
+          className={`${styles.pillBtn} ${styles.checkOutBtn}`}
+          disabled={actionId === row.id || checkingOut}
+          onClick={() => promptCheckOut(row)}
+          style={{ marginLeft: 8 }}
+        >
+          {actionId === row.id && checkingOut ? 'Checking Out...' : 'Check-Out'}
+        </button>
+      </>
+    );
+  };
+
+  const renderCheckOutActions = (row) => {
+    // CRMS Team can only see details
+    if (isCRMSTeam) {
+      return (
+        <button
+          className={`${styles.pillBtn} ${styles.editBtn}`}
+          onClick={() => {
+            if (!row.id || row.id === "N/A") {
+              alert("Invalid reservation ID. Cannot view details.");
+              return;
+            }
+            navigate(`/checkout/${row.id}/details`, {
+              state: {
+                activeTab: activeTab,
+                filters,
+                searchQuery,
+              }
+            });
+          }}
+        >
+          See Details
+        </button>
+      );
+    }
+    return <DeleteButton row={row} />;
+  };
 
   const [deleteId, setDeleteId] = useState(null);
 
@@ -453,17 +557,24 @@ export default function CheckInOuts() {
           _raw: r,
         };
 
-        if (activeTab === "Check-in" || activeTab === "Check-out") {
+        if (activeTab === "Check-in") {
           return {
             ...baseData,
             departureDate: formatDateYMDToLong(r.dateOfDeparture),
-          };
-        } else {
-          return {
-            ...baseData,
-            arrivalDate: formatDateYMDToLong(r.dateOfArrival),
+            checkedInBy: r.checkedInBy || "N/A",
           };
         }
+        if (activeTab === "Check-out") {
+          return {
+            ...baseData,
+            departureDate: formatDateYMDToLong(r.dateOfDeparture),
+            checkedOutBy: r.checkedOutBy || "N/A",
+          };
+        }
+        return {
+          ...baseData,
+          arrivalDate: formatDateYMDToLong(r.dateOfArrival),
+        };
       });
       
       if (filters.sortBy) {

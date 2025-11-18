@@ -18,12 +18,47 @@ function ReservationFormStep3() {
   const [file, setFile] = useState(() => {
     return location.state?.file || null;
   });
+  
   const seniorCitizenIdFiles = location.state?.seniorCitizenIdFiles || [];
   const pwdIdFiles = location.state?.pwdIdFiles || [];
   const governmentIdFiles = location.state?.governmentIdFiles || [];
+  const depedIdFiles = location.state?.depedIdFiles || [];
+  const seniorCitizenIdFilesRef = useRef(seniorCitizenIdFiles);
+  const pwdIdFilesRef = useRef(pwdIdFiles);
+  const governmentIdFilesRef = useRef(governmentIdFiles);
+  const depedIdFilesRef = useRef(depedIdFiles);
+
+  useEffect(() => {
+    if (location.state?.seniorCitizenIdFiles !== undefined) {
+      seniorCitizenIdFilesRef.current = location.state?.seniorCitizenIdFiles || [];
+    }
+  }, [location.state?.seniorCitizenIdFiles]);
+
+  useEffect(() => {
+    if (location.state?.pwdIdFiles !== undefined) {
+      pwdIdFilesRef.current = location.state?.pwdIdFiles || [];
+    }
+  }, [location.state?.pwdIdFiles]);
+
+  useEffect(() => {
+    if (location.state?.governmentIdFiles !== undefined) {
+      governmentIdFilesRef.current = location.state?.governmentIdFiles || [];
+    }
+  }, [location.state?.governmentIdFiles]);
+
+  useEffect(() => {
+    if (location.state?.depedIdFiles !== undefined) {
+      depedIdFilesRef.current = location.state?.depedIdFiles || [];
+    }
+  }, [location.state?.depedIdFiles]);
+  
   const reservationId = location.state?.reservationId || null;
   const isEdit = location.state?.isEdit || false;
   const userEmail = location.state?.userEmail || null;
+  const originalStatus = location.state?.originalStatus || null;
+  const fromCheckInOut = location.state?.fromCheckInOut || false;
+  const activeTab = location.state?.activeTab || null;
+  const filters = location.state?.filters || null;
   const [fileError, setFileError] = useState('');
   const fileInputRef = useRef();
   const prevLocationStateRef = useRef(location.state);
@@ -38,14 +73,15 @@ function ReservationFormStep3() {
   }, [location.state]);
 
   useEffect(() => {
+    const preservedState = { step1, step2, file, seniorCitizenIdFiles: seniorCitizenIdFilesRef.current, pwdIdFiles: pwdIdFilesRef.current, governmentIdFiles: governmentIdFilesRef.current, depedIdFiles: depedIdFilesRef.current, reservationId, isEdit, userEmail, originalType, typeChangedToGroup, originalStatus, fromCheckInOut, activeTab, filters };
     if (!step1 || !Object.keys(step1).length || !step2 || !Object.keys(step2).length) {
-      navigate(`/reservation-step2`, { state: { step1, step2, file } });
+      navigate(`/reservation-step2`, { state: preservedState });
     }
     // Redirect individuals directly to Step 4 since they don't need letter of intent
     if (!isGroup) {
-      navigate(`/reservation-step4`, { state: { step1, step2, file } });
+      navigate(`/reservation-step4`, { state: preservedState });
     }
-  }, [step1, step2, navigate, isGroup]);
+  }, [step1, step2, navigate, isGroup, file, reservationId, isEdit, userEmail, originalType, typeChangedToGroup, originalStatus, fromCheckInOut, activeTab, filters]);
 
   useEffect(() => {
     try {
@@ -54,11 +90,13 @@ function ReservationFormStep3() {
   }, [file]);
 
   const handleGoBack = () => {
-    navigate(`/reservation-step2`, { state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles, reservationId, isEdit, userEmail, originalType, typeChangedToGroup } });
+    // Preserve the file when going back (don't clear it)
+    navigate(`/reservation-step2`, { state: { step1, step2, file, seniorCitizenIdFiles: seniorCitizenIdFilesRef.current, pwdIdFiles: pwdIdFilesRef.current, governmentIdFiles: governmentIdFilesRef.current, depedIdFiles: depedIdFilesRef.current, reservationId, isEdit, userEmail, originalType, typeChangedToGroup, originalStatus, fromCheckInOut, activeTab, filters } });
   };
 
   const handlePrevious = () => {
-    navigate(`/reservation-step2`, { state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles, reservationId, isEdit, userEmail, originalType, typeChangedToGroup } });
+    // Preserve the file when going back (don't clear it)
+    navigate(`/reservation-step2`, { state: { step1, step2, file, seniorCitizenIdFiles: seniorCitizenIdFilesRef.current, pwdIdFiles: pwdIdFilesRef.current, governmentIdFiles: governmentIdFilesRef.current, depedIdFiles: depedIdFilesRef.current, reservationId, isEdit, userEmail, originalType, typeChangedToGroup, originalStatus, fromCheckInOut, activeTab, filters } });
   };
 
   const handleNext = () => {
@@ -84,17 +122,14 @@ function ReservationFormStep3() {
     const isPwdCategory = step1?.category?.pwds === true || step1?.category?.PWDs === true;
     const isPrivateCategory = step1?.category?.private === true || step1?.category?.Private === true;
     
-    // Preserve files from location.state if they exist
-    const seniorCitizenIdFiles = location.state?.seniorCitizenIdFiles || [];
-    const pwdIdFiles = location.state?.pwdIdFiles || [];
-    const governmentIdFiles = location.state?.governmentIdFiles || [];
-    const depedIdFiles = location.state?.depedIdFiles || [];
+    // Preserve status and navigation context using refs
+    const preservedState = { step1, step2, file, seniorCitizenIdFiles: seniorCitizenIdFilesRef.current, pwdIdFiles: pwdIdFilesRef.current, governmentIdFiles: governmentIdFilesRef.current, depedIdFiles: depedIdFilesRef.current, reservationId, isEdit, userEmail, originalType, typeChangedToGroup, originalStatus, fromCheckInOut, activeTab, filters };
     
     // For DepEd groups: route to DepEd ID upload (even if seniors present)
     // Senior citizen ID will be skipped - only DepEd ID is needed
     if (isGroup && isDepEdCategory) {
       navigate(`/reservation-step3-deped`, { 
-        state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles, depedIdFiles, reservationId, isEdit, userEmail, originalType, typeChangedToGroup }
+        state: preservedState
       });
       return;
     }
@@ -103,7 +138,7 @@ function ReservationFormStep3() {
     // Senior citizen ID will be skipped - only government ID is needed
     if (isGroup && isGovernmentCategory) {
       navigate(`/reservation-step3-government`, { 
-        state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles, depedIdFiles, reservationId, isEdit, userEmail, originalType, typeChangedToGroup }
+        state: preservedState
       });
       return;
     }
@@ -112,7 +147,7 @@ function ReservationFormStep3() {
     // Senior citizen ID will be skipped - only PWD ID is needed
     if (isGroup && isPwdCategory) {
       navigate(`/reservation-step3-pwd`, { 
-        state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles, reservationId, isEdit, userEmail, originalType, typeChangedToGroup }
+        state: preservedState
       });
       return;
     }
@@ -123,18 +158,18 @@ function ReservationFormStep3() {
       // If PWDs are present, route to PWD ID upload (optional) - prioritize PWD over senior
       if (hasPwds) {
         navigate(`/reservation-step3-pwd`, { 
-          state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles, reservationId, isEdit, userEmail, originalType, typeChangedToGroup }
+          state: preservedState
         });
       }
       // If seniors are present (and no PWDs), route to senior citizen ID upload (optional)
       else if (hasSeniors) {
         navigate(`/reservation-step3-senior`, { 
-          state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles, reservationId, isEdit, userEmail, originalType, typeChangedToGroup }
+          state: preservedState
         });
       } else {
         // Private group without seniors or PWDs: only Letter of Intent is required
         navigate(`/reservation-step4`, { 
-          state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles, reservationId, isEdit, userEmail, originalType, typeChangedToGroup } 
+          state: preservedState
         });
       }
       return;
@@ -143,15 +178,15 @@ function ReservationFormStep3() {
     // For other groups with seniors: route to senior citizen ID upload
     if (hasSeniors) {
       navigate(`/reservation-step3-senior`, { 
-        state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles, reservationId, isEdit, userEmail, originalType, typeChangedToGroup }
+        state: preservedState
       });
     } else if (hasPwds) {
       navigate(`/reservation-step3-pwd`, { 
-        state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles, reservationId, isEdit, userEmail, originalType, typeChangedToGroup }
+        state: preservedState
       });
     } else {
       navigate(`/reservation-step4`, { 
-        state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles, reservationId, isEdit, userEmail, originalType, typeChangedToGroup } 
+        state: preservedState
       });
     }
   };
