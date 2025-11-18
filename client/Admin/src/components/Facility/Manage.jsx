@@ -44,8 +44,14 @@ export default function Manage() {
                   capacity: room.capacity?.toString() || "",
                   name: room.name || "",
                   status: room.status || "Available",
-                  assignedTo: room.assignedTo ? (room.assignedTo._id ? room.assignedTo._id.toString() : room.assignedTo.toString()) : "",
-                  assignedGuests: room.assignedGuests?.toString() || "0",
+                  assignments: room.assignments && Array.isArray(room.assignments) && room.assignments.length > 0
+                    ? room.assignments.map(assignment => ({
+                        reservationId: assignment.reservationId?._id ? assignment.reservationId._id.toString() : assignment.reservationId?.toString() || "",
+                        guestsAssigned: assignment.guestsAssigned?.toString() || "0",
+                        startDate: assignment.startDate ? new Date(assignment.startDate).toISOString().split('T')[0] : "",
+                        endDate: assignment.endDate ? new Date(assignment.endDate).toISOString().split('T')[0] : "",
+                      }))
+                    : [{ reservationId: "", guestsAssigned: "0", startDate: "", endDate: "" }],
                 })),
               });
             } else {
@@ -108,15 +114,20 @@ export default function Manage() {
     loadReservations();
   }, [id, facility]);
 
-  const handleAddRow = () => {
+  const handleAddRoom = () => {
     setFormData((prev) => ({
       ...prev,
-      rooms: [...prev.rooms, { capacity: "", name: "", status: "Available", assignedTo: "", assignedGuests: "0" }],
+      rooms: [...prev.rooms, { 
+        capacity: "", 
+        name: "", 
+        status: "Available", 
+        assignments: [{ reservationId: "", guestsAssigned: "0", startDate: "", endDate: "" }]
+      }],
     }));
   };
 
   // Open delete confirmation modal
-  const handleRemoveRowClick = (index) => {
+  const handleRemoveRoomClick = (index) => {
     const room = formData.rooms[index];
     setDeleteModal({
       isOpen: true,
@@ -146,64 +157,105 @@ export default function Manage() {
     handleCloseDeleteModal();
   };
 
-  const handleRoomChange = (index, field, value) => {
+  const handleRoomChange = (roomIndex, field, value) => {
     setFormData((prev) => {
       const rooms = Array.from(prev.rooms);
-      const updatedRoom = { ...rooms[index], [field]: value };
+      const updatedRoom = { ...rooms[roomIndex], [field]: value };
       
-      // If assignedTo is changed, automatically calculate assignedGuests and set status
-      if (field === "assignedTo") {
+      // Update status based on assignments
+      if (field === "capacity" || field === "assignments") {
+        const hasActiveAssignments = updatedRoom.assignments.some(a => a.reservationId);
+        updatedRoom.status = hasActiveAssignments ? "Unavailable" : "Available";
+      }
+      
+      rooms[roomIndex] = updatedRoom;
+      return { ...prev, rooms };
+    });
+  };
+
+  const handleAssignmentChange = (roomIndex, assignmentIndex, field, value) => {
+    setFormData((prev) => {
+      const rooms = Array.from(prev.rooms);
+      const room = { ...rooms[roomIndex] };
+      const assignments = Array.from(room.assignments);
+      const assignment = { ...assignments[assignmentIndex], [field]: value };
+      
+      // If reservationId is changed, auto-calculate guests and dates
+      if (field === "reservationId") {
         if (!value) {
-          // Clear assignment - set status back to Available
-          updatedRoom.assignedGuests = "0";
-          updatedRoom.status = "Available";
+          // Clear assignment
+          assignment.guestsAssigned = "0";
+          assignment.startDate = "";
+          assignment.endDate = "";
         } else {
-          // Automatically assign guests based on room capacity and remaining unassigned guests
           const reservation = reservations.find(r => r._id === value);
           if (reservation) {
             const totalGuests = reservation.numberOfGuests?.total || 0;
-            const roomCapacity = parseInt(updatedRoom.capacity) || 0;
+            const roomCapacity = parseInt(room.capacity) || 0;
             
-            // Calculate already assigned guests to this reservation from other rooms
-            const alreadyAssigned = rooms
-              .filter((room, idx) => idx !== index && room.assignedTo === value)
-              .reduce((sum, room) => sum + (parseInt(room.assignedGuests) || 0), 0);
+            // Calculate already assigned guests to this reservation from all rooms and assignments
+            const alreadyAssigned = rooms.reduce((total, r, rIdx) => {
+              return total + r.assignments.reduce((sum, a, aIdx) => {
+                if (a.reservationId === value && !(rIdx === roomIndex && aIdx === assignmentIndex)) {
+                  return sum + (parseInt(a.guestsAssigned) || 0);
+                }
+                return sum;
+              }, 0);
+            }, 0);
             
-            // Calculate remaining unassigned guests
             const remainingUnassigned = Math.max(0, totalGuests - alreadyAssigned);
-            
-            // Automatically assign: min(room capacity, remaining unassigned guests)
             const autoAssigned = Math.min(roomCapacity, remainingUnassigned);
-            updatedRoom.assignedGuests = autoAssigned.toString();
+            assignment.guestsAssigned = autoAssigned.toString();
             
-            // Automatically set status to Unavailable when assigned
-            updatedRoom.status = "Unavailable";
+            // Auto-fill dates from reservation
+            if (reservation.dateOfArrival) {
+              assignment.startDate = new Date(reservation.dateOfArrival).toISOString().split('T')[0];
+            }
+            if (reservation.dateOfDeparture) {
+              assignment.endDate = new Date(reservation.dateOfDeparture).toISOString().split('T')[0];
+            }
           }
         }
       }
       
-      // If capacity changes and room is assigned, recalculate assigned guests
-      if (field === "capacity" && updatedRoom.assignedTo) {
-        const reservation = reservations.find(r => r._id === updatedRoom.assignedTo);
-        if (reservation) {
-          const totalGuests = reservation.numberOfGuests?.total || 0;
-          const newRoomCapacity = parseInt(value) || 0;
-          
-          // Calculate already assigned guests to this reservation from other rooms (excluding current room)
-          const alreadyAssignedFromOthers = rooms
-            .filter((room, idx) => idx !== index && room.assignedTo === updatedRoom.assignedTo)
-            .reduce((sum, room) => sum + (parseInt(room.assignedGuests) || 0), 0);
-          
-          // Calculate remaining unassigned guests (after removing current room's assignment)
-          const remainingUnassigned = Math.max(0, totalGuests - alreadyAssignedFromOthers);
-          
-          // Automatically assign: min(new room capacity, remaining unassigned guests)
-          const autoAssigned = Math.min(newRoomCapacity, remainingUnassigned);
-          updatedRoom.assignedGuests = autoAssigned.toString();
-        }
+      assignments[assignmentIndex] = assignment;
+      room.assignments = assignments;
+      
+      // Update room status
+      const hasActiveAssignments = assignments.some(a => a.reservationId);
+      room.status = hasActiveAssignments ? "Unavailable" : "Available";
+      
+      rooms[roomIndex] = room;
+      return { ...prev, rooms };
+    });
+  };
+
+  const handleAddAssignment = (roomIndex) => {
+    setFormData((prev) => {
+      const rooms = Array.from(prev.rooms);
+      const room = { ...rooms[roomIndex] };
+      room.assignments = [...room.assignments, { reservationId: "", guestsAssigned: "0", startDate: "", endDate: "" }];
+      rooms[roomIndex] = room;
+      return { ...prev, rooms };
+    });
+  };
+
+  const handleRemoveAssignment = (roomIndex, assignmentIndex) => {
+    setFormData((prev) => {
+      const rooms = Array.from(prev.rooms);
+      const room = { ...rooms[roomIndex] };
+      room.assignments = room.assignments.filter((_, idx) => idx !== assignmentIndex);
+      
+      // If no assignments left, add an empty one
+      if (room.assignments.length === 0) {
+        room.assignments = [{ reservationId: "", guestsAssigned: "0", startDate: "", endDate: "" }];
       }
       
-      rooms[index] = updatedRoom;
+      // Update room status
+      const hasActiveAssignments = room.assignments.some(a => a.reservationId);
+      room.status = hasActiveAssignments ? "Unavailable" : "Available";
+      
+      rooms[roomIndex] = room;
       return { ...prev, rooms };
     });
   };
@@ -214,15 +266,24 @@ export default function Manage() {
   };
 
   // Helper function to calculate remaining unassigned guests for a reservation
-  const getRemainingUnassignedGuests = (reservationId) => {
+  const getRemainingUnassignedGuests = (reservationId, excludeRoomIndex = null, excludeAssignmentIndex = null) => {
     if (!reservationId) return null;
     const reservation = getReservationById(reservationId);
     if (!reservation) return null;
     
     const totalGuests = reservation.numberOfGuests?.total || 0;
-    const assignedGuests = formData.rooms
-      .filter(room => room.assignedTo === reservationId)
-      .reduce((sum, room) => sum + (parseInt(room.assignedGuests) || 0), 0);
+    const assignedGuests = formData.rooms.reduce((total, room, roomIdx) => {
+      return total + room.assignments.reduce((sum, assignment, assignmentIdx) => {
+        if (assignment.reservationId === reservationId) {
+          // Exclude specific assignment if specified
+          if (excludeRoomIndex === roomIdx && excludeAssignmentIndex === assignmentIdx) {
+            return sum;
+          }
+          return sum + (parseInt(assignment.guestsAssigned) || 0);
+        }
+        return sum;
+      }, 0);
+    }, 0);
     
     return Math.max(0, totalGuests - assignedGuests);
   };
@@ -248,37 +309,51 @@ export default function Manage() {
         return;
       }
 
-      // Validate assigned guests don't exceed room capacities (shouldn't happen with auto-assignment, but check anyway)
+      // Validate assignments
       for (const room of formData.rooms) {
-        if (room.assignedTo && room.assignedGuests) {
-          const roomCapacity = parseInt(room.capacity) || 0;
-          const assignedGuests = parseInt(room.assignedGuests) || 0;
-          if (assignedGuests > roomCapacity) {
-            alert(`Room "${room.name || 'Unnamed'}" has ${assignedGuests} guests assigned but capacity is only ${roomCapacity}. Please adjust.`);
-            setLoading(false);
-            return;
+        for (const assignment of room.assignments) {
+          if (assignment.reservationId) {
+            // Validate guests assigned
+            const guestsAssigned = parseInt(assignment.guestsAssigned) || 0;
+            const roomCapacity = parseInt(room.capacity) || 0;
+            if (guestsAssigned > roomCapacity) {
+              alert(`Room "${room.name || 'Unnamed'}" has ${guestsAssigned} guests assigned but capacity is only ${roomCapacity}. Please adjust.`);
+              setLoading(false);
+              return;
+            }
+            
+            // Validate date range
+            if (!assignment.startDate || !assignment.endDate) {
+              alert(`Please provide both start and end dates for all assignments in room "${room.name || 'Unnamed'}".`);
+              setLoading(false);
+              return;
+            }
+            
+            if (new Date(assignment.endDate) < new Date(assignment.startDate)) {
+              alert(`End date must be after start date for room "${room.name || 'Unnamed'}".`);
+              setLoading(false);
+              return;
+            }
           }
         }
       }
 
-      // Split rooms into first room and extra rows for backend compatibility
-      const firstRoom = formData.rooms[0] || {};
-      const extraRows = formData.rooms.slice(1).map(room => ({
+      // Transform rooms data for backend
+      const roomsData = formData.rooms.map(room => ({
         capacity: room.capacity,
         name: room.name,
         status: room.status,
-        assignedTo: room.assignedTo || undefined,
-        assignedGuests: room.assignedTo && room.assignedGuests ? parseInt(room.assignedGuests) || 0 : undefined,
+        assignments: room.assignments
+          .filter(a => a.reservationId) // Only include assignments with a reservation
+          .map(a => ({
+            reservationId: a.reservationId,
+            guestsAssigned: parseInt(a.guestsAssigned) || 0,
+            startDate: a.startDate,
+            endDate: a.endDate,
+          })),
       }));
 
-      const response = await updateRooms(facilityId, {
-        capacity: firstRoom.capacity,
-        name: firstRoom.name,
-        status: firstRoom.status,
-        assignedTo: firstRoom.assignedTo || undefined,
-        assignedGuests: firstRoom.assignedTo && firstRoom.assignedGuests ? parseInt(firstRoom.assignedGuests) || 0 : undefined,
-        extraRows: extraRows,
-      });
+      const response = await updateRooms(facilityId, { rooms: roomsData });
 
       if (response?.error || (response?.status && response.status >= 400)) {
         throw new Error(response?.error || "Failed to save room configuration");
@@ -324,16 +399,16 @@ export default function Manage() {
           </div>
         )}
 
-        {formData.rooms.map((room, idx) => (
-          <div key={`room-${idx}`} className={styles.roomCard}>
+        {formData.rooms.map((room, roomIdx) => (
+          <div key={`room-${roomIdx}`} className={styles.roomCard}>
             <div className={styles.roomCardHeader}>
               <h4 className={styles.roomCardTitle}>
-                {room.name || `Room ${idx + 1}`}
+                {room.name || `Room ${roomIdx + 1}`}
               </h4>
               <button
                 type="button"
                 className={styles.removeBtn}
-                onClick={() => handleRemoveRowClick(idx)}
+                onClick={() => handleRemoveRoomClick(roomIdx)}
               >
                 <span className={styles.btnIcon}>×</span>
                 Remove
@@ -347,7 +422,7 @@ export default function Manage() {
                   type="text"
                   value={room.name || ""}
                   onChange={(e) =>
-                    handleRoomChange(idx, "name", e.target.value)
+                    handleRoomChange(roomIdx, "name", e.target.value)
                   }
                   placeholder="Enter room name"
                 />
@@ -359,7 +434,7 @@ export default function Manage() {
                   type="number"
                   value={room.capacity || ""}
                   onChange={(e) =>
-                    handleRoomChange(idx, "capacity", e.target.value)
+                    handleRoomChange(roomIdx, "capacity", e.target.value)
                   }
                   placeholder="Enter capacity"
                 />
@@ -370,88 +445,156 @@ export default function Manage() {
                 <select
                   value={room.status || "Available"}
                   onChange={(e) =>
-                    handleRoomChange(idx, "status", e.target.value)
+                    handleRoomChange(roomIdx, "status", e.target.value)
                   }
-                  disabled={!!room.assignedTo}
-                  title={room.assignedTo ? "Status is automatically set to Unavailable when room is assigned" : ""}
+                  disabled={room.assignments.some(a => a.reservationId)}
+                  title={room.assignments.some(a => a.reservationId) ? "Status is automatically set based on assignments" : ""}
                 >
                   <option value="Available">Available</option>
                   <option value="Unavailable">Unavailable</option>
                 </select>
               </label>
-
-              <label>
-                Assign To:
-                <select
-                  value={room.assignedTo || ""}
-                  onChange={(e) =>
-                    handleRoomChange(idx, "assignedTo", e.target.value)
-                  }
-                  disabled={loadingReservations}
-                >
-                  <option value="">-- Select Guest --</option>
-                  {reservations
-                    .filter((reservation) => {
-                      // Show reservations that have remaining unassigned guests
-                      // OR reservations that are already assigned to this room (so they remain visible even when fully accommodated)
-                      const remaining = getRemainingUnassignedGuests(reservation._id);
-                      const isCurrentlyAssigned = room.assignedTo === reservation._id;
-                      return remaining > 0 || isCurrentlyAssigned;
-                    })
-                    .map((reservation) => {
-                      const remaining = getRemainingUnassignedGuests(reservation._id);
-                      const totalGuests = reservation.numberOfGuests?.total || 0;
-                      return (
-                        <option key={reservation._id} value={reservation._id}>
-                          {reservation.guestName || "Unknown Guest"}
-                          {` - ${totalGuests} guests`}
-                          {remaining !== null && remaining < totalGuests ? ` (${remaining} remaining)` : ""}
-                        </option>
-                      );
-                    })}
-                </select>
-              </label>
             </div>
 
-            {room.assignedTo && (() => {
-              const reservation = getReservationById(room.assignedTo);
-              const roomCapacity = parseInt(room.capacity) || 0;
-              const assignedGuests = parseInt(room.assignedGuests) || 0;
-              const remainingCapacity = roomCapacity - assignedGuests;
-              const totalGuests = reservation?.numberOfGuests?.total || 0;
-              const remainingUnassigned = getRemainingUnassignedGuests(room.assignedTo);
+            {/* Assignments Section */}
+            <div className={styles.assignmentsSection}>
+              <h5 className={styles.assignmentsSectionTitle}>Room Assignments</h5>
               
-              return (
-                <div className={styles.assignmentSummary}>
+              {room.assignments.map((assignment, assignmentIdx) => (
+                <div key={`assignment-${assignmentIdx}`} className={styles.assignmentCard}>
                   <div className={styles.assignmentHeader}>
-                    <span className={styles.assignmentTitle}>Assignment Summary</span>
-                  </div>
-                  <div className={styles.assignmentContent}>
-                    <div className={styles.assignmentRow}>
-                      <span className={styles.assignmentLabel}>Guests Assigned:</span>
-                      <span className={styles.assignmentValue}>
-                        <strong>{assignedGuests}</strong> / {roomCapacity} (capacity)
-                      </span>
-                    </div>
-                    <div className={styles.assignmentRow}>
-                      <span className={styles.assignmentLabel}>Total guests in reservation:</span>
-                      <span className={styles.assignmentValue}><strong>{totalGuests}</strong></span>
-                    </div>
-                    <div className={styles.assignmentRow}>
-                      <span className={styles.assignmentLabel}>Remaining unassigned:</span>
-                      <span className={styles.assignmentValue} style={{ color: remainingUnassigned > 0 ? "#d97706" : "#059669" }}>
-                        <strong>{remainingUnassigned !== null ? remainingUnassigned : totalGuests}</strong>
-                      </span>
-                    </div>
-                    {remainingCapacity > 0 && remainingUnassigned > 0 && (
-                      <div className={styles.assignmentNote}>
-                        This room can accommodate {Math.min(remainingCapacity, remainingUnassigned)} more guest(s)
-                      </div>
+                    <span className={styles.assignmentNumber}>Assignment {assignmentIdx + 1}</span>
+                    {room.assignments.length > 1 && (
+                      <button
+                        type="button"
+                        className={styles.removeAssignmentBtn}
+                        onClick={() => handleRemoveAssignment(roomIdx, assignmentIdx)}
+                      >
+                        <span className={styles.btnIcon}>×</span>
+                      </button>
                     )}
                   </div>
+                  
+                  <div className={styles.assignmentFormRow}>
+                    <label>
+                      Assign To Guest:
+                      <select
+                        value={assignment.reservationId || ""}
+                        onChange={(e) =>
+                          handleAssignmentChange(roomIdx, assignmentIdx, "reservationId", e.target.value)
+                        }
+                        disabled={loadingReservations}
+                      >
+                        <option value="">-- Select Guest --</option>
+                        {reservations
+                          .filter((reservation) => {
+                            const remaining = getRemainingUnassignedGuests(reservation._id, roomIdx, assignmentIdx);
+                            const isCurrentlyAssigned = assignment.reservationId === reservation._id;
+                            return remaining > 0 || isCurrentlyAssigned;
+                          })
+                          .map((reservation) => {
+                            const remaining = getRemainingUnassignedGuests(reservation._id, roomIdx, assignmentIdx);
+                            const totalGuests = reservation.numberOfGuests?.total || 0;
+                            return (
+                              <option key={reservation._id} value={reservation._id}>
+                                {reservation.guestName || "Unknown Guest"}
+                                {` - ${totalGuests} guests`}
+                                {remaining !== null && remaining < totalGuests ? ` (${remaining} remaining)` : ""}
+                              </option>
+                            );
+                          })}
+                      </select>
+                    </label>
+
+                    <label>
+                      Guests Assigned:
+                      <input
+                        type="number"
+                        value={assignment.guestsAssigned || "0"}
+                        onChange={(e) =>
+                          handleAssignmentChange(roomIdx, assignmentIdx, "guestsAssigned", e.target.value)
+                        }
+                        placeholder="Number of guests"
+                        disabled={!assignment.reservationId}
+                        min="0"
+                        max={room.capacity}
+                      />
+                    </label>
+                  </div>
+
+                  <div className={styles.assignmentFormRow}>
+                    <label>
+                      Start Date:
+                      <input
+                        type="date"
+                        value={assignment.startDate || ""}
+                        onChange={(e) =>
+                          handleAssignmentChange(roomIdx, assignmentIdx, "startDate", e.target.value)
+                        }
+                        disabled={!assignment.reservationId}
+                      />
+                    </label>
+
+                    <label>
+                      End Date:
+                      <input
+                        type="date"
+                        value={assignment.endDate || ""}
+                        onChange={(e) =>
+                          handleAssignmentChange(roomIdx, assignmentIdx, "endDate", e.target.value)
+                        }
+                        disabled={!assignment.reservationId}
+                        min={assignment.startDate}
+                      />
+                    </label>
+                  </div>
+
+                  {assignment.reservationId && (() => {
+                    const reservation = getReservationById(assignment.reservationId);
+                    const roomCapacity = parseInt(room.capacity) || 0;
+                    const assignedGuests = parseInt(assignment.guestsAssigned) || 0;
+                    const totalGuests = reservation?.numberOfGuests?.total || 0;
+                    const remainingUnassigned = getRemainingUnassignedGuests(assignment.reservationId, roomIdx, assignmentIdx);
+                    
+                    return (
+                      <div className={styles.assignmentSummary}>
+                        <div className={styles.assignmentRow}>
+                          <span className={styles.assignmentLabel}>Guest Name:</span>
+                          <span className={styles.assignmentValue}>
+                            <strong>{reservation?.guestName || "Unknown Guest"}</strong>
+                          </span>
+                        </div>
+                        <div className={styles.assignmentRow}>
+                          <span className={styles.assignmentLabel}>Guests in this assignment:</span>
+                          <span className={styles.assignmentValue}>
+                            <strong>{assignedGuests}</strong> / {roomCapacity} (room capacity)
+                          </span>
+                        </div>
+                        <div className={styles.assignmentRow}>
+                          <span className={styles.assignmentLabel}>Total guests in reservation:</span>
+                          <span className={styles.assignmentValue}><strong>{totalGuests}</strong></span>
+                        </div>
+                        <div className={styles.assignmentRow}>
+                          <span className={styles.assignmentLabel}>Remaining unassigned:</span>
+                          <span className={styles.assignmentValue} style={{ color: remainingUnassigned > 0 ? "#d97706" : "#059669" }}>
+                            <strong>{remainingUnassigned !== null ? remainingUnassigned : totalGuests}</strong>
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
-              );
-            })()}
+              ))}
+
+              <button
+                type="button"
+                className={styles.addAssignmentBtn}
+                onClick={() => handleAddAssignment(roomIdx)}
+              >
+                <span className={styles.btnIcon}>+</span>
+                Add Assignment
+              </button>
+            </div>
           </div>
         ))}
 
@@ -460,7 +603,7 @@ export default function Manage() {
           <button
             type="button"
             className={styles.addBtn}
-            onClick={handleAddRow}
+            onClick={handleAddRoom}
             style={{ padding: "0.5rem 1rem" }}
           >
             <span className={styles.btnIcon}>+</span>
