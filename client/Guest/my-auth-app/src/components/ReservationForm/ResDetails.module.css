@@ -171,3 +171,25 @@
     width: 50px;
   }
 }
+
+@media (max-width: 480px) {
+  .amountLabel {
+    width: 60%;
+  }
+
+  .detailsContent {
+    padding: 20px 30px;
+  }
+
+  .detailsTable td:first-child {
+    width: 56%;
+  }
+
+  .detailsTable td:nth-child(2) {
+    width: 0;
+  }
+
+  .buttonContainer {
+    padding: 0;
+  }
+}
