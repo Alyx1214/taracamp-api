@@ -392,9 +392,11 @@ export default function Manage() {
                   <option value="">-- Select Guest --</option>
                   {reservations
                     .filter((reservation) => {
-                      // Only show reservations that have remaining unassigned guests
+                      // Show reservations that have remaining unassigned guests
+                      // OR reservations that are already assigned to this room (so they remain visible even when fully accommodated)
                       const remaining = getRemainingUnassignedGuests(reservation._id);
-                      return remaining > 0;
+                      const isCurrentlyAssigned = room.assignedTo === reservation._id;
+                      return remaining > 0 || isCurrentlyAssigned;
                     })
                     .map((reservation) => {
                       const remaining = getRemainingUnassignedGuests(reservation._id);
