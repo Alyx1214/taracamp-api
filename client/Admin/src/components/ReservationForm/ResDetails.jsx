@@ -210,21 +210,23 @@ function ResDetails({ onClose }) {
           throw new Error('Letter of Intent file is required for group reservations.');
         }
       }
-      // For private category with individual type: Senior Citizen ID is required if there are seniors
+      // For private category with individual type: Senior Citizen ID is required if there are seniors (unless PWDs are present)
       const isPrivateAndIndividual = isPrivateCategory && isIndividual;
       const isPrivateAndIndividualWithSeniors = isPrivateAndIndividual && numberOfSeniors > 0;
+      const hasPwds = (payload.numberOfPwds || 0) > 0;
       // Require Senior Citizen ID if there are seniors, EXCEPT for:
       // - gov/deped groups or individuals (only gov ID needed)
       // - PWD groups or individuals (only PWD ID needed)
       // - private groups (only Letter of Intent needed)
       // - private+individual WITHOUT seniors (no ID needed)
-      // But DO require it for private+individual WITH seniors
+      // - ANY reservation with PWDs present (PWD ID takes priority over Senior Citizen ID)
       const shouldSkipSeniorCitizenId = (isGroup && isGovernmentCategory) || 
                                        (isIndividual && isGovernmentCategory) || 
                                        (isGroup && isPwdCategory) || 
                                        (isIndividual && isPwdCategory) ||
                                        (isGroup && isPrivateCategory) ||
-                                       (isPrivateAndIndividual && !isPrivateAndIndividualWithSeniors);
+                                       (isPrivateAndIndividual && !isPrivateAndIndividualWithSeniors) ||
+                                       hasPwds; // Skip Senior Citizen ID if PWDs are present (PWD ID takes priority)
       if (numberOfSeniors > 0 && seniorCitizenFiles.length === 0 && !shouldSkipSeniorCitizenId) {
         throw new Error('At least one Senior Citizen ID file is required when there are senior citizens.');
       }

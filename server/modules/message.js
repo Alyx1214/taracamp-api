@@ -478,7 +478,7 @@ const messageModule = {
                 userId,
                 text,
                 sender: data.sender || user?.name || 'You',
-                role: data.role || null,
+                role: data.role || user?.role || null,
                 isUser: isUserMessage,
                 // Guest messages should be unread (isRead: false) until admin reads them
                 // Default to false unless explicitly set

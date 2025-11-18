@@ -130,11 +130,16 @@ function ResDetails({ onClose }) {
     });
   };
 
+  // Helper function to format currency with 2 decimal places
+  const formatCurrency = (amount) => {
+    return (amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
   // Helper function to render add-ons with label and indented items
   const renderAddOns = () => {
     const currentSelectedAddons = step2?.selectedAddons || [];
     if (!currentSelectedAddons || currentSelectedAddons.length === 0) {
-      return <tr><td>Add-ons</td><td>:</td><td>₱ 0</td></tr>;
+      return <tr><td>Add-ons</td><td>:</td><td>₱ {formatCurrency(0)}</td></tr>;
     }
     
     return (
@@ -150,7 +155,7 @@ function ResDetails({ onClose }) {
             <tr key={index}>
               <td style={{ paddingLeft: '20px' }}>• {selectedAddon.label || selectedAddon.name || 'Unknown'}</td>
               <td>:</td>
-              <td>₱ {Math.round(price).toLocaleString()}</td>
+              <td>₱ {formatCurrency(price)}</td>
             </tr>
           );
         })}
@@ -250,7 +255,7 @@ function ResDetails({ onClose }) {
     };
   }, [step1, step2, id]);
 
-  const amountText = quote != null ? `₱ ${Math.round(quote).toLocaleString()}` : '—';
+  const amountText = quote != null ? `₱ ${formatCurrency(quote)}` : '—';
 
   const data = useMemo(() => {
     const guestsTotal =
@@ -295,22 +300,23 @@ function ResDetails({ onClose }) {
         throw new Error('Arrival and departure dates are required.');
       if (!payload.timeOfArrival) throw new Error('Time of arrival is required.');
       if (!file && type === 'Group') throw new Error('Letter of Intent file is required.');
-      // For private category with individual type: Senior Citizen ID is required if there are seniors
+      // For private category with individual type: Senior Citizen ID is required if there are seniors (unless PWDs are present)
       const isPrivateAndIndividual = isPrivateCategory && isIndividual;
       const isPrivateAndIndividualWithSeniors = isPrivateAndIndividual && numberOfSeniors > 0;
+      const hasPwds = (payload.numberOfPwds || 0) > 0;
       // Require Senior Citizen ID if there are seniors, EXCEPT for:
       // - gov/deped groups or individuals (only gov ID needed)
       // - PWD groups or individuals (only PWD ID needed)
       // - private groups (Senior Citizen ID is optional, PWD ID takes priority if both present)
       // - private+individual WITHOUT seniors (no ID needed)
-      // But DO require it for:
-      // - private+individual WITH seniors
+      // - ANY reservation with PWDs present (PWD ID takes priority over Senior Citizen ID)
       const shouldSkipSeniorCitizenId = (isGroup && isGovernmentCategory) || 
                                        (isIndividual && isGovernmentCategory) || 
                                        (isGroup && isPwdCategory) || 
                                        (isIndividual && isPwdCategory) ||
                                        (isGroup && isPrivateCategory) ||
-                                       (isPrivateAndIndividual && !isPrivateAndIndividualWithSeniors);
+                                       (isPrivateAndIndividual && !isPrivateAndIndividualWithSeniors) ||
+                                       hasPwds; // Skip Senior Citizen ID if PWDs are present (PWD ID takes priority)
       if (numberOfSeniors > 0 && seniorCitizenFiles.length === 0 && !shouldSkipSeniorCitizenId) {
         throw new Error('At least one Senior Citizen ID file is required when there are senior citizens.');
       }
@@ -444,10 +450,10 @@ function ResDetails({ onClose }) {
                 <table className={styles.detailsTable}>
                   <tbody>
                     <tr><td><strong>Breakdown of Fees</strong></td><td></td><td></td></tr>
-                    <tr><td>Facility Fee</td><td>:</td><td>₱ {Math.round(breakdown.facilityFee || 0).toLocaleString()}</td></tr>
+                    <tr><td>Facility Fee</td><td>:</td><td>₱ {formatCurrency(breakdown.facilityFee || 0)}</td></tr>
                     {renderAddOns()}
-                    <tr><td>10% Service Fee</td><td>:</td><td>₱ {Math.round(breakdown.serviceFee || 0).toLocaleString()}</td></tr>
-                    <tr><td>Discount</td><td>:</td><td>₱ {Math.round(breakdown.discount || 0).toLocaleString()}</td></tr>
+                    <tr><td>10% Service Fee</td><td>:</td><td>₱ {formatCurrency(breakdown.serviceFee || 0)}</td></tr>
+                    <tr><td>Discount</td><td>:</td><td>₱ {formatCurrency(breakdown.discount || 0)}</td></tr>
                     <tr className={styles.amountRow}>
                       <td colSpan={3}>
                         <div className={styles.amountLine}></div>

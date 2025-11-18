@@ -48,15 +48,22 @@ const Calendar = ({
   const minD = minDate ? parseLooseDate(minDate) : null;
   
   // Calculate restricted date range (today to 2 months from today - these will be grayed out)
-  const today = new Date();
+  const todayNormalized = useMemo(() => {
+    const today = new Date();
+    // Normalize today to midnight for consistent date comparisons
+    return new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  }, []); // Only calculate once per component mount
+  
   const restrictedEndDate = useMemo(() => {
-    const endDate = new Date(today.getFullYear(), today.getMonth() + maxMonthsAhead, today.getDate());
+    // Calculate the end of the restricted period (2 months from today)
+    // Dates on or after this date should be available
+    const endDate = new Date(todayNormalized.getFullYear(), todayNormalized.getMonth() + maxMonthsAhead, todayNormalized.getDate());
     return endDate;
-  }, [maxMonthsAhead]);
+  }, [maxMonthsAhead, todayNormalized]);
   
   const minAllowedDate = useMemo(() => {
-    return new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  }, [today]);
+    return new Date(todayNormalized.getFullYear(), todayNormalized.getMonth(), todayNormalized.getDate());
+  }, [todayNormalized]);
 
   const reservedSet = useMemo(() => {
     const s = new Set();
@@ -111,19 +118,23 @@ const Calendar = ({
     const y = viewDate.getFullYear();
     const m = viewDate.getMonth();
     const chosen = new Date(y, m, day);
+    // Normalize to midnight for consistent comparison
+    const chosenNormalized = new Date(chosen.getFullYear(), chosen.getMonth(), chosen.getDate());
+    const restrictedEndNormalized = new Date(restrictedEndDate.getFullYear(), restrictedEndDate.getMonth(), restrictedEndDate.getDate());
 
     // Check if date is before today
-    if (chosen < minAllowedDate) {
+    if (chosenNormalized < minAllowedDate) {
       return;
     }
 
-    // Check if date is within the restricted period (within 2 months - these should be grayed out)
-    if (chosen <= restrictedEndDate) {
+    // Check if date is within the restricted period (less than 2 months away - these should be grayed out)
+    // Dates that are 2 months or more away should be available (matching server validation)
+    if (chosenNormalized < restrictedEndNormalized) {
       return;
     }
 
     // Check additional minimum date restriction if provided
-    if (minD && chosen < new Date(minD.getFullYear(), minD.getMonth(), minD.getDate())) {
+    if (minD && chosenNormalized < new Date(minD.getFullYear(), minD.getMonth(), minD.getDate())) {
       return;
     }
 
@@ -160,7 +171,7 @@ const Calendar = ({
           const m = viewDate.getMonth();
           const isToday =
             day &&
-            isSameDay(y, m, day, today);
+            isSameDay(y, m, day, todayNormalized);
 
           let isReserved = false;
           if (day) {
@@ -169,9 +180,15 @@ const Calendar = ({
           }
 
           const chosen = day ? new Date(y, m, day) : null;
-          const beforeToday = chosen && chosen < minAllowedDate; 
-          const withinRestrictedPeriod = chosen && chosen <= restrictedEndDate;
-          const beforeMin = minD && chosen && chosen < new Date(minD.getFullYear(), minD.getMonth(), minD.getDate());
+          // Normalize chosen date to midnight for consistent comparison
+          const chosenNormalized = chosen ? new Date(chosen.getFullYear(), chosen.getMonth(), chosen.getDate()) : null;
+          const restrictedEndNormalized = new Date(restrictedEndDate.getFullYear(), restrictedEndDate.getMonth(), restrictedEndDate.getDate());
+          
+          const beforeToday = chosenNormalized && chosenNormalized < minAllowedDate; 
+          // Check if date is within the restricted period (dates < 2 months from today are restricted)
+          // Dates that are 2 months or more away should be available (matching server validation)
+          const withinRestrictedPeriod = chosenNormalized && chosenNormalized < restrictedEndNormalized;
+          const beforeMin = minD && chosenNormalized && chosenNormalized < new Date(minD.getFullYear(), minD.getMonth(), minD.getDate());
           // Only mark as restricted if NOT reserved (reserved dates should show as red, not gray)
           const isRestricted = !isReserved && (beforeToday || withinRestrictedPeriod);
 

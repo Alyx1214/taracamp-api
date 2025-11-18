@@ -338,7 +338,7 @@ const reservationModule = {
             }
 
             // Skip senior citizen ID requirement for government/deped groups, government individuals, PWD category groups, PWD category individuals - only government ID or PWD ID is needed
-            // Exception: private+individual with seniors still requires Senior Citizen ID
+            // Also skip if PWDs are present (PWD ID takes priority over Senior Citizen ID)
             const isGovCategory = category === Category.GOVERNMENT || category === Category.DEPED;
             const isPwdCategory = category === Category.PWDS;
             const isPrivateCategory = category === Category.PRIVATE;
@@ -346,20 +346,21 @@ const reservationModule = {
             const isIndividualReservation = guestType === GuestType.INDIVIDUAL;
             const isPrivateAndIndividual = isPrivateCategory && isIndividualReservation;
             const isPrivateAndIndividualWithSeniors = isPrivateAndIndividual && seniorCitizens > 0;
+            const hasPwds = numberOfPwds > 0;
             
             // Require Senior Citizen ID if there are seniors, EXCEPT for:
             // - gov/deped groups or individuals (only gov ID needed)
             // - PWD groups or individuals (only PWD ID needed)
             // - private groups (Senior Citizen ID is optional, PWD ID takes priority if both present)
             // - private+individual WITHOUT seniors (no ID needed)
-            // But DO require it for:
-            // - private+individual WITH seniors
+            // - ANY reservation with PWDs present (PWD ID takes priority over Senior Citizen ID)
             const shouldSkipSeniorCitizenId = (isGroupReservation && isGovCategory) || 
                                              (isIndividualReservation && isGovCategory) || 
                                              (isGroupReservation && isPwdCategory) || 
                                              (isIndividualReservation && isPwdCategory) ||
                                              (isGroupReservation && isPrivateCategory) ||
-                                             (isPrivateAndIndividual && !isPrivateAndIndividualWithSeniors);
+                                             (isPrivateAndIndividual && !isPrivateAndIndividualWithSeniors) ||
+                                             hasPwds; // Skip Senior Citizen ID if PWDs are present (PWD ID takes priority)
             
             if (seniorCitizens > 0 && !seniorCitizenIdFile && !shouldSkipSeniorCitizenId) {
                 responseData.status = Status.BAD_REQUEST;
@@ -814,117 +815,7 @@ const reservationModule = {
             return responseData;
             }
 
-            // Try cache first (but skip if cache has old structure without guest counts)
-            const cacheKey = `reservation_by_id:${reservationId}`;
-            try {
-                const cachedResult = await safeRedisOperations.get(cacheKey);
-                if (cachedResult) {
-                    const parsed = JSON.parse(cachedResult);
-                    // Check if cached data has guest count details (new format)
-                    // If not, skip cache and fetch fresh from database
-                    if (parsed.reservation?.numberOfGuests?.adult !== undefined ||
-                        parsed.reservation?.numberOfGuests?.children !== undefined ||
-                        parsed.reservation?.numberOfGuests?.pwds !== undefined ||
-                        parsed.reservation?.numberOfGuests?.seniorCitizen !== undefined) {
-                        responseData.status = Status.OK;
-                        responseData.error = null;
-                        
-                        // Ensure arrays are always present, even if empty
-                        let seniorCitizenIdFiles = Array.isArray(parsed.reservation.seniorCitizenIdFiles) 
-                            ? parsed.reservation.seniorCitizenIdFiles 
-                            : [];
-                        let pwdIdFiles = Array.isArray(parsed.reservation.pwdIdFiles) 
-                            ? parsed.reservation.pwdIdFiles 
-                            : [];
-                        
-                        // Regenerate signed URLs for senior citizen ID files
-                        if (seniorCitizenIdFiles.length > 0) {
-                            const seniorUrlPromises = seniorCitizenIdFiles.map(async (file) => {
-                                if (!file.path) return file;
-                                try {
-                                    const [signedUrl] = await bucket.file(file.path).getSignedUrl({
-                                        version: 'v4',
-                                        expires: Date.now() + 1000 * 60 * 60,
-                                        action: 'read',
-                                    });
-                                    return {
-                                        ...file,
-                                        url: signedUrl,
-                                    };
-                                } catch (err) {
-                                    console.warn('Error generating signed URL for Senior Citizen ID file from cache:', err);
-                                    return file;
-                                }
-                            });
-                            seniorCitizenIdFiles = await Promise.all(seniorUrlPromises);
-                        }
-                        
-                        // Regenerate signed URLs for PWD ID files
-                        if (pwdIdFiles.length > 0) {
-                            const pwdUrlPromises = pwdIdFiles.map(async (file) => {
-                                if (!file.path) return file;
-                                try {
-                                    const [signedUrl] = await bucket.file(file.path).getSignedUrl({
-                                        version: 'v4',
-                                        expires: Date.now() + 1000 * 60 * 60,
-                                        action: 'read',
-                                    });
-                                    return {
-                                        ...file,
-                                        url: signedUrl,
-                                    };
-                                } catch (err) {
-                                    console.warn('Error generating signed URL for PWD ID file from cache:', err);
-                                    return file;
-                                }
-                            });
-                            pwdIdFiles = await Promise.all(pwdUrlPromises);
-                        }
-                        
-                        // Regenerate signed URL for letter of intent if path exists
-                        let letterOfIntentFile = null;
-                        if (parsed.reservation.letterOfIntentFile) {
-                            // If it's already a URL, use it; otherwise try to regenerate from path
-                            if (typeof parsed.reservation.letterOfIntentFile === 'string') {
-                                // It's already a URL, use it
-                                letterOfIntentFile = parsed.reservation.letterOfIntentFile;
-                            }
-                        } else {
-                            // Try to find the file path and generate URL
-                            try {
-                                let loiPath = null;
-                                if (parsed.reservation.letterOfIntentFileId) {
-                                    const f = await dbHelper.findOne('file', { _id: parsed.reservation.letterOfIntentFileId });
-                                    loiPath = f?.path ?? null;
-                                } else {
-                                    const f = await dbHelper.findOne('file', { reservationId, kind: FileKind.LETTER_OF_INTENT });
-                                    loiPath = f?.path ?? null;
-                                }
-                                if (loiPath) {
-                                    [letterOfIntentFile] = await bucket.file(loiPath).getSignedUrl({
-                                        version: 'v4',
-                                        expires: Date.now() + 1000 * 60 * 60,
-                                        action: 'read',
-                                    });
-                                }
-                            } catch (loiError) {
-                                console.warn('Error generating signed URL for LOI file from cache:', loiError);
-                            }
-                        }
-                        
-                        parsed.reservation.seniorCitizenIdFiles = seniorCitizenIdFiles;
-                        parsed.reservation.pwdIdFiles = pwdIdFiles;
-                        parsed.reservation.letterOfIntentFile = letterOfIntentFile;
-                        
-                        responseData.reservation = parsed.reservation;
-                        return responseData;
-                    }
-                    // Cache has old format, invalidate it and fetch fresh
-                    await safeRedisOperations.del(cacheKey);
-                }
-            } catch (cacheError) {
-                console.warn('Cache read error for getReservationById:', cacheError);
-            }
+            // Cache removed - always fetch fresh from database
 
             const reservation = await dbHelper.findOne('reservation', { _id: reservationId });
             const facilityDoc = reservation?.facility
@@ -1052,6 +943,142 @@ const reservationModule = {
                 console.warn('Error fetching PWD ID files:', pwdError);
             }
 
+            // Fetch Government ID files
+            let governmentIdFiles = [];
+            let governmentIdFile = null;
+            let depedIdFile = null;
+            try {
+                // Try to find files by reservationId and kind
+                let govFiles = await dbHelper.find('file', { 
+                    reservationId, 
+                    kind: FileKind.GOVERNMENT_ID 
+                });
+                
+                // If no files found, try alternative queries
+                if (!govFiles || govFiles.length === 0) {
+                    // Try finding all files for this reservation and filter by path
+                    const allReservationFiles = await dbHelper.find('file', { reservationId });
+                    if (allReservationFiles && allReservationFiles.length > 0) {
+                        // Filter for government ID files by checking path (files are stored in 'government_id/' folder)
+                        govFiles = allReservationFiles.filter(file => 
+                            file.kind === FileKind.GOVERNMENT_ID || 
+                            (file.path && (file.path.includes('government_id/') || file.path.startsWith('government_id/')))
+                        );
+                    }
+                    
+                    // If still no files, try finding by userId and kind (for older reservations where reservationId might not be set)
+                    if ((!govFiles || govFiles.length === 0) && reservation.userId) {
+                        const userIdFiles = await dbHelper.find('file', { 
+                            userId: reservation.userId,
+                            kind: FileKind.GOVERNMENT_ID 
+                        });
+                        if (userIdFiles && userIdFiles.length > 0) {
+                            // Filter by path to ensure they're government ID files
+                            govFiles = userIdFiles.filter(file => 
+                                file.path && (file.path.includes('government_id/') || file.path.startsWith('government_id/'))
+                            );
+                        }
+                    }
+                }
+                
+                if (govFiles && govFiles.length > 0) {
+                    const govPromises = govFiles.map(async (file) => {
+                        try {
+                            const [signedUrl] = await bucket.file(file.path).getSignedUrl({
+                                version: 'v4',
+                                expires: Date.now() + 1000 * 60 * 60,
+                                action: 'read',
+                            });
+                            return {
+                                url: signedUrl,
+                                name: file.originalname || file.name || 'Government ID',
+                                path: file.path,
+                            };
+                        } catch (err) {
+                            console.warn('Error generating signed URL for Government ID file:', err);
+                            return null;
+                        }
+                    });
+                    governmentIdFiles = (await Promise.all(govPromises)).filter(Boolean);
+                    
+                    // Set the first file as governmentIdFile and/or depedIdFile based on category
+                    // Both Government and DepEd categories use GOVERNMENT_ID file kind
+                    // For DepEd, set both depedIdFile and governmentIdFile (they're the same file)
+                    if (governmentIdFiles.length > 0) {
+                        const firstFile = governmentIdFiles[0];
+                        // Extract URL - handle both object with url property and direct string URL
+                        let fileUrl = null;
+                        if (typeof firstFile === 'string') {
+                            fileUrl = firstFile;
+                        } else if (firstFile && typeof firstFile === 'object') {
+                            fileUrl = firstFile.url || null;
+                        }
+                        
+                        if (fileUrl) {
+                            const category = reservation.category;
+                            // Use strict comparison with Category constants
+                            // Category.DEPED = 'DepEd', Category.GOVERNMENT = 'Government'
+                            if (category === Category.DEPED || String(category).trim() === 'DepEd') {
+                                // DepEd uses the same file as Government ID, so set both
+                                depedIdFile = fileUrl;
+                                governmentIdFile = fileUrl;
+                            } else {
+                                // For Government category or any other category with government ID files, set governmentIdFile
+                                governmentIdFile = fileUrl;
+                            }
+                        }
+                    }
+                }
+            } catch (govError) {
+                // Silently handle error - files may not exist for this reservation
+            }
+
+            // Fetch MOA file
+            let moaFile = null;
+            try {
+                const moaFileDoc = await dbHelper.findOne('file', { 
+                    reservationId, 
+                    kind: FileKind.MEMORANDUM_OF_AGREEMENT 
+                });
+                if (moaFileDoc?.path) {
+                    try {
+                        const [signedUrl] = await bucket.file(moaFileDoc.path).getSignedUrl({
+                            version: 'v4',
+                            expires: Date.now() + 1000 * 60 * 60,
+                            action: 'read',
+                        });
+                        moaFile = signedUrl;
+                    } catch (err) {
+                        console.warn('Error generating signed URL for MOA:', err);
+                    }
+                }
+            } catch (moaError) {
+                // Silently handle error - file may not exist for this reservation
+            }
+
+            // Fetch Service Contract file
+            let serviceContractFile = null;
+            try {
+                const serviceContractFileDoc = await dbHelper.findOne('file', { 
+                    reservationId, 
+                    kind: FileKind.SERVICE_CONTRACT 
+                });
+                if (serviceContractFileDoc?.path) {
+                    try {
+                        const [signedUrl] = await bucket.file(serviceContractFileDoc.path).getSignedUrl({
+                            version: 'v4',
+                            expires: Date.now() + 1000 * 60 * 60,
+                            action: 'read',
+                        });
+                        serviceContractFile = signedUrl;
+                    } catch (err) {
+                        console.warn('Error generating signed URL for Service Contract:', err);
+                    }
+                }
+            } catch (serviceContractError) {
+                // Silently handle error - file may not exist for this reservation
+            }
+
             let nonAvailabilityUrl = null;
             let hasNonAvailabilityCert = false;
             try {
@@ -1103,6 +1130,11 @@ const reservationModule = {
             // Ensure arrays are always returned, even if empty
             reservationObject.seniorCitizenIdFiles = Array.isArray(seniorCitizenIdFiles) ? seniorCitizenIdFiles : [];
             reservationObject.pwdIdFiles = Array.isArray(pwdIdFiles) ? pwdIdFiles : [];
+            reservationObject.governmentIdFiles = Array.isArray(governmentIdFiles) ? governmentIdFiles : [];
+            reservationObject.governmentIdFile = governmentIdFile;
+            reservationObject.depedIdFile = depedIdFile;
+            reservationObject.moaFile = moaFile;
+            reservationObject.serviceContractFile = serviceContractFile;
             
             // Include user email (account email) if available
             reservationObject.userEmail = userEmail;
@@ -1112,16 +1144,7 @@ const reservationModule = {
                 reservationObject.emergencyContactPerson = reservation.emergencyContactPerson || '';
             }
 
-            // Cache the result (without signed URLs for longer TTL)
-            try {
-                const cacheData = { ...reservationObject };
-                delete cacheData.letterOfIntentFile;
-                delete cacheData.nonAvailabilityCertFile;
-                
-                await safeRedisOperations.set(cacheKey, JSON.stringify({ reservation: cacheData }), { EX: 60 }); // 1 minute TTL
-            } catch (cacheError) {
-                console.warn('Cache write error for getReservationById:', cacheError);
-            }
+            // Cache removed - no longer caching reservation data
 
             responseData.status = Status.OK;
             responseData.error = null;
@@ -2660,16 +2683,10 @@ const reservationModule = {
                 return responseData;
             }
 
-            const blockingStatuses = [
-                ReservationStatus.PENDING,
-                ReservationStatus.APPROVED,
-                ReservationStatus.CONFIRMED,
-                ReservationStatus.CHECKED_IN,
-            ];
-
+            // Only check for CONFIRMED reservations - facilities are only unavailable if reservation is confirmed
             const query = {
                 facility: facilityDoc._id,
-                status: { $in: blockingStatuses, },
+                status: ReservationStatus.CONFIRMED,
                 dateOfArrival: { $lt: endDate, },
                 dateOfDeparture: { $gt: startDate, },
             };

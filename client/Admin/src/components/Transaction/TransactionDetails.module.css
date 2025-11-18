@@ -77,9 +77,9 @@
   font-weight: 700;
   font-size: 1rem;
   color: #1E3C24;
-  padding: 0.3rem 0.5rem 0.3rem 0;
+  padding: 2rem 2rem 2rem 0;
   letter-spacing: 0.5px;
-  width: 200px;
+  width: 400px;
 }
 
 .transaction-details-separator {
