@@ -706,16 +706,17 @@ const facilityModule = {
     },
 
     /**
-     * Fetches all available dates for a given facility.
+     * Fetches all unavailable dates for a given facility.
+     * Returns dates that are either in the past or have blocking reservations (pending, approved, confirmed, checked-in).
      * @param {Object} dbHelper - The database helper for database operations.
      * @param {string} facilityId - The ID of the facility to check availability for.
-     * @returns {Object} Response data with status, error, and an array of available dates on success.
+     * @returns {Object} Response data with status, error, and an array of unavailable dates on success.
      */
-    getAvailableDatesByFacility: async (dbHelper, facilityId) => {
+    getUnavailableDatesByFacility: async (dbHelper, facilityId) => {
         const responseData = {
             status: Status.INTERNAL_SERVER_ERROR,
-            error: 'Error fetching available dates',
-            availableDates: [],
+            error: 'Error fetching unavailable dates',
+            unavailableDates: [],
         };
 
         try {
@@ -732,87 +733,200 @@ const facilityModule = {
                 return responseData;
             }
 
-            // Check if facility is available for booking
-            if (facility.status !== FacilityStatus.AVAILABLE) {
-                responseData.status = Status.OK;
-                responseData.error = null;
-                responseData.availableDates = []; // Return empty array if facility is unavailable
-                return responseData;
-            }
-
             const todayYmd = toAppYMD(new Date());
             const today = fromAppYMD(todayYmd) || new Date();
             const endDate = new Date(today);
             endDate.setUTCMonth(endDate.getUTCMonth() + 6);
 
+            // Get only CONFIRMED reservations
             const reservations = await dbHelper.find('reservation', {
                 facility: facilityId,
-                status: { $in: BLOCKING_RESERVATION_STATUSES, },
+                status: ReservationStatus.CONFIRMED,
                 dateOfArrival: { $lt: endDate, },
                 dateOfDeparture: { $gt: today, },
             });
 
-            const unavailableDates = new Set();
-            reservations.forEach((reservation) => {
-                const arrivalYmd = toAppYMD(reservation.dateOfArrival);
-                const departureYmd = toAppYMD(reservation.dateOfDeparture);
-                if (!arrivalYmd || !departureYmd) return;
+            const unavailableDatesSet = new Set();
+            const todayYmdStr = toAppYMD(today);
+            const endDateYmdStr = toAppYMD(endDate);
 
-                const arrival = fromAppYMD(arrivalYmd);
-                const checkout = fromAppYMD(departureYmd);
-                if (!arrival || !checkout) return;
-                if (arrival > checkout) return;
-
-                for (let cur = new Date(arrival); cur <= checkout; cur = addAppDays(cur, 1)) {
-                    const ymd = toAppYMD(cur);
-                    if (ymd) unavailableDates.add(ymd);
-                }
-            });
-
-            // First, collect all potentially available dates
-            const allAvailableDates = [];
-            for (let currentDate = new Date(today); currentDate <= endDate; currentDate = addAppDays(currentDate, 1)) {
-                const dateString = toAppYMD(currentDate);
-                if (dateString && !unavailableDates.has(dateString)) {
-                    allAvailableDates.push(dateString);
-                }
+            // For Dormitory facilities, mark dates as unavailable if there are confirmed reservations
+            // Each confirmed reservation means a room is booked, so those dates are unavailable
+            // For other facilities (Cottage, Conference), mark all reservation dates as unavailable
+            if (facility.facilityType === FacilityType.DORMITORY) {
+                // Calculate total capacity of available rooms (rooms with status === 'Available' and not assigned)
+                // Filter out any null/undefined rooms and ensure we only count valid available rooms
+                const availableRooms = Array.isArray(facility.rooms) 
+                    ? facility.rooms.filter(room => 
+                        room && 
+                        room.status === 'Available' && 
+                        !room.assignedTo &&
+                        Number(room.capacity) > 0
+                      )
+                    : [];
+                const totalAvailableCapacity = availableRooms.reduce((sum, room) => {
+                    const roomCapacity = Number(room.capacity) || 0;
+                    return sum + roomCapacity;
+                }, 0);
+                
+                // Track total guests per date from all reservations
+                const totalGuestsByDate = new Map();
+                
+                reservations.forEach((reservation) => {
+                    const totalGuests = reservation.numberOfGuests?.total || 0;
+                    if (totalGuests <= 0) return;
+                    
+                    let arrivalYmd = null;
+                    let departureYmd = null;
+                    
+                    if (reservation.dateOfArrival) {
+                        const arrivalDate = reservation.dateOfArrival instanceof Date 
+                            ? reservation.dateOfArrival 
+                            : new Date(reservation.dateOfArrival);
+                        const arrivalStr = arrivalDate.toISOString();
+                        const arrivalMatch = arrivalStr.match(/^(\d{4}-\d{2}-\d{2})/);
+                        if (arrivalMatch) {
+                            arrivalYmd = arrivalMatch[1];
+                        } else {
+                            arrivalYmd = toAppYMD(reservation.dateOfArrival);
+                        }
+                    }
+                    
+                    if (reservation.dateOfDeparture) {
+                        const departureDate = reservation.dateOfDeparture instanceof Date 
+                            ? reservation.dateOfDeparture 
+                            : new Date(reservation.dateOfDeparture);
+                        const departureStr = departureDate.toISOString();
+                        const departureMatch = departureStr.match(/^(\d{4}-\d{2}-\d{2})/);
+                        if (departureMatch) {
+                            departureYmd = departureMatch[1];
+                        } else {
+                            departureYmd = toAppYMD(reservation.dateOfDeparture);
+                        }
+                    }
+                    
+                    if (!arrivalYmd || !departureYmd || arrivalYmd >= departureYmd) return;
+                    
+                    const [arrYear, arrMonth, arrDay] = arrivalYmd.split('-').map(Number);
+                    const [depYear, depMonth, depDay] = departureYmd.split('-').map(Number);
+                    if (!arrYear || !arrMonth || !arrDay || !depYear || !depMonth || !depDay) return;
+                    
+                    let currentYear = arrYear;
+                    let currentMonth = arrMonth;
+                    let currentDay = arrDay;
+                    
+                    while (true) {
+                        const currentYmd = `${currentYear}-${String(currentMonth).padStart(2, '0')}-${String(currentDay).padStart(2, '0')}`;
+                        
+                        // Only track dates from today onwards and within 6-month window
+                        if (currentYmd >= todayYmdStr && currentYmd <= endDateYmdStr) {
+                            // Sum up total guests for this date
+                            const currentGuests = totalGuestsByDate.get(currentYmd) || 0;
+                            totalGuestsByDate.set(currentYmd, currentGuests + totalGuests);
+                        }
+                        
+                        if (currentYmd >= departureYmd) break;
+                        
+                        const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
+                        currentDay++;
+                        if (currentDay > daysInMonth) {
+                            currentDay = 1;
+                            currentMonth++;
+                            if (currentMonth > 12) {
+                                currentMonth = 1;
+                                currentYear++;
+                            }
+                        }
+                    }
+                });
+                
+                // Mark dates as unavailable only if total guests >= total available capacity
+                totalGuestsByDate.forEach((totalGuests, dateYmd) => {
+                    // Mark as unavailable if:
+                    // 1. There are available rooms but not enough capacity (totalGuests >= totalAvailableCapacity)
+                    // 2. There are no available rooms but there are reservations (totalAvailableCapacity === 0 && totalGuests > 0)
+                    if ((totalAvailableCapacity > 0 && totalGuests >= totalAvailableCapacity) || 
+                        (totalAvailableCapacity === 0 && totalGuests > 0)) {
+                        unavailableDatesSet.add(dateYmd);
+                    }
+                });
+            } else {
+                // For non-dormitory facilities (Cottage, Conference), mark all reservation dates as unavailable
+                reservations.forEach((reservation) => {
+                    let arrivalYmd = null;
+                    let departureYmd = null;
+                    
+                    if (reservation.dateOfArrival) {
+                        const arrivalDate = reservation.dateOfArrival instanceof Date 
+                            ? reservation.dateOfArrival 
+                            : new Date(reservation.dateOfArrival);
+                        const arrivalStr = arrivalDate.toISOString();
+                        const arrivalMatch = arrivalStr.match(/^(\d{4}-\d{2}-\d{2})/);
+                        if (arrivalMatch) {
+                            arrivalYmd = arrivalMatch[1];
+                        } else {
+                            arrivalYmd = toAppYMD(reservation.dateOfArrival);
+                        }
+                    }
+                    
+                    if (reservation.dateOfDeparture) {
+                        const departureDate = reservation.dateOfDeparture instanceof Date 
+                            ? reservation.dateOfDeparture 
+                            : new Date(reservation.dateOfDeparture);
+                        const departureStr = departureDate.toISOString();
+                        const departureMatch = departureStr.match(/^(\d{4}-\d{2}-\d{2})/);
+                        if (departureMatch) {
+                            departureYmd = departureMatch[1];
+                        } else {
+                            departureYmd = toAppYMD(reservation.dateOfDeparture);
+                        }
+                    }
+                    
+                    if (!arrivalYmd || !departureYmd || arrivalYmd >= departureYmd) return;
+                    
+                    const [arrYear, arrMonth, arrDay] = arrivalYmd.split('-').map(Number);
+                    const [depYear, depMonth, depDay] = departureYmd.split('-').map(Number);
+                    if (!arrYear || !arrMonth || !arrDay || !depYear || !depMonth || !depDay) return;
+                    
+                    let currentYear = arrYear;
+                    let currentMonth = arrMonth;
+                    let currentDay = arrDay;
+                    
+                    while (true) {
+                        const currentYmd = `${currentYear}-${String(currentMonth).padStart(2, '0')}-${String(currentDay).padStart(2, '0')}`;
+                        // Only include dates from today onwards and within 6-month window
+                        if (currentYmd >= todayYmdStr && currentYmd <= endDateYmdStr) {
+                            unavailableDatesSet.add(currentYmd);
+                        }
+                        if (currentYmd >= departureYmd) break;
+                        
+                        const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
+                        currentDay++;
+                        if (currentDay > daysInMonth) {
+                            currentDay = 1;
+                            currentMonth++;
+                            if (currentMonth > 12) {
+                                currentMonth = 1;
+                                currentYear++;
+                            }
+                        }
+                    }
+                });
             }
 
-            // Filter to only include dates that are part of continuous available blocks
-            // A date is included if it's available AND (previous day OR next day is also available)
-            // This ensures users can only select valid date ranges (no isolated single days)
-            const availableDates = [];
-            const availableDatesSet = new Set(allAvailableDates);
-            
-            for (const currentDateStr of allAvailableDates) {
-                const currentDate = fromAppYMD(currentDateStr);
-                if (!currentDate) continue;
-                
-                // Check if previous day is available
-                const prevDate = addAppDays(currentDate, -1);
-                const prevDateStr = toAppYMD(prevDate);
-                const prevDayAvailable = prevDateStr && availableDatesSet.has(prevDateStr);
-                
-                // Check if next day is available
-                const nextDate = addAppDays(currentDate, 1);
-                const nextDateStr = toAppYMD(nextDate);
-                const nextDayAvailable = nextDateStr && availableDatesSet.has(nextDateStr);
-                
-                // Include date if it's part of a continuous block (has adjacent available day)
-                // This allows dates to be used as either arrival or departure dates
-                if (prevDayAvailable || nextDayAvailable) {
-                    availableDates.push(currentDateStr);
-                }
-            }
+            // Convert set to sorted array and filter to only include dates from today onwards within 6-month window
+            const unavailableDates = Array.from(unavailableDatesSet)
+                .filter(dateYmd => dateYmd >= todayYmdStr && dateYmd <= endDateYmdStr)
+                .sort();
 
             responseData.status = Status.OK;
             responseData.error = null;
-            responseData.availableDates = availableDates;
+            responseData.unavailableDates = unavailableDates;
 
         } catch (error) {
-            console.error('Error fetching available dates:', error);
+            console.error('Error fetching unavailable dates:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
-            responseData.error = 'Error fetching available dates';
+            responseData.error = 'Error fetching unavailable dates';
         }
         return responseData;
     },

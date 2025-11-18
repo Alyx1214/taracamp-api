@@ -130,8 +130,10 @@ export default function Approved({
         activeTab: 'Approved',
         filters,
         searchQuery,
-        currentPage
-      }
+        currentPage,
+        returnTo: 'Approved' // Add explicit return flag
+      },
+      replace: false // Keep this false so back button works
     });
   }
 
@@ -177,13 +179,29 @@ export default function Approved({
               alert("Invalid reservation ID. Cannot view details.");
               return;
             }
+            try {
+              const existingState = (window.history && window.history.state) || {};
+              const newState = {
+                ...existingState,
+                activeTab: "Approved",
+                filters,
+                searchQuery,
+                currentPage,
+              };
+              window.history.replaceState(newState, document.title);
+            } catch (e) {
+              // ignore errors (e.g. Safari privacy restrictions)
+            }
+            
             navigate(`/approvedRSV/${row.id}/details`, {
               state: {
                 activeTab: 'Approved',
                 filters,
                 searchQuery,
-                currentPage
-              }
+                currentPage,
+                returnTo: 'Approved'
+              },
+              replace: false
             });
           }}
         >
@@ -207,13 +225,29 @@ export default function Approved({
           alert("Invalid reservation ID. Cannot view details.");
           return;
         }
+        try {
+          const existingState = (window.history && window.history.state) || {};
+          const newState = {
+            ...existingState,
+            activeTab: "Approved",
+            filters,
+            searchQuery,
+            currentPage,
+          };
+          window.history.replaceState(newState, document.title);
+        } catch (e) {
+          // ignore errors (e.g. Safari privacy restrictions)
+        }
+
         navigate(`/approvedRSV/${row.id}/details`, {
           state: {
             activeTab: 'Approved',
             filters,
             searchQuery,
-            currentPage
-          }
+            currentPage,
+            returnTo: 'Approved'
+          },
+          replace: false
         });
       },
     },
@@ -240,7 +274,7 @@ export default function Approved({
       <ConfirmModal
         open={confirmCancelOpen}
         title="Cancel Reservation"
-        message={`Are you sure you want to cancel this reservation for ${selectedRow?.name || 'this guest'}? This will move it to the Cancelled tab and notify them.`}
+        message={`Are you sure you want to cancel this reservation from ${selectedRow?.name || 'this guest'}? The reservation will be moved to the Cancelled tab and the guest will be notified of the cancellation.`}
         confirmText="Confirm"
         cancelText="Cancel"
         confirming={cancelling}

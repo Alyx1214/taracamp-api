@@ -3,6 +3,7 @@ import { useNavigate, useParams, useLocation } from "react-router-dom";
 import styles from "./Manage.module.css";
 import { updateRooms, getFacilityById } from "../../apis/facilityApi";
 import { searchReservations } from "../../apis/reservationApi";
+import ConfirmDeleteModal from "./ConfirmDeleteModal";
 
 export default function Manage() {
   const navigate = useNavigate();
@@ -18,6 +19,13 @@ export default function Manage() {
   const [reservations, setReservations] = useState([]);
   const [loadingReservations, setLoadingReservations] = useState(false);
   const [facilityData, setFacilityData] = useState(null);
+  
+  // State for delete confirmation modal
+  const [deleteModal, setDeleteModal] = useState({
+    isOpen: false,
+    roomIndex: null,
+    roomName: "",
+  });
 
   useEffect(() => {
     // Load facility data and reviews
@@ -107,12 +115,35 @@ export default function Manage() {
     }));
   };
 
-  const handleRemoveRow = (index) => {
-    setFormData((prev) => {
-      const rooms = Array.from(prev.rooms);
-      rooms.splice(index, 1);
-      return { ...prev, rooms };
+  // Open delete confirmation modal
+  const handleRemoveRowClick = (index) => {
+    const room = formData.rooms[index];
+    setDeleteModal({
+      isOpen: true,
+      roomIndex: index,
+      roomName: room.name || `Room ${index + 1}`,
     });
+  };
+
+  // Close delete confirmation modal
+  const handleCloseDeleteModal = () => {
+    setDeleteModal({
+      isOpen: false,
+      roomIndex: null,
+      roomName: "",
+    });
+  };
+
+  // Confirm delete and remove room
+  const handleConfirmDelete = () => {
+    if (deleteModal.roomIndex !== null) {
+      setFormData((prev) => {
+        const rooms = Array.from(prev.rooms);
+        rooms.splice(deleteModal.roomIndex, 1);
+        return { ...prev, rooms };
+      });
+    }
+    handleCloseDeleteModal();
   };
 
   const handleRoomChange = (index, field, value) => {
@@ -302,7 +333,7 @@ export default function Manage() {
               <button
                 type="button"
                 className={styles.removeBtn}
-                onClick={() => handleRemoveRow(idx)}
+                onClick={() => handleRemoveRowClick(idx)}
               >
                 <span className={styles.btnIcon}>×</span>
                 Remove
@@ -359,17 +390,23 @@ export default function Manage() {
                   disabled={loadingReservations}
                 >
                   <option value="">-- Select Guest --</option>
-                  {reservations.map((reservation) => {
-                    const remaining = getRemainingUnassignedGuests(reservation._id);
-                    const totalGuests = reservation.numberOfGuests?.total || 0;
-                    return (
-                      <option key={reservation._id} value={reservation._id}>
-                        {reservation.guestName || "Unknown Guest"}
-                        {` - ${totalGuests} guests`}
-                        {remaining !== null && remaining < totalGuests ? ` (${remaining} remaining)` : ""}
-                      </option>
-                    );
-                  })}
+                  {reservations
+                    .filter((reservation) => {
+                      // Only show reservations that have remaining unassigned guests
+                      const remaining = getRemainingUnassignedGuests(reservation._id);
+                      return remaining > 0;
+                    })
+                    .map((reservation) => {
+                      const remaining = getRemainingUnassignedGuests(reservation._id);
+                      const totalGuests = reservation.numberOfGuests?.total || 0;
+                      return (
+                        <option key={reservation._id} value={reservation._id}>
+                          {reservation.guestName || "Unknown Guest"}
+                          {` - ${totalGuests} guests`}
+                          {remaining !== null && remaining < totalGuests ? ` (${remaining} remaining)` : ""}
+                        </option>
+                      );
+                    })}
                 </select>
               </label>
             </div>
@@ -440,6 +477,14 @@ export default function Manage() {
           </button>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmDeleteModal
+        isOpen={deleteModal.isOpen}
+        onClose={handleCloseDeleteModal}
+        onConfirm={handleConfirmDelete}
+        type={`Room "${deleteModal.roomName}"`}
+      />
     </div>
   );
 }

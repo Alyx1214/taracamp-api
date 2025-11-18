@@ -196,6 +196,19 @@ export default function Pending({
               alert("Invalid reservation ID. Cannot view details.");
               return;
             }
+            try {
+              const existingState = (window.history && window.history.state) || {};
+              const newState = {
+                ...existingState,
+                activeTab: "Pending",
+                filters,
+                searchQuery,
+                currentPage,
+              };
+              window.history.replaceState(newState, document.title);
+            } catch (e) {
+              // ignore errors (e.g. Safari privacy restrictions)
+            }
             navigate(`/pendingRSV/${row.id}/details`, {
               state: {
                 activeTab: 'Pending',
@@ -226,6 +239,20 @@ export default function Pending({
           alert("Invalid reservation ID. Cannot view details.");
           return;
         }
+        try {
+          const existingState = (window.history && window.history.state) || {};
+          const newState = {
+            ...existingState,
+            activeTab: "Pending",
+            filters,
+            searchQuery,
+            currentPage,
+          };
+          window.history.replaceState(newState, document.title);
+        } catch (e) {
+          // ignore errors (e.g. Safari privacy restrictions)
+        }
+
         navigate(`/pendingRSV/${row.id}/details`, {
           state: {
             activeTab: 'Pending',
@@ -259,7 +286,7 @@ export default function Pending({
       <ConfirmModal
         open={confirmApproveOpen}
         title="Approve Reservation"
-        message={`Are you sure you want to approve this reservation for ${selectedRow?.name || 'this guest'}? This will approved their reservation and notify them.`}
+        message={`Are you sure you want to approve this reservation from ${selectedRow?.name || 'this guest'}? This will approve their reservation and notify them of the approval.`}
         confirmText="Approve"
         cancelText="Cancel"
         confirming={approving}
@@ -275,7 +302,7 @@ export default function Pending({
       <ConfirmModal
         open={confirmDeclineOpen}
         title="Decline Reservation"
-        message={`Are you sure you want to decline this reservation from ${selectedRow?.name || 'this guest'}? They’ll be informed that it has been declined.`}
+        message={`Are you sure you want to decline this reservation from ${selectedRow?.name || 'this guest'}? They will be notified that the reservation has been declined.`}
         confirmText="Decline"
         cancelText="Cancel"
         confirming={declining}

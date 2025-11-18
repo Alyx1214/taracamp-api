@@ -1,5 +1,23 @@
-import { apiPostBlob } from './api';
+import { apiPostBlob, apiGet } from './api';
 
+export async function generateAccommodationReportExcel({ year, month }) {
+  return apiPostBlob('/report/generate-excel', { year, month });
+}
+
+export async function downloadAccommodationReportExcel({ year, month, filename }) {
+  const blob = await generateAccommodationReportExcel({ year, month });
+  const link = document.createElement('a');
+  const href = URL.createObjectURL(blob);
+  link.href = href;
+  const mm = String(month).padStart(2, '0');
+  link.download = filename || `accommodation-report-${year}-${mm}.xlsx`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(href);
+}
+
+// Legacy PDF functions kept for backward compatibility (if needed)
 export async function generateAccommodationReportPDF({ year, month }) {
   return apiPostBlob('/report/generate-pdf', { year, month });
 }
@@ -17,6 +35,24 @@ export async function downloadAccommodationReportPDF({ year, month, filename }) 
   URL.revokeObjectURL(href);
 }
 
+export async function generateRevenueReportExcel({ year, month }) {
+  return apiPostBlob('/report/generate-revenue-excel', { year, month });
+}
+
+export async function downloadRevenueReportExcel({ year, month, filename }) {
+  const blob = await generateRevenueReportExcel({ year, month });
+  const link = document.createElement('a');
+  const href = URL.createObjectURL(blob);
+  link.href = href;
+  const mm = String(month).padStart(2, '0');
+  link.download = filename || `revenue-report-${year}-${mm}.xlsx`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(href);
+}
+
+// Legacy PDF function kept for backward compatibility
 export async function downloadSalesReportPDF({ year, month }) {
   try {
     const response = await apiGet('/report/sales-report-pdf', { year, month }, { responseType: 'blob' });

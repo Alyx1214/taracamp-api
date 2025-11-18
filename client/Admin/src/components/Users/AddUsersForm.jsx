@@ -135,7 +135,7 @@ export default function AddUserForm({ onAddUser }) {
 
   const handleSuccessModalClose = () => {
     setSuccessModalOpen(false);
-    navigate("/users");
+    navigate("/user");
   };
 
   const getConfirmMessage = () => {
@@ -153,11 +153,11 @@ export default function AddUserForm({ onAddUser }) {
         <div className={styles.header}>
           <span
             className={styles["add-form-back"]}
-            onClick={() => navigate("/users")}
+            onClick={() => navigate("/user")}
             role="button"
             tabIndex={0}
             onKeyDown={(e) =>
-              (e.key === "Enter" || e.key === " ") && navigate("/users")
+              (e.key === "Enter" || e.key === " ") && navigate("/user")
             }
             aria-label="Go back"
           >
@@ -259,7 +259,7 @@ export default function AddUserForm({ onAddUser }) {
           <div className={styles.buttonContainer}>
             <button
               type="button"
-              onClick={() => navigate("/users")}
+              onClick={() => navigate("/user")}
               className={styles["add-user-cancel"]}
             >
               Cancel

@@ -60,20 +60,33 @@ const Calendar = ({
 
   const reservedSet = useMemo(() => {
     const s = new Set();
-    for (const r of reservedDates) {
+    // Ensure reservedDates is an array
+    const datesArray = Array.isArray(reservedDates) ? reservedDates : [];
+    
+    for (const r of datesArray) {
       if (r instanceof Date) {
         const y = r.getFullYear();
         const m = String(r.getMonth() + 1).padStart(2, '0');
         const d = String(r.getDate()).padStart(2, '0');
         s.add(`${y}-${m}-${d}`);
-      } else if (typeof r === 'string') {
-        if (/^\d{4}-\d{2}-\d{2}$/.test(r)) s.add(r);
-        else {
-          const d = parseLooseDate(r);
-          const y = d.getFullYear();
-          const m = String(d.getMonth() + 1).padStart(2, '0');
-          const dd = String(d.getDate()).padStart(2, '0');
-          s.add(`${y}-${m}-${dd}`);
+      } else if (typeof r === 'string' && r.trim()) {
+        // Ensure the string is in YYYY-MM-DD format
+        if (/^\d{4}-\d{2}-\d{2}$/.test(r.trim())) {
+          s.add(r.trim());
+        } else {
+          // Try to parse and convert to YYYY-MM-DD format
+          try {
+            const d = parseLooseDate(r);
+            if (d && !isNaN(d.getTime())) {
+              const y = d.getFullYear();
+              const m = String(d.getMonth() + 1).padStart(2, '0');
+              const dd = String(d.getDate()).padStart(2, '0');
+              s.add(`${y}-${m}-${dd}`);
+            }
+          } catch (e) {
+            // Skip invalid dates
+            console.warn('Invalid date format in reservedDates:', r);
+          }
         }
       }
     }
@@ -159,20 +172,36 @@ const Calendar = ({
           const beforeToday = chosen && chosen < minAllowedDate; 
           const withinRestrictedPeriod = chosen && chosen <= restrictedEndDate;
           const beforeMin = minD && chosen && chosen < new Date(minD.getFullYear(), minD.getMonth(), minD.getDate());
-          const isRestricted = beforeToday || withinRestrictedPeriod;
+          // Only mark as restricted if NOT reserved (reserved dates should show as red, not gray)
+          const isRestricted = !isReserved && (beforeToday || withinRestrictedPeriod);
 
           const clickable = !!day && !isReserved && !beforeMin && !isRestricted;
+
+          // Build className array, filtering out empty strings
+          // Reserved dates should always show as red, even if they're also restricted
+          const classNames = [
+            styles.calendarDate,
+            isReserved && styles.reservedDate,
+            isToday && styles.currentDay,
+            clickable && styles.clickable,
+            isRestricted && styles.restrictedDate
+          ].filter(Boolean);
+
+          // Apply inline styles for reserved dates to ensure they're red
+          const inlineStyle = isReserved ? {
+            backgroundColor: '#fee2e2',
+            color: '#dc2626',
+            fontWeight: '700',
+            border: '2px solid #ef4444',
+            boxShadow: '0 2px 6px rgba(239, 68, 68, 0.3)',
+            cursor: 'not-allowed'
+          } : {};
 
           return (
             <div
               key={idx}
-              className={[
-                styles.calendarDate,
-                isReserved ? styles.reservedDate : '',
-                isToday ? styles.currentDay : '',
-                clickable ? styles.clickable : '',
-                isRestricted ? styles.restrictedDate : ''
-              ].join(' ')}
+              className={classNames.join(' ')}
+              style={inlineStyle}
               onClick={
                 clickable
                   ? () => clickDay(day)

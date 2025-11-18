@@ -493,6 +493,17 @@
   font-weight: 700;
 }
 
+.dateWarningText {
+  margin: 8px 0 0 0;
+  font-size: 0.9rem;
+  color: #c62828;
+  font-weight: 600;
+  padding: 10px 14px;
+  background: linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%);
+  border-radius: 8px;
+  border-left: 3px solid #e74c3c;
+}
+
 .warningBox {
   margin: 12px 0 0 0;
   padding: 14px 18px;

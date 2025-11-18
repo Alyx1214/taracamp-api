@@ -51,15 +51,6 @@ export default function buildReservationRouter(userSocketMap) {
     res.status(response.status).json(response);
   }));
 
-  r.get('/get-reservations-by-facility/:id', asyncHandler(async (req, res) => {
-    const response = await reservationModule.getReservationsByFacility(
-      dbHelper,
-      req.params.id,
-      req.query
-    );
-    res.status(response.status).json(response);
-  }));
-
   r.use(authenticateJWT);
 
   r.get('/get-reservation-by-user-id', asyncHandler(async (req, res) => {

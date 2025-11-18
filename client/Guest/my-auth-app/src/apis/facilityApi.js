@@ -21,6 +21,6 @@ export function getFacilityById(id) {
   return apiGet(`/facility/get-facility-by-id/${encodeURIComponent(id)}`);
 }
 
-export function getAvailableDatesByFacility(id) {
-  return apiGet(`/facility/get-available-dates-by-facility/${encodeURIComponent(id)}`);
+export function getUnavailableDatesByFacility(id) {
+  return apiGet(`/facility/get-unavailable-dates-by-facility/${encodeURIComponent(id)}`);
 }

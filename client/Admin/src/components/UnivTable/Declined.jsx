@@ -167,6 +167,20 @@ export default function Declined({
               alert("Invalid reservation ID. Cannot view details.");
               return;
             }
+            try {
+              const existingState = (window.history && window.history.state) || {};
+              const newState = {
+                ...existingState,
+                activeTab: "Declined",
+                filters,
+                searchQuery,
+                currentPage,
+              };
+              window.history.replaceState(newState, document.title);
+            } catch (e) {
+              // ignore errors (e.g. Safari privacy restrictions)
+            }
+
             navigate(`/declinedRSV/${row.id}/details`, {
               state: {
                 activeTab: 'Declined',
@@ -177,7 +191,7 @@ export default function Declined({
             });
           }}
         >
-          See Detail
+          See Details
         </button>
       );
     }
@@ -190,19 +204,33 @@ export default function Declined({
 
   const renderMenu = canDelete ? (row) => [
     {
-      label: "View Details",
+      label: "See Details",
       onClick: () => {
         if (!row.id || row.id === "N/A") {
           alert("Invalid reservation ID. Cannot view details.");
           return;
         }
-        navigate(`/declinedRSV/${row.id}/details`, {
-          state: {
-            activeTab: 'Declined',
+        try {
+          const existingState = (window.history && window.history.state) || {};
+          const newState = {
+            ...existingState,
+            activeTab: "Declined",
             filters,
             searchQuery,
-            currentPage
-          }
+            currentPage,
+          };
+          window.history.replaceState(newState, document.title);
+        } catch (e) {
+          // ignore errors (e.g. Safari privacy restrictions)
+        }
+
+        navigate(`/declinedRSV/${row.id}/details`, {
+          state: {
+            activeTab: "Declined",
+            filters,
+            searchQuery,
+            currentPage,
+          },
         });
       },
     },

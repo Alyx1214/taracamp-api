@@ -12,16 +12,6 @@ export function getAllReservationsByStatus(status) {
   return apiGet(`/reservation/get-all-reservations-by-status/${encodeURIComponent(status)}`);
 }
 
-/**
- * Get reservations for a specific facility
- * Filters to only return confirmed and approved reservations
- */
-export function getReservationsByFacilityId(facilityId) {
-  return apiGet(`/reservation/get-reservations-by-facility/${encodeURIComponent(facilityId)}`, {
-    status: 'confirmed,approved'
-  });
-}
-
 export function estimateAmount({ facility, adults, children, pwds, seniorCitizens, serviceType, category, addOns, dateOfArrival, dateOfDeparture, timeOfArrival }) {
   return apiGet('/reservation/estimate-amount', { facility, adults, children, pwds, seniorCitizens, serviceType, category, addOns, dateOfArrival, dateOfDeparture, timeOfArrival });
 }
