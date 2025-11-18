@@ -6,6 +6,7 @@ import styles from './ResHistory.module.css';
 
 import { getMyReservations, uploadConfirmationDocuments } from '../../apis/reservationApi';
 import { clearCachedReservation } from '../../utils/reservationCache';
+import moaTemplate from '../../assets/moa-template.docx';
 
 // Upload fields configuration (copied from NotifUpload.jsx)
 const uploadFields = {
@@ -14,7 +15,7 @@ const uploadFields = {
       label: 'Upload Memorandum of Agreement',
       description: (
         <>
-          Download this <a href="#" className={styles.link}>Memorandum of Agreement Template</a> and upload in the following submission bin.
+          Download this <a href={moaTemplate} download="MOA_Template.docx" className={styles.link}>Memorandum of Agreement Template</a> and upload in the following submission bin.
         </>
       ),
       accept: '.pdf,.doc,.docx',
@@ -29,6 +30,11 @@ const uploadFields = {
   gov: [
     {
       label: 'Upload Service Contract',
+      description: (
+        <>
+          Download this <a href={moaTemplate} download="MOA_Template.docx" className={styles.link}>Service Contract Template</a> and upload in the following submission bin.
+        </>
+      ),
       accept: '.pdf,.doc,.docx',
       key: 'service',
     },
@@ -41,6 +47,11 @@ const uploadFields = {
   'priva-group': [
     {
       label: 'Upload Service Contract',
+      description: (
+        <>
+          Download this <a href={moaTemplate} download="MOA_Template.docx" className={styles.link}>Service Contract Template</a> and upload in the following submission bin.
+        </>
+      ),
       accept: '.pdf,.doc,.docx',
       key: 'service',
     },

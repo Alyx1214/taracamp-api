@@ -3,8 +3,9 @@ import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import HeaderHome from '../HeaderHome/HeaderHome';
 import styles from './ResForm3.module.css';
 import { ArrowLeft, UploadCloud } from 'lucide-react';
+import letterTemplate from '../../assets/letter-of-intent.docx';
 
-const LETTER_TEMPLATE_URL = '#'; // TODO: real URL
+const LETTER_TEMPLATE_URL = letterTemplate; 
 
 function ReservationFormStep3() {
   const navigate = useNavigate();
