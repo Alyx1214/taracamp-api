@@ -283,6 +283,41 @@ export default function PaymentDetails() {
           </tbody>
         </table>
 
+        {/* Client's Proof of Payment Section */}
+        <hr className={styles["payment-details-divider"]} />
+        <div className={styles["payment-details-section-title"]}>Client's Payment Proof</div>
+        <table className={styles["payment-details-table"]}>
+          <tbody>
+            <tr>
+              <td className={styles["payment-details-label"]}>Reference Number</td>
+              <td className={styles["payment-details-separator"]}>:</td>
+              <td>
+                {payment.clientReferenceNumber || (
+                  <span className={styles["placeholder-text"]}>Not provided</span>
+                )}
+              </td>
+            </tr>
+            <tr>
+              <td className={styles["payment-details-label"]}>Proof of Payment</td>
+              <td className={styles["payment-details-separator"]}>:</td>
+              <td>
+                {payment.clientProofOfPaymentUrl ? (
+                  <a 
+                    href={payment.clientProofOfPaymentUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className={styles["payment-details-link"]}
+                  >
+                    Click to open
+                  </a>
+                ) : (
+                  <span className={styles["placeholder-text"]}>No image uploaded</span>
+                )}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
         {/* Payment Breakdown */}
         <hr className={styles["payment-details-divider"]} />
         <div className={styles["payment-details-section-title"]}>Payment Breakdown</div>
@@ -350,7 +385,7 @@ export default function PaymentDetails() {
           <span className={styles["payment-details-total"]}>{payment.total}</span>
         </div>
 
-        {/* Enhanced Invoice and Payment Status Section */}
+        {/* Invoice and Payment Status Section */}
         <hr className={styles["payment-details-divider"]} />
         
         {isEditing ? (
