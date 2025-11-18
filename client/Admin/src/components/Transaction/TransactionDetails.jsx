@@ -25,7 +25,7 @@ export default function TransactionDetails() {
         if (!data || typeof data !== "object") {
           throw new Error(res?.error || "Failed to fetch transaction");
         }
-		
+        
         const mapped = {
           id: data.id ?? "N/A",
           referenceNumber: data.referenceNumber?.toUpperCase() ?? "N/A",
@@ -46,6 +46,16 @@ export default function TransactionDetails() {
           checkOutEmployee: data.checkOutEmployee ?? "N/A",
           contactNumber: data.contactNumber ?? "N/A",
           address: data.address ?? "N/A",
+          // Payment breakdown details
+          breakdown: data.breakdown ?? [],
+          addons: data.addons ?? [],
+          serviceFee: data.serviceFee ?? "Service Fee",
+          serviceFeeAmount: data.serviceFeeAmount ?? "₱0.00",
+          serviceFeePercentage: data.serviceFeePercentage ?? "",
+          discount: data.discount ?? "Discount",
+          discountAmount: data.discountAmount ?? "₱0.00",
+          discountPercentage: data.discountPercentage ?? "",
+          total: data.total ?? "₱0.00",
         };
 
         if (!cancelled) setTransaction(mapped);
@@ -81,7 +91,7 @@ export default function TransactionDetails() {
         {/* Table Rows Skeleton */}
         <table className={styles["transaction-details-table"]}>
           <tbody>
-            {Array.from({ length: 17 }).map((_, index) => (
+            {Array.from({ length: 25 }).map((_, index) => (
               <tr key={index}>
                 <td className={styles["skeleton-table-row"]}>
                   <div className={`${styles["skeleton-label"]} ${styles["skeleton"]}`}></div>
@@ -134,54 +144,15 @@ export default function TransactionDetails() {
         <h1 className={styles["transaction-details-title"]}>Transaction Details</h1>
       </div>
       <div className={styles["transaction-details-card"]}>
-        <table className={styles["transaction-details-table"]}>
-          <tbody>
-            <tr>
-              <td className={styles["transaction-details-label"]}>Reference Number</td>
-              <td className={styles["transaction-details-separator"]}>:</td>
-              <td>{transaction.referenceNumber}</td>
-            </tr>
-            <tr>
-              <td className={styles["transaction-details-label"]}>Name</td>
-              <td className={styles["transaction-details-separator"]}>:</td>
-              <td>{transaction.name}</td>
-            </tr>
-            <tr>
-              <td className={styles["transaction-details-label"]}>Confirmation Fee</td>
-              <td className={styles["transaction-details-separator"]}>:</td>
-              <td>{transaction.confirmationFee}</td>
-            </tr>
-            <tr>
-              <td className={styles["transaction-details-label"]}>Payment Due</td>
-              <td className={styles["transaction-details-separator"]}>:</td>
-              <td>{transaction.paymentDue}</td>
-            </tr>
-            <tr>
-              <td className={styles["transaction-details-label"]}>Date of the Transaction</td>
-              <td className={styles["transaction-details-separator"]}>:</td>
-              <td>{transaction.date}</td>
-            </tr>
-            <tr>
-              <td className={styles["transaction-details-label"]}>Payment Method</td>
-              <td className={styles["transaction-details-separator"]}>:</td>
-              <td>{transaction.paymentMethod}</td>
-            </tr>
-            <tr>
-              <td colSpan={3} className={styles["transaction-details-status-row"]}>
-                <span className={styles["transaction-details-status-label"]}>Status:</span>{" "}
-                <span className={`${styles["transaction-details-status-value"]} ${transaction.status === "Fully Paid" ? styles["transaction-details-status-paid"] : ""}`}>
-                  {transaction.status}
-                </span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-        
-        <hr className={styles["transaction-details-divider"]} />
-        
+        {/* Reservation Details Section - First */}
         <div className={styles["transaction-details-section-title"]}>Reservation Details</div>
         <table className={styles["transaction-details-table"]}>
           <tbody>
+            <tr>
+              <td className={styles["transaction-details-label"]}>Guest Name</td>
+              <td className={styles["transaction-details-separator"]}>:</td>
+              <td>{transaction.name}</td>
+            </tr>
             <tr>
               <td className={styles["transaction-details-label"]}>RF. No.</td>
               <td className={styles["transaction-details-separator"]}>:</td>
@@ -231,6 +202,115 @@ export default function TransactionDetails() {
               <td className={styles["transaction-details-label"]}>Address</td>
               <td className={styles["transaction-details-separator"]}>:</td>
               <td>{transaction.address}</td>
+            </tr>
+          </tbody>
+        </table>
+        
+        <hr className={styles["transaction-details-divider"]} />
+        
+        {/* Transaction Details Section - Second */}
+        <div className={styles["transaction-details-section-title"]}>Transaction Details</div>
+        <table className={styles["transaction-details-table"]}>
+          <tbody>
+            <tr>
+              <td className={styles["transaction-details-label"]}>Reference Number</td>
+              <td className={styles["transaction-details-separator"]}>:</td>
+              <td>{transaction.referenceNumber}</td>
+            </tr>
+            <tr>
+              <td className={styles["transaction-details-label"]}>Confirmation Fee</td>
+              <td className={styles["transaction-details-separator"]}>:</td>
+              <td>{transaction.confirmationFee}</td>
+            </tr>
+            <tr>
+              <td className={styles["transaction-details-label"]}>Payment Due</td>
+              <td className={styles["transaction-details-separator"]}>:</td>
+              <td>{transaction.paymentDue}</td>
+            </tr>
+            <tr>
+              <td className={styles["transaction-details-label"]}>Date of the Transaction</td>
+              <td className={styles["transaction-details-separator"]}>:</td>
+              <td>{transaction.date}</td>
+            </tr>
+            <tr>
+              <td className={styles["transaction-details-label"]}>Payment Method</td>
+              <td className={styles["transaction-details-separator"]}>:</td>
+              <td>{transaction.paymentMethod}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        {/* Payment Breakdown */}
+        {transaction.breakdown && transaction.breakdown.length > 0 && (
+          <>
+            <hr className={styles["transaction-details-divider"]} />
+            <div className={styles["transaction-details-section-title"]}>Payment Breakdown</div>
+            <table className={styles["transaction-details-table"]}>
+              <tbody>
+                {transaction.breakdown.map((item, idx) => (
+                  <tr key={idx}>
+                    <td className={styles["transaction-details-label"]}>{item.label}</td>
+                    <td className={styles["transaction-details-separator"]}>:</td>
+                    <td>{item.amount}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )}
+
+        {/* Add-ons */}
+        {transaction.addons && transaction.addons.length > 0 && (
+          <>
+            <hr className={styles["transaction-details-divider"]} />
+            <div className={styles["transaction-details-section-title"]}>Add-ons</div>
+            <table className={styles["transaction-details-table"]}>
+              <tbody>
+                {transaction.addons.map((addon, idx) => (
+                  <tr key={idx}>
+                    <td className={styles["transaction-details-label"]}>{addon.name}</td>
+                    <td className={styles["transaction-details-separator"]}>:</td>
+                    <td>{addon.price} ({addon.unit})</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )}
+
+        {/* Service Fee, Discount, and Total - Added to Transaction Details */}
+        <table className={styles["transaction-details-table"]}>
+          <tbody>
+            <tr>
+              <td className={styles["transaction-details-label"]}>{transaction.serviceFee}</td>
+              <td className={styles["transaction-details-separator"]}>:</td>
+              <td>{transaction.serviceFeeAmount} {transaction.serviceFeePercentage && `(${transaction.serviceFeePercentage})`}</td>
+            </tr>
+            <tr>
+              <td className={styles["transaction-details-label"]}>{transaction.discount}</td>
+              <td className={styles["transaction-details-separator"]}>:</td>
+              <td>{transaction.discountAmount} {transaction.discountPercentage && `(${transaction.discountPercentage})`}</td>
+            </tr>
+            <tr>
+              <td className={styles["transaction-details-label"]} style={{ fontWeight: 'bold' }}>Total Estimated Amount</td>
+              <td className={styles["transaction-details-separator"]}>:</td>
+              <td style={{ fontWeight: 'bold', fontSize: '1.1em' }}>{transaction.total}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <hr className={styles["transaction-details-divider"]} />
+
+        {/* Status */}
+        <table className={styles["transaction-details-table"]}>
+          <tbody>
+            <tr>
+              <td colSpan={3} className={styles["transaction-details-status-row"]}>
+                <span className={styles["transaction-details-status-label"]}>Status:</span>{" "}
+                <span className={`${styles["transaction-details-status-value"]} ${transaction.status === "Fully Paid" ? styles["transaction-details-status-paid"] : ""}`}>
+                  {transaction.status}
+                </span>
+              </td>
             </tr>
           </tbody>
         </table>
