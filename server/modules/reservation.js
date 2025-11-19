@@ -8,7 +8,7 @@ dotenv.config();
 const storage = new Storage();
 const bucket = storage.bucket(process.env.BUCKET_NAME);
 const APP_TZ_OFFSET = '+08:00';
-const TZ = 'Asia/Manila';
+
 
 const invalidateReservationCache = async () => {
     try {
@@ -2268,7 +2268,7 @@ const reservationModule = {
                 return responseData;
             }
 
-            if (user.role !== UserRole.SUPERINTENDENT) {
+            if (user.role !== UserRole.SUPERINTENDENT && user.role !== UserRole.CRMSTEAM) {
                 responseData.status = Status.FORBIDDEN;
                 responseData.error = 'You are not authorized to perform this action';
                 return responseData;
@@ -2619,7 +2619,7 @@ const reservationModule = {
                 return responseData;
             }
 
-            if (user.role !== UserRole.SUPERINTENDENT) {
+            if (user.role !== UserRole.CRMSTEAM && user.role !== UserRole.SUPERINTENDENT) {
                 responseData.status = Status.FORBIDDEN;
                 responseData.error = 'You are not authorized to perform this action';
                 return responseData;
@@ -3259,7 +3259,7 @@ const reservationModule = {
             // Check authorization
             const isOwner = existingReservation.userId && String(existingReservation.userId) === String(user.userId);
             const isAdmin = user.role === UserRole.ACCOUNTING || user.role === UserRole.SUPERINTENDENT || 
-                           user.role === UserRole.FRONTDESK;
+                           user.role === UserRole.FRONTDESK || user.role === UserRole.CRMSTEAM;
             const isCreatingForGuest = existingReservation.guestEmail && 
                                       (user.role === UserRole.ACCOUNTING || user.role === UserRole.SUPERINTENDENT || 
                                        user.role === UserRole.FRONTDESK);
