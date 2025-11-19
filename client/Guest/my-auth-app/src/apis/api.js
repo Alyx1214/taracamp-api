@@ -1,4 +1,4 @@
-const API_BASE = 'https://taracamp-api.azurewebsites.com'; 
+const API_BASE = 'https://taracamp-api.azurewebsites.net'; 
 const API_V1_PREFIX = '/api/v1';
 const ACCESS_KEY = 'accessToken';
 const REFRESH_KEY = 'refreshToken';
