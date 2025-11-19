@@ -468,19 +468,6 @@ POST   /api/v1/report/generate-revenue-excel
 - **Certificate of Availability of Funds**: Required for Government and DepEd
 - **Valid IDs**: Required for discount eligibility
 
-## 🧪 Testing
-
-### Frontend Testing
-```bash
-cd client/Guest/my-auth-app
-npm test
-```
-
-### Backend Testing
-```bash
-cd server
-npm test
-```
 
 ## 📊 Database Schema
 
