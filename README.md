@@ -62,7 +62,7 @@ CodeX/
 - **Routing**: React Router v6
 - **Styling**: CSS Modules
 - **State Management**: React Hooks (useState, useEffect, useContext)
-- **HTTP Client**: Axios
+- **HTTP Client**: Fetch API
 - **Icons**: Lucide React, React Icons
 - **OCR**: Tesseract.js (for reference number extraction)
 - **Date Handling**: Native JavaScript Date API
@@ -70,8 +70,8 @@ CodeX/
 ### Backend
 - **Runtime**: Node.js
 - **Framework**: Express.js
-- **Database**: MongoDB with Mongoose ODM
-- **Authentication**: JWT (JSON Web Tokens)
+- **Database**: MongoDB Atlas
+- **Authentication**: JWT (JSON Web Tokens) with jti
 - **File Storage**: Google Cloud Storage
 - **Email**: Nodemailer
 - **Security**: bcrypt, helmet, cors
@@ -81,7 +81,7 @@ CodeX/
 - **Package Manager**: npm
 - **Version Control**: Git
 - **Environment Variables**: dotenv
-- **API Testing**: Postman/Thunder Client
+- **API Testing**: Postman 
 
 ## 📁 Project Structure
 
@@ -184,8 +184,8 @@ server/
    EMAIL_PASSWORD=your_app_password
    
    # Frontend URLs
-   CLIENT_URL=http://localhost:3000
-   ADMIN_URL=http://localhost:3001
+   CLIENT_URL=http://localhost:5173
+   ADMIN_URL=http://localhost:5174
    ```
 
 4. **Start the applications**
@@ -205,9 +205,9 @@ server/
    ```
 
 5. **Access the applications**
-   - Guest Portal: http://localhost:3000
-   - Admin Portal: http://localhost:3001
-   - API Server: http://localhost:5000
+   - Guest Portal: http://localhost:5173
+   - Admin Portal: http://localhost:5174
+   - API Server: https://taracamp-api.azurewebsites.net
 
 ## 👥 User Roles
 
@@ -294,48 +294,140 @@ server/
 
 ## 📡 API Documentation
 
-### Authentication Endpoints
+All API endpoints are prefixed with `/api/v1`.
+
+### Authentication & User Endpoints
 ```
-POST   /api/auth/register              # User registration
-POST   /api/auth/login                 # User login
-POST   /api/auth/verify-email          # Email verification
-POST   /api/auth/forgot-password       # Password reset request
-POST   /api/auth/reset-password        # Password reset
+POST   /api/v1/user/register
+POST   /api/v1/user/login
+POST   /api/v1/user/google-login
+POST   /api/v1/user/facebook-login
+POST   /api/v1/user/send-password-reset-verification-code
+POST   /api/v1/user/verify-password-reset-code
+POST   /api/v1/user/reset-password
+POST   /api/v1/user/refresh-token
+POST   /api/v1/user/verify-email
+POST   /api/v1/user/resend-verification-email
+GET    /api/v1/user/profile
+POST   /api/v1/user/profile
+POST   /api/v1/user/profile-picture
+POST   /api/v1/user/change-password
+GET    /api/v1/user/get-all-users-by-role/:role
+GET    /api/v1/user/search-users
+POST   /api/v1/user/add-user
+POST   /api/v1/user/update-user/:id
+POST   /api/v1/user/delete-user/:id
+POST   /api/v1/user/logout
 ```
 
 ### Reservation Endpoints
 ```
-GET    /api/reservations               # Get all reservations
-POST   /api/reservations               # Create reservation
-GET    /api/reservations/:id           # Get specific reservation
-PUT    /api/reservations/:id           # Update reservation
-DELETE /api/reservations/:id           # Delete reservation
-POST   /api/reservations/:id/approve   # Approve reservation
-POST   /api/reservations/:id/decline   # Decline reservation
+GET    /api/v1/reservation/get-reservation-by-id/:id
+GET    /api/v1/reservation/estimate-amount
+GET    /api/v1/reservation/check-availability
+GET    /api/v1/reservation/get-reservation-by-user-id
+GET    /api/v1/reservation/get-all-reservations-by-status/:id
+GET    /api/v1/reservation/search-reservations
+POST   /api/v1/reservation/create-reservation
+POST   /api/v1/reservation/cancel-booking/:id
+POST   /api/v1/reservation/accept-or-decline-reservation/:id
+POST   /api/v1/reservation/checkin-or-checkout-reservation/:id
+POST   /api/v1/reservation/delete-reservation/:id
+POST   /api/v1/reservation/upload-nonavailability-certificate/:id
+POST   /api/v1/reservation/update-meal-preference/:id
+POST   /api/v1/reservation/update-reservation/:id
 ```
 
 ### Facility Endpoints
 ```
-GET    /api/facilities                 # Get all facilities
-POST   /api/facilities                 # Create facility
-GET    /api/facilities/:id             # Get specific facility
-PUT    /api/facilities/:id             # Update facility
-DELETE /api/facilities/:id             # Delete facility
-```
-
-### User Endpoints
-```
-GET    /api/users                      # Get all users
-GET    /api/users/:id                  # Get specific user
-PUT    /api/users/:id                  # Update user
-DELETE /api/users/:id                  # Delete user
+GET    /api/v1/facility/get-all-facilities
+GET    /api/v1/facility/get-facility-by-id/:id
+GET    /api/v1/facility/get-facilities-by-type/:id
+GET    /api/v1/facility/get-unavailable-dates-by-facility/:id
+GET    /api/v1/facility/search-facilities
+GET    /api/v1/facility/get-room-availability-by-facility/:id
+POST   /api/v1/facility/create-facility
+POST   /api/v1/facility/update-facility/:id
+POST   /api/v1/facility/delete-facility/:id
+POST   /api/v1/facility/update-rooms/:id
 ```
 
 ### Payment Endpoints
 ```
-POST   /api/payments                   # Submit payment proof
-GET    /api/payments/:reservationId    # Get payment details
-PUT    /api/payments/:id/verify        # Verify payment
+POST   /api/v1/payment/webhook
+GET    /api/v1/payment/get-payment-intent/:id
+GET    /api/v1/payment/list-by-reservation/:id
+GET    /api/v1/payment/reconcile/:id
+GET    /api/v1/payment/get-payment-summary/:id
+GET    /api/v1/payment/get-payment-details/:id
+GET    /api/v1/payment/get-transaction-details/:reservationId
+POST   /api/v1/payment/create-payment-intent/:id
+POST   /api/v1/payment/attach-payment-method
+POST   /api/v1/payment/create-payment-method
+POST   /api/v1/payment/submit-manual-payment/:id
+POST   /api/v1/payment/update-payment-status/:id
+POST   /api/v1/payment/upload-invoice/:id
+```
+
+### Addons Endpoints
+```
+GET    /api/v1/addons/get-all-addons
+GET    /api/v1/addons/get-addon-by-id/:id
+GET    /api/v1/addons/search-addons
+POST   /api/v1/addons/create-addon
+POST   /api/v1/addons/update-addon/:id
+POST   /api/v1/addons/update-many-addons
+POST   /api/v1/addons/delete-addon/:id
+```
+
+### Dashboard Endpoints
+```
+GET    /api/v1/dashboard/get-monthly-reservations
+GET    /api/v1/dashboard/get-dashboard-stats
+GET    /api/v1/dashboard/get-reservations-for-calendar
+```
+
+### Message Endpoints
+```
+GET    /api/v1/message/list
+GET    /api/v1/message/count-unread
+POST   /api/v1/message/send
+POST   /api/v1/message/mark-read/:id
+POST   /api/v1/message/mark-all-read
+GET    /api/v1/message/auto-response/config
+POST   /api/v1/message/auto-response/config
+POST   /api/v1/message/auto-response/test
+GET    /api/v1/message/admin/users
+GET    /api/v1/message/admin/user/:userId/messages
+POST   /api/v1/message/admin/reply/:userId
+DELETE /api/v1/message/admin/conversation/:userId
+```
+
+### Notification Endpoints
+```
+GET    /api/v1/notification/list
+GET    /api/v1/notification/count-unread
+POST   /api/v1/notification/mark-read/:id
+POST   /api/v1/notification/mark-all-read
+POST   /api/v1/notification/delete-all
+```
+
+### Review Endpoints
+```
+GET    /api/v1/reviews/get-reviews-by-facility-id/:id
+GET    /api/v1/reviews/get-reviews-by-user/:userId
+POST   /api/v1/reviews/add-review
+POST   /api/v1/reviews/update-review/:id
+POST   /api/v1/reviews/delete-review/:id
+POST   /api/v1/reviews/admin-reply/:id
+POST   /api/v1/reviews/toggle-visibility/:id
+```
+
+### Report Endpoints
+```
+POST   /api/v1/report/generate-pdf
+POST   /api/v1/report/generate-excel
+POST   /api/v1/report/generate-revenue-excel
 ```
 
 ## 🔒 Security Features

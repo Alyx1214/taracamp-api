@@ -269,6 +269,77 @@ const notificationModule = {
             console.warn('Failed to create cancellation notification:', error?.message);
         }
     },
+
+    /**
+     * Notifies guest and all admin users about a declined reservation.
+     * @param {Object} dbHelper - The database helper for database operations.
+     * @param {Object} reservation - The declined reservation object.
+     * @param {Object} userSocketMap - The map of user sockets.
+     * @returns {Promise<void>}
+     */
+    notifyDecline: async function(dbHelper, reservation, userSocketMap) {
+        try {
+            if (!reservation || !reservation._id) {
+                return;
+            }
+
+            const reservationIdStr = reservation._id?.toString?.() || String(reservation._id || '');
+
+            // Notify guest if reservation has userId
+            if (reservation.userId) {
+                const userIdStr = reservation.userId?.toString?.() || String(reservation.userId || '');
+
+                await this.createAndNotifyUser(
+                    dbHelper,
+                    {
+                        title: 'Reservation Declined',
+                        message: "We're sorry to inform you that your reservation request has been declined. If you have any questions or would like to discuss this decision, please contact us.",
+                        kind: 'reservation_declined',
+                        userId: userIdStr,
+                        reservationId: reservationIdStr,
+                    },
+                    userSocketMap
+                ).catch(e => console.warn('Notify decline to guest failed:', e?.message));
+            }
+
+            // Notify all admin users about the declined reservation
+            try {
+                const adminUsers = await dbHelper.findMany('user', {
+                    role: { $ne: UserRole.GUEST }
+                }, {
+                    projection: { _id: 1 }
+                });
+
+                if (Array.isArray(adminUsers) && adminUsers.length > 0) {
+                    const guestName = reservation.guestName || 'Guest';
+
+                    const adminNotificationPromises = adminUsers.map(adminUser => {
+                        const adminUserIdStr = adminUser._id?.toString?.() || String(adminUser._id || '');
+                        return this.createAndNotifyUser(
+                            dbHelper,
+                            {
+                                title: 'Reservation Declined',
+                                message: `A reservation by ${guestName} has been declined.`,
+                                kind: 'reservation_declined_admin',
+                                userId: adminUserIdStr,
+                                reservationId: reservationIdStr,
+                            },
+                            userSocketMap
+                        ).catch(e => {
+                            console.warn(`Failed to notify admin ${adminUserIdStr}:`, e?.message);
+                            return null; // Return null instead of throwing to allow other notifications to proceed
+                        });
+                    });
+
+                    await Promise.all(adminNotificationPromises);
+                }
+            } catch (adminError) {
+                console.warn('Failed to notify admin users:', adminError?.message);
+            }
+        } catch (error) {
+            console.warn('Failed to create decline notification:', error?.message);
+        }
+    },
 };
 
 export default notificationModule;

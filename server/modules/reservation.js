@@ -2790,13 +2790,34 @@ const reservationModule = {
 
             const updated = await dbHelper.findOne('reservation', { _id: reservationId, });
 
+            // Auto-decline the reservation if it's still pending
+            let wasAutoDeclined = false;
+            if (updated && updated.status === ReservationStatus.PENDING) {
+                const declinedReservation = await dbHelper.findOneAndUpdate(
+                    'reservation',
+                    { _id: reservationId, },
+                    { status: ReservationStatus.DECLINED, },
+                    { new: true, }
+                );
+                
+                if (declinedReservation) {
+                    wasAutoDeclined = true;
+                    // Invalidate cache after status change
+                    await invalidateReservationCache();
+                }
+            }
+
             responseData.status = Status.OK;
             responseData.error = null;
-            responseData.message = 'Non-Availability Certificate uploaded successfully';
+            responseData.message = wasAutoDeclined 
+                ? 'Non-Availability Certificate uploaded successfully. Reservation has been automatically declined.'
+                : 'Non-Availability Certificate uploaded successfully';
             responseData.reservation = {
                 _id: updated._id,
                 nonAvailabilityCertFile: fileDoc?.path ?? null,
+                status: wasAutoDeclined ? ReservationStatus.DECLINED : updated.status,
             };
+            responseData.wasAutoDeclined = wasAutoDeclined;
             return responseData;
         } catch (err) {
             console.error('Error uploading Non-Availability Certificate:', err);

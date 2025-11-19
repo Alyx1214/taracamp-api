@@ -215,6 +215,15 @@ export default function Notification({ onMarkAllAsRead }) {
       setStage('cancel');
       return;
     }
+
+    // For decline notifications, show cancel preview (same component handles both)
+    if (notif.kind === 'reservation_declined' || 
+        notif.kind === 'reservation_declined_admin' ||
+        (notif.title && notif.title.toLowerCase().includes('declined'))) {
+      setSelected(notif);
+      setStage('cancel');
+      return;
+    }
   }
 
   // Handle preview confirm action

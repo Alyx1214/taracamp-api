@@ -82,7 +82,7 @@ function wireSocket(ws, apiOrigin, token) {
   };
 }
 
-export function initSocket(token, apiOrigin = 'https://taracamp-api.azurewebsites.net') {
+export function initSocket(token, apiOrigin = 'https://taracamp-api.azurewebsites.com') {
   if (socket && socket.readyState <= 1 && token === lastToken) return socket;
 
   try { socket?.close(); } catch {}
@@ -145,7 +145,7 @@ export function initSocket(token, apiOrigin = 'https://taracamp-api.azurewebsite
   return socket;
 }
 
-export async function initSocketFresh(apiOrigin = 'https://taracamp-api.azurewebsites.net') {
+export async function initSocketFresh(apiOrigin = 'https://taracamp-api.azurewebsites.com') {
   const token = await ensureFreshAccess();
   if (!token) {
     closeSocket();
@@ -154,7 +154,7 @@ export async function initSocketFresh(apiOrigin = 'https://taracamp-api.azureweb
   return initSocket(token, apiOrigin);
 }
 
-export function startAutoReconnect(getToken = ensureFreshAccess, apiOrigin = 'https://taracamp-api.azurewebsites.net', intervalMs = 30000) {
+export function startAutoReconnect(getToken = ensureFreshAccess, apiOrigin = 'https://taracamp-api.azurewebsites.com', intervalMs = 30000) {
   stopAutoReconnect();
 
   async function tick() {
