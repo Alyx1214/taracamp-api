@@ -648,33 +648,14 @@ export default function PaymentDetails() {
               <td className={styles["payment-details-separator"]}>:</td>
               <td>
                 {payment.clientProofOfPaymentUrl ? (
-                  <div className={styles["proof-of-payment-container"]}>
-                    <a 
-                      href={payment.clientProofOfPaymentUrl} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className={styles["proof-of-payment-link-wrapper"]}
-                    >
-                      <img 
-                        src={payment.clientProofOfPaymentUrl} 
-                        alt="Proof of Payment"
-                        className={styles["proof-of-payment-image"]}
-                        onError={(e) => {
-                          e.target.style.display = 'none';
-                          e.target.parentElement.nextSibling.style.display = 'block';
-                        }}
-                      />
-                    </a>
-                    <a 
-                      href={payment.clientProofOfPaymentUrl} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className={styles["proof-of-payment-link"]}
-                      style={{ display: 'none' }}
-                    >
-                      Click to open in new tab
-                    </a>
-                  </div>
+                  <a 
+                    href={payment.clientProofOfPaymentUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className={styles["payment-details-link-highlighted"]}
+                  >
+                    Click to open
+                  </a>
                 ) : (
                   <span className={styles["placeholder-text"]}>No image uploaded</span>
                 )}
@@ -1018,7 +999,7 @@ export default function PaymentDetails() {
                         href={payment.invoiceImageUrl} 
                         target="_blank" 
                         rel="noopener noreferrer"
-                        className={styles["payment-details-link"]}
+                        className={styles["payment-details-link-highlighted"]}
                       >
                         Click to open
                       </a>
@@ -1028,9 +1009,10 @@ export default function PaymentDetails() {
                   </td>
                 </tr>
                 <tr>
-                  <td colSpan={3} className={styles["payment-details-status-row"]}>
-                    <span className={styles["payment-details-status-label"]}>Payment Status:</span>{" "}
-                    <span className={`${styles["payment-details-status-value"]} ${payment.paymentStatus === "Fully Paid" ? styles["payment-details-status-paid"] : ""}`}>
+                  <td className={styles["payment-details-label"]}>Payment Status</td>
+                  <td className={styles["payment-details-separator"]}>:</td>
+                  <td>
+                    <span className={`${styles["payment-details-status-value-highlighted"]} ${payment.paymentStatus === "Fully Paid" ? styles["payment-details-status-paid"] : ""}`}>
                       {payment.paymentStatus || "Unpaid"}
                     </span>
                   </td>
