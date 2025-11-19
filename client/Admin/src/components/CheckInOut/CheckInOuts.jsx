@@ -73,6 +73,15 @@ export default function CheckInOuts() {
     return "N/A";
   };
 
+  // Memoize filters object to prevent unnecessary re-renders
+  const memoizedFilters = useMemo(() => filters, [
+    filters.serviceType,
+    filters.facilityType,
+    filters.startDate,
+    filters.endDate,
+    filters.sortBy
+  ]);
+
   // Reset filters and search when active tab changes
   useEffect(() => {
     setFilters({
@@ -107,26 +116,26 @@ export default function CheckInOuts() {
         }
         
         // Apply service type filter
-        if (filters.serviceType) {
-          params.serviceType = filters.serviceType;
+        if (memoizedFilters.serviceType) {
+          params.serviceType = memoizedFilters.serviceType;
         }
         
         // Apply facility type filter
-        if (filters.facilityType) {
-          params.facilityType = filters.facilityType;
+        if (memoizedFilters.facilityType) {
+          params.facilityType = memoizedFilters.facilityType;
         }
         
         // Apply date range filter
-        if (filters.startDate) {
-          params.start = filters.startDate;
+        if (memoizedFilters.startDate) {
+          params.start = memoizedFilters.startDate;
         }
-        if (filters.endDate) {
-          params.end = filters.endDate;
+        if (memoizedFilters.endDate) {
+          params.end = memoizedFilters.endDate;
         }
         
         // Apply sorting
-        if (filters.sortBy) {
-          params.sort = filters.sortBy;
+        if (memoizedFilters.sortBy) {
+          params.sort = memoizedFilters.sortBy;
         }
         
         // Apply search query
@@ -187,7 +196,7 @@ export default function CheckInOuts() {
     return () => { 
       cancelledRef.current = true; 
     };
-  }, [activeTab, filters, searchQuery]);
+  }, [activeTab, memoizedFilters, searchQuery]);
 
   const applySorting = (data, sortBy) => {
     const sorted = [...data];
@@ -450,13 +459,23 @@ export default function CheckInOuts() {
               alert("Invalid reservation ID. Cannot view details.");
               return;
             }
-            navigate(`/checkin/${row.id}/details`, {
-              state: {
-                activeTab: activeTab,
-                filters,
-                searchQuery,
-              }
-            });
+            row.guestType === "GROUP"
+              ? navigate(`/confirmedGroup/${row.id}/details`, {
+                  state: {
+                    fromCheckInOut: true,
+                    activeTab: activeTab,
+                    filters,
+                    searchQuery,
+                  }
+                })
+              : navigate(`/confirmedIndiv/${row.id}/details`, {
+                  state: {
+                    fromCheckInOut: true,
+                    activeTab: activeTab,
+                    filters,
+                    searchQuery,
+                  }
+                });
           }}
         >
           See Details
@@ -506,13 +525,23 @@ export default function CheckInOuts() {
               alert("Invalid reservation ID. Cannot view details.");
               return;
             }
-            navigate(`/checkout/${row.id}/details`, {
-              state: {
-                activeTab: activeTab,
-                filters,
-                searchQuery,
-              }
-            });
+            row.guestType === "GROUP"
+              ? navigate(`/confirmedGroup/${row.id}/details`, {
+                  state: {
+                    fromCheckInOut: true,
+                    activeTab: activeTab,
+                    filters,
+                    searchQuery,
+                  }
+                })
+              : navigate(`/confirmedIndiv/${row.id}/details`, {
+                  state: {
+                    fromCheckInOut: true,
+                    activeTab: activeTab,
+                    filters,
+                    searchQuery,
+                  }
+                });
           }}
         >
           See Details
