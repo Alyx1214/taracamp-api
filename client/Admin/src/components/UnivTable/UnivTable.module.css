@@ -175,3 +175,9 @@
 .univ-delete-btn:hover {
   background-color: #c42838dc;
 }
+
+.second-column {
+  max-width: 190px;
+  word-wrap: break-word;
+  white-space: normal;
+}
