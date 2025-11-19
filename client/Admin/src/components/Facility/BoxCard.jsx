@@ -19,7 +19,7 @@ const getSingularLabel = (category) => {
   }
 };
 
-export default function BoxCard({ facilities, onDelete, type, onEdit }) {
+export default function BoxCard({ facilities, onDelete, type, onEdit, isFrontdesk = false }) {
   const navigate = useNavigate();
   const [openMenuIndex, setOpenMenuIndex] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -152,18 +152,22 @@ export default function BoxCard({ facilities, onDelete, type, onEdit }) {
                       <FaStar className={styles.icon} /> Reviews
                     </div>
                   )}
-                  <div
-                    className={styles["dropdown-item"]}
-                    onClick={() => handleEditClick(facility)}
-                  >
-                    <FaEdit className={styles.icon} /> Edit
-                  </div>
-                  <div
-                    className={styles["dropdown-item"]}
-                    onClick={() => handleDeleteClick(facility)}
-                  >
-                    <FaTrash className={styles.icon} /> Delete
-                  </div>
+                  {!isFrontdesk && (
+                    <>
+                      <div
+                        className={styles["dropdown-item"]}
+                        onClick={() => handleEditClick(facility)}
+                      >
+                        <FaEdit className={styles.icon} /> Edit
+                      </div>
+                      <div
+                        className={styles["dropdown-item"]}
+                        onClick={() => handleDeleteClick(facility)}
+                      >
+                        <FaTrash className={styles.icon} /> Delete
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
             </div>

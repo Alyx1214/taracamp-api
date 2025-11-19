@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import ReservationsHeader from "./ReservationsHeader";
 import Pagination from "../Pagination/Pagination.jsx";
@@ -196,6 +196,16 @@ export default function Reservations() {
     refreshTab(tab);
   };
 
+  // Memoize filters object to prevent unnecessary re-renders in child components
+  // This prevents the filters object reference from changing on every render
+  const memoizedFilters = useMemo(() => filters, [
+    filters.serviceType,
+    filters.category,
+    filters.startDate,
+    filters.endDate,
+    filters.sortBy
+  ]);
+
   // Define filter fields for reservations
   const getFilterFields = () => {
     return [
@@ -263,7 +273,7 @@ export default function Reservations() {
     const commonProps = {
       ...paginationProps,
       searchQuery,
-      filters
+      filters: memoizedFilters
     };
 
     switch (activeTab) {

@@ -1249,6 +1249,13 @@ const paymentModule = {
                 // Event/Conference - use excessCapacity
                 const count = reservation.excessCapacity?.count || 0;
                 const rate = reservation.excessCapacity?.rate || (facility?.ratePerExcessCapacity || 0);
+                console.log('Loading excessCapacity rate:', { 
+                    facilityId: facility?._id, 
+                    facilityName: facility?.name,
+                    facilityRatePerExcessCapacity: facility?.ratePerExcessCapacity,
+                    reservationRate: reservation.excessCapacity?.rate,
+                    finalRate: rate 
+                });
                 excessCapacity = { count, rate };
             } else if (isCottage) {
                 // Cottage - use excessWithBeddings and excessWithoutBeddings

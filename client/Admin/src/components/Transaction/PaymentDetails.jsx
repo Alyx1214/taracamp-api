@@ -470,10 +470,13 @@ export default function PaymentDetails() {
   // Calculate excess charges total using rates from payment (which come from facility)
   const calculateExcessTotal = () => {
     if (isEventReservation || !isCottage) {
-      return (excessCapacity || 0) * (payment?.excessCapacity?.rate || 0);
+      const capacity = typeof excessCapacity === 'string' && excessCapacity === '' ? 0 : Number(excessCapacity || 0);
+      return capacity * Number(payment?.excessCapacity?.rate || 0);
     } else if (isCottage) {
-      const withBeddingsTotal = (excessWithBeddings || 0) * (payment?.excessWithBeddings?.rate || 0);
-      const withoutBeddingsTotal = (excessWithoutBeddings || 0) * (payment?.excessWithoutBeddings?.rate || 0);
+      const withBeddings = typeof excessWithBeddings === 'string' && excessWithBeddings === '' ? 0 : Number(excessWithBeddings || 0);
+      const withoutBeddings = typeof excessWithoutBeddings === 'string' && excessWithoutBeddings === '' ? 0 : Number(excessWithoutBeddings || 0);
+      const withBeddingsTotal = withBeddings * Number(payment?.excessWithBeddings?.rate || 0);
+      const withoutBeddingsTotal = withoutBeddings * Number(payment?.excessWithoutBeddings?.rate || 0);
       return withBeddingsTotal + withoutBeddingsTotal;
     }
     return 0;
@@ -717,16 +720,38 @@ export default function PaymentDetails() {
                       type="number"
                       className={styles["form-input"]}
                       value={excessCapacity}
-                      onChange={(e) => setExcessCapacity(e.target.value)}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        // Allow empty string for typing, but convert to 0 if invalid
+                        if (value === '' || value === '-') {
+                          setExcessCapacity('');
+                        } else {
+                          const numValue = parseInt(value, 10);
+                          if (!isNaN(numValue) && numValue >= 0) {
+                            setExcessCapacity(numValue);
+                          }
+                        }
+                      }}
+                      onBlur={(e) => {
+                        // Set to 0 if empty when field loses focus
+                        if (e.target.value === '' || e.target.value === '-') {
+                          setExcessCapacity(0);
+                        }
+                      }}
                       placeholder="0"
                       min="0"
                     />
                   </div>
                   <div className={styles["excess-rate-info"]}>
-                    Rate per Excess: ₱{(payment?.excessCapacity?.rate || 0).toFixed(2)}
+                    Rate per Excess: ₱{(payment?.excessCapacity?.rate || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
                   </div>
                   <div className={styles["excess-subtotal"]}>
-                    Subtotal: ₱{((excessCapacity || 0) * (payment?.excessCapacity?.rate || 0)).toFixed(2)}
+                    Subtotal: ₱{(() => {
+                      const capacity = typeof excessCapacity === 'string' && excessCapacity === '' ? 0 : Number(excessCapacity || 0);
+                      const rate = Number(payment?.excessCapacity?.rate || 0);
+                      const subtotal = capacity * rate;
+                      return subtotal.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+                    })()}
                   </div>
                 </div>
               </div>
@@ -789,14 +814,23 @@ export default function PaymentDetails() {
               {isEventReservation || !isCottage ? (
                 // Event/Conference or non-Cottage Display
                 payment.excessCapacity?.count > 0 ? (
-                  <tr>
-                    <td className={styles["payment-details-label"]}>Excess Capacity</td>
-                    <td className={styles["payment-details-separator"]}>:</td>
-                    <td>
-                      {payment.excessCapacity.count} × ₱{payment.excessCapacity.rate.toFixed(2)} = 
-                      ₱{(payment.excessCapacity.count * payment.excessCapacity.rate).toFixed(2)}
-                    </td>
-                  </tr>
+                  <>
+                    <tr>
+                      <td className={styles["payment-details-label"]}>Excess Capacity</td>
+                      <td className={styles["payment-details-separator"]}>:</td>
+                      <td>
+                        {payment.excessCapacity.count} × ₱{payment.excessCapacity.rate.toFixed(2)} = 
+                        ₱{(payment.excessCapacity.count * payment.excessCapacity.rate).toFixed(2)}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className={styles["payment-details-label"]} style={{ fontWeight: 'bold' }}>Total Excess Charges</td>
+                      <td className={styles["payment-details-separator"]}>:</td>
+                      <td style={{ fontWeight: 'bold' }}>
+                        ₱{((payment.excessCapacity?.count || 0) * (payment.excessCapacity?.rate || 0)).toFixed(2)}
+                      </td>
+                    </tr>
+                  </>
                 ) : (
                   <tr>
                     <td colSpan="3" className={styles["placeholder-text"]}>No excess capacity charges</td>

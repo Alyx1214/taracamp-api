@@ -40,6 +40,16 @@ export default function Confirmed({
 
   const itemsPerPage = 15;
   const columns = useMemo(() => ["Name", "Email", "Service Type", "Facility Name", "Date", "Actions"], []);
+  
+  // Memoize filters to prevent unnecessary re-renders
+  const filtersString = useMemo(() => JSON.stringify(filters || {}), [
+    filters?.serviceType,
+    filters?.category,
+    filters?.startDate,
+    filters?.endDate,
+    filters?.sortBy
+  ]);
+  
   useEffect(() => {
     let cancelled = false;
     async function fetchConfirmed() {
@@ -97,7 +107,7 @@ export default function Confirmed({
     }
     fetchConfirmed();
     return () => { cancelled = true; };
-  }, [searchQuery, currentPage, filters]);
+  }, [searchQuery, currentPage, filtersString]);
 
   // Sync with parent pagination state
   useEffect(() => {

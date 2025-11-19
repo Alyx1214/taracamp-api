@@ -32,7 +32,7 @@ const getIpAddress = (req) => {
 
 export const basicLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 150,
+  max: 300, // Increased from 150 to 300 to accommodate admin operations
   message: { error: 'Too many requests, try again in a minute.' },
   keyGenerator: (req) => getIpAddress(req)
 });

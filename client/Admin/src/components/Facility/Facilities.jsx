@@ -28,6 +28,10 @@ export default function Facilities() {
   const [isEditing, setIsEditing] = useState(false);
   const [editingData, setEditingData] = useState(null);
 
+  // Check user role to determine if add facility should be shown
+  const role = (typeof window !== 'undefined' && localStorage.getItem('userRole')) || '';
+  const isFrontdesk = role === 'FRONTDESK';
+
   // Handle activeTab from navigation state
   useEffect(() => {
     if (location.state?.activeTab) {
@@ -172,6 +176,7 @@ export default function Facilities() {
           onSave={handleSaveChanges}
           onCancel={handleCancelEdit}
           data={editingData}
+          isFrontdesk={isFrontdesk}
         />
       );
     }
@@ -179,7 +184,8 @@ export default function Facilities() {
     const commonProps = {
       searchQuery,
       filters,
-      onEdit: activeTab !== "Add-ons" ? handleEdit : undefined
+      onEdit: activeTab !== "Add-ons" && !isFrontdesk ? handleEdit : undefined,
+      isFrontdesk
     };
 
     switch (activeTab) {
@@ -192,9 +198,10 @@ export default function Facilities() {
       case "Add-ons":
         return (
           <OtherService
-            onEdit={handleEdit}
+            onEdit={!isFrontdesk ? handleEdit : undefined}
             searchQuery={searchQuery}
             filters={filters}
+            isFrontdesk={isFrontdesk}
           />
         );
       default:
@@ -204,7 +211,7 @@ export default function Facilities() {
 
   return (
     <div className={styles.facilitiesContainer}>
-      {!isEditing && <DormAddFaci activeTab={activeTab} />}
+      {!isEditing && !isFrontdesk && <DormAddFaci activeTab={activeTab} />}
 
       {!isEditing && (
         <div className={styles.facilitiesControls}>

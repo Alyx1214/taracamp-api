@@ -2719,7 +2719,7 @@ const reservationModule = {
                 return responseData;
             }
 
-            if (user.role !== UserRole.SUPERINTENDENT) {
+            if (user.role !== UserRole.SUPERINTENDENT && user.role !== UserRole.CRMSTEAM) {
                 responseData.status = Status.FORBIDDEN;
                 responseData.error = 'You are not authorized to perform this action';
                 return responseData;
