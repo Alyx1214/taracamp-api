@@ -1625,7 +1625,7 @@ const reservationModule = {
             }
 
             const isOwner = reservation.userId && String(reservation.userId) === String(user.userId);
-            if (!isOwner && user.role !== UserRole.SUPERINTENDENT && user.role !== UserRole.FRONTDESK) {
+            if (!isOwner && user.role !== UserRole.SUPERINTENDENT && user.role !== UserRole.FRONTDESK && user.role !== UserRole.CRMSTEAM) {
                 responseData.status = Status.FORBIDDEN;
                 responseData.error = 'You are not authorized to cancel this reservation';
                 return responseData;
@@ -2268,6 +2268,7 @@ const reservationModule = {
                 return responseData;
             }
 
+            //Future TODO: Add Frontdesk role to this list
             if (user.role !== UserRole.SUPERINTENDENT && user.role !== UserRole.CRMSTEAM) {
                 responseData.status = Status.FORBIDDEN;
                 responseData.error = 'You are not authorized to perform this action';
@@ -2719,7 +2720,7 @@ const reservationModule = {
                 return responseData;
             }
 
-            if (user.role !== UserRole.SUPERINTENDENT && user.role !== UserRole.CRMSTEAM) {
+            if (user.role !== UserRole.SUPERINTENDENT && user.role !== UserRole.CRMSTEAM && user.role !== UserRole.FRONTDESK) {
                 responseData.status = Status.FORBIDDEN;
                 responseData.error = 'You are not authorized to perform this action';
                 return responseData;

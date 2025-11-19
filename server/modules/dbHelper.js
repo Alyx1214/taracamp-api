@@ -163,7 +163,25 @@ const dbHelper = {
                 ratePerExcessWithoutBeddings: { type: Number, required: false, },
                 status: { type: String, enum: Object.values(FacilityStatus), default: FacilityStatus.AVAILABLE, required: true, },
                 images: { type: [String], default: [] },
-                rooms: { type: [{ name: String, capacity: Number, status: String, assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: 'reservation', required: false }, assignedGuests: { type: Number, required: false, default: 0 } }], default: [] },
+                rooms: { 
+                    type: [{ 
+                        name: String, 
+                        capacity: Number, 
+                        status: String, 
+                        assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: 'reservation', required: false }, 
+                        assignedGuests: { type: Number, required: false, default: 0 },
+                        assignments: { 
+                            type: [{ 
+                                reservationId: { type: mongoose.Schema.Types.ObjectId, ref: 'reservation', required: true }, 
+                                guestsAssigned: { type: Number, required: false, default: 0 },
+                                startDate: { type: String, required: true },
+                                endDate: { type: String, required: true }
+                            }], 
+                            default: [] 
+                        }
+                    }], 
+                    default: [] 
+                },
                 createdAt: { type: Date, default: Date.now, },
             });
 
