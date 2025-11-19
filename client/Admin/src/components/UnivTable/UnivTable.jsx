@@ -35,6 +35,8 @@ export default function UnivTable({ columns, data, renderActions, renderMenu, re
       "Facility Name": "facilityName",
       "Arrival Date": "arrivalDate",
       "Departure Date": "departureDate",
+      "Checked In By": "checkedInBy",
+      "Checked Out By": "checkedOutBy",
       Date: "date",
     };
     // If not in mapping, convert to camelCase: "Facility Type" -> "facilityType"
@@ -56,7 +58,12 @@ export default function UnivTable({ columns, data, renderActions, renderMenu, re
         <thead>
           <tr>
             {columns.map((col, index) => (
-              <th key={index}>{col}</th>
+              <th 
+                key={index}
+                className={index === 1 || index === 5 ? styles["second-column"] : ""}
+              >
+                {col}
+              </th>
             ))}
           </tr>
         </thead>
@@ -125,7 +132,10 @@ export default function UnivTable({ columns, data, renderActions, renderMenu, re
                       </div>
                     </td>
                   ) : (
-                    <td key={colIndex}>
+                    <td 
+                      key={colIndex}
+                      className={colIndex === 1 || colIndex === 5 ? styles["second-column"] : ""}
+                    >
                       {renderCell ? renderCell(col, row) : (row[getColumnKey(col)] || "-")}
                     </td>
                   )

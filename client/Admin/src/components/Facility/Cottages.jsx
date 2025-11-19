@@ -3,7 +3,7 @@ import BoxCard from "./BoxCard";
 import { getFacilitiesByType, deleteFacility, searchFacilities } from "../../apis/facilityApi";
 import styles from "./Cottages.module.css";
 
-export default function Cottages({ onEdit, searchQuery = "", filters = {} }) {
+export default function Cottages({ onEdit, searchQuery = "", filters = {}, isFrontdesk = false }) {
   const [cottages, setCottages] = useState([]);
   const [state, setState] = useState({ loading: true, error: null });
 
@@ -158,6 +158,7 @@ export default function Cottages({ onEdit, searchQuery = "", filters = {} }) {
           type="Cottage"    
           onEdit={onEdit}
           onDelete={handleDelete}
+          isFrontdesk={isFrontdesk}
         />
       )}
     </section>

@@ -176,10 +176,35 @@ function MainServices() {
     }
   }
 
-  function handleClearSearch() {
-    setFacilities([]);
+  async function handleClearSearch() {
     setSearchAttempted(false);
     setError(null);
+    setLoading(true);
+    
+    try {
+      if (facilityType === 'Add-Ons') {
+        // For Add-Ons, we might need a different API call
+        // For now, just clear the facilities
+        setFacilities([]);
+      } else {
+        const resolvedType = LABEL_TO_ENUM[facilityType] ?? null;
+        if (resolvedType) {
+          const data = await searchFacilities({ type: resolvedType });
+          const filteredFacilities = Array.isArray(data?.facilities) ? data.facilities : [];
+          setFacilities(filteredFacilities);
+        } else {
+          // For 'All', get all facilities
+          const data = await getAllFacilities();
+          const allFacilities = Array.isArray(data?.facilities) ? data.facilities : [];
+          setFacilities(allFacilities);
+        }
+      }
+    } catch (err) {
+      setFacilities([]);
+      setError(err?.data?.error || 'Failed to load facilities');
+    } finally {
+      setLoading(false);
+    }
   }
 
   function handleReserveNow() {

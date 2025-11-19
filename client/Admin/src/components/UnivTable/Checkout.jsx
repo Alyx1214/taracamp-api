@@ -45,9 +45,10 @@ export default function Checkout({
   // Check if user can delete (only Superintendent)
   const role = (typeof window !== 'undefined' && localStorage.getItem('userRole')) || '';
   const canDelete = role === 'SUPERINTENDENT';
+  const isCRMSTeam = role === 'CRMS TEAM' || role === 'CRMS Team';
 
   const itemsPerPage = 15;
-  const columns = useMemo(() => ["Name", "Email", "Service Type", "Facility Name", "Departure Date", "Actions"], []);
+  const columns = useMemo(() => ["Name", "Email", "Service Type", "Facility Name", "Departure Date", "Checked Out By", "Actions"], []);
   
   const fetchCheckoutData = useCallback(async (page = currentPage, query = searchQuery, appliedFilters = filters, showLoading = true) => {
     try {
@@ -81,6 +82,7 @@ export default function Checkout({
         serviceType: prettifyServiceType(r.serviceType) || "N/A",
         facilityName: r.facilityName || "N/A",
         departureDate: formatDateYMDToLong(r.dateOfDeparture),
+        checkedOutBy: r.checkedOutBy || "N/A",
         _raw: r,
       }));
       
@@ -148,6 +150,32 @@ export default function Checkout({
   };
 
   const renderActions = (row) => {
+    // CRMS Team can only see details
+    if (isCRMSTeam) {
+      return (
+        <>
+          <button 
+            className={styles["univ-approve-btn"]} 
+            onClick={() => {
+              if (!row.id || row.id === "N/A") {
+                alert("Invalid reservation ID. Cannot view details.");
+                return;
+              }
+              navigate(`/checkout/${row.id}/details`, {
+                state: {
+                  activeTab: 'Checkout',
+                  filters,
+                  searchQuery,
+                  currentPage
+                }
+              });
+            }}
+          >
+            See Detail
+          </button>
+        </>
+      );
+    }
     if (!canDelete) {
       return (
         <>
@@ -185,7 +213,7 @@ export default function Checkout({
     );
   };
 
-  const renderMenu = canDelete ? (row) => [
+  const renderMenu = (canDelete || isCRMSTeam) ? (row) => [
     {
       label: "See Details",
       onClick: () => {

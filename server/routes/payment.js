@@ -134,12 +134,26 @@ export default function buildPaymentRouter(userSocketMap) {
 
   r.post('/update-payment-status/:id', authenticateJWT, asyncHandler(async (req, res) => {
     const reservationId = req.params.id;
-    const { invoiceNumber, paymentStatus, invoiceFileId } = req.body;
+    const { 
+      invoiceNumber, 
+      paymentStatus, 
+      invoiceFileId,
+      excessCapacityCount,
+      excessWithBeddingsCount,
+      excessWithoutBeddingsCount
+    } = req.body;
     
     const response = await paymentModule.updatePaymentStatus(
       dbHelper,
       reservationId,
-      { invoiceNumber, paymentStatus, invoiceFileId },
+      { 
+        invoiceNumber, 
+        paymentStatus, 
+        invoiceFileId,
+        excessCapacityCount,
+        excessWithBeddingsCount,
+        excessWithoutBeddingsCount
+      },
       req.user
     );
     

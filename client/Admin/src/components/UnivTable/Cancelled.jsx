@@ -42,9 +42,9 @@ export default function Cancelled({
   const [totalPages, setTotalPages] = useState(parentTotalPages);
   const [totalItems, setTotalItems] = useState(parentTotalItems);
 
-  // Check if user can delete (only Superintendent)
+  // Check if user can delete (Superintendent and CRMS Team)
   const role = (typeof window !== 'undefined' && localStorage.getItem('userRole')) || '';
-  const canDelete = role === 'SUPERINTENDENT';
+  const canDelete = role === 'SUPERINTENDENT' || role === 'CRMS TEAM' || role === 'CRMS Team';
 
   const itemsPerPage = 15;
   const columns = useMemo(() => ["Name", "Email", "Service Type", "Facility Name", "Date", "Actions"], []);

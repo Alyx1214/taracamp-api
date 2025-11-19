@@ -956,6 +956,113 @@ const paymentModule = {
             // Get check-out employee
             const checkOutEmployee = reservation.checkOutEmployee || reservation.checkedOutBy || reservation.coEmployee || 'N/A';
 
+            // Calculate breakdown, addons, service fee, discount, and total
+            const breakdown = [];
+            const addons = [];
+
+            // Calculate addonsTotal from reservation add-ons
+            let addonsTotal = 0;
+            const serviceIds = []
+                .concat(reservation?.addOns || [])
+                .concat(reservation?.specialService ? [reservation.specialService,] : [])
+                .filter(Boolean);
+
+            let services = [];
+            if (serviceIds.length) {
+                services = await dbHelper.findMany(
+                    'addon',
+                    { _id: { $in: serviceIds.map(String), }, },
+                    { projection: { _id: 1, price: 1, name: 1, unit: 1, }, }
+                );
+                addonsTotal = services.reduce((sum, s) => sum + (Number(s.price) || 0), 0);
+            }
+
+            // Calculate discount and service fee information using shared computeEstimate logic
+            let discountInfo = {
+                label: 'None',
+                amount: '₱0.00',
+                percentage: '0%'
+            };
+            let serviceFeeInfo = {
+                label: 'None',
+                amount: '₱0.00',
+                percentage: '0%'
+            };
+
+            let estimateResult = null;
+            if (facility && reservation.category) {
+                estimateResult = computeEstimate({
+                    facilityDoc: facility,
+                    adults: reservation?.numberOfGuests?.adult || 0,
+                    children: reservation?.numberOfGuests?.children || 0,
+                    pwds: reservation?.numberOfGuests?.pwds || 0,
+                    seniorCitizens: reservation?.numberOfGuests?.seniorCitizens || 0,
+                    serviceType: reservation?.serviceType,
+                    addonsTotal: addonsTotal,
+                    category: reservation?.category,
+                    dateOfArrival: reservation?.dateOfArrival,
+                    dateOfDeparture: reservation?.dateOfDeparture,
+                    timeOfArrival: reservation?.timeOfArrival,
+                });
+                
+                breakdown.push({
+                    label: facility.name,
+                    amount: fmtAmountOnly(estimateResult.baseAmount - addonsTotal),
+                });
+
+                // Normalize category for comparison
+                const normalizedReservationCategory = reservation.category ? String(reservation.category).trim() : '';
+                
+                // Always show service fee for categories that have it
+                if (normalizedReservationCategory === Category.PRIVATE || normalizedReservationCategory === Category.GOVERNMENT || normalizedReservationCategory === Category.DEPED || normalizedReservationCategory === Category.PWDS) {
+                    serviceFeeInfo = {
+                        label: 'Service Fee',
+                        amount: peso(estimateResult.serviceFee),
+                        percentage: '10%'
+                    };
+                }
+
+                if (estimateResult.discount > 0) {
+                    discountInfo = {
+                        label: `${reservation.category} Discount`,
+                        amount: peso(estimateResult.discount),
+                        percentage: normalizedReservationCategory === Category.GOVERNMENT || normalizedReservationCategory === Category.DEPED || normalizedReservationCategory === Category.PWDS ? '20%' : '0%'
+                    };
+                }
+            } else if (facility) {
+                // If no category, still calculate breakdown but no service fee/discount
+                estimateResult = computeEstimate({
+                    facilityDoc: facility,
+                    adults: reservation?.numberOfGuests?.adult || 0,
+                    children: reservation?.numberOfGuests?.children || 0,
+                    pwds: reservation?.numberOfGuests?.pwds || 0,
+                    seniorCitizens: reservation?.numberOfGuests?.seniorCitizens || 0,
+                    serviceType: reservation?.serviceType,
+                    addonsTotal: addonsTotal,
+                    category: reservation?.category,
+                    dateOfArrival: reservation?.dateOfArrival,
+                    dateOfDeparture: reservation?.dateOfDeparture,
+                    timeOfArrival: reservation?.timeOfArrival,
+                });
+                
+                breakdown.push({
+                    label: facility.name,
+                    amount: fmtAmountOnly(estimateResult.baseAmount - addonsTotal),
+                });
+            }
+
+            // Process add-ons for display (separate from breakdown)
+            for (const s of services || []) {
+                const addonItem = {
+                    name: s.name,
+                    price: fmtAmountOnly(Number(s.price) || 0),
+                    unit: s.unit || 'per item'
+                };
+                addons.push(addonItem);
+            }
+
+            const totalEstimated = Number(reservation.totalEstimatedAmount) || 0;
+
             const view = {
                 id: (reservation._id?.toString() || '').slice(-4) || 'N/A',
                 referenceNumber: referenceNumber || (latest ? String(latest._id) : 'N/A'),
@@ -989,6 +1096,16 @@ const paymentModule = {
                 checkOutEmployee: checkOutEmployee,
                 contactNumber: contact,
                 address: address,
+                // Payment breakdown details
+                breakdown,
+                addons,
+                serviceFee: serviceFeeInfo.label,
+                serviceFeeAmount: serviceFeeInfo.amount,
+                serviceFeePercentage: serviceFeeInfo.percentage,
+                discount: discountInfo.label,
+                discountAmount: discountInfo.amount,
+                discountPercentage: discountInfo.percentage,
+                total: peso(totalEstimated, true),
             };
 
             responseData.status = Status.OK;

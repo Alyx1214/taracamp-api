@@ -46,9 +46,9 @@ export default function Pending({
   const [totalPages, setTotalPages] = useState(parentTotalPages);
   const [totalItems, setTotalItems] = useState(parentTotalItems);
 
-  // Check if user can approve/decline (only Superintendent)
+  // Check if user can approve/decline (Superintendent and CRMS Team)
   const role = (typeof window !== 'undefined' && localStorage.getItem('userRole')) || '';
-  const canApproveDecline = role === 'SUPERINTENDENT';
+  const canApproveDecline = role === 'SUPERINTENDENT' || role === 'CRMS TEAM' || role === 'CRMS Team';
 
   const itemsPerPage = 15;
   const columns = useMemo(() => ["Name", "Email", "Service Type", "Facility Name", "Date", "Actions"], []);

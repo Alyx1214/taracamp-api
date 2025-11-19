@@ -3,7 +3,7 @@ import BoxCard from "./BoxCard";
 import { getFacilitiesByType, deleteFacility, searchFacilities } from "../../apis/facilityApi";
 import styles from "./Conference.module.css";
 
-export default function Conference({ onEdit, searchQuery = "", filters = {} }) {
+export default function Conference({ onEdit, searchQuery = "", filters = {}, isFrontdesk = false }) {
   const [conferences, setConferences] = useState([]);
   const [state, setState] = useState({ loading: true, error: null });
 
@@ -159,6 +159,7 @@ export default function Conference({ onEdit, searchQuery = "", filters = {} }) {
           type="Conference"
           onEdit={onEdit}
           onDelete={handleDelete}
+          isFrontdesk={isFrontdesk}
         />
       )}
     </section>

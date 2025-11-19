@@ -43,9 +43,9 @@ export default function Approved({
   const [totalPages, setTotalPages] = useState(parentTotalPages);
   const [totalItems, setTotalItems] = useState(parentTotalItems);
 
-  // Check if user can edit/cancel (only Superintendent)
+  // Check if user can edit/cancel (Superintendent and CRMS Team)
   const role = (typeof window !== 'undefined' && localStorage.getItem('userRole')) || '';
-  const canEditCancel = role === 'SUPERINTENDENT';
+  const canEditCancel = role === 'SUPERINTENDENT' || role === 'CRMS TEAM' || role === 'CRMS Team';
 
   const itemsPerPage = 15;
   const columns = useMemo(() => ["Name", "Email", "Service Type", "Facility Name", "Date", "Actions"], []);

@@ -21,7 +21,7 @@ function LoginForm({ onForgotPassword, onLoginSuccess }) {
     try {
       const data = await apiLogin({ email, password });
       const role = String(data?.role || '').toUpperCase();
-      if (role === 'Guest') {
+      if (role === 'GUEST') {
         setError('Guest accounts cannot access the Admin portal.');
         return; 
       }

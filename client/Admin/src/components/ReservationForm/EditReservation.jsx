@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { getReservationById } from '../../apis/reservationApi';
 import { getAllAddons } from '../../apis/addonsApi';
 
 export default function EditReservation() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -180,8 +181,21 @@ export default function EditReservation() {
           isExisting: true,
         }));
 
+        // Prepare DepEd ID files
+        const depedIdFiles = (reservation.depedIdFiles || []).map(file => ({
+          url: file.url,
+          name: file.name || 'DepEd ID',
+          isExisting: true,
+        }));
+
         // Store original type to detect changes during edit
         const originalType = reservation.guestType || 'Individual'; // 'Group' or 'Individual'
+        
+        // Preserve original status and navigation context from check-in/check-out tabs
+        const originalStatus = reservation.status || null;
+        const fromCheckInOut = location.state?.fromCheckInOut || false;
+        const activeTab = location.state?.activeTab || null;
+        const filters = location.state?.filters || null;
         
         // Navigate to the first form step with pre-populated data
         navigate('/reservation-form', {
@@ -191,10 +205,15 @@ export default function EditReservation() {
             reservationId: id, // Pass reservation ID for edit mode
             isEdit: true,
             originalType: originalType, // Store original type to detect changes
+            originalStatus: originalStatus, // Store original status to preserve it
+            fromCheckInOut: fromCheckInOut, // Preserve check-in/out context
+            activeTab: activeTab, // Preserve active tab
+            filters: filters, // Preserve filters
             file: letterOfIntentFile, // Letter of Intent file
             seniorCitizenIdFiles: seniorCitizenIdFiles,
             pwdIdFiles: pwdIdFiles,
             governmentIdFiles: governmentIdFiles,
+            depedIdFiles: depedIdFiles,
             userEmail: reservation.userEmail || null, // User account email
           },
           replace: true,

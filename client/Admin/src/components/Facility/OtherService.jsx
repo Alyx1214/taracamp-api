@@ -47,7 +47,7 @@ const SkeletonLoader = ({ count = 3 }) => {
   );
 };
 
-export default function OtherService({ onEdit, editable, onSave, onCancel, searchQuery, filters = {} }) {
+export default function OtherService({ onEdit, editable, onSave, onCancel, searchQuery, filters = {}, isFrontdesk = false }) {
   const [services, setServices] = useState([]);
   const [originalServices, setOriginalServices] = useState([]);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -427,14 +427,16 @@ export default function OtherService({ onEdit, editable, onSave, onCancel, searc
                     <option value="all">All</option>
                   </select>
 
-                  <button
-                    type="button"
-                    className={styles.deleteBtn}
-                    onClick={() => handleRemoveItem(index)}
-                    title="Delete item"
-                  >
-                    <FaTrash />
-                  </button>
+                  {!isFrontdesk && (
+                    <button
+                      type="button"
+                      className={styles.deleteBtn}
+                      onClick={() => handleRemoveItem(index)}
+                      title="Delete item"
+                    >
+                      <FaTrash />
+                    </button>
+                  )}
                 </li>
               ))
             ) : (
@@ -487,21 +489,23 @@ export default function OtherService({ onEdit, editable, onSave, onCancel, searc
         </div>
       )}
       <div className={styles.tableContainer}>
-        <div className={styles.menuWrapper} ref={menuRef}>
-          <div
-            className={styles.cardMenu}
-            onClick={() => setMenuOpen(!menuOpen)}
-          >
-            ⋮
-          </div>
-          {menuOpen && (
-            <div className={styles.dropdownMenu}>
-              <div className={styles.dropdownItem} onClick={handleEdit}>
-                <FaEdit className={styles.icon} /> Edit
-              </div>
+        {!isFrontdesk && (
+          <div className={styles.menuWrapper} ref={menuRef}>
+            <div
+              className={styles.cardMenu}
+              onClick={() => setMenuOpen(!menuOpen)}
+            >
+              ⋮
             </div>
-          )}
-        </div>
+            {menuOpen && (
+              <div className={styles.dropdownMenu}>
+                <div className={styles.dropdownItem} onClick={handleEdit}>
+                  <FaEdit className={styles.icon} /> Edit
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         <div className={`${styles.tableHeader} ${styles.tableGridView}`}>
           <span>EQUIPMENTS</span>

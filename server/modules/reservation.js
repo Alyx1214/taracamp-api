@@ -8,7 +8,7 @@ dotenv.config();
 const storage = new Storage();
 const bucket = storage.bucket(process.env.BUCKET_NAME);
 const APP_TZ_OFFSET = '+08:00';
-const TZ = 'Asia/Manila';
+
 
 const invalidateReservationCache = async () => {
     try {
@@ -1012,6 +1012,7 @@ const reservationModule = {
             // Fetch Government ID files
             let governmentIdFiles = [];
             let governmentIdFile = null;
+            let depedIdFiles = [];
             let depedIdFile = null;
             try {
                 // Fetch Government ID files
@@ -1133,11 +1134,11 @@ const reservationModule = {
                             return null;
                         }
                     });
-                    const depedIdFilesArray = (await Promise.all(depedPromises)).filter(Boolean);
+                    depedIdFiles = (await Promise.all(depedPromises)).filter(Boolean);
                     
                     // Set the first file as depedIdFile
-                    if (depedIdFilesArray.length > 0) {
-                        const firstFile = depedIdFilesArray[0];
+                    if (depedIdFiles.length > 0) {
+                        const firstFile = depedIdFiles[0];
                         let fileUrl = null;
                         if (typeof firstFile === 'string') {
                             fileUrl = firstFile;
@@ -1269,6 +1270,7 @@ const reservationModule = {
             reservationObject.pwdIdFile = pwdIdFile;
             reservationObject.governmentIdFiles = Array.isArray(governmentIdFiles) ? governmentIdFiles : [];
             reservationObject.governmentIdFile = governmentIdFile;
+            reservationObject.depedIdFiles = Array.isArray(depedIdFiles) ? depedIdFiles : [];
             reservationObject.depedIdFile = depedIdFile;
             reservationObject.moaFile = moaFile;
             reservationObject.serviceContractFile = serviceContractFile;
@@ -2266,7 +2268,7 @@ const reservationModule = {
                 return responseData;
             }
 
-            if (user.role !== UserRole.SUPERINTENDENT) {
+            if (user.role !== UserRole.SUPERINTENDENT && user.role !== UserRole.CRMSTEAM) {
                 responseData.status = Status.FORBIDDEN;
                 responseData.error = 'You are not authorized to perform this action';
                 return responseData;
@@ -2553,6 +2555,13 @@ const reservationModule = {
             const update = { status };
             if (status === ReservationStatus.CHECKED_IN) {
                 update.checkedInAt = new Date();
+                const nameFromOptions = typeof options.employeeName === 'string' && options.employeeName.trim().length > 0
+                    ? options.employeeName.trim()
+                    : null;
+                const fallbackName = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || user?.email || null;
+                if (nameFromOptions || fallbackName) {
+                    update.checkedInBy = nameFromOptions || fallbackName;
+                }
             }
             if (status === ReservationStatus.CHECKED_OUT) {
                 const nameFromOptions = typeof options.employeeName === 'string' && options.employeeName.trim().length > 0
@@ -2610,7 +2619,7 @@ const reservationModule = {
                 return responseData;
             }
 
-            if (user.role !== UserRole.SUPERINTENDENT) {
+            if (user.role !== UserRole.CRMSTEAM && user.role !== UserRole.SUPERINTENDENT) {
                 responseData.status = Status.FORBIDDEN;
                 responseData.error = 'You are not authorized to perform this action';
                 return responseData;
@@ -2710,7 +2719,7 @@ const reservationModule = {
                 return responseData;
             }
 
-            if (user.role !== UserRole.SUPERINTENDENT) {
+            if (user.role !== UserRole.SUPERINTENDENT && user.role !== UserRole.CRMSTEAM) {
                 responseData.status = Status.FORBIDDEN;
                 responseData.error = 'You are not authorized to perform this action';
                 return responseData;
@@ -2781,13 +2790,34 @@ const reservationModule = {
 
             const updated = await dbHelper.findOne('reservation', { _id: reservationId, });
 
+            // Auto-decline the reservation if it's still pending
+            let wasAutoDeclined = false;
+            if (updated && updated.status === ReservationStatus.PENDING) {
+                const declinedReservation = await dbHelper.findOneAndUpdate(
+                    'reservation',
+                    { _id: reservationId, },
+                    { status: ReservationStatus.DECLINED, },
+                    { new: true, }
+                );
+                
+                if (declinedReservation) {
+                    wasAutoDeclined = true;
+                    // Invalidate cache after status change
+                    await invalidateReservationCache();
+                }
+            }
+
             responseData.status = Status.OK;
             responseData.error = null;
-            responseData.message = 'Non-Availability Certificate uploaded successfully';
+            responseData.message = wasAutoDeclined 
+                ? 'Non-Availability Certificate uploaded successfully. Reservation has been automatically declined.'
+                : 'Non-Availability Certificate uploaded successfully';
             responseData.reservation = {
                 _id: updated._id,
                 nonAvailabilityCertFile: fileDoc?.path ?? null,
+                status: wasAutoDeclined ? ReservationStatus.DECLINED : updated.status,
             };
+            responseData.wasAutoDeclined = wasAutoDeclined;
             return responseData;
         } catch (err) {
             console.error('Error uploading Non-Availability Certificate:', err);
@@ -3250,7 +3280,7 @@ const reservationModule = {
             // Check authorization
             const isOwner = existingReservation.userId && String(existingReservation.userId) === String(user.userId);
             const isAdmin = user.role === UserRole.ACCOUNTING || user.role === UserRole.SUPERINTENDENT || 
-                           user.role === UserRole.FRONTDESK;
+                           user.role === UserRole.FRONTDESK || user.role === UserRole.CRMSTEAM;
             const isCreatingForGuest = existingReservation.guestEmail && 
                                       (user.role === UserRole.ACCOUNTING || user.role === UserRole.SUPERINTENDENT || 
                                        user.role === UserRole.FRONTDESK);
@@ -3265,9 +3295,14 @@ const reservationModule = {
             const {
                 guestName, homeAddress, officeAddress, category, guestType,
                 telephone, officeTelephone, numberOfAdults, numberOfChildren, numberOfPwds, numberOfSeniorCitizens,
-                emergencyContact, emergencyContactPerson, dateOfArrival, dateOfDeparture, facility,
+                emergencyContact, emergencyContactPerson, dateOfArrival: rawDateOfArrival, dateOfDeparture: rawDateOfDeparture, facility,
                 serviceType, timeOfArrival, addOns, otherRequests, guestEmail, status,
             } = data;
+            
+            
+            // Normalize date fields: treat empty strings and null as undefined
+            const dateOfArrival = (rawDateOfArrival && String(rawDateOfArrival).trim()) ? rawDateOfArrival : undefined;
+            const dateOfDeparture = (rawDateOfDeparture && String(rawDateOfDeparture).trim()) ? rawDateOfDeparture : undefined;
 
             // Validate required fields if provided
             if (guestName !== undefined && !isPresent(guestName)) {
@@ -3312,16 +3347,34 @@ const reservationModule = {
                 return responseData;
             }
 
-            if (dateOfArrival !== undefined && !isValidDate(dateOfArrival)) {
-                responseData.status = Status.BAD_REQUEST;
-                responseData.error = 'Invalid date format';
-                return responseData;
+            if (dateOfArrival !== undefined) {
+                if (!isValidDate(dateOfArrival)) {
+                    responseData.status = Status.BAD_REQUEST;
+                    responseData.error = 'Invalid date format for date of arrival';
+                    return responseData;
+                }
+                // Also check that normalization produces a valid date
+                const normalizedArrival = normalizeDateOnly(dateOfArrival);
+                if (normalizedArrival === null) {
+                    responseData.status = Status.BAD_REQUEST;
+                    responseData.error = 'Invalid date of arrival';
+                    return responseData;
+                }
             }
 
-            if (dateOfDeparture !== undefined && !isValidDate(dateOfDeparture)) {
-                responseData.status = Status.BAD_REQUEST;
-                responseData.error = 'Invalid date format';
-                return responseData;
+            if (dateOfDeparture !== undefined) {
+                if (!isValidDate(dateOfDeparture)) {
+                    responseData.status = Status.BAD_REQUEST;
+                    responseData.error = 'Invalid date format for date of departure';
+                    return responseData;
+                }
+                // Also check that normalization produces a valid date
+                const normalizedDeparture = normalizeDateOnly(dateOfDeparture);
+                if (normalizedDeparture === null) {
+                    responseData.status = Status.BAD_REQUEST;
+                    responseData.error = 'Invalid date of departure';
+                    return responseData;
+                }
             }
 
             if (dateOfArrival !== undefined && dateOfDeparture !== undefined && 
@@ -3801,8 +3854,20 @@ const reservationModule = {
             if (officeTelephone !== undefined) updateData.officeTelephone = officeTelephone;
             if (emergencyContact !== undefined) updateData.emergencyContact = emergencyContact;
             if (emergencyContactPerson !== undefined) updateData.emergencyContactPerson = emergencyContactPerson;
-            if (dateOfArrival !== undefined) updateData.dateOfArrival = normalizeDateOnly(finalAdjustedArrivalDate);
-            if (dateOfDeparture !== undefined) updateData.dateOfDeparture = normalizeDateOnly(dateOfDeparture);
+            if (dateOfArrival !== undefined) {
+                const normalizedArrival = normalizeDateOnly(finalAdjustedArrivalDate);
+                // Only add to updateData if normalized date is valid (not null)
+                if (normalizedArrival !== null) {
+                    updateData.dateOfArrival = normalizedArrival;
+                }
+            }
+            if (dateOfDeparture !== undefined) {
+                const normalizedDeparture = normalizeDateOnly(dateOfDeparture);
+                // Only add to updateData if normalized date is valid (not null)
+                if (normalizedDeparture !== null) {
+                    updateData.dateOfDeparture = normalizedDeparture;
+                }
+            }
             if (timeOfArrival !== undefined) updateData.timeOfArrival = timeOfArrival;
             if (facility !== undefined) updateData.facility = facilityDoc._id;
             if (serviceType !== undefined) updateData.serviceType = serviceType;
@@ -3822,7 +3887,20 @@ const reservationModule = {
                 if (isValidReservationStatus(status)) {
                     if (isAdmin) {
                         // Admin users can update status
-                        if (status === ReservationStatus.CONFIRMED && existingReservation.status === ReservationStatus.APPROVED) {
+                        // Allow preserving Checked-in or Checked-out status when editing
+                        if (status === ReservationStatus.CHECKED_IN || status === ReservationStatus.CHECKED_OUT) {
+                            // Allow preserving the same status (e.g., when editing a checked-in reservation)
+                            // This is important to prevent status from reverting to Confirmed when editing
+                            if (existingReservation.status === status) {
+                                updateData.status = status;
+                            } else {
+                                // Only allow changing TO checked-in/checked-out through the proper check-in/check-out flow
+                                // Don't allow changing from other statuses to checked-in/checked-out via update
+                                responseData.status = Status.BAD_REQUEST;
+                                responseData.error = 'Cannot change reservation status to Checked-in or Checked-out through edit. Use the check-in/check-out function instead.';
+                                return responseData;
+                            }
+                        } else if (status === ReservationStatus.CONFIRMED && existingReservation.status === ReservationStatus.APPROVED) {
                             // Check if arrival date is at least one month away
                             const arrivalDateToCheck = finalDateOfArrival || existingReservation.dateOfArrival;
                             if (!isAtLeastOneMonthAway(arrivalDateToCheck)) {

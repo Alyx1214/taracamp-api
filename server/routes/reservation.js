@@ -237,24 +237,15 @@ export default function buildReservationRouter(userSocketMap) {
     // Send notifications to users whose reservations were auto-declined
     if (response.status === 200 && status === ReservationStatus.APPROVED && response.autoDeclinedReservations && response.autoDeclinedReservations.length > 0) {
       try {
-        for (const declinedReservation of response.autoDeclinedReservations) {
-          const reservationIdStr = declinedReservation._id?.toString?.() || String(declinedReservation._id || '');
-          
-          // Notify user if reservation has userId
-          if (declinedReservation.userId) {
-            const userIdStr = declinedReservation.userId?.toString?.() || String(declinedReservation.userId || '');
-            
-            await notificationModule.createAndNotifyUser(
+        for (const declinedReservationInfo of response.autoDeclinedReservations) {
+          // Fetch full reservation data to pass to notifyDecline
+          const declinedReservation = await dbHelper.findOne('reservation', { _id: declinedReservationInfo._id });
+          if (declinedReservation) {
+            await notificationModule.notifyDecline(
               dbHelper,
-              {
-                title: 'Reservation Declined',
-                message: "We're sorry to inform you that your reservation request has been declined. If you have any questions or would like to discuss this decision, please contact us.",
-                kind: 'reservation_declined',
-                userId: userIdStr,
-                reservationId: reservationIdStr,
-              },
+              declinedReservation,
               userSocketMap
-            ).catch(e => console.warn(`Failed to notify user ${userIdStr} about auto-declined reservation:`, e?.message));
+            ).catch(e => console.warn(`Failed to notify about auto-declined reservation ${declinedReservationInfo._id}:`, e?.message));
           }
         }
       } catch (error) {
@@ -324,30 +315,16 @@ export default function buildReservationRouter(userSocketMap) {
       }
     }
 
-    // Send notification to guest when reservation is declined
+    // Send notification to guest and admins when reservation is declined
     if (response.status === 200 && status === ReservationStatus.DECLINED && response.reservation) {
       try {
         const reservation = await dbHelper.findOne('reservation', { _id: req.params.id });
         if (reservation) {
-          const reservationIdStr = reservation._id?.toString?.() || String(reservation._id || '');
-          
-          // Notify guest if reservation has userId
-          if (reservation.userId) {
-            // Ensure userId and reservationId are strings (not ObjectId objects)
-            const userIdStr = reservation.userId?.toString?.() || String(reservation.userId || '');
-            
-            await notificationModule.createAndNotifyUser(
-              dbHelper,
-              {
-                title: 'Reservation Declined',
-                message: "We're sorry to inform you that your reservation request has been declined. If you have any questions or would like to discuss this decision, please contact us.",
-                kind: 'reservation_declined',
-                userId: userIdStr,
-                reservationId: reservationIdStr,
-              },
-              userSocketMap
-            ).catch(e => console.warn('Notify decline failed:', e?.message));
-          }
+          await notificationModule.notifyDecline(
+            dbHelper,
+            reservation,
+            userSocketMap
+          ).catch(e => console.warn('Failed to notify about declined reservation:', e?.message));
         }
       } catch (error) {
         console.warn('Failed to create decline notification:', error?.message);
@@ -399,6 +376,22 @@ export default function buildReservationRouter(userSocketMap) {
       req.user
     );
     res.status(response.status).json(response);
+
+    // Send notification to guest and admins when reservation is auto-declined
+    if (response.status === 200 && response.wasAutoDeclined && response.reservation) {
+      try {
+        const reservation = await dbHelper.findOne('reservation', { _id: req.params.id });
+        if (reservation) {
+          await notificationModule.notifyDecline(
+            dbHelper,
+            reservation,
+            userSocketMap
+          ).catch(e => console.warn('Failed to notify about auto-declined reservation:', e?.message));
+        }
+      } catch (error) {
+        console.warn('Failed to create decline notification:', error?.message);
+      }
+    }
   }));
 
   r.post('/update-meal-preference/:id', asyncHandler(async (req, res) => {

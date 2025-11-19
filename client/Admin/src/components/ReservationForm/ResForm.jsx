@@ -12,6 +12,10 @@ function ReservationForm() {
   const isEdit = location.state?.isEdit || false;
   const userEmail = location.state?.userEmail || null;
   const originalType = location.state?.originalType || null;
+  const originalStatus = location.state?.originalStatus || null;
+  const fromCheckInOut = location.state?.fromCheckInOut || false;
+  const activeTab = location.state?.activeTab || null;
+  const filters = location.state?.filters || null;
 
   const [formData, setFormData] = useState({
     groupAssociation: '',
@@ -186,11 +190,13 @@ function ReservationForm() {
     const step1 = { ...formData };
     const seniorCitizenIdFiles = location.state?.seniorCitizenIdFiles || [];
     const pwdIdFiles = location.state?.pwdIdFiles || [];
+    const governmentIdFiles = location.state?.governmentIdFiles || [];
+    const depedIdFiles = location.state?.depedIdFiles || [];
     const reservationId = location.state?.reservationId || null;
     // Get current file from location.state to ensure it's up to date
     const currentFile = location.state?.file || prevFileRef.current || null;
     navigate(`/reservation-step2`, {
-      state: { step1, step2: prevStep2Ref.current, file: currentFile, seniorCitizenIdFiles, pwdIdFiles, reservationId, isEdit, userEmail, originalType }
+      state: { step1, step2: prevStep2Ref.current, file: currentFile, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles, depedIdFiles, reservationId, isEdit, userEmail, originalType, originalStatus, fromCheckInOut, activeTab, filters }
     });
   };
 

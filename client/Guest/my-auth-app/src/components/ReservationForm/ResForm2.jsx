@@ -17,6 +17,31 @@ function ReservationFormStep2() {
   const step1 = location.state?.step1 || {};
   const file = location.state?.file || null;
   const { type, facilityName, id } = useParams();
+  const seniorCitizenIdFiles = location.state?.seniorCitizenIdFiles || [];
+  const pwdIdFiles = location.state?.pwdIdFiles || [];
+  const governmentIdFiles = location.state?.governmentIdFiles || [];
+  const seniorCitizenIdFilesRef = useRef(seniorCitizenIdFiles);
+  const pwdIdFilesRef = useRef(pwdIdFiles);
+  const governmentIdFilesRef = useRef(governmentIdFiles);
+
+  useEffect(() => {
+    if (location.state?.seniorCitizenIdFiles !== undefined) {
+      seniorCitizenIdFilesRef.current = location.state?.seniorCitizenIdFiles || [];
+    }
+  }, [location.state?.seniorCitizenIdFiles]);
+
+  useEffect(() => {
+    if (location.state?.pwdIdFiles !== undefined) {
+      pwdIdFilesRef.current = location.state?.pwdIdFiles || [];
+    }
+  }, [location.state?.pwdIdFiles]);
+
+  useEffect(() => {
+    if (location.state?.governmentIdFiles !== undefined) {
+      governmentIdFilesRef.current = location.state?.governmentIdFiles || [];
+    }
+  }, [location.state?.governmentIdFiles]);
+
   const routeFacilityType = useMemo(() => {
     const t = String(type || '').toLowerCase();
     if (t.startsWith('dormi')) return 'Dormitory';
@@ -273,11 +298,8 @@ function ReservationFormStep2() {
 
 
   const handleGoBack = () => {
-    const seniorCitizenIdFiles = location.state?.seniorCitizenIdFiles || [];
-    const pwdIdFiles = location.state?.pwdIdFiles || [];
-    const governmentIdFiles = location.state?.governmentIdFiles || [];
     navigate(`/reservation-form/${type}/${facilityName}/${id}`, { 
-      state: { step1, step2: formData, file, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles } 
+      state: { step1, step2: formData, file, seniorCitizenIdFiles: seniorCitizenIdFilesRef.current, pwdIdFiles: pwdIdFilesRef.current, governmentIdFiles: governmentIdFilesRef.current } 
     });
   };
 
@@ -517,11 +539,8 @@ function ReservationFormStep2() {
   }, [isIndividual, isDormitory, formData.typeService]); 
 
   const handlePrevious = () => {
-    const seniorCitizenIdFiles = location.state?.seniorCitizenIdFiles || [];
-    const pwdIdFiles = location.state?.pwdIdFiles || [];
-    const governmentIdFiles = location.state?.governmentIdFiles || [];
     navigate(`/reservation-form/${type}/${facilityName}/${id}`, { 
-      state: { step1, step2: formData, file, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles } 
+      state: { step1, step2: formData, file, seniorCitizenIdFiles: seniorCitizenIdFilesRef.current, pwdIdFiles: pwdIdFilesRef.current, governmentIdFiles: governmentIdFilesRef.current } 
     });
   };
 
@@ -567,10 +586,6 @@ function ReservationFormStep2() {
     const numberOfPwds = parseInt(step1?.guests?.pwds || 0, 10) || 0;
     const hasPwds = numberOfPwds > 0;
 
-    const seniorCitizenIdFiles = location.state?.seniorCitizenIdFiles || [];
-    const pwdIdFiles = location.state?.pwdIdFiles || [];
-    const governmentIdFiles = location.state?.governmentIdFiles || [];
-
     const isGovernmentCategory = step1?.category?.government === true || step1?.category?.deped === true;
     const isPwdCategory = step1?.category?.pwds === true || step1?.category?.PWDs === true;
     const isPrivateCategory = step1?.category?.private === true || step1?.category?.Private === true;
@@ -581,62 +596,62 @@ function ReservationFormStep2() {
         // If private+individual with PWDs, require PWD ID (prioritize PWD over senior)
         if (hasPwds) {
           navigate(`/reservation-step3-pwd/${type}/${facilityName}/${id}`, {
-            state: { step1, step2, file: null, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles },
+            state: { step1, step2, file: null, seniorCitizenIdFiles: seniorCitizenIdFilesRef.current, pwdIdFiles: pwdIdFilesRef.current, governmentIdFiles: governmentIdFilesRef.current },
           });
         } else if (hasSeniors) {
           // If private+individual with seniors (and no PWDs), require Senior Citizen ID
           navigate(`/reservation-step3-senior/${type}/${facilityName}/${id}`, {
-            state: { step1, step2, file: null, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles },
+            state: { step1, step2, file: null, seniorCitizenIdFiles: seniorCitizenIdFilesRef.current, pwdIdFiles: pwdIdFilesRef.current, governmentIdFiles: governmentIdFilesRef.current },
           });
         } else {
           // If no seniors or PWDs, no ID needed - go directly to step 4
           navigate(`/reservation-step4/${type}/${facilityName}/${id}`, {
-            state: { step1, step2, file: null, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles },
+            state: { step1, step2, file: null, seniorCitizenIdFiles: seniorCitizenIdFilesRef.current, pwdIdFiles: pwdIdFilesRef.current, governmentIdFiles: governmentIdFilesRef.current },
           });
         }
       } else if (isPwdCategory) {
         // If category is PWD and guest type is individual, upload PWD ID only (no gov't or Senior Citizen ID required)
         navigate(`/reservation-step3-pwd/${type}/${facilityName}/${id}`, {
-          state: { step1, step2, file: null, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles },
+          state: { step1, step2, file: null, seniorCitizenIdFiles: seniorCitizenIdFilesRef.current, pwdIdFiles: pwdIdFilesRef.current, governmentIdFiles: governmentIdFilesRef.current },
         });
       } else if (isGovernmentCategory) {
         // If category is gov/deped and guest type is individual, upload gov't ID only (no PWD or Senior Citizen ID required)
         navigate(`/reservation-step3-government/${type}/${facilityName}/${id}`, {
-          state: { step1, step2, file: null, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles },
+          state: { step1, step2, file: null, seniorCitizenIdFiles: seniorCitizenIdFilesRef.current, pwdIdFiles: pwdIdFilesRef.current, governmentIdFiles: governmentIdFilesRef.current },
         });
       } else if (hasSeniors && hasPwds) {
         navigate(`/reservation-step3-senior/${type}/${facilityName}/${id}`, {
-          state: { step1, step2, file: null, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles },
+          state: { step1, step2, file: null, seniorCitizenIdFiles: seniorCitizenIdFilesRef.current, pwdIdFiles: pwdIdFilesRef.current, governmentIdFiles: governmentIdFilesRef.current },
         });
       } else if (hasSeniors) {
         navigate(`/reservation-step3-senior/${type}/${facilityName}/${id}`, {
-          state: { step1, step2, file: null, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles },
+          state: { step1, step2, file: null, seniorCitizenIdFiles: seniorCitizenIdFilesRef.current, pwdIdFiles: pwdIdFilesRef.current, governmentIdFiles: governmentIdFilesRef.current },
         });
       } else if (hasPwds) {
         navigate(`/reservation-step3-pwd/${type}/${facilityName}/${id}`, {
-          state: { step1, step2, file: null, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles },
+          state: { step1, step2, file: null, seniorCitizenIdFiles: seniorCitizenIdFilesRef.current, pwdIdFiles: pwdIdFilesRef.current, governmentIdFiles: governmentIdFilesRef.current },
         });
       } else {
         navigate(`/reservation-step4/${type}/${facilityName}/${id}`, {
-          state: { step1, step2, file: null, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles },
+          state: { step1, step2, file: null, seniorCitizenIdFiles: seniorCitizenIdFilesRef.current, pwdIdFiles: pwdIdFilesRef.current, governmentIdFiles: governmentIdFilesRef.current },
         });
       }
     } else {
       if (hasSeniors && hasPwds) {
         navigate(`/reservation-step3/${type}/${facilityName}/${id}`, {
-          state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles },
+          state: { step1, step2, file, seniorCitizenIdFiles: seniorCitizenIdFilesRef.current, pwdIdFiles: pwdIdFilesRef.current, governmentIdFiles: governmentIdFilesRef.current },
         });
       } else if (hasSeniors) {
         navigate(`/reservation-step3/${type}/${facilityName}/${id}`, {
-          state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles },
+          state: { step1, step2, file, seniorCitizenIdFiles: seniorCitizenIdFilesRef.current, pwdIdFiles: pwdIdFilesRef.current, governmentIdFiles: governmentIdFilesRef.current },
         });
       } else if (hasPwds) {
         navigate(`/reservation-step3/${type}/${facilityName}/${id}`, {
-          state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles },
+          state: { step1, step2, file, seniorCitizenIdFiles: seniorCitizenIdFilesRef.current, pwdIdFiles: pwdIdFilesRef.current, governmentIdFiles: governmentIdFilesRef.current },
         });
       } else {
         navigate(`/reservation-step3/${type}/${facilityName}/${id}`, {
-          state: { step1, step2, file, seniorCitizenIdFiles, pwdIdFiles, governmentIdFiles },
+          state: { step1, step2, file, seniorCitizenIdFiles: seniorCitizenIdFilesRef.current, pwdIdFiles: pwdIdFilesRef.current, governmentIdFiles: governmentIdFilesRef.current },
         });
       }
     }

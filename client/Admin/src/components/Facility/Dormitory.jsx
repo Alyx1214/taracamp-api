@@ -3,7 +3,7 @@ import BoxCard from "./BoxCard";
 import { getFacilitiesByType, deleteFacility, searchFacilities } from "../../apis/facilityApi";
 import styles from "./Dormitory.module.css";
 
-export default function Dormitory({ onEdit, searchQuery = "", filters = {} }) {
+export default function Dormitory({ onEdit, searchQuery = "", filters = {}, isFrontdesk = false }) {
   const [dorms, setDorms] = useState([]);
   const [state, setState] = useState({ loading: true, error: null });
 
@@ -159,6 +159,7 @@ export default function Dormitory({ onEdit, searchQuery = "", filters = {} }) {
           type="Dormitory"
           onEdit={onEdit}
           onDelete={handleDelete}
+          isFrontdesk={isFrontdesk}
         />
       )}
     </section>

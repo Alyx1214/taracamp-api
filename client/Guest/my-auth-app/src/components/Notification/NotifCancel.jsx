@@ -22,8 +22,12 @@ export default function NotifCancel({
       setLoading(true);
       try {
         const res = await getReservationById(notif.reservationId);
-        const raw = res?.reservation || res?.data?.reservation;
+        const raw = res?.reservation || res?.data?.reservation || res?.data;
         if (!cancelled && raw) {
+          // Debug: log the raw response to see what we're getting
+          console.log('[NotifCancel] Raw reservation data:', raw);
+          console.log('[NotifCancel] nonAvailabilityCertFile:', raw.nonAvailabilityCertFile);
+          
           const facilityObj = typeof raw.facility === 'object' ? raw.facility : null;
           const facilityId =
             facilityObj?._id ||
@@ -31,7 +35,7 @@ export default function NotifCancel({
             (typeof raw.facility === 'string' ? raw.facility : null) ||
             null;
 
-          setReservation({
+          const reservationData = {
             checkInDate: raw.dateOfArrival,
             checkOutDate: raw.dateOfDeparture,
             facilityType: raw.facilityType || facilityObj?.facilityType || null,
@@ -39,7 +43,11 @@ export default function NotifCancel({
             facilityId,
             guestType: raw.guestType || null,
             numGuests: raw.numberOfGuests?.total ?? 0,
-          });
+            nonAvailabilityCertFile: raw.nonAvailabilityCertFile || null,
+          };
+          
+          console.log('[NotifCancel] Setting reservation with nonAvailabilityCertFile:', reservationData.nonAvailabilityCertFile);
+          setReservation(reservationData);
         }
       } catch (e) {
         console.error('load reservation failed', e);
@@ -90,46 +98,25 @@ export default function NotifCancel({
   const fmtFacilityType = value =>
     !value ? '' : String(value).replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
 
-  // Determine document type and file extension
-  const getDocumentType = (url) => {
-    if (!url) return null;
-    const urlLower = url.toLowerCase();
-    if (urlLower.endsWith('.pdf')) return 'pdf';
-    if (urlLower.match(/\.(jpg|jpeg|png|gif|bmp|webp)$/)) return 'image';
-    return 'pdf'; // Default to PDF
-  };
-
-  const getFileExtension = (url) => {
-    if (!url) return 'pdf';
-    const match = url.match(/\.([^.]+)$/);
-    return match ? match[1] : 'pdf';
-  };
-
-  const getFileName = (url) => {
-    if (!url) return 'document';
-    const parts = url.split('/');
-    const fileName = parts[parts.length - 1];
-    return fileName || `cancellation-notice-${notif.reservationId || 'document'}`;
-  };
-
-  const documentType = getDocumentType(tcampDocument);
-  const fileExtension = getFileExtension(tcampDocument);
-  const fileName = getFileName(tcampDocument);
-
-  const title =
-    notif.title ||
-    'Reservation Cancellation Notice';
-  const body =
-    notif.message ||
-    "We're sorry to inform you that your reservation has been cancelled. We understand this may cause inconvenience, and we apologize for any disruption to your plans.";
-
-  const source = notif.source || 'Teachers Camp';
-  const time = notif.timeLabel ? notif.timeLabel : timeAgo(notif.createdAt);
-
   // Determine if this is a decline or cancellation notification
   const isDeclined = notif.kind === 'reservation_declined' || 
     (notif.title && notif.title.toLowerCase().includes('declined'));
   const detailsLabel = isDeclined ? 'Declined Reservation Details:' : 'Cancelled Reservation Details:';
+
+  // For declined notifications, use non-availability certificate if available
+  const nonAvailabilityCertFile = isDeclined ? reservation?.nonAvailabilityCertFile : null;
+
+  const title =
+    notif.title ||
+    (isDeclined ? 'Reservation Declined' : 'Reservation Cancellation Notice');
+  const body =
+    notif.message ||
+    (isDeclined 
+      ? "We're sorry to inform you that your reservation request has been declined. If you have any questions or would like to discuss this decision, please contact us."
+      : "We're sorry to inform you that your reservation has been cancelled. We understand this may cause inconvenience, and we apologize for any disruption to your plans.");
+
+  const source = notif.source || 'Teachers Camp';
+  const time = notif.timeLabel ? notif.timeLabel : timeAgo(notif.createdAt);
 
   return (
     <div className={styles.cancelContainer}>
@@ -190,60 +177,41 @@ export default function NotifCancel({
             <b>Number of Guests:</b>{' '}
             {loading ? 'Loading…' : (reservation?.numGuests ?? '[Insert Number]')}
           </div>
-        </div>
 
-        {tcampDocument && (
-          <div className={styles.cancelDocumentBox}>
-            <div className={styles.cancelDocumentHeader}>
-              <span className={styles.cancelDocumentTitle}>
-                Official Cancellation Document
-              </span>
-              <span className={styles.cancelDocumentSubtitle}>
-                Click the document below to download
-              </span>
-            </div>
-            
-            <a 
-              href={tcampDocument} 
-              download={`cancellation-notice-${notif.reservationId || 'document'}.${fileExtension}`}
-              className={styles.cancelDocumentLink}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              {documentType === 'pdf' ? (
-                <div className={styles.cancelDocumentPreview}>
-                  <iframe
-                    src={tcampDocument}
-                    className={styles.cancelDocumentFrame}
-                    title="Cancellation Document"
-                  />
-                  <div className={styles.cancelDocumentOverlay}>
-                    <span className={styles.cancelDocumentIcon}>📥</span>
-                    <span className={styles.cancelDocumentText}>Click to Download</span>
-                  </div>
-                </div>
+          {/* Display non-availability certificate for declined notifications */}
+          {isDeclined && !loading && (
+            <div className={styles.cancelDetailsRow}>
+              <b>Non-Availability Certificate:</b>{' '}
+              {nonAvailabilityCertFile ? (
+                <a 
+                  href={nonAvailabilityCertFile} 
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: '#0066cc', textDecoration: 'underline', cursor: 'pointer' }}
+                >
+                  Click to open
+                </a>
               ) : (
-                <div className={styles.cancelDocumentImagePreview}>
-                  <img 
-                    src={tcampDocument} 
-                    alt="Cancellation document" 
-                    className={styles.cancelDocumentImage}
-                  />
-                  <div className={styles.cancelDocumentOverlay}>
-                    <span className={styles.cancelDocumentIcon}>📥</span>
-                    <span className={styles.cancelDocumentText}>Click to Download</span>
-                  </div>
-                </div>
+                <span style={{ color: '#666' }}>No certificate available</span>
               )}
-            </a>
-            
-            <div className={styles.cancelDocumentInfo}>
-              <span className={styles.cancelDocumentFileName}>
-                {fileName || `cancellation-notice.${fileExtension}`}
-              </span>
             </div>
-          </div>
-        )}
+          )}
+
+          {/* Display cancellation document for cancellation notifications */}
+          {!isDeclined && tcampDocument && (
+            <div className={styles.cancelDetailsRow}>
+              <b>Official Cancellation Document:</b>{' '}
+              <a 
+                href={tcampDocument} 
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: '#0066cc', textDecoration: 'underline', cursor: 'pointer' }}
+              >
+                Click to open
+              </a>
+            </div>
+          )}
+        </div>
 
         <div className={styles.cancelNotice}>
           {isDeclined 

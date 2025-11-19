@@ -115,6 +115,7 @@ const dbHelper = {
                 userId: { type: mongoose.Schema.Types.ObjectId, ref: 'user', required: false, index: true },
                 reservationCode: { type: String, required: true, unique: true, index: true },
                 checkedInAt: { type: Date, required: false },
+                checkedInBy: { type: String, required: false },
                 checkedOutBy: { type: String, required: false },
                 checkedOutAt: { type: Date, required: false },
                 willAvailMeals: { type: Boolean, required: false },

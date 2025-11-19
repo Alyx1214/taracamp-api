@@ -28,15 +28,6 @@ export default function Messages() {
                 const response = await listUsersWithMessages();
                 const usersList = Array.isArray(response?.data) ? response.data : [];
                 if (!cancelled) {
-                    // Debug: log first user to check lastMessage structure
-                    if (usersList.length > 0 && process.env.NODE_ENV === 'development') {
-                        console.log('Users with messages:', usersList.map(u => ({
-                            name: u.name,
-                            hasLastMessage: !!u.lastMessage,
-                            lastMessageDate: u.lastMessage?.createdAt,
-                            lastMessageText: u.lastMessage?.text?.substring(0, 50)
-                        })));
-                    }
                     // Create a new array reference to ensure React detects the change
                     setUsers([...usersList]);
                     if (usersList.length > 0) {
@@ -349,9 +340,6 @@ export default function Messages() {
     // Sort users by latest message (regardless of sender) - most recent first
     // Use useMemo to ensure sorting recalculates when users state changes
     const sortedUsers = useMemo(() => {
-        if (process.env.NODE_ENV === 'development') {
-            console.log('Re-sorting users list, count:', users.length);
-        }
         return [...users].sort((a, b) => {
         const aLastMessage = a.lastMessage;
         const bLastMessage = b.lastMessage;
@@ -396,22 +384,7 @@ export default function Messages() {
             bTime = 0;
         }
         
-        // Debug logging (can be removed later)
-        if (process.env.NODE_ENV === 'development') {
-            console.log('Sorting:', {
-                a: a.name,
-                aTime,
-                aDate: aLastMessage?.createdAt,
-                aDateType: typeof aLastMessage?.createdAt,
-                b: b.name,
-                bTime,
-                bDate: bLastMessage?.createdAt,
-                bDateType: typeof bLastMessage?.createdAt,
-                result: bTime - aTime
-            });
-        }
-        
-        // Most recent first (descending order)
+        // Compare timestamps - most recent first (descending order)
         // If times are equal, maintain original order
         if (bTime === aTime) return 0;
         return bTime - aTime;

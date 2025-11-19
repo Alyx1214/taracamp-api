@@ -39,6 +39,7 @@ export default function NotificationCancel({
             facilityId,
             guestType: raw.guestType || null,
             numGuests: raw.numberOfGuests?.total ?? 0,
+            nonAvailabilityCertFile: raw.nonAvailabilityCertFile || null,
           });
         }
       } catch (e) {
@@ -90,41 +91,26 @@ export default function NotificationCancel({
   const fmtFacilityType = value =>
     !value ? '' : String(value).replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
 
-  // Determine document type and file extension
-  const getDocumentType = (url) => {
-    if (!url) return null;
-    const urlLower = url.toLowerCase();
-    if (urlLower.endsWith('.pdf')) return 'pdf';
-    if (urlLower.match(/\.(jpg|jpeg|png|gif|bmp|webp)$/)) return 'image';
-    return 'pdf'; // Default to PDF
-  };
+  // Determine if this is a decline or cancellation notification
+  const isDeclined = notif.kind === 'reservation_declined' || 
+    notif.kind === 'reservation_declined_admin' ||
+    (notif.title && notif.title.toLowerCase().includes('declined'));
 
-  const getFileExtension = (url) => {
-    if (!url) return 'pdf';
-    const match = url.match(/\.([^.]+)$/);
-    return match ? match[1] : 'pdf';
-  };
-
-  const getFileName = (url) => {
-    if (!url) return 'document';
-    const parts = url.split('/');
-    const fileName = parts[parts.length - 1];
-    return fileName || `cancellation-notice-${notif.reservationId || 'document'}`;
-  };
-
-  const documentType = getDocumentType(tcampDocument);
-  const fileExtension = getFileExtension(tcampDocument);
-  const fileName = getFileName(tcampDocument);
+  // For declined notifications, use non-availability certificate if available
+  const nonAvailabilityCertFile = isDeclined ? reservation?.nonAvailabilityCertFile : null;
 
   const title =
     notif.title ||
-    'Reservation Cancellation Notice';
+    (isDeclined ? 'Reservation Declined' : 'Reservation Cancellation Notice');
   const body =
     notif.message ||
-    "We're sorry to inform you that your reservation has been cancelled. We understand this may cause inconvenience, and we apologize for any disruption to your plans.";
+    (isDeclined 
+      ? "We're sorry to inform you that your reservation request has been declined. If you have any questions or would like to discuss this decision, please contact us."
+      : "We're sorry to inform you that your reservation has been cancelled. We understand this may cause inconvenience, and we apologize for any disruption to your plans.");
 
   const source = notif.source || 'Teachers Camp';
   const time = notif.timeLabel ? notif.timeLabel : timeAgo(notif.createdAt);
+  const detailsLabel = isDeclined ? 'Declined Reservation Details:' : 'Cancelled Reservation Details:';
 
   return (
     <div className={styles.cancelContainer}>
@@ -146,14 +132,14 @@ export default function NotificationCancel({
           <div className={styles.cancelImageBox}>
             <img 
               src={tcampImage} 
-              alt="Cancellation notice from Teachers Camp" 
+              alt={isDeclined ? "Decline notice from Teachers Camp" : "Cancellation notice from Teachers Camp"} 
               className={styles.cancelImage}
             />
           </div>
         )}
 
         <div className={styles.cancelDetailsBox}>
-          <div className={styles.cancelDetailsTitle}>Cancelled Reservation Details:</div>
+          <div className={styles.cancelDetailsTitle}>{detailsLabel}</div>
 
           <div className={styles.cancelDetailsRow}>
             <b>Location:</b> Teachers' Camp, Baguio City
@@ -185,71 +171,64 @@ export default function NotificationCancel({
             <b>Number of Guests:</b>{' '}
             {loading ? 'Loading…' : (reservation?.numGuests ?? '[Insert Number]')}
           </div>
+
+          {/* Display non-availability certificate for declined notifications */}
+          {isDeclined && !loading && (
+            <div className={styles.cancelDetailsRow}>
+              <b>Non-Availability Certificate:</b>{' '}
+              {nonAvailabilityCertFile ? (
+                <a 
+                  href={nonAvailabilityCertFile} 
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: '#0066cc', textDecoration: 'underline', cursor: 'pointer' }}
+                >
+                  Click to open
+                </a>
+              ) : (
+                <span style={{ color: '#666' }}>No certificate available</span>
+              )}
+            </div>
+          )}
+
+          {/* Display cancellation document for cancellation notifications */}
+          {!isDeclined && tcampDocument && (
+            <div className={styles.cancelDetailsRow}>
+              <b>Official Cancellation Document:</b>{' '}
+              <a 
+                href={tcampDocument} 
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: '#0066cc', textDecoration: 'underline', cursor: 'pointer' }}
+              >
+                Click to open
+              </a>
+            </div>
+          )}
         </div>
 
-        {tcampDocument && (
-          <div className={styles.cancelDocumentBox}>
-            <div className={styles.cancelDocumentHeader}>
-              <span className={styles.cancelDocumentTitle}>
-                Official Cancellation Document
-              </span>
-              <span className={styles.cancelDocumentSubtitle}>
-                Click the document below to download
-              </span>
-            </div>
-            
-            <a 
-              href={tcampDocument} 
-              download={`cancellation-notice-${notif.reservationId || 'document'}.${fileExtension}`}
-              className={styles.cancelDocumentLink}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              {documentType === 'pdf' ? (
-                <div className={styles.cancelDocumentPreview}>
-                  <iframe
-                    src={tcampDocument}
-                    className={styles.cancelDocumentFrame}
-                    title="Cancellation Document"
-                  />
-                  <div className={styles.cancelDocumentOverlay}>
-                    <span className={styles.cancelDocumentIcon}>📥</span>
-                    <span className={styles.cancelDocumentText}>Click to Download</span>
-                  </div>
-                </div>
-              ) : (
-                <div className={styles.cancelDocumentImagePreview}>
-                  <img 
-                    src={tcampDocument} 
-                    alt="Cancellation document" 
-                    className={styles.cancelDocumentImage}
-                  />
-                  <div className={styles.cancelDocumentOverlay}>
-                    <span className={styles.cancelDocumentIcon}>📥</span>
-                    <span className={styles.cancelDocumentText}>Click to Download</span>
-                  </div>
-                </div>
-              )}
-            </a>
-            
-            <div className={styles.cancelDocumentInfo}>
-              <span className={styles.cancelDocumentFileName}>
-                {fileName || `cancellation-notice.${fileExtension}`}
-              </span>
-            </div>
-          </div>
-        )}
-
         <div className={styles.cancelNotice}>
-          If you have any questions or concerns regarding this cancellation, please feel free to contact our support team. We're here to assist you.
+          {isDeclined 
+            ? "If you have any questions or would like to discuss this decision, please contact our support team. We're here to assist you."
+            : "If you have any questions or concerns regarding this cancellation, please feel free to contact our support team. We're here to assist you."}
         </div>
 
         <div className={styles.cancelInfoBox}>
           <div className={styles.cancelInfoTitle}>What happens next?</div>
           <div className={styles.cancelInfoText}>
-            • If you made a payment, a refund will be processed according to our cancellation policy.
-            <br />
-            • You're welcome to make a new reservation at any time.
+            {isDeclined ? (
+              <>
+                • You're welcome to submit a new reservation request at any time.
+                <br />
+                • If you have questions about why your reservation was declined, please contact our support team.
+              </>
+            ) : (
+              <>
+                • If you made a payment, a refund will be processed according to our cancellation policy.
+                <br />
+                • You're welcome to make a new reservation at any time.
+              </>
+            )}
           </div>
         </div>
 
