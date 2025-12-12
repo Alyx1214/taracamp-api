@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import styles from "./ReservationDetails.module.css";
 import { getReservationById } from "../../apis/reservationApi";
+import { getTransactionDetails } from "../../apis/paymentApi";
+import { getAllAddons } from "../../apis/addonsApi";
 
 function prettifyServiceType(svc) {
   if (!svc) return "N/A";
@@ -54,6 +56,8 @@ export default function ConfGroupRSVDetails() {
   const [reservation, setReservation] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [transaction, setTransaction] = useState(null);
+  const [allAddons, setAllAddons] = useState([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -64,6 +68,47 @@ export default function ConfGroupRSVDetails() {
         if (!cancelled) {
           setReservation(res.reservation);
           setError("");
+          
+          // Check if guest type matches this component (Group)
+          // If it's an individual, redirect to the individual component
+          if (res.reservation && res.reservation.guestType && res.reservation.guestType === "Individual") {
+            navigate(`/confirmedIndiv/${id}/details`, {
+              state: { filters, searchQuery, currentPage, fromCheckInOut, activeTab },
+              replace: true
+            });
+            return;
+          }
+        }
+        
+        // Fetch transaction details for payment breakdown
+        try {
+          const transactionRes = await getTransactionDetails(id);
+          const transactionData = transactionRes?.data?.data ?? transactionRes?.data ?? transactionRes;
+          if (!cancelled && transactionData && typeof transactionData === "object") {
+            setTransaction({
+              breakdown: transactionData.breakdown ?? [],
+              facilityUsed: transactionData.facilityUsed ?? "",
+              serviceFeeAmount: transactionData.serviceFeeAmount ?? "₱0.00",
+              serviceFeePercentage: transactionData.serviceFeePercentage ?? "",
+              discountAmount: transactionData.discountAmount ?? "₱0.00",
+              discountPercentage: transactionData.discountPercentage ?? "",
+              discount: transactionData.discount ?? "Discount",
+              total: transactionData.total ?? "₱0.00",
+            });
+          }
+        } catch (e) {
+          // Silently fail if transaction details can't be fetched
+          console.warn("Could not fetch transaction details:", e);
+        }
+        
+        // Fetch all addons to check for corkage
+        try {
+          const addonsRes = await getAllAddons();
+          if (!cancelled && addonsRes?.addons) {
+            setAllAddons(addonsRes.addons);
+          }
+        } catch (e) {
+          console.warn("Could not fetch addons:", e);
         }
       } catch (e) {
         if (!cancelled) setError(e.message || "Reservation not found.");
@@ -72,7 +117,7 @@ export default function ConfGroupRSVDetails() {
       }
     })();
     return () => { cancelled = true; };
-  }, [id]);
+  }, [id, navigate]);
 
   const handleBack = () => {
     if (fromCheckInOut) {
@@ -204,6 +249,45 @@ export default function ConfGroupRSVDetails() {
 
   const requiredDocs = getRequiredDocuments();
 
+  // Function to determine food package value based on corkage in add-ons
+  const getFoodPackageValue = () => {
+    // If reservation is not loaded yet, return default
+    if (!reservation) {
+      return "Yes";
+    }
+
+    // Check both addOns and addons (in case of different naming)
+    const reservationAddOns = reservation.addOns || reservation.addons || [];
+    
+    // If no add-ons, return "Yes"
+    if (!Array.isArray(reservationAddOns) || reservationAddOns.length === 0) {
+      return "Yes";
+    }
+
+    // Check if any addon in the reservation has "corkage" in its name
+    const hasCorkage = reservationAddOns.some(addonId => {
+      // If addonId is an object with name property (populated)
+      if (typeof addonId === 'object' && addonId !== null) {
+        const name = addonId.name || addonId.label || '';
+        return name.toLowerCase().includes('corkage');
+      }
+      
+      // If addonId is a string (ObjectId), find the addon in allAddons
+      if (allAddons && allAddons.length > 0) {
+        const addonIdStr = String(addonId);
+        const addon = allAddons.find(a => String(a._id) === addonIdStr);
+        if (addon && addon.name) {
+          return addon.name.toLowerCase().includes('corkage');
+        }
+      }
+      
+      return false;
+    });
+
+    // If corkage exists, return "No", otherwise "Yes"
+    return hasCorkage ? "No" : "Yes";
+  };
+
   return (
     <div className={styles["rsv-details-container"]}>
       <div className={styles["rsv-details-header"]}>
@@ -286,6 +370,11 @@ export default function ConfGroupRSVDetails() {
               <td className={styles["rsv-details-label"]}>Type of Service</td>
               <td className={styles["rsv-details-separator"]}>:</td>
               <td>{prettifyServiceType(reservation.serviceType) || "N/A"}</td>
+            </tr>
+            <tr>
+              <td className={styles["rsv-details-label"]}>Food Package</td>
+              <td className={styles["rsv-details-separator"]}>:</td>
+              <td>{getFoodPackageValue()}</td>
             </tr>
 
             {/* MOA - only for groups */}
@@ -471,31 +560,58 @@ export default function ConfGroupRSVDetails() {
           </tbody>
         </table>
         <hr className={styles["rsv-details-divider"]} />
-        <table className={styles["rsv-details-table"]}>
-          <tbody>
-            <tr>
-              <td className={styles["rsv-details-label"]}>Downpayment Amount</td>
-              <td className={styles["rsv-details-separator"]}>:</td>
-              <td>{reservation.downpayment || "N/A"}</td>
-            </tr>
-            <tr>
-              <td className={styles["rsv-details-label"]}>Payment Due</td>
-              <td className={styles["rsv-details-separator"]}>:</td>
-              <td>{reservation.paymentDue || "N/A"}</td>
-            </tr>
-            <tr>
-              <td className={styles["rsv-details-label"]}>Date of the Transaction</td>
-              <td className={styles["rsv-details-separator"]}>:</td>
-              <td>{reservation.transactionDate || "N/A"}</td>
-            </tr>
-            <tr>
-              <td className={styles["rsv-details-label"]}>Payment Method</td>
-              <td className={styles["rsv-details-separator"]}>:</td>
-              <td>{reservation.paymentMethod || "N/A"}</td>
-            </tr>
-          </tbody>
-        </table>
-        <hr className={styles["rsv-details-divider"]} />
+        
+        {/* PAYMENT BREAKDOWN */}
+        {transaction && (
+          <>
+            <div style={{ fontWeight: 'bold', marginBottom: '8px', fontSize: '1.1em' }}>PAYMENT BREAKDOWN</div>
+            <table className={styles["rsv-details-table"]}>
+              <tbody>
+                {/* Facility Name and Amount */}
+                {transaction.breakdown && transaction.breakdown.length > 0 ? (
+                  <tr>
+                    <td className={styles["rsv-details-label"]}>{transaction.breakdown[0].label}</td>
+                    <td className={styles["rsv-details-separator"]}>:</td>
+                    <td>{transaction.breakdown[0].amount}</td>
+                  </tr>
+                ) : (
+                  <tr>
+                    <td className={styles["rsv-details-label"]}>{transaction.facilityUsed || reservation.facilityName || "N/A"}</td>
+                    <td className={styles["rsv-details-separator"]}>:</td>
+                    <td>N/A</td>
+                  </tr>
+                )}
+                {/* Service Fee */}
+                <tr>
+                  <td className={styles["rsv-details-label"]}>Service Fee</td>
+                  <td className={styles["rsv-details-separator"]}>:</td>
+                  <td>{transaction.serviceFeeAmount} {transaction.serviceFeePercentage ? `(${transaction.serviceFeePercentage})` : ''}</td>
+                </tr>
+                {/* Discount or None */}
+                <tr>
+                  <td className={styles["rsv-details-label"]}>
+                    {transaction.discountAmount && transaction.discountAmount !== '₱0.00' && transaction.discountAmount !== '₱ 0.00' ? transaction.discount : 'None'}
+                  </td>
+                  <td className={styles["rsv-details-separator"]}>:</td>
+                  <td>
+                    {transaction.discountAmount && transaction.discountAmount !== '₱0.00' && transaction.discountAmount !== '₱ 0.00' 
+                      ? `${transaction.discountAmount} ${transaction.discountPercentage ? `(${transaction.discountPercentage})` : ''}`
+                      : '₱0.00 (0%)'
+                    }
+                  </td>
+                </tr>
+                {/* Total Estimated Amount */}
+                <tr>
+                  <td className={styles["rsv-details-label"]} style={{ fontWeight: 'bold' }}>Total Estimated Amount</td>
+                  <td className={styles["rsv-details-separator"]}>:</td>
+                  <td style={{ fontWeight: 'bold', fontSize: '1.1em' }}>{transaction.total}</td>
+                </tr>
+              </tbody>
+            </table>
+            <hr className={styles["rsv-details-divider"]} />
+          </>
+        )}
+        
         <div className={styles["rsv-details-foot"]}>
           <div className={`${styles["rsv-details-status-row"]} ${styles.confirmed}`}>
             <span className={styles["rsv-details-status-label"]}>Status:</span>

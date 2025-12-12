@@ -292,11 +292,33 @@ const facilityModule = {
         }
 
         try {
+            // Populate reservationId in room assignments
             const facility = await dbHelper.findOne('facility', { _id: id, });
             if (!facility) {
                 responseData.status = Status.NOT_FOUND;
                 responseData.error = 'Facility not found';
                 return responseData;
+            }
+
+            // Populate reservationId in assignments if rooms exist
+            if (facility.rooms && Array.isArray(facility.rooms)) {
+                for (let i = 0; i < facility.rooms.length; i++) {
+                    const room = facility.rooms[i];
+                    if (room.assignments && Array.isArray(room.assignments)) {
+                        for (let j = 0; j < room.assignments.length; j++) {
+                            if (room.assignments[j].reservationId) {
+                                try {
+                                    const reservation = await dbHelper.findOne('reservation', { _id: room.assignments[j].reservationId });
+                                    if (reservation) {
+                                        facility.rooms[i].assignments[j].reservationId = reservation;
+                                    }
+                                } catch (err) {
+                                    console.warn('Error populating reservation in room assignment:', err);
+                                }
+                            }
+                        }
+                    }
+                }
             }
 
             const facilityObject = facility.toObject();
@@ -1134,9 +1156,10 @@ const facilityModule = {
                 return responseData;
             }
 
-            if (user.role !== UserRole.CRMSTEAM && user.role !== UserRole.SUPERINTENDENT) {
+            // Allow Frontdesk, CRMS team, and Superintendent to update rooms
+            if (user.role !== UserRole.CRMSTEAM && user.role !== UserRole.SUPERINTENDENT && user.role !== UserRole.FRONTDESK) {
                 responseData.status = Status.FORBIDDEN;
-                responseData.error = 'Only CRMS team and Superintendent can update rooms';
+                responseData.error = 'Only CRMS team, Superintendent, and Frontdesk can update rooms';
                 return responseData;
             }
 
@@ -1170,7 +1193,8 @@ const facilityModule = {
                     }
                     
                     // Add assignments array if provided (new structure)
-                    if (Array.isArray(room.assignments) && room.assignments.length > 0) {
+                    // Always set assignments array, even if empty, to ensure proper updates
+                    if (Array.isArray(room.assignments)) {
                         roomData.assignments = room.assignments
                             .filter(assignment => assignment.reservationId && assignment.startDate && assignment.endDate)
                             .map(assignment => ({
@@ -1179,6 +1203,9 @@ const facilityModule = {
                                 startDate: assignment.startDate,
                                 endDate: assignment.endDate,
                             }));
+                    } else {
+                        // If assignments is not an array, set it to empty array
+                        roomData.assignments = [];
                     }
                     
                     // Legacy support: Add assignedTo if provided (old structure)

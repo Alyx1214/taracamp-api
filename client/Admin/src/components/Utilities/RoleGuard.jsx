@@ -5,7 +5,7 @@ export default function RoleGuard({ routeKey, children }) {
   const role = (typeof window !== 'undefined' && localStorage.getItem('userRole')) || '';
 
   const roleAllowedKeys = {
-    'CRMS TEAM': new Set(["dashboard", "facilities", "reservations", "checkin", "messages"]),
+    'CRMS TEAM': new Set(["dashboard", "facilities", "reservations", "transactions", "checkin", "messages"]),
     'ACCOUNTING': new Set(["dashboard", "transactions"]),
     'FRONTDESK': new Set(["dashboard", "facilities", "reservations", "transactions", "checkin", "messages"]),
   };
