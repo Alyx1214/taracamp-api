@@ -1,6 +1,5 @@
 import { Status, UserRole, UnitType, ServiceType, } from '../constants.js';
 import dbHelper from './dbHelper.js';
-import { safeRedisOperations } from './redisCircuitBreaker.js';
 
 const addonsModule = {
     /**
@@ -115,34 +114,6 @@ const addonsModule = {
             const limitValue = clampLimit(limit);
             const skipValue = clampSkip(skip);
             
-            // Generate cache key
-            const cacheKey = `addons:all:${JSON.stringify({
-                sort: sortOption,
-                limit: limitValue,
-                skip: skipValue
-            })}`;
-            
-            // Try to get from cache first
-            try {
-                const cached = await safeRedisOperations.get(cacheKey);
-                if (cached) {
-                    const cachedData = JSON.parse(cached);
-                    // Ensure serviceType is included in cached addons
-                    const addonsWithServiceType = (cachedData.addons || []).map(addon => {
-                        if (!('serviceType' in addon)) {
-                            addon.serviceType = null;
-                        }
-                        return addon;
-                    });
-                    responseData.status = Status.OK;
-                    responseData.error = null;
-                    responseData.addons = addonsWithServiceType;
-                    return responseData;
-                }
-            } catch (cacheError) {
-                console.warn('Cache read error:', cacheError.message);
-            }
-            
             const addons = await dbHelper.findMany('addon', {}, {
                 projection: { __v: 0, createdAt: 0, },
                 sort: sortOption,
@@ -159,13 +130,6 @@ const addonsModule = {
                 }
                 return addonObj;
             });
-
-            // Cache the result
-            try {
-                await safeRedisOperations.set(cacheKey, JSON.stringify({ addons: addonsArray }), { EX: 300 }); // 5 minutes TTL
-            } catch (cacheError) {
-                console.warn('Cache write error:', cacheError.message);
-            }
 
             responseData.status = Status.OK;
             responseData.error = null;
@@ -197,27 +161,6 @@ const addonsModule = {
         }
 
         try {
-            // Generate cache key
-            const cacheKey = `addon:${id}`;
-            
-            // Try to get from cache first
-            try {
-                const cached = await safeRedisOperations.get(cacheKey);
-                if (cached) {
-                    const cachedData = JSON.parse(cached);
-                    // Ensure serviceType is included in cached addon
-                    if (cachedData.addon && !('serviceType' in cachedData.addon)) {
-                        cachedData.addon.serviceType = null;
-                    }
-                    responseData.status = Status.OK;
-                    responseData.error = null;
-                    responseData.addon = cachedData.addon;
-                    return responseData;
-                }
-            } catch (cacheError) {
-                console.warn('Cache read error:', cacheError.message);
-            }
-            
             const addon = await dbHelper.findOne('addon', { _id: id, });
             if (!addon) {
                 responseData.status = Status.NOT_FOUND;
@@ -232,13 +175,6 @@ const addonsModule = {
             // Ensure serviceType field is present (even if null/undefined)
             if (!('serviceType' in addonObject)) {
                 addonObject.serviceType = null;
-            }
-
-            // Cache the result
-            try {
-                await safeRedisOperations.set(cacheKey, JSON.stringify({ addon: addonObject }), { EX: 300 }); // 5 minutes TTL
-            } catch (cacheError) {
-                console.warn('Cache write error:', cacheError.message);
             }
 
             responseData.status = Status.OK;
@@ -553,36 +489,6 @@ const addonsModule = {
                 if (maxPrice) filter.price.$lte = Number(maxPrice);
             }
 
-            // Generate cache key
-            const cacheKey = `search-addons:${JSON.stringify({
-                query,
-                unit,
-                minPrice,
-                maxPrice,
-                serviceType
-            })}`;
-            
-            // Try to get from cache first
-            try {
-                const cached = await safeRedisOperations.get(cacheKey);
-                if (cached) {
-                    const cachedData = JSON.parse(cached);
-                    // Ensure serviceType is included in cached addons
-                    const addonsWithServiceType = (cachedData.addons || []).map(addon => {
-                        if (!('serviceType' in addon)) {
-                            addon.serviceType = null;
-                        }
-                        return addon;
-                    });
-                    responseData.status = Status.OK;
-                    responseData.error = null;
-                    responseData.addons = addonsWithServiceType;
-                    return responseData;
-                }
-            } catch (cacheError) {
-                console.warn('Cache read error:', cacheError.message);
-            }
-
             const addons = await dbHelper.find('addon', filter, { __v: 0, createdAt: 0, });
 
             // Convert to plain objects and ensure serviceType is included
@@ -594,13 +500,6 @@ const addonsModule = {
                 }
                 return addonObj;
             });
-
-            // Cache the result
-            try {
-                await safeRedisOperations.set(cacheKey, JSON.stringify({ addons: addonsArray }), { EX: 300 }); // 5 minutes TTL
-            } catch (cacheError) {
-                console.warn('Cache write error:', cacheError.message);
-            }
 
             responseData.status = Status.OK;
             responseData.error = null;
@@ -715,20 +614,5 @@ function normalizeServiceType(serviceType) {
  * Invalidates addon-related cache entries
  */
 async function invalidateAddonsCache() {
-    try {
-        const patterns = [
-            'addons:*',
-            'addon:*',
-            'search-addons:*'
-        ];
-        
-        for (const pattern of patterns) {
-            const keys = await safeRedisOperations.keys(pattern);
-            if (keys && keys.length > 0) {
-                await safeRedisOperations.del(...keys);
-            }
-        }
-    } catch (error) {
-        console.warn('Error invalidating addons cache:', error.message);
-    }
+    return;
 }

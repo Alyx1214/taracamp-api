@@ -3,8 +3,6 @@ import { Status, UserRole, } from '../constants.js';
 import { OAuth2Client, } from 'google-auth-library';
 import fetch from 'node-fetch';
 import jwtHelper from './jwtHelper.js';
-import redisClient from './redisClient.js';
-import { safeRedisOperations, redisCircuitBreaker, REDIS_UNAVAILABLE } from './redisCircuitBreaker.js';
 import { v4 as uuidv4, } from 'uuid';
 import crypto from 'crypto';
 
@@ -206,8 +204,6 @@ const userModule = {
                 Promise.resolve(jwtHelper.generateRefreshToken(safeUser))
             ]);
 
-            const REFRESH_TTL = 7 * 24 * 60 * 60;
-            
             await dbHelper.withTransaction(async (session) => {
                 await dbHelper.updateOneWithTransaction('user', 
                     { _id: userObject._id }, 
@@ -215,13 +211,6 @@ const userModule = {
                     session
                 );
             });
-            
-            // Handle Redis operation outside transaction with circuit breaker protection
-            const redisResult = await safeRedisOperations.set(`rt:${userId}:${jti}`, refreshToken, { EX: REFRESH_TTL });
-            if (redisResult === REDIS_UNAVAILABLE || redisResult === null) {
-                console.warn('Redis operation failed after successful login - refresh token not stored');
-                // Log for monitoring but don't fail the login since DB operation succeeded
-            }
 
             responseData.status = Status.OK;
             responseData.error = null;
@@ -366,8 +355,6 @@ const userModule = {
             const accessToken = jwtHelper.generateAccessToken(safeUser);
             const refreshToken = jwtHelper.generateRefreshToken(safeUser);
 
-            await redisClient.set(`rt:${userId}:${jti}`, refreshToken, { EX: 7 * 24 * 60 * 60, });
-
             responseData.status = Status.OK;
             responseData.error = null;
             responseData.message = 'User logged in with Google successfully';
@@ -492,9 +479,6 @@ const userModule = {
 
             const accessToken = jwtHelper.generateAccessToken(safeUser);
             const refreshToken = jwtHelper.generateRefreshToken(safeUser);
-
-            const REFRESH_TTL = 7 * 24 * 60 * 60;
-            await redisClient.set(`rt:${userId}:${jti}`, refreshToken, { EX: REFRESH_TTL, });
 
             responseData.status = Status.OK;
             responseData.error = null;
@@ -866,21 +850,6 @@ const userModule = {
             const skipValue = clampSkip(skip, 0);
             const sortOpt = parseSort(sort) || { createdAt: -1 };
 
-            const cacheKey = `get_users_by_role:${role}:${limitValue}:${skipValue}:${JSON.stringify(sortOpt)}`;
-            try {
-                const cachedResult = await redisClient.get(cacheKey);
-                if (cachedResult) {
-                    const parsed = JSON.parse(cachedResult);
-                    responseData.status = Status.OK;
-                    responseData.error = null;
-                    responseData.users = parsed.users;
-                    responseData.totalCount = parsed.totalCount;
-                    return responseData;
-                }
-            } catch (cacheError) {
-                console.warn('Cache read error for getAllUsersByRole:', cacheError);
-            }
-
             const projection = { 
                 _id: 1,
                 email: 1, 
@@ -901,14 +870,6 @@ const userModule = {
                 }),
                 dbHelper.count('user', { role })
             ]);
-            try {
-                await redisClient.set(cacheKey, JSON.stringify({
-                    users,
-                    totalCount
-                }), { EX: 60 });
-            } catch (cacheError) {
-                console.warn('Cache write error for getAllUsersByRole:', cacheError);
-            }
 
             responseData.status = Status.OK;
             responseData.error = null;
@@ -965,35 +926,6 @@ const userModule = {
 
             const limitValue = clampLimit(limit, 20);
             const skipValue = clampSkip(skip, 0);
-            
-            const cacheKey = `search_users:${JSON.stringify({
-                email: email?.trim(),
-                name: name?.trim(),
-                role: role?.trim(),
-                id: id?.trim(),
-                search: search?.trim(),
-                createdFrom,
-                createdTo,
-                lastLoggedFrom,
-                lastLoggedTo,
-                limit: limitValue,
-                skip: skipValue,
-                sort
-            })}`;
-
-            try {
-                const cachedResult = await redisClient.get(cacheKey);
-                if (cachedResult) {
-                    const parsed = JSON.parse(cachedResult);
-                    responseData.status = Status.OK;
-                    responseData.error = null;
-                    responseData.users = parsed.users;
-                    responseData.totalCount = parsed.totalCount;
-                    return responseData;
-                }
-            } catch (cacheError) {
-                console.warn('Cache read error:', cacheError);
-            }
 
             const { finalQuery, hasValidFilters } = buildOptimizedUserQuery({
                 email,
@@ -1037,15 +969,6 @@ const userModule = {
                 }),
                 dbHelper.count('user', finalQuery)
             ]);
-
-            try {
-                await redisClient.set(cacheKey, JSON.stringify({
-                    users,
-                    totalCount
-                }), { EX: 60 });
-            } catch (cacheError) {
-                console.warn('Cache write error:', cacheError);
-            }
 
             responseData.status = Status.OK;
             responseData.error = null;
@@ -1139,10 +1062,6 @@ const userModule = {
             error: 'Error on logging out user',
         };
         try {
-            const result = await safeRedisOperations.del(`rt:${userId}:${jti}`);
-            if (result === null) {
-                console.warn('Redis operation failed during logout - token may not be revoked');
-            }
             responseData.status = Status.OK;
             responseData.error = null;
             responseData.message = 'User logged out successfully';
@@ -1216,12 +1135,7 @@ const userModule = {
                 }, session);
             });
 
-            // Handle Redis operation outside transaction with circuit breaker protection
-            const revokeResult = await revokeAllRefreshTokens(user._id.toString());
-            if (revokeResult === false) {
-                console.warn('Failed to revoke refresh tokens after password reset - Redis may be down');
-                // Log for monitoring - password is changed but old tokens remain valid
-            }
+            await revokeAllRefreshTokens(user._id.toString());
 
             responseData.status = Status.OK;
             responseData.error = null;
@@ -1537,111 +1451,33 @@ const userModule = {
             }
 
             const userId = payload.userId;
-            const oldJti = payload.jti;
-            const oldKey = `rt:${userId}:${oldJti}`;
 
-            // Add locking mechanism to prevent race conditions
-            const lockKey = `lock:rt:${userId}:${oldJti}`;
-            const lockValue = uuidv4();
-            const lockTTL = 30; // seconds
-
-            // Try to acquire lock with circuit breaker protection
-            const lockAcquired = await safeRedisOperations.set(lockKey, lockValue, { 
-                EX: lockTTL, 
-                NX: true 
-            });
-
-            // REDIS_UNAVAILABLE must not be treated as lock contention (NX miss → null/'OK')
-            const redisDown = lockAcquired === REDIS_UNAVAILABLE;
-            if (!lockAcquired && !redisDown) {
-                responseData.status = Status.TOO_MANY_REQUESTS;
-                responseData.error = 'Token refresh in progress, please try again';
+            const user = await dbHelper.findOne('user', { _id: userId, });
+            if (!user) {
+                responseData.status = Status.FORBIDDEN;
+                responseData.error = 'User not found';
                 return responseData;
             }
 
-            const releaseLock = async () => {
-                if (!redisDown) {
-                    await safeRedisOperations.del(lockKey);
-                }
+            const newJti = uuidv4();
+            const safeUser = {
+                _id: userId,
+                email: user.email || '',
+                role: user.role,
+                jti: newJti,
             };
 
-            try {
-                // Check if Redis is available before treating null as "token not found"
-                const redisAvailable = !redisDown && redisCircuitBreaker.isAvailable();
-                
-                const stored = redisAvailable ? await safeRedisOperations.get(oldKey) : null;
-                
-                // Only enforce token reuse detection if Redis is available
-                // If Redis is down, we rely on JWT verification only (stateless)
-                if (redisAvailable) {
-                    if (!stored) {
-                        await releaseLock();
-                        await revokeAllRefreshTokens(userId);
-                        responseData.status = Status.UNAUTHORIZED;
-                        responseData.error = 'Refresh token reuse detected. All sessions revoked.';
-                        return responseData;
-                    }
+            const newAccessToken = jwtHelper.generateAccessToken(safeUser);
+            const newRefreshToken = jwtHelper.generateRefreshToken(safeUser);
 
-                    if (stored !== refreshToken.trim()) {
-                        await releaseLock();
-                        await revokeAllRefreshTokens(userId);
-                        responseData.status = Status.UNAUTHORIZED;
-                        responseData.error = 'Refresh token mismatch. All sessions revoked.';
-                        return responseData;
-                    }
-                } else {
-                    // Redis is down - log warning but allow refresh to proceed
-                    // We rely on JWT signature verification which already happened above
-                    console.warn(`Redis unavailable during token refresh for user ${userId}. Allowing refresh based on JWT verification only.`);
-                }
-
-                const user = await dbHelper.findOne('user', { _id: userId, });
-                if (!user) {
-                    await releaseLock();
-                    await revokeAllRefreshTokens(userId);
-                    responseData.status = Status.FORBIDDEN;
-                    responseData.error = 'User not found';
-                    return responseData;
-                }
-
-                const newJti = uuidv4();
-                const safeUser = {
-                    _id: userId,
-                    email: user.email || '',
-                    role: user.role,
-                    jti: newJti,
-                };
-
-                const newAccessToken = jwtHelper.generateAccessToken(safeUser);
-                const newRefreshToken = jwtHelper.generateRefreshToken(safeUser);
-
-                const newKey = `rt:${userId}:${newJti}`;
-                const REFRESH_TTL = 7 * 24 * 60 * 60;
-
-                if (redisAvailable && redisClient.isOpen) {
-                    const multi = safeRedisOperations.multi();
-                    multi.del(oldKey);
-                    multi.set(newKey, newRefreshToken, { EX: REFRESH_TTL });
-                    multi.del(lockKey); // Release lock
-                    await safeRedisOperations.exec(multi);
-                } else {
-                    // Best-effort store when Redis recovers mid-request; lock was never held
-                    await safeRedisOperations.set(newKey, newRefreshToken, { EX: REFRESH_TTL });
-                }
-
-                responseData.status = Status.OK;
-                responseData.error = null;
-                responseData.message = 'Tokens refreshed successfully';
-                responseData.accessToken = newAccessToken;
-                responseData.refreshToken = newRefreshToken;
-                responseData.jti = newJti;
-                responseData.userId = userId;
-                responseData.role = user.role;
-
-            } catch (error) {
-                await releaseLock();
-                throw error;
-            }
+            responseData.status = Status.OK;
+            responseData.error = null;
+            responseData.message = 'Tokens refreshed successfully';
+            responseData.accessToken = newAccessToken;
+            responseData.refreshToken = newRefreshToken;
+            responseData.jti = newJti;
+            responseData.userId = userId;
+            responseData.role = user.role;
 
         } catch (error) {
             console.error('Error refreshing token:', error);
@@ -1725,48 +1561,16 @@ async function hashPassword(password) {
     return hashedPassword;
 }
 
-async function revokeAllRefreshTokensScan(userId) {
-    const pattern = `rt:${userId}:*`;
-    let cursor = '0';
-    do {
-        const { cursor: nextCursor, keys, } = await safeRedisOperations.scan(cursor, {
-            MATCH: pattern,
-            COUNT: 200,
-        });
-        cursor = nextCursor;
-        if (keys && keys.length > 0) {
-            await safeRedisOperations.del(...keys);
-        }
-    } while (cursor !== '0');
+async function revokeAllRefreshTokensScan(_userId) {
+    return true;
 }
 
-async function revokeAllRefreshTokens(userId) {
-    try {
-        const pattern = `rt:${userId}:*`;
-        if (typeof redisClient.scanIterator === 'function') {
-            for await (const key of redisClient.scanIterator({ MATCH: pattern, COUNT: 200, })) {
-                await safeRedisOperations.del(key);
-            }
-            return true;
-        }
-        await revokeAllRefreshTokensScan(userId);
-        return true;
-    } catch (error) {
-        console.error('Error revoking refresh tokens:', error);
-        return false;
-    }
+async function revokeAllRefreshTokens(_userId) {
+    return true;
 }
 
 async function invalidateUserSearchCache() {
-    try {
-        const pattern = 'search_users:*';
-        const keys = await redisClient.keys(pattern);
-        if (keys && keys.length > 0) {
-            await redisClient.del(...keys);
-        }
-    } catch (cacheError) {
-        console.warn('Failed to invalidate user search cache:', cacheError);
-    }
+    return;
 }
 
 function hashString(s) {

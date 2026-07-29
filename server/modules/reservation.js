@@ -1,6 +1,5 @@
 import { Category, GuestType, Status, UserRole, FacilityStatus, ServiceType, ReservationStatus, FileKind, FacilityType, getAvailabilityBlockingStatuses, getUpdateBlockingStatuses, getApprovalBlockingStatuses, } from '../constants.js';
 import { Storage, } from '@google-cloud/storage';
-import { safeRedisOperations } from './redisCircuitBreaker.js';
 import { computeEstimate } from './payment.js';
 import dotenv from 'dotenv';
 dotenv.config();
@@ -11,20 +10,7 @@ const APP_TZ_OFFSET = '+08:00';
 
 
 const invalidateReservationCache = async () => {
-    try {
-        const keys = await safeRedisOperations.keys('get_reservations_by_status:*');
-        const keysV2 = await safeRedisOperations.keys('get_reservations_by_status_v2:*');
-        const reservationKeys = await safeRedisOperations.keys('reservation_by_id:*');
-        const allKeys = [...keys, ...keysV2, ...reservationKeys];
-        if (allKeys && allKeys.length > 0) {
-            await safeRedisOperations.del(...allKeys);
-        }
-    } catch (error) {
-        console.error('Error invalidating reservation cache:', error);
-        responseData.status = Status.INTERNAL_SERVER_ERROR;
-        responseData.error = 'Error invalidating reservation cache: ' + error.message;
-        return responseData;
-    }
+    return;
 };
 
 const reservationModule = {

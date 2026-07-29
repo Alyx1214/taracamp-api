@@ -2,7 +2,6 @@ import fetch from 'node-fetch';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
 import { Status, ReservationStatus, UserRole, ServiceType, Category, FacilityType, GuestType, FileKind, } from '../constants.js';
-import { safeRedisOperations } from './redisCircuitBreaker.js';
 import { Storage } from '@google-cloud/storage';
 
 dotenv.config();
@@ -153,19 +152,6 @@ const paymentModule = {
             console.error('Error creating payment intent:', error);
             responseData.status = Status.INTERNAL_SERVER_ERROR;
             responseData.error = 'Error creating payment intent';
-        }
-
-        // Invalidate payment details cache for this reservation
-        if (reservationId) {
-            try {
-                const cachePattern = `payment_details:${reservationId}:*`;
-                const keys = await safeRedisOperations.keys(cachePattern);
-                if (keys && keys.length > 0) {
-                    await safeRedisOperations.del(...keys);
-                }
-            } catch (cacheError) {
-                console.warn('Failed to invalidate payment details cache:', cacheError);
-            }
         }
 
         return responseData;
@@ -541,19 +527,6 @@ const paymentModule = {
             responseData.error = 'Error processing webhook';
         }
 
-        // Invalidate payment details cache for this reservation
-        if (reservationId) {
-            try {
-                const cachePattern = `payment_details:${reservationId}:*`;
-                const keys = await safeRedisOperations.keys(cachePattern);
-                if (keys && keys.length > 0) {
-                    await safeRedisOperations.del(...keys);
-                }
-            } catch (cacheError) {
-                console.warn('Failed to invalidate payment details cache:', cacheError);
-            }
-        }
-
         return responseData;
     },
 
@@ -658,19 +631,6 @@ const paymentModule = {
             responseData.reservationId = reservationId ? String(reservationId) : null;
             responseData.userId = reservationUserId;
             responseData.isPaid = succeeded;
-
-            // Invalidate payment details cache for this reservation
-            if (reservationId) {
-                try {
-                    const cachePattern = `payment_details:${reservationId}:*`;
-                    const keys = await safeRedisOperations.keys(cachePattern);
-                    if (keys && keys.length > 0) {
-                        await safeRedisOperations.del(...keys);
-                    }
-                } catch (cacheError) {
-                    console.warn('Failed to invalidate payment details cache:', cacheError);
-                }
-            }
 
             return responseData;
         } catch (error) {
@@ -1579,17 +1539,6 @@ const paymentModule = {
                 // Don't fail the payment submission if confirmation fails
             }
 
-            // Invalidate payment details cache
-            try {
-                const cachePattern = `payment_details:${reservationId}:*`;
-                const keys = await safeRedisOperations.keys(cachePattern);
-                if (keys && keys.length > 0) {
-                    await safeRedisOperations.del(...keys);
-                }
-            } catch (cacheError) {
-                console.warn('Failed to invalidate payment details cache:', cacheError);
-            }
-
             responseData.status = Status.CREATED;
             responseData.error = null;
             responseData.payment = {
@@ -1836,17 +1785,6 @@ const paymentModule = {
                 { $set: updateData }
             );
 
-            // Invalidate payment details cache
-            try {
-                const cachePattern = `payment_details:${reservationId}:*`;
-                const keys = await safeRedisOperations.keys(cachePattern);
-                if (keys && keys.length > 0) {
-                    await safeRedisOperations.del(...keys);
-                }
-            } catch (cacheError) {
-                console.warn('Failed to invalidate payment details cache:', cacheError);
-            }
-
             responseData.status = Status.OK;
             responseData.error = null;
             responseData.data = {
@@ -1959,17 +1897,6 @@ const paymentModule = {
                 expires: Date.now() + 1000 * 60 * 60 * 24 * 7, // 7 days expiry (maximum allowed)
                 action: 'read',
             });
-
-            // Invalidate payment details cache
-            try {
-                const cachePattern = `payment_details:${reservationId}:*`;
-                const keys = await safeRedisOperations.keys(cachePattern);
-                if (keys && keys.length > 0) {
-                    await safeRedisOperations.del(...keys);
-                }
-            } catch (cacheError) {
-                console.warn('Failed to invalidate payment details cache:', cacheError);
-            }
 
             responseData.status = Status.OK;
             responseData.error = null;

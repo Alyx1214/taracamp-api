@@ -1,22 +1,11 @@
 import { Status, UserRole } from '../constants.js';
 import autoResponseEngine from './autoResponseEngine.js';
-import { safeRedisOperations } from './redisCircuitBreaker.js';
 
 const MAX_PAGE_SIZE = 50;
 
 // Helper function to invalidate message cache for a user
-const invalidateMessageCache = async (userId) => {
-    if (!userId) return;
-    try {
-        const messagesKeys = await safeRedisOperations.keys(`messages:${userId}:*`);
-        const countKeys = await safeRedisOperations.keys(`message_count_unread:${userId}`);
-        const allKeys = [...messagesKeys, ...countKeys];
-        if (allKeys.length > 0) {
-            await safeRedisOperations.del(...allKeys);
-        }
-    } catch (error) {
-        console.warn('Error invalidating message cache:', error.message);
-    }
+const invalidateMessageCache = async (_userId) => {
+    return;
 };
 
 // Helper function to check if any admin is currently online (has active WebSocket connection)
@@ -264,21 +253,6 @@ const messageModule = {
             }
 
             const limitValue = clampLimit(limit);
-            const cacheKey = `messages:${userId}:${limitValue}:${before || 'all'}`;
-
-            // Try cache first
-            try {
-                const cachedResult = await safeRedisOperations.get(cacheKey);
-                if (cachedResult) {
-                    const parsed = JSON.parse(cachedResult);
-                    responseData.status = Status.OK;
-                    responseData.error = null;
-                    responseData.data = parsed.data;
-                    return responseData;
-                }
-            } catch (cacheError) {
-                console.warn('Cache read error for listForUser:', cacheError);
-            }
 
             const query = { userId };
             if (before) {
@@ -294,13 +268,6 @@ const messageModule = {
             });
 
             const messages = Array.isArray(rows) ? rows.map(toMessagePayload) : [];
-
-            // Cache the result (30 seconds TTL for messages)
-            try {
-                await safeRedisOperations.set(cacheKey, JSON.stringify({ data: messages }), { EX: 30 });
-            } catch (cacheError) {
-                console.warn('Cache write error for listForUser:', cacheError);
-            }
 
             responseData.status = Status.OK;
             responseData.error = null;
@@ -331,30 +298,7 @@ const messageModule = {
                 return responseData;
             }
 
-            const cacheKey = `message_count_unread:${userId}`;
-
-            // Try cache first (shorter TTL for count - 10 seconds)
-            try {
-                const cachedResult = await safeRedisOperations.get(cacheKey);
-                if (cachedResult !== null) {
-                    const parsed = JSON.parse(cachedResult);
-                    responseData.status = Status.OK;
-                    responseData.error = null;
-                    responseData.data = { count: parsed.count };
-                    return responseData;
-                }
-            } catch (cacheError) {
-                console.warn('Cache read error for countUnread:', cacheError);
-            }
-
             const count = await dbHelper.count('message', { userId, isRead: { $ne: true } });
-
-            // Cache the result (10 seconds TTL for unread count)
-            try {
-                await safeRedisOperations.set(cacheKey, JSON.stringify({ count }), { EX: 10 });
-            } catch (cacheError) {
-                console.warn('Cache write error for countUnread:', cacheError);
-            }
 
             responseData.status = Status.OK;
             responseData.error = null;

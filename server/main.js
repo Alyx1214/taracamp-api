@@ -8,7 +8,6 @@ import { WebSocketServer } from 'ws';
 import { fileURLToPath } from 'url';
 
 import dbHelper from './modules/dbHelper.js';
-import redisClient from './modules/redisClient.js';
 import jwtHelper from './modules/jwtHelper.js';
 import paymentModule from './modules/payment.js';
 import notificationModule from './modules/notification.js';
@@ -48,16 +47,6 @@ try {
 
 const app = express();
 app.set('trust proxy', 1);
-
-// Connect to Redis
-try {
-  console.log('Connecting to Redis...');
-  await redisClient.connect();
-  console.log('Redis connected successfully');
-} catch (error) {
-  console.error('Failed to connect to Redis:', error);
-  // Redis might be optional, but log the error
-}
 
 app.use(helmet());
 
