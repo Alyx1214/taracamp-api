@@ -14,27 +14,12 @@ export default function buildUserRouter(userSocketMap) {
 
   r.post('/register', registrationLimiter, asyncHandler(async (req, res) => {
     const result = await userModule.register(dbHelper, req.body);
-    
-    // Send verification email if registration was successful
-    if (result.status === Status.CREATED && result.verificationToken) {
-      // Use localhost:5173 for local development, otherwise use env var
-      const frontendUrl = process.env.NODE_ENV === 'production' 
-        ? (process.env.FRONTEND_URL || 'http://localhost:5173')
-        : 'http://localhost:5173';
-      const verificationUrl = `${frontendUrl}/verify-email?token=${result.verificationToken}&email=${encodeURIComponent(result.email)}`;
-      
-      const emailResult = await emailModule.sendVerificationEmail(result.email, verificationUrl, result.name);
-      if (emailResult.status !== Status.OK) {
-        console.error('Failed to send verification email:', emailResult.error);
-        // Don't fail registration if email fails, but log it
-      }
-      
-      // Remove sensitive data from response
-      delete result.verificationToken;
+
+    if (result.status === Status.CREATED) {
       delete result.email;
       delete result.name;
     }
-    
+
     res.status(result.status).json(result);
     
     if (result.status === Status.CREATED && result.userId) {
@@ -110,28 +95,13 @@ export default function buildUserRouter(userSocketMap) {
 
   r.post('/resend-verification-email', asyncHandler(async (req, res) => {
     const result = await userModule.resendVerificationEmail(dbHelper, req.body);
-    
-    // Send verification email if resend was successful
-    if (result.status === Status.OK && result.verificationToken) {
-      // Use localhost:5173 for local development, otherwise use env var
-      const frontendUrl = process.env.NODE_ENV === 'production' 
-        ? (process.env.FRONTEND_URL || 'http://localhost:5173')
-        : 'http://localhost:5173';
-      const verificationUrl = `${frontendUrl}/verify-email?token=${result.verificationToken}&email=${encodeURIComponent(result.email)}`;
-      
-      const emailResult = await emailModule.sendVerificationEmail(result.email, verificationUrl, result.name);
-      if (emailResult.status !== Status.OK) {
-        console.error('Failed to send verification email:', emailResult.error);
-        result.status = Status.INTERNAL_SERVER_ERROR;
-        result.error = 'Failed to send verification email';
-      }
-      
-      // Remove sensitive data from response
+
+    if (result.status === Status.OK) {
       delete result.verificationToken;
       delete result.email;
       delete result.name;
     }
-    
+
     res.status(result.status).json(result);
   }));
 
@@ -180,27 +150,12 @@ export default function buildUserRouter(userSocketMap) {
 
   r.post('/add-user', basicLimiter, asyncHandler(async (req, res) => {
     const response = await userModule.addUser(dbHelper, req.body, req.user);
-    
-    // Send verification email if user was added successfully
-    if (response.status === Status.CREATED && response.verificationToken) {
-      // Use localhost:5173 for local development, otherwise use env var
-      const frontendUrl = process.env.NODE_ENV === 'production' 
-        ? (process.env.FRONTEND_URL || 'http://localhost:5173')
-        : 'http://localhost:5173';
-      const verificationUrl = `${frontendUrl}/verify-email?token=${response.verificationToken}&email=${encodeURIComponent(response.email)}`;
-      
-      const emailResult = await emailModule.sendVerificationEmail(response.email, verificationUrl, response.name);
-      if (emailResult.status !== Status.OK) {
-        console.error('Failed to send verification email:', emailResult.error);
-        // Don't fail user creation if email fails, but log it
-      }
-      
-      // Remove sensitive data from response
-      delete response.verificationToken;
+
+    if (response.status === Status.CREATED) {
       delete response.email;
       delete response.name;
     }
-    
+
     res.status(response.status).json(response);
   }));
 

@@ -57,11 +57,6 @@ const userModule = {
             const name = `${firstName.trim()} ${lastName.trim()}`.replace(/\s+/g, ' ');
             const hashedPassword = await hashPassword(password);
 
-            // Generate email verification token
-            const verificationToken = crypto.randomBytes(32).toString('hex');
-            const verificationTokenHash = hashString(verificationToken);
-            const verificationTokenExpiry = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
-
             let userCreated;
             await dbHelper.withTransaction(async (session) => {
                 const emailExists = await dbHelper.findOneWithTransaction('user', 
@@ -79,9 +74,7 @@ const userModule = {
                     name,
                     password: hashedPassword,
                     role: UserRole.GUEST,
-                    emailVerified: false,
-                    verificationTokenHash,
-                    verificationTokenExpiry,
+                    emailVerified: true,
                     createdAt: new Date(),
                     lastLoggedIn: null,
                 };
@@ -96,10 +89,9 @@ const userModule = {
 
             responseData.status = Status.CREATED;
             responseData.error = null;
-            responseData.message = 'User registered successfully. Please check your email to verify your account.';
+            responseData.message = 'User registered successfully.';
             responseData.userId = userCreated._id.toString();
             responseData.role = userCreated.role;
-            responseData.verificationToken = verificationToken; // Return token for route to send email
             responseData.email = normalizedEmail;
             responseData.name = name;
 
@@ -172,13 +164,6 @@ const userModule = {
             if (!match) {
                 responseData.status = Status.UNAUTHORIZED;
                 responseData.error = 'Invalid credentials';
-                return responseData;
-            }
-
-            // Check if email is verified
-            if (userObject.emailVerified !== true) {
-                responseData.status = Status.FORBIDDEN;
-                responseData.error = 'Please verify your email address before logging in. Check your inbox for the verification link.';
                 return responseData;
             }
 
@@ -575,11 +560,6 @@ const userModule = {
                 return responseData;
             }
 
-            // Generate email verification token
-            const verificationToken = crypto.randomBytes(32).toString('hex');
-            const verificationTokenHash = hashString(verificationToken);
-            const verificationTokenExpiry = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
-
             const sanitizedName = name.trim().replace(/\s+/g, ' ');
             let createdUser;
             let emailExists = false;
@@ -601,9 +581,7 @@ const userModule = {
                     email: normalizedEmail,
                     role,
                     password: null,
-                    emailVerified: false, // Require email verification
-                    verificationTokenHash,
-                    verificationTokenExpiry,
+                    emailVerified: true,
                     createdAt: new Date(),
                     lastLoggedIn: null,
                 };
@@ -630,9 +608,8 @@ const userModule = {
 
             responseData.status = Status.CREATED;
             responseData.error = null;
-            responseData.message = 'User added successfully. Verification email will be sent.';
+            responseData.message = 'User added successfully.';
             responseData.userId = createdUser._id.toString();
-            responseData.verificationToken = verificationToken; // Return token for route to send email
             responseData.email = normalizedEmail;
             responseData.name = sanitizedName;
             responseData.user = {
