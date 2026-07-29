@@ -4,7 +4,7 @@ import { OAuth2Client, } from 'google-auth-library';
 import fetch from 'node-fetch';
 import jwtHelper from './jwtHelper.js';
 import redisClient from './redisClient.js';
-import { safeRedisOperations, redisCircuitBreaker } from './redisCircuitBreaker.js';
+import { safeRedisOperations, redisCircuitBreaker, REDIS_UNAVAILABLE } from './redisCircuitBreaker.js';
 import { v4 as uuidv4, } from 'uuid';
 import crypto from 'crypto';
 
@@ -218,7 +218,7 @@ const userModule = {
             
             // Handle Redis operation outside transaction with circuit breaker protection
             const redisResult = await safeRedisOperations.set(`rt:${userId}:${jti}`, refreshToken, { EX: REFRESH_TTL });
-            if (redisResult === null) {
+            if (redisResult === REDIS_UNAVAILABLE || redisResult === null) {
                 console.warn('Redis operation failed after successful login - refresh token not stored');
                 // Log for monitoring but don't fail the login since DB operation succeeded
             }
@@ -1551,23 +1551,31 @@ const userModule = {
                 NX: true 
             });
 
-            if (!lockAcquired) {
+            // REDIS_UNAVAILABLE must not be treated as lock contention (NX miss → null/'OK')
+            const redisDown = lockAcquired === REDIS_UNAVAILABLE;
+            if (!lockAcquired && !redisDown) {
                 responseData.status = Status.TOO_MANY_REQUESTS;
                 responseData.error = 'Token refresh in progress, please try again';
                 return responseData;
             }
 
+            const releaseLock = async () => {
+                if (!redisDown) {
+                    await safeRedisOperations.del(lockKey);
+                }
+            };
+
             try {
                 // Check if Redis is available before treating null as "token not found"
-                const cbState = redisCircuitBreaker.getState();
-                const redisAvailable = cbState.state === 'CLOSED' || cbState.state === 'HALF_OPEN';
+                const redisAvailable = !redisDown && redisCircuitBreaker.isAvailable();
                 
-                const stored = await safeRedisOperations.get(oldKey);
+                const stored = redisAvailable ? await safeRedisOperations.get(oldKey) : null;
                 
                 // Only enforce token reuse detection if Redis is available
                 // If Redis is down, we rely on JWT verification only (stateless)
                 if (redisAvailable) {
                     if (!stored) {
+                        await releaseLock();
                         await revokeAllRefreshTokens(userId);
                         responseData.status = Status.UNAUTHORIZED;
                         responseData.error = 'Refresh token reuse detected. All sessions revoked.';
@@ -1575,6 +1583,7 @@ const userModule = {
                     }
 
                     if (stored !== refreshToken.trim()) {
+                        await releaseLock();
                         await revokeAllRefreshTokens(userId);
                         responseData.status = Status.UNAUTHORIZED;
                         responseData.error = 'Refresh token mismatch. All sessions revoked.';
@@ -1588,6 +1597,7 @@ const userModule = {
 
                 const user = await dbHelper.findOne('user', { _id: userId, });
                 if (!user) {
+                    await releaseLock();
                     await revokeAllRefreshTokens(userId);
                     responseData.status = Status.FORBIDDEN;
                     responseData.error = 'User not found';
@@ -1608,11 +1618,16 @@ const userModule = {
                 const newKey = `rt:${userId}:${newJti}`;
                 const REFRESH_TTL = 7 * 24 * 60 * 60;
 
-                const multi = safeRedisOperations.multi();
-                multi.del(oldKey);
-                multi.set(newKey, newRefreshToken, { EX: REFRESH_TTL });
-                multi.del(lockKey); // Release lock
-                await safeRedisOperations.exec(multi);
+                if (redisAvailable && redisClient.isOpen) {
+                    const multi = safeRedisOperations.multi();
+                    multi.del(oldKey);
+                    multi.set(newKey, newRefreshToken, { EX: REFRESH_TTL });
+                    multi.del(lockKey); // Release lock
+                    await safeRedisOperations.exec(multi);
+                } else {
+                    // Best-effort store when Redis recovers mid-request; lock was never held
+                    await safeRedisOperations.set(newKey, newRefreshToken, { EX: REFRESH_TTL });
+                }
 
                 responseData.status = Status.OK;
                 responseData.error = null;
@@ -1624,8 +1639,7 @@ const userModule = {
                 responseData.role = user.role;
 
             } catch (error) {
-                // Release lock on error
-                await safeRedisOperations.del(lockKey);
+                await releaseLock();
                 throw error;
             }
 

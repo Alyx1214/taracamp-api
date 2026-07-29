@@ -1,4 +1,7 @@
-import redisClient from './redisClient.js';
+import redisClient, { ensureRedisConnected } from './redisClient.js';
+
+/** Returned by safe ops when Redis is unreachable (distinct from Redis null replies). */
+export const REDIS_UNAVAILABLE = Symbol('REDIS_UNAVAILABLE');
 
 /**
  * Redis Circuit Breaker implementation to handle Redis failures gracefully
@@ -24,6 +27,11 @@ class RedisCircuitBreaker {
         }
 
         try {
+            const connected = await ensureRedisConnected();
+            if (!connected) {
+                throw new Error('The client is closed');
+            }
+
             const result = await Promise.race([
                 operation(),
                 new Promise((_, reject) => 
@@ -64,6 +72,10 @@ class RedisCircuitBreaker {
         this.failureCount = 0;
         this.lastFailureTime = null;
     }
+
+    isAvailable() {
+        return this.state === 'CLOSED' || this.state === 'HALF_OPEN';
+    }
 }
 
 // Create a singleton instance
@@ -73,6 +85,14 @@ const redisCircuitBreaker = new RedisCircuitBreaker({
     resetTimeout: 30000
 });
 
+// Clear breaker state once Redis is healthy again
+redisClient.on('ready', () => {
+    if (redisCircuitBreaker.getState().state !== 'CLOSED') {
+        console.log('Redis: Ready — resetting circuit breaker');
+        redisCircuitBreaker.reset();
+    }
+});
+
 /**
  * Safe Redis operations with circuit breaker protection
  */
@@ -80,14 +100,14 @@ export const safeRedisOperations = {
     set: async (key, value, options = {}) => {
         return await redisCircuitBreaker.execute(
             () => redisClient.set(key, value, options),
-            null // fallback - operation failed but not critical
+            REDIS_UNAVAILABLE
         );
     },
 
     get: async (key) => {
         return await redisCircuitBreaker.execute(
             () => redisClient.get(key),
-            null // fallback - return null if Redis is down
+            null // miss and downtime both yield null; callers use circuit state when needed
         );
     },
 
