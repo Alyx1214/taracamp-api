@@ -88,23 +88,6 @@ export default function buildUserRouter(userSocketMap) {
     res.status(response.status).json(response);
   }));
 
-  r.post('/verify-email', asyncHandler(async (req, res) => {
-    const response = await userModule.verifyEmail(dbHelper, req.body);
-    res.status(response.status).json(response);
-  }));
-
-  r.post('/resend-verification-email', asyncHandler(async (req, res) => {
-    const result = await userModule.resendVerificationEmail(dbHelper, req.body);
-
-    if (result.status === Status.OK) {
-      delete result.verificationToken;
-      delete result.email;
-      delete result.name;
-    }
-
-    res.status(result.status).json(result);
-  }));
-
   r.use(authenticateJWT);
 
   r.get('/profile', asyncHandler(async (req, res) => {

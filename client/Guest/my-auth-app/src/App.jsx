@@ -24,7 +24,6 @@ import RequireAuth from './components/Utilities/RequireAuth';
 import backgroundImage from './assets/background-blur.png';
 import VerifyCode from './components/VerifyCode/VerifyCode';
 import ResetPassword from './components/ResetPassword/ResetPassword';
-import VerifyEmail from './components/VerifyEmail/VerifyEmail';
 import Notif from './components/Notification/Notif';
 import styles from './App.module.css';
 
@@ -165,7 +164,6 @@ function App() {
     <Routes>
       <Route path="/" element={<LandingPage onReserveNow={handleReserveNow} />} />
       <Route path="/auth/*" element={<AuthLayout />} />
-      <Route path="/verify-email" element={<VerifyEmail />} />
       <Route path="/services/*" element={<MainServices />} />
 
       <Route element={<RequireAuth />}>
